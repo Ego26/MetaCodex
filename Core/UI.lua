@@ -454,21 +454,29 @@ local GEAR_ORDER = {
 ---@param badge string|nil
 ---@param mode string
 ---@return string|nil
+---@return string|nil text   Fundort als Text
+---@return string|nil key    Schluessel fuer den Fundort-Filter
+---@return string|nil label  Name der Filtergruppe (Instanz oder Art)
 local function originText(itemID, badge, mode)
     local enc, inst = ns.Catalog.DropSource(itemID)
     local text = ns.Compat.DropText(enc, inst)
-    if text then return text end
+    if text then
+        -- Gefiltert wird nach INSTANZ, nicht nach Boss: "was faellt in
+        -- diesem Dungeon" ist die Frage, die jemand stellt.
+        local place = inst and ns.Compat.DropText(nil, inst) or text
+        return text, "inst:" .. tostring(inst or enc), place
+    end
     -- PvP-Ware, am englischen Namen im Katalog erkannt.
     local origin = ns.Catalog.Origin and ns.Catalog.Origin(itemID)
-    if origin == "conquest" then return L["ORIGIN_CONQUEST"] end
-    if origin == "honor" then return L["ORIGIN_HONOR"] end
-    if origin == "pvpcraft" then return L["ORIGIN_PVPCRAFT"] end
-    if badge == "set" then return L["ORIGIN_SET"] end
-    if badge == "craft" then return L["ORIGIN_CRAFT"] end
+    if origin == "conquest" then return L["ORIGIN_CONQUEST"], "conquest", L["ORIGIN_CONQUEST"] end
+    if origin == "honor" then return L["ORIGIN_HONOR"], "honor", L["ORIGIN_HONOR"] end
+    if origin == "pvpcraft" then return L["ORIGIN_PVPCRAFT"], "craft", L["ORIGIN_CRAFT"] end
+    if badge == "set" then return L["ORIGIN_SET"], "set", L["ORIGIN_SET"] end
+    if badge == "craft" then return L["ORIGIN_CRAFT"], "craft", L["ORIGIN_CRAFT"] end
     -- Was uebrig bleibt, hat keinen Boss und keinen Haendler in den
-    -- Spieldaten. "gesehen in Mythisch+" stand hier und sagte nichts;
-    -- das hier sagt wenigstens, was es NICHT ist.
-    return L["ORIGIN_NONE"]
+    -- Spieldaten - also kommt es aus der Welt, einer Quest oder von
+    -- einem Haendler. Das ist wahr, auch wenn es nicht sagt, von welchem.
+    return L["ORIGIN_WORLD"], "world", L["ORIGIN_WORLD"]
 end
 
 ---Die haeufigste Ausruestung je Platz.
@@ -521,9 +529,10 @@ local function gearRows(specID, mode, source)
                 -- die 334 sagt.
                 local showLevel = yours or item.ilvl
                 local atLevel = yours and ns.Compat.LinkAtLevel(item.id, yours) or nil
+                local drop, sourceKey, sourceLabel = originText(item.id, badge, mode)
                 rows[#rows + 1] = {
                     kind = "gear", id = item.id, pct = item.pct,
-                    drop = originText(item.id, badge, mode),
+                    drop = drop, sourceKey = sourceKey, sourceLabel = sourceLabel,
                     -- Die Quelle darf es sagen; wenn sie schweigt,
                     -- sagen es die Spieldaten. murlok liefert die Marke
                     -- mit, Warcraft Logs nicht - und ein Set-Teil bleibt
@@ -586,6 +595,32 @@ local function categoriesIn(section, rows)
         end
     end
     return out
+end
+
+---Die Fundorte, die in dieser Liste vorkommen: Instanzen und Arten.
+---@param rows table[]
+---@return table[] { key, label }
+local function sourcesIn(rows)
+    local seen, out = {}, {}
+    for _, row in ipairs(rows or {}) do
+        if row.sourceKey and not seen[row.sourceKey] then
+            seen[row.sourceKey] = true
+            out[#out + 1] = { key = row.sourceKey, label = row.sourceLabel or row.sourceKey }
+        end
+    end
+    table.sort(out, function(a, b) return a.label < b.label end)
+    return out
+end
+
+---Fundort waehlen: "was faellt hier", nicht nur "wo faellt das".
+local function openSourcePickerGear(anchor, sources)
+    local entries = { { key = false, label = L["SOURCE_ANY"] } }
+    for _, src in ipairs(sources) do
+        entries[#entries + 1] = { key = src.key, label = src.label }
+    end
+    contextMenu(anchor, L["LBL_ORIGIN"], entries, function(entry)
+        ns.Profile.SetCategory("gearSource", entry.key or nil)
+    end)
 end
 
 ---Ausruestungsplatz waehlen.
@@ -1905,6 +1940,11 @@ local function build()
     end)
     frame.slotButton = slotButton
 
+    local originButton = makeButton(content, 170, 22, "", function(self)
+        openSourcePickerGear(self, frame.__sources or {})
+    end)
+    frame.originButton = originButton
+
     local dungeonButton = makeButton(content, 160, 22, "", function(self)
         openDungeonPicker(self)
     end)
@@ -2352,6 +2392,32 @@ function UI.Refresh()
         currentRows = kept
     end
 
+    -- Der Fundort-Filter der Ausruestung. Erst NACH dem Platzfilter:
+    -- die Auswahl soll nur zeigen, was in der sichtbaren Liste steht.
+    local sources = (section.key == "gear" and not viewingPlayer) and sourcesIn(currentRows) or {}
+    frame.__sources = sources
+    frame.originButton:SetShown(#sources > 1)
+    local pickedSource = ns.Profile.Category("gearSource")
+    local validSource = pickedSource == nil
+    for _, src in ipairs(sources) do
+        if src.key == pickedSource then
+            validSource = true
+            frame.originButton.label:SetText(src.label)
+        end
+    end
+    if not validSource then
+        pickedSource = nil
+        ns.Profile.SetCategory("gearSource", nil)
+    end
+    if pickedSource == nil then frame.originButton.label:SetText(L["SOURCE_ANY"]) end
+    if pickedSource then
+        local kept = {}
+        for _, row in ipairs(currentRows) do
+            if row.sourceKey == pickedSource then kept[#kept + 1] = row end
+        end
+        currentRows = kept
+    end
+
     -- Die Knopfreihe rechts oben, von rechts nach links.
     --
     -- ERST HIER, und das ist der Punkt: die Kategorien stehen erst fest,
@@ -2370,6 +2436,7 @@ function UI.Refresh()
     end
     placeRight(frame.levelButton, 175)
     placeRight(frame.slotButton, 150)
+    placeRight(frame.originButton, 170)
     placeRight(frame.categoryButton, 170)
     placeRight(frame.dungeonButton, 160)
     sectionCount:ClearAllPoints()

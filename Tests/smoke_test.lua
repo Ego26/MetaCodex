@@ -1237,6 +1237,37 @@ do
 end
 check("Erinnerung fehlt bei PvP", not ns.UI.SectionHasData("remind", "2v2"))
 
+-- ---------------------------------------------------------- Fundort-Filter
+
+-- "Was faellt hier": die Ausruestung laesst sich auf eine Instanz oder
+-- eine Art eingrenzen. Die Auswahl kommt aus den Zeilen selbst.
+do
+    ns.Profile.SetMode("mplus")
+    ns.Profile.SetCategory("gearSource", nil)
+    local all = rowsInSection("gear")
+    local frame = _G.MetaCodexFrame
+    check("Fundort-Knopf steht bei der Ausruestung", frame.originButton:IsShown())
+    local sources = frame.__sources or {}
+    check("mehrere Fundorte zur Wahl", #sources > 1, #sources .. " Fundorte")
+    if sources[1] then
+        ns.Profile.SetCategory("gearSource", sources[1].key)
+        local some = rowsInSection("gear")
+        check("Filter laesst weniger uebrig", some < all and some > 0, some .. " von " .. all)
+        check("Knopf zeigt den Fundort", frame.originButton.label:GetText() == sources[1].label,
+            tostring(frame.originButton.label:GetText()))
+        ns.Profile.SetCategory("gearSource", nil)
+    end
+    -- Kein Gegenstand heisst mehr "kein Instanzdrop": was nicht aus
+    -- Instanz, PvP oder Handwerk kommt, kommt aus Welt, Quest oder Haendler.
+    rowsInSection("gear")
+    local none = 0
+    for _, row in ipairs(wow.rows()) do
+        local t = row:IsShown() and row.detail and row.detail.GetText and row.detail:GetText()
+        if t and t:find(ns.L["ORIGIN_NONE"], 1, true) then none = none + 1 end
+    end
+    check("kein Instanzdrop steht nirgends mehr", none == 0, none .. " Zeilen")
+end
+
 -- ------------------------------------------------------------ Raid je Boss
 
 -- Die Bosse stehen in derselben Auswahl wie die Dungeons - und heissen
