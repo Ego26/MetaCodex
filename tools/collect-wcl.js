@@ -516,7 +516,11 @@ function raidZones(expansions) {
       // Eingefroren heisst bei Warcraft Logs: abgelaufenes Tier. Das
       // ist die Auskunft, die vorher aus der Zonennummer geraten wurde.
       if (zone.frozen) continue;
-      if (/mythic\+|ptr|beta|dummy/i.test(zone.name)) continue;
+      // "Complete Raid" ist keine Zone mit Bossen, sondern die
+      // Gesamtwertung ueber den ganzen Raid. Ihr Kampf traegt die
+      // Nummer 10000 und keine Spielerdaten - abgerufen wird er
+      // trotzdem, und das kostet Kontingent fuer nichts.
+      if (/mythic\+|ptr|beta|dummy|complete raid/i.test(zone.name)) continue;
       out.push({ ...zone, expansion: exp.name });
     }
   }
@@ -784,6 +788,7 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
   // die build-catalog.js aus den Spieldaten schreibt.
   const entrySubTree = new Map();
   const folioAura = new Map();   // Auren-ID -> Runen-Zauber
+  let folioFilter = '';          // fuer die Abfrage: nur diese Auren
   try {
     const tm = JSON.parse(fs.readFileSync(path.join(BASE, 'tools', 'data', 'trait-map.json'), 'utf8'));
     for (const tree of Object.values(tm.trees || {})) {
@@ -791,6 +796,9 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
       for (const node of tree.nodes) for (const e of node.entries) { const sub = node.subTree || e.subTree; if (sub) entrySubTree.set(e.id, sub); }
     }
     for (const row of tm.folio || []) for (const r of row) for (const a of r.auras || []) folioAura.set(a, r.spell);
+    if (folioAura.size) {
+      folioFilter = 'ability.id in (' + [...folioAura.keys()].join(', ') + ')';
+    }
     console.log('Baumkarte: ' + entrySubTree.size + ' Held-Eintraege, ' + folioAura.size + ' Folio-Auren');
   } catch (e) { console.log('  ! keine trait-map.json - ohne Held-Baeume und Folio'); }
 
@@ -870,10 +878,18 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
     }
     let data;
     try {
+      // Die Folio-Runen stehen NICHT im CombatantInfo.
+      //
+      // Nachgesehen statt geraten: das Ereignis fuehrt Ausruestung,
+      // Auren beim Pull, Talente und drei leere "customPower"-Felder -
+      // keine Rune. Sie erscheinen als Buff WAEHREND des Kampfes. Also
+      // werden sie hier mitgeholt, in derselben Anfrage und auf die
+      // Runen gefiltert; ein zweiter Rundgang waere teurer.
       data = await gql(`
         query ($code: String!, $fight: Int!) {
           reportData { report(code: $code) {
             events(dataType: CombatantInfo, fightIDs: [$fight], limit: 60) { data }
+            ${folioFilter ? `folio: events(dataType: Buffs, fightIDs: [$fight], limit: 400, filterExpression: "${folioFilter}") { data }` : ''}
             masterData { actors(type: "Player") { id name server } }
             region { slug }
           } }
@@ -1065,6 +1081,28 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
       }
     }
 
+    // Die Runen des Folio, je Spieler. Der Buff kann im Kampf hundertmal
+    // kommen - gezaehlt wird er einmal, sonst zaehlt man Ausloesungen
+    // statt Spielern.
+    const folioEvents = (report && report.folio && report.folio.data) || [];
+    if (folioEvents.length) {
+      const seenRune = new Set();
+      for (const ev of folioEvents) {
+        const rune = folioAura.get(Number(ev.abilityGameID));
+        if (!rune) continue;
+        const who = Number(ev.targetID);
+        const spec = specBySource.get(who);
+        if (!spec) continue;
+        const key = who + ':' + rune;
+        if (seenRune.has(key)) continue;
+        seenRune.add(key);
+        for (const mode of active) {
+          const entry = entryFor(mode, spec);
+          entry.folio[rune] = (entry.folio[rune] || 0) + 1;
+        }
+      }
+    }
+
     // --- Was gewirkt wurde ------------------------------------------
     //
     // Speisen, Traenke und Heiltraenke stehen NICHT in den Auren beim
@@ -1158,6 +1196,18 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
 
   console.log(`\n\nSpieler ausgewertet: ${players}`
     + (unknownSpec ? `, ${unknownSpec} ohne erkennbare Spec` : ''));
+  // Und wie viele Folio-Runen dabei herausgekommen sind. Die Zahl stand
+  // nirgends, und deshalb fiel monatelang nicht auf, dass sie null war.
+  {
+    let runen = 0, speccs = 0;
+    for (const mode of Object.keys(tallies)) {
+      for (const entry of Object.values(tallyFor(mode))) {
+        const n = Object.keys(entry.folio || {}).length;
+        if (n) { runen += n; speccs += 1; }
+      }
+    }
+    console.log(`Folio-Runen gezaehlt: ${runen} in ${speccs} Speccs`);
+  }
   if (missedEnchants.size) {
     console.log(`Nicht zugeordnete Verzauberungen: ${missedEnchants.size}`);
     for (const name of [...missedEnchants].slice(0, 8)) console.log(`  ? ${name}`);
