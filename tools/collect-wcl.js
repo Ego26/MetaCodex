@@ -184,7 +184,12 @@ async function gql(query, variables) {
     try {
       return await gqlRaw(query, variables);
     } catch (err) {
-      if (err.status !== 429 || tries >= 3) throw err;
+      // Sechs Versuche, nicht drei.
+      //
+      // Ein M+-Lauf starb an einem 429 in der ERSTEN Abfrage, weil der
+      // Raidlauf davor die Stunde aufgebraucht hatte. Das Kontingent
+      // kommt zurueck; was fehlte, war Geduld.
+      if (err.status !== 429 || tries >= 6) throw err;
       const info = await quota();
       const wait = info && info.pointsResetIn
         ? Math.min(3600, Number(info.pointsResetIn) + 5) : 60;
@@ -550,7 +555,15 @@ function mythicZones(expansions) {
 
 (async () => {
   console.log('Anmelden ...');
-  token = await getToken();
+  // Auch der Token wartet, statt aufzugeben: ein erschoepftes Kontingent
+  // trifft ihn genauso wie eine Abfrage, und ohne ihn laeuft gar nichts.
+  for (let tries = 0; ; tries++) {
+    try { token = await getToken(); break; } catch (err) {
+      if (err.status !== 429 || tries >= 6) throw err;
+      console.log('  Kontingent erschoepft beim Anmelden, warte 120s');
+      await sleep(120000);
+    }
+  }
   console.log('  Token erhalten.');
 
   // Warnung, keine Sperre.
