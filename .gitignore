@@ -26,3 +26,6 @@ docs/
 # Brand tools, CurseForge drafts and release-note drafts. Local only; the
 # public images live in assets/.
 branding/
+
+# Battle.net API credentials, same rule as Warcraft Logs: never in git.
+tools/bnet-credentials.json
