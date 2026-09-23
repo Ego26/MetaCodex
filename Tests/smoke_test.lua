@@ -2046,6 +2046,16 @@ do
             end
             check("es zeigt die Gegenstaende als Zeilen", lines > 0 and named == lines,
                 lines .. " Zeilen, " .. named .. " benannt")
+            -- Der Suchknopf folgt dem Auktionshaus, auch wenn es erst
+            -- aufgeht, waehrend das Fenster schon steht.
+            local realOpen = ns.Adapter.AuctionHouseOpen
+            ns.Adapter.AuctionHouseOpen = function() return false end
+            ns.UI.UpdateReminderButtons()
+            check("ohne Auktionshaus ist Suchen grau", window.search:IsEnabled() == false)
+            ns.Adapter.AuctionHouseOpen = function() return true end
+            wow.fire("AUCTION_HOUSE_SHOW")
+            check("mit offenem Auktionshaus ist Suchen da", window.search:IsEnabled() == true)
+            ns.Adapter.AuctionHouseOpen = realOpen
             check("und hat beide Knoepfe",
                 window.create ~= nil and window.search ~= nil
                     and window.create.label:GetText() == L["BTN_CREATE_LIST"]

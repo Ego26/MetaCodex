@@ -3296,6 +3296,22 @@ end
 ---nichts damit anfangen: kein Tooltip, kein Shift-Klick, kein Weg zur
 ---Einkaufsliste. Jetzt ist es ein kleines Fenster mit denselben
 ---Handgriffen wie das grosse.
+---Die beiden Knoepfe des Erinnerungsfensters, nach dem aktuellen Stand.
+---
+---"Jetzt suchen" braucht Auctionator UND ein offenes Auktionshaus. Beides
+---kann sich aendern, waehrend das Fenster schon steht - wer es beim
+---Betreten des Dungeons gesehen hat und dann zum Auktionshaus reitet,
+---sass sonst vor einem grauen Knopf neben einem offenen Auktionshaus.
+function UI.UpdateReminderButtons()
+    if not remindFrame then return end
+    local usable = ns.Adapter and ns.Adapter.Loaded()
+    local canSearch = usable and ns.Adapter.AuctionHouseOpen()
+    remindFrame.create:SetEnabled(usable and true or false)
+    remindFrame.create:SetAlpha(usable and 1 or 0.4)
+    remindFrame.search:SetEnabled(canSearch and true or false)
+    remindFrame.search:SetAlpha(canSearch and 1 or 0.4)
+end
+
 ---@param text string Fuer den Fall, dass es keine Zeilen gibt
 ---@param list table[]|nil Zeilen aus Remind.Check
 function UI.ShowReminder(text, list)
@@ -3359,6 +3375,12 @@ function UI.ShowReminder(text, list)
         remindFrame:SetScript("OnEnter", function(self)
             if self.timer then self.timer:Cancel() self.timer = nil end
         end)
+        -- Das Auktionshaus kann aufgehen, waehrend das Fenster schon
+        -- steht. Dann sind die Knoepfe neu zu bewerten.
+        remindFrame:RegisterEvent("AUCTION_HOUSE_SHOW")
+        remindFrame:RegisterEvent("AUCTION_HOUSE_CLOSED")
+        remindFrame:RegisterEvent("ADDON_LOADED")
+        remindFrame:SetScript("OnEvent", function() UI.UpdateReminderButtons() end)
     end
 
     local point, x, y = ns.Profile.RemindPoint()
@@ -3404,15 +3426,7 @@ function UI.ShowReminder(text, list)
         remindFrame:SetHeight(42 + math.max(20, remindFrame.body:GetStringHeight() or 20) + 48)
     end
 
-    -- "Jetzt suchen" braucht Auctionator und ein offenes Auktionshaus,
-    -- "Einkaufsliste" nur Auctionator. Grau statt eines Fehlers aus
-    -- fremdem Code.
-    local usable = ns.Adapter and ns.Adapter.Loaded()
-    local canSearch = usable and ns.Adapter.AuctionHouseOpen()
-    remindFrame.create:SetEnabled(usable and true or false)
-    remindFrame.create:SetAlpha(usable and 1 or 0.4)
-    remindFrame.search:SetEnabled(canSearch and true or false)
-    remindFrame.search:SetAlpha(canSearch and 1 or 0.4)
+    UI.UpdateReminderButtons()
 
     remindFrame:Show()
     if remindFrame.Raise then remindFrame:Raise() end
