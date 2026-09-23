@@ -1,14 +1,20 @@
-# On every push: load the addon in a real Lua VM and run both test suites.
+# On every push that touches code: load the addon in a real Lua VM and run
+# both test suites.
 #
 # The tests need data (catalog, recommendations), and those are not in
 # git. They come from the latest nightly package - the same files a player
-# would get. If there is none yet, the tests run without and report what
-# they are missing.
+# would get. Until the first nightly exists the run is skipped with a
+# notice, not failed: a red mark for "no data yet" tells nobody anything.
 name: Tests
 
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "assets/**"
+      - ".gitignore"
+      - ".gitattributes"
   pull_request:
 
 permissions:
@@ -25,6 +31,7 @@ jobs:
           node-version: "22"
 
       - name: Fetch the data from the latest nightly
+        id: data
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
@@ -35,8 +42,14 @@ jobs:
             mkdir -p "$GITHUB_WORKSPACE/$addon"
             cp -r "/tmp/nightly/$addon/." "$GITHUB_WORKSPACE/$addon/"
           done
+          test -s "$GITHUB_WORKSPACE/MetaCodex_Data/Catalog.lua"
+
+      - name: No data yet
+        if: steps.data.outcome != 'success'
+        run: echo "::notice title=Tests skipped::No nightly release yet - run the 'Daily data' workflow once, then tests have data to load."
 
       - name: Test suites
+        if: steps.data.outcome == 'success'
         working-directory: Tests
         run: |
           npm install --no-audit --no-fund
