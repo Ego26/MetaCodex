@@ -42,6 +42,9 @@ ns.RegisterLocale("deDE", {
     -- Zeilen
     ["ALREADY_DONE"]       = "bereits drauf",
     ["OWNED"]              = "%d vorhanden",
+    ["OWNED_HIGHER"] = "%d in höherer Qualität vorhanden",
+    ["OWNED_LOWER"] = "%d in niedrigerer Qualität vorhanden",
+    ["REMIND_LOWER"] = "%s (nur niedrigere Qualität: %d)",
     ["NEED"]               = "%d fehlen",
     ["EMPTY_SOCKETS"]      = "%d leere Sockel",
     ["NO_EMPTY_SOCKETS"]   = "Keine leeren Sockel an deiner Ausrüstung.",

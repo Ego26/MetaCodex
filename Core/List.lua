@@ -25,7 +25,13 @@ local function fill(row)
     row.link = link
     row.icon = icon
     row.owned = Compat.ItemCount(row.id)
-    row.buy = math.max(0, (row.missing or 0) - row.owned)
+    -- Dieselbe Ware in anderer Qualitaet: Gold deckt Silber, Silber
+    -- deckt Gold nicht - steht aber dabei, damit man weiss, was da ist.
+    local lower, higher = Catalog.Tiers(row.id)
+    row.ownedLower, row.ownedHigher = 0, 0
+    for _, other in ipairs(lower) do row.ownedLower = row.ownedLower + Compat.ItemCount(other) end
+    for _, other in ipairs(higher) do row.ownedHigher = row.ownedHigher + Compat.ItemCount(other) end
+    row.buy = math.max(0, (row.missing or 0) - row.owned - row.ownedHigher)
     return row
 end
 
@@ -179,12 +185,20 @@ function List.Build(scan)
         -- richtig: eigener Platz, eigene Auswahl.
         local metaPick = ns.Recommend.MetaGem(rec)
         local meta = metaPick and Catalog.GemByID(metaPick.id)
-        if meta and not foreign then
+        -- Sitzt schon einer? Jeder Stein mit Hauptattribut zaehlt, nicht
+        -- nur der empfohlene: der Sockel ist dann nicht leer.
+        local metaSet = 0
+        for gemID, count in pairs(scan.gems or {}) do
+            local g = Catalog.GemByID(gemID)
+            if g and g.major == "primary" then metaSet = metaSet + count end
+        end
+        local metaMissing = metaSet > 0 and 0 or 1
+        if meta and not foreign and not (p.onlyMissing and metaMissing == 0) then
             rows[#rows + 1] = fill({
                 kind = "gem", slot = "meta", id = meta.id,
                 stat = meta.major, minor = meta.minor, pct = metaPick.pct,
                 maxKey = metaPick.maxKey,
-                fallback = meta.name, need = 1, missing = 1,
+                fallback = meta.name, need = 1, missing = metaMissing,
             })
             -- Auch der besondere Sockel hat eine Auswahl. Archon zeigt
             -- dort drei, und der Abstand zwischen 42 % und 7 % ist

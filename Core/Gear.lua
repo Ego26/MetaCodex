@@ -18,15 +18,19 @@ local LINK_PATTERN = "item:(%d+):(%d*):(%d*):(%d*):(%d*):(%d*)"
 ---@return number|nil itemID
 ---@return boolean enchanted
 ---@return number gemsFilled
+---@return number[] gems  die IDs der gesockelten Steine
 local function parseLink(link)
-    if not link then return nil, false, 0 end
+    if not link then return nil, false, 0, {} end
     local itemID, ench, g1, g2, g3, g4 = link:match(LINK_PATTERN)
-    if not itemID then return nil, false, 0 end
-    local filled = 0
+    if not itemID then return nil, false, 0, {} end
+    local filled, gems = 0, {}
     for _, gem in ipairs({ g1, g2, g3, g4 }) do
-        if gem and gem ~= "" and gem ~= "0" then filled = filled + 1 end
+        if gem and gem ~= "" and gem ~= "0" then
+            filled = filled + 1
+            gems[#gems + 1] = tonumber(gem)
+        end
     end
-    return tonumber(itemID), (ench ~= nil and ench ~= "" and ench ~= "0"), filled
+    return tonumber(itemID), (ench ~= nil and ench ~= "" and ench ~= "0"), filled, gems
 end
 
 ---Wie viele Sockel ein Gegenstand insgesamt hat.
@@ -92,17 +96,22 @@ function Gear.Scan()
     -- gesamten braucht die Anzeige, wenn sie nicht nur das Fehlende zeigt,
     -- sondern die vollstaendige Ausstattung.
     local empty, total = 0, 0
+    -- Und WELCHE Steine stecken: der besondere Sockel fragt danach.
+    -- "1 leer" bei einem Hals, in dem der Diamant laengst sitzt, war
+    -- die Folge, ihn nur zu zaehlen statt anzusehen.
+    local socketed = {}
     for _, inv in ipairs(ns.SOCKETABLE) do
         local link = GetInventoryItemLink("player", inv)
         if link then
-            local _, _, filled = parseLink(link)
+            local _, _, filled, gems = parseLink(link)
             local count = socketCount(link)
             total = total + count
             if count > filled then empty = empty + (count - filled) end
+            for _, gem in ipairs(gems) do socketed[gem] = (socketed[gem] or 0) + 1 end
         end
     end
 
-    return { slots = slots, emptySockets = empty, totalSockets = total }
+    return { slots = slots, emptySockets = empty, totalSockets = total, gems = socketed }
 end
 
 ---Wie viele Plaetze eines Katalogschluessels noch unverzaubert sind.

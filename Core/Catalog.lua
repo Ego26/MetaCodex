@@ -122,6 +122,48 @@ function Catalog.AllIDs()
     return ids
 end
 
+---Die anderen Qualitaetsstufen desselben Gegenstands.
+---
+---Handwerksware gibt es in Bronze, Silber und Gold, und jede Stufe hat
+---ihre eigene ID - die Empfehlung nennt eine davon. Wer die Silberstufe
+---im Beutel hat, hat den Trank trotzdem, nur schwaecher; wer Gold hat,
+---braucht Silber nicht. Zusammengehoerig ist, was gleich heisst und
+---von derselben Art ist; die Reihenfolge sagt die Gegenstandsstufe.
+---@param id number
+---@return number[] lower   IDs geringerer Qualitaet
+---@return number[] higher  IDs hoeherer Qualitaet
+function Catalog.Tiers(id)
+    local c = data()
+    if not c then return {}, {} end
+    local lower, higher = {}, {}
+    local function collect(list, me)
+        for _, e in ipairs(list) do
+            if e.id ~= me.id and e.name == me.name then
+                local mine = me.ilvl or me.id
+                local other = e.ilvl or e.id
+                if other < mine then lower[#lower + 1] = e.id
+                elseif other > mine then higher[#higher + 1] = e.id end
+            end
+        end
+    end
+    for _, g in ipairs(c.gems) do
+        if g.id == id then collect(c.gems, g) return lower, higher end
+    end
+    for _, list in pairs(c.consumables or {}) do
+        for _, e in ipairs(list) do
+            if e.id == id then collect(list, e) return lower, higher end
+        end
+    end
+    -- Verzauberungen fuehren ihre guenstigere Stufe als `alt`.
+    for _, list in pairs(c.enchants or {}) do
+        for _, e in ipairs(list) do
+            if e.id == id and e.alt then lower[1] = e.alt return lower, higher end
+            if e.alt == id then higher[1] = e.id return lower, higher end
+        end
+    end
+    return lower, higher
+end
+
 ---Ein Stein anhand seiner ID. Gebraucht, um eine Empfehlung einzuordnen,
 ---ohne dass die Empfehlungsschicht das Katalogformat kennen muss.
 ---@param id number

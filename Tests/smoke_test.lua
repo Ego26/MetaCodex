@@ -1072,7 +1072,7 @@ if top then
     -- faellt im Spiel erst auf, wenn jemand darauf klickt.
     local ohne = 0
     for _, p in ipairs(top) do
-        if type(p.url) ~= "string" or not p.url:match("^https://murlok%.io/character/")
+        if type(p.url) ~= "string" or not p.url:match("^https://")
             then ohne = ohne + 1 end
     end
     check("jeder Spieler hat eine Profiladresse", ohne == 0, ohne .. " ohne")
@@ -1593,6 +1593,187 @@ check("Sonde ohne offene Schluessel", probeText:find("PROBE_") == nil)
 wow.printed = {}
 _G.SlashCmdList.METACODEX("quatsch")
 check("unbekannter Befehl zeigt Hilfe", #wow.printed >= 4, #wow.printed .. " Zeilen")
+
+-- ---------------------------------------------- Sockel und Qualitaet
+
+-- Welche Steine stecken, nicht nur wie viele: der Kopf traegt Stein 111.
+check("gesockelte Steine gelesen", scan.gems ~= nil and scan.gems[111] == 1,
+    tostring(scan.gems and scan.gems[111]))
+
+-- Der besondere Sockel gilt als belegt, sobald ein Stein mit Hauptattribut
+-- steckt - vorher stand "1 leer" bei einem Hals, in dem der Diamant sass.
+do
+    ns.Profile.SetMode("mplus")
+    ns.Profile.Set("onlyMissing", false)
+    local rec = ns.Recommend.For(105, ns.Profile.Mode(), ns.Profile.Source())
+    local metaPick = ns.Recommend.MetaGem(rec)
+    if metaPick then
+        local before = bySlot(ns.List.Build(scan))
+        check("besonderer Sockel offen ohne Diamant",
+            before.meta ~= nil and before.meta.missing == 1,
+            before.meta and tostring(before.meta.missing) or "keine Zeile")
+        local realLink = GetInventoryItemLink
+        GetInventoryItemLink = function(unit, slot)
+            if slot == 2 then return ("|Hitem:200002::%d::::::80:::::|h[Hals]|h"):format(metaPick.id) end
+            return realLink(unit, slot)
+        end
+        local withGem = ns.Gear.Scan()
+        check("Diamant im Hals gesehen", withGem.gems[metaPick.id] == 1)
+        local after = bySlot(ns.List.Build(withGem))
+        check("besonderer Sockel belegt, nichts zu kaufen",
+            after.meta ~= nil and after.meta.missing == 0 and after.meta.buy == 0,
+            after.meta and ("missing " .. after.meta.missing .. ", buy " .. after.meta.buy) or "keine Zeile")
+        ns.Profile.Set("onlyMissing", true)
+        local only = bySlot(ns.List.Build(withGem))
+        check("Filter laesst den belegten besonderen Sockel weg", only.meta == nil)
+        ns.Profile.Set("onlyMissing", false)
+        GetInventoryItemLink = realLink
+    else
+        check("kein besonderer Stein empfohlen - Pruefung uebersprungen", true)
+    end
+end
+
+-- Qualitaetsstufen: gleicher Name, andere Gegenstandsstufe, eigene ID.
+do
+    local c = MetaCodex_Catalog
+    local a, b
+    for i, g in ipairs(c.gems) do
+        for j = i + 1, #c.gems do
+            local h = c.gems[j]
+            if h.name == g.name and h.ilvl ~= g.ilvl then a, b = g, h break end
+        end
+        if a then break end
+    end
+    if a then
+        if a.ilvl > b.ilvl then a, b = b, a end
+        local lower, higher = ns.Catalog.Tiers(a.id)
+        check("Stein kennt seine hoehere Qualitaet", #lower == 0 and higher[1] == b.id,
+            a.name .. ": " .. table.concat(higher, ","))
+        local l2, h2 = ns.Catalog.Tiers(b.id)
+        check("Stein kennt seine niedrigere Qualitaet", l2[1] == a.id and #h2 == 0)
+    else
+        check("kein Stein in zwei Qualitaeten im Katalog", true)
+    end
+    local ench
+    for _, list in pairs(c.enchants) do
+        for _, e in ipairs(list) do if e.alt then ench = e break end end
+        if ench then break end
+    end
+    if ench then
+        local l3 = ns.Catalog.Tiers(ench.id)
+        check("Verzauberung kennt die guenstigere Stufe", l3[1] == ench.alt, tostring(l3[1]))
+        local _, h4 = ns.Catalog.Tiers(ench.alt)
+        check("guenstigere Stufe kennt die bessere", h4[1] == ench.id, tostring(h4[1]))
+    end
+    local none, none2 = ns.Catalog.Tiers(999999)
+    check("ohne Geschwister leer", #none == 0 and #none2 == 0)
+end
+
+-- Besitz in anderer Qualitaet: Gold deckt Silber; Silber steht dabei,
+-- deckt aber nicht.
+do
+    local full = bySlot(ns.List.Build(scan))
+    local gem = full.gems
+    -- "gem and f()" kuerzt auf EINEN Rueckgabewert - deshalb getrennt.
+    local lower, higher = {}, {}
+    if gem then lower, higher = ns.Catalog.Tiers(gem.id) end
+    local other = gem and (higher[1] or lower[1])
+    if other then
+        local realCount = C_Item.GetItemCount
+        C_Item.GetItemCount = function(id, ...)
+            if id == other then return 2 end
+            return realCount(id, ...)
+        end
+        local again = bySlot(ns.List.Build(scan)).gems
+        if higher[1] then
+            check("hoehere Qualitaet deckt den Bedarf",
+                again.ownedHigher == 2 and again.buy == math.max(0, gem.buy - 2),
+                "ownedHigher " .. tostring(again.ownedHigher) .. ", buy " .. tostring(again.buy))
+        else
+            check("niedrigere Qualitaet steht dabei, deckt aber nicht",
+                again.ownedLower == 2 and again.buy == gem.buy,
+                "ownedLower " .. tostring(again.ownedLower) .. ", buy " .. tostring(again.buy))
+        end
+        C_Item.GetItemCount = realCount
+    else
+        check("Stein ohne zweite Qualitaet - Besitzpruefung uebersprungen", true)
+    end
+end
+
+-- Die Erinnerung: nur die niedrigere Qualitaet im Beutel ist "wenig",
+-- nicht "nichts", und die Ansage sagt es so.
+do
+    local status = ns.Remind.Status("mplus")
+    local pick, lowerID
+    for _, row in ipairs(status) do
+        local lower = ns.Catalog.Tiers(row.id)
+        if lower[1] then pick, lowerID = row, lower[1] break end
+    end
+    if pick then
+        local realCount = C_Item.GetItemCount
+        C_Item.GetItemCount = function(id, ...)
+            if id == lowerID then return 3 end
+            return realCount(id, ...)
+        end
+        local again
+        for _, row in ipairs(ns.Remind.Status("mplus")) do
+            if row.id == pick.id then again = row end
+        end
+        check("nur niedrigere Qualitaet ist wenig, nicht nichts",
+            again ~= nil and again.state == "low" and again.lower == 3 and again.owned == 0,
+            again and (again.state .. " / lower " .. tostring(again.lower)) or "Zeile fehlt")
+        local said = false
+        for _, row in ipairs(ns.Remind.Check("mplus")) do
+            if row.name == pick.name and row.lower == 3 then said = true end
+        end
+        check("Ansage kennt die niedrigere Qualitaet", said)
+        C_Item.GetItemCount = realCount
+    else
+        check("kein Verbrauchsgut in zwei Qualitaeten - Erinnerung uebersprungen", true)
+    end
+end
+
+-- ------------------------------------------------- Spieleransicht
+
+-- Zurueck ist ein Knopf im Kopf, keine Zeile in der Liste; ein einzelnes
+-- Stueck traegt Namen und keinen Anteil - "0 %" hat niemand gemessen.
+if top then
+    ns.Profile.SetMode("mplus")
+    rowsInSection("players")
+    local first
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() and row.onClick and row.title:GetText() == top[1].name then
+            first = row
+            break
+        end
+    end
+    check("Spielerzeile gefunden", first ~= nil, top[1].name)
+    if first then
+        first.onClick(first, "LeftButton")
+        local backRows, zeroPct, unnamed, shown = 0, 0, 0, 0
+        for _, row in ipairs(wow.rows()) do
+            if row:IsShown() then
+                shown = shown + 1
+                if row.title:GetText() == L["PLAYER_BACK"] then backRows = backRows + 1 end
+                if row.share and row.share:GetText() == "0%" then zeroPct = zeroPct + 1 end
+                if tostring(row.title:GetText() or ""):match("^#%d+$") then unnamed = unnamed + 1 end
+            end
+        end
+        check("Spieleransicht zeigt Zeilen", shown > 0, shown .. " Zeilen")
+        check("Zurueck ist keine Zeile mehr", backRows == 0, backRows .. " Zeilen")
+        check("kein 0 % in der Spieleransicht", zeroPct == 0, zeroPct .. " Zeilen")
+        check("jedes Stueck hat einen Namen", unnamed == 0, unnamed .. " ohne")
+        local button
+        for _, f in ipairs(wow.frames) do
+            if rawget(f, "label") and f.label:GetText() == L["PLAYER_BACK"] then button = f end
+        end
+        check("Zurueck-Knopf sichtbar", button ~= nil and button:IsShown())
+        if button then
+            button.__scripts.OnClick(button)
+            check("Zurueck-Knopf versteckt nach dem Klick", not button:IsShown())
+        end
+    end
+end
 
 say(fails == 0 and "\nalles gruen" or ("\n" .. fails .. " Fehler"))
 os.exit(fails == 0 and 0 or 1)

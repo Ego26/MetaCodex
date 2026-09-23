@@ -42,6 +42,9 @@ ns.RegisterLocale("enUS", {
     -- Zeilen
     ["ALREADY_DONE"]       = "already applied",
     ["OWNED"]              = "%d in bags",
+    ["OWNED_HIGHER"] = "%d owned in higher quality",
+    ["OWNED_LOWER"] = "%d owned in lower quality",
+    ["REMIND_LOWER"] = "%s (only lower quality: %d)",
     ["NEED"]               = "need %d",
     ["EMPTY_SOCKETS"]      = "%d empty sockets",
     ["NO_EMPTY_SOCKETS"]   = "No empty sockets on your gear.",

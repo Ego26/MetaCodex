@@ -1042,7 +1042,6 @@ local RIO_ORDER = { "head", "neck", "shoulder", "back", "chest", "wrist", "hands
     "legs", "feet", "finger1", "finger2", "trinket1", "trinket2", "mainhand", "offhand" }
 local function playerViewRows(who)
     local rows = {}
-    rows[#rows + 1] = { kind = "back" }
     local profile, why = ns.Recommend.Player(who.mode, who.specID, who.name, who.realm)
     rows[#rows + 1] = { kind = "link", url = who.url, group = who.name .. " \194\183 " .. (who.realm or "") }
     if not profile then
@@ -1066,9 +1065,13 @@ local function playerViewRows(who)
             if piece.b and #piece.b > 0 then
                 link = ("item:%d::::::::::::%d:%s"):format(piece.id, #piece.b, table.concat(piece.b, ":"))
             end
-            if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, piece.id) end
+            -- Name und Symbol wie in jeder Ausruestungszeile; fehlt der
+            -- Name noch, wird er angefordert und die Ansicht frischt auf.
+            local name, _, icon = ns.Compat.ItemInfo(piece.id)
+            if not name then ns.Compat.RequestItem(piece.id) end
             rows[#rows + 1] = {
-                kind = "gear", id = piece.id, pct = nil, ilvl = piece.ilvl,
+                kind = "gear", id = piece.id, name = name, icon = icon,
+                pct = nil, ilvl = piece.ilvl,
                 badge = ns.Catalog.ItemKind(piece.id),
                 drop = originText(piece.id, ns.Catalog.ItemKind(piece.id), who.mode),
                 link = link, atLevel = nil, wantLevel = nil,
@@ -1118,7 +1121,8 @@ local function playerRows(specID, mode, source)
     local rows = {}
     for _, player in ipairs(players) do
         rows[#rows + 1] = {
-            kind = "player", rank = player.rank, name = player.name,
+            kind = "player", rank = player.rank, rating = player.rating,
+            name = player.name,
             realm = player.realm, mode = foundIn, specID = specID,
             -- Die Adresse kommt fertig aus den Daten. Sie hier noch
             -- einmal zusammenzusetzen hiesse, ein Format an zwei
@@ -1500,7 +1504,10 @@ local function setItemRow(row, data)
         row.detail:SetText((data.realm or "") .. "  \194\183  " .. L["PLAYER_COPY"])
         -- Der Platz steht rechts, wo sonst der Anteil steht: beides
         -- ist die Zahl, nach der die Zeile sortiert ist.
-        row.share:SetText(data.rank and ("#" .. data.rank) or "")
+        -- Battle.net traegt die Wertung: dann steht sie neben dem Platz.
+        local place = data.rank and ("#" .. data.rank) or ""
+        if data.rating then place = place .. "  " .. data.rating end
+        row.share:SetText(place)
         S:Recolor(row.share, (data.rank or 99) <= 3 and "accent" or "textMuted")
         -- Klick oeffnet das Profil im Fenster; die Adresse gibt es dort.
         row.onClick = function()
@@ -1549,16 +1556,6 @@ local function setItemRow(row, data)
             S:Recolor(row.share, data.on and "success" or "textMuted")
         end
         row.onClick = function() data.toggle(); UI.Refresh() end
-        return
-    end
-
-    if data.kind == "back" then
-        row.link = nil
-        row.icon:SetTexture("Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Up")
-        row.title:SetText(L["PLAYER_BACK"])
-        row.detail:SetText("")
-        row.share:SetText("")
-        row.onClick = function() viewingPlayer = nil; UI.Refresh() end
         return
     end
 
@@ -1682,6 +1679,8 @@ local function setItemRow(row, data)
         -- Die Zielmenge ist der eine Wert im Fenster, der nicht gemessen
         -- ist. Deshalb steht neben ihr, dass man sie aendern kann.
         if data.owned > 0 then parts[#parts + 1] = L["OWNED"]:format(data.owned) end
+        if (data.ownedHigher or 0) > 0 then parts[#parts + 1] = L["OWNED_HIGHER"]:format(data.ownedHigher) end
+        if (data.ownedLower or 0) > 0 then parts[#parts + 1] = L["OWNED_LOWER"]:format(data.ownedLower) end
         local status, token
         if data.alt then
             status, token = nil, nil
@@ -1750,7 +1749,9 @@ local function setItemRow(row, data)
             detail = detail .. "  ·  " .. data.drop
         end
         row.detail:SetText(detail)
-        row.share:SetText((data.pct or 0) .. "%")
+        -- Ohne Anteil (das Stueck EINES Spielers) steht rechts nichts -
+        -- "0 %" waere eine Aussage, die niemand gemessen hat.
+        row.share:SetText(data.pct and (data.pct .. "%") or "")
         S:Recolor(row.share, (data.pct or 0) >= 50 and "accent" or "textMuted")
         row.onClick = nil
         return
@@ -1792,6 +1793,8 @@ local function setItemRow(row, data)
         parts[#parts + 1] = L["SLOT_COUNT"]:format(data.need)
     end
     if (data.owned or 0) > 0 then parts[#parts + 1] = L["OWNED"]:format(data.owned) end
+    if (data.ownedHigher or 0) > 0 then parts[#parts + 1] = L["OWNED_HIGHER"]:format(data.ownedHigher) end
+    if (data.ownedLower or 0) > 0 then parts[#parts + 1] = L["OWNED_LOWER"]:format(data.ownedLower) end
 
     -- Eine Alternative traegt keinen Zustand: sie ist nichts, was man
     -- noch braucht, sondern etwas, das andere stattdessen nehmen.
@@ -1967,6 +1970,16 @@ local function build()
     end)
     levelButton:SetPoint("TOPRIGHT", -S.space.xl, -S.space.lg - 2)
     frame.levelButton = levelButton
+
+    -- Zurueck aus der Spieleransicht: ein Knopf an derselben Stelle,
+    -- nicht eine Zeile in der Liste, die aussah wie ein Gegenstand.
+    local backButton = makeButton(content, 175, 22, L["PLAYER_BACK"], function()
+        viewingPlayer = nil
+        UI.Refresh()
+    end)
+    backButton:SetPoint("TOPRIGHT", -S.space.xl, -S.space.lg - 2)
+    backButton:Hide()
+    frame.backButton = backButton
 
     -- Der Dungeonwaehler steht beim Abschnitt, nicht in der Kopfzeile:
     -- dort draengen sich schon Spec, Aktivitaet und Quelle, und ein
@@ -2357,6 +2370,7 @@ function UI.Refresh()
 
     -- Ein Abschnittswechsel schliesst das Profil.
     if viewingPlayer and viewingPlayer.section ~= section.key then viewingPlayer = nil end
+    frame.backButton:SetShown(viewingPlayer ~= nil)
 
     local fromSource
     if viewingPlayer then

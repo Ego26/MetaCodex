@@ -53,15 +53,19 @@ function Remind.Status(mode)
         local entry = bestOfKind[kind]
         if entry and entry.id then
             local need = ns.Profile.ConsumableTarget(kind)
-            local owned = ns.Compat.ItemCount(entry.id)
+            -- Hoehere Qualitaet deckt den Bedarf; niedrigere steht dabei.
+            local lowerIDs, higherIDs = ns.Catalog.Tiers(entry.id)
+            local owned, lower = ns.Compat.ItemCount(entry.id), 0
+            for _, other in ipairs(higherIDs) do owned = owned + ns.Compat.ItemCount(other) end
+            for _, other in ipairs(lowerIDs) do lower = lower + ns.Compat.ItemCount(other) end
             local state = "ok"
-            if owned == 0 then state = "none"
+            if owned == 0 then state = lower > 0 and "low" or "none"
             elseif owned < need * below then state = "low" end
             if need > 0 then
                 out[#out + 1] = {
                     kind = kind, id = entry.id,
                     name = ns.Compat.ItemInfo(entry.id) or entry.name,
-                    owned = owned, need = need, state = state, pct = entry.pct,
+                    owned = owned, lower = lower, need = need, state = state, pct = entry.pct,
                 }
             end
         end
@@ -84,7 +88,7 @@ function Remind.Check(mode)
     -- oder leer ist.
     for _, row in ipairs(Remind.Status(mode)) do
         if row.state ~= "ok" then
-            out[#out + 1] = { name = row.name or ("#" .. row.id), owned = row.owned, need = row.need }
+            out[#out + 1] = { name = row.name or ("#" .. row.id), owned = row.owned, need = row.need, lower = row.lower or 0 }
         end
     end
     table.sort(out, function(a, b) return a.owned < b.owned end)
@@ -97,9 +101,13 @@ function Remind.Announce(mode)
     local missing = Remind.Check(mode)
     local parts = {}
     for _, row in ipairs(missing) do
-        parts[#parts + 1] = row.owned == 0
-            and L["REMIND_NONE"]:format(row.name)
-            or L["REMIND_LOW"]:format(row.name, row.owned)
+        if row.owned > 0 then
+            parts[#parts + 1] = L["REMIND_LOW"]:format(row.name, row.owned)
+        elseif (row.lower or 0) > 0 then
+            parts[#parts + 1] = L["REMIND_LOWER"]:format(row.name, row.lower)
+        else
+            parts[#parts + 1] = L["REMIND_NONE"]:format(row.name)
+        end
     end
     -- Auch die offenen Verzauberungen und Steine - gezaehlt gegen
     -- die Ausruestung, wie im Reiter. Vor dem Pull ist der letzte
