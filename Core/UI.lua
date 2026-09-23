@@ -506,9 +506,13 @@ local function originText(itemID, badge, mode)
     if origin == "pvpcraft" then return L["ORIGIN_PVPCRAFT"], "craft", L["ORIGIN_CRAFT"] end
     if badge == "set" then return L["ORIGIN_SET"], "set", L["ORIGIN_SET"] end
     if badge == "craft" then return L["ORIGIN_CRAFT"], "craft", L["ORIGIN_CRAFT"] end
-    -- Was uebrig bleibt, hat keinen Boss und keinen Haendler in den
-    -- Spieldaten - also kommt es aus der Welt, einer Quest oder von
-    -- einem Haendler. Das ist wahr, auch wenn es nicht sagt, von welchem.
+    -- Was uebrig bleibt, steht in Blizzards Abenteuerjournal nicht.
+    --
+    -- Das ist die Auskunft, die wir haben, und sie ist nachgeprueft: die
+    -- Journaltabelle kennt diese Gegenstaende nicht, Blizzards
+    -- Gegenstands-Schnittstelle nennt keine Quelle, und eine Tabelle fuer
+    -- Haendler, Quests oder Ruf gibt es nicht. Die Zeile sagt deshalb
+    -- zuerst, was bekannt ist, und erst danach, was daraus folgt.
     return L["ORIGIN_WORLD"], "world", L["ORIGIN_WORLD"]
 end
 
@@ -2568,42 +2572,6 @@ function activeSection()
     return SECTIONS[1]
 end
 
----Was dem Charakter noch fehlt, in einer Zeile.
----
----Die Fusszeile trug bisher, woher die Daten kommen und von wann. Das
----ist eine Auskunft ueber das Addon, keine ueber den Spieler - und sie
----steht vollstaendiger im Info-Reiter. Hier steht jetzt, was ihn
----betrifft: was noch offen ist, ueber alle Abschnitte hinweg.
----@return string text
----@return boolean alright Nichts mehr offen
-local function readinessText()
-    if not ns.Profile.Complete() or ns.Profile.IsForeignClass() then return "", false end
-    if not ns.Catalog.Ready() then return "", false end
-
-    local enchants, gems = 0, 0
-    for _, row in ipairs(ns.List.Build(ns.Gear.Scan())) do
-        if not row.alt and not row.pending and (row.buy or 0) > 0 then
-            if row.kind == "gem" then gems = gems + row.buy
-            elseif row.kind == "enchant" then enchants = enchants + 1 end
-        end
-    end
-    -- Verbrauchsgueter zaehlen nach ART, nicht nach Stueck: "drei Arten
-    -- fehlen" ist die Auskunft, "siebzehn Stueck" waere Ballast.
-    local kinds = 0
-    for _, row in ipairs(ns.Remind.Status(ns.Profile.Mode())) do
-        if row.state ~= "ok" then kinds = kinds + 1 end
-    end
-
-    if enchants == 0 and gems == 0 and kinds == 0 then
-        return L["READY_ALL"], true
-    end
-    local parts = {}
-    if enchants > 0 then parts[#parts + 1] = L["READY_ENCHANTS"]:format(enchants) end
-    if gems > 0 then parts[#parts + 1] = L["READY_GEMS"]:format(gems) end
-    if kinds > 0 then parts[#parts + 1] = L["READY_CONSUM"]:format(kinds) end
-    return L["READY_OPEN"]:format(table.concat(parts, "  \194\183  ")), false
-end
-
 function UI.Refresh()
     if not frame then return end
 
@@ -2832,14 +2800,13 @@ function UI.Refresh()
             names, ns.Compat.DateText(ns.Recommend.Stamp(mode, wanted)))
     end
     frame.__provenance = provenance
-    local ready, alright = readinessText()
-    if ready ~= "" then
-        sourceText:SetText(ready)
-        S:Recolor(sourceText, alright and "success" or "textSecondary")
-    elseif ns.Recommend.Ready() and not rec then
+    -- Unten steht, wer es gemacht hat. Woher die Zahlen stammen, haengt
+    -- am Zeiger darueber und steht vollstaendig unter "Info"; was dem
+    -- Charakter fehlt, steht in seinen eigenen Abschnitten.
+    if ns.Recommend.Ready() and not rec then
         sourceText:SetText("|cff" .. S:Hex("warning") .. L["NO_MODE_DATA"] .. "|r")
     else
-        sourceText:SetText(provenance)
+        sourceText:SetText(L["CREDIT"])
         S:Recolor(sourceText, "textMuted")
     end
 
@@ -2944,10 +2911,6 @@ function UI.Refresh()
     if fromSource then
         frame.__provenance = L["SOURCE_LINE"]:format(
             fromSource, ns.Compat.DateText(ns.Recommend.Stamp(mode, fromSource)))
-        if (sourceText:GetText() or "") == "" then
-            sourceText:SetText(frame.__provenance)
-            S:Recolor(sourceText, "textMuted")
-        end
     end
 
     -- Die Kategorien kommen aus den Zeilen selbst, also erst hier. Ein
@@ -3681,12 +3644,18 @@ function UI.HandoverMissing(searchNow)
     end
     if ok then
         if not searchNow then
-            -- Sie ist fuer diesen einen Einkauf. Beim Schliessen des
-            -- Auktionshauses raeumt sie sich wieder weg - eine Liste, die
-            -- nach dem Einkauf noch da ist, ist beim naechsten Mal falsch.
-            remindListName = message
             ns.Print(L["LIST_CREATED"], written, message)
-            ns.Print(L["LIST_TEMPORARY"])
+            -- Versprochen wird nur, was auch gehalten wird.
+            --
+            -- Auctionators Schnittstelle kennt das Loeschen erst in
+            -- neueren Fassungen. Wo es fehlt, bleibt die Liste stehen -
+            -- dann steht das auch da, statt "nur fuer diesen Einkauf".
+            if ns.Adapter.Has("DeleteShoppingList") then
+                remindListName = message
+                ns.Print(L["LIST_TEMPORARY"])
+            else
+                ns.Print(L["LIST_STAYS"])
+            end
         end
     elseif L[message] ~= message then
         ns.Print(L[message])

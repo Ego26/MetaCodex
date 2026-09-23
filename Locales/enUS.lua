@@ -86,6 +86,7 @@ ns.RegisterLocale("enUS", {
     -- Meldungen
     ["NO_AUCTIONATOR"]     = "Auctionator is not loaded - the list is shown, but cannot be handed over.",
     ["LIST_TEMPORARY"] = "For this trip - it is removed when you close the auction house.",
+    ["LIST_STAYS"] = "Your Auctionator cannot delete lists, so this one stays - it keeps its name and is replaced next time.",
     ["LIST_DROPPED"] = "Shopping list removed: %s",
     ["LIST_CREATED"]       = "%d entries written to the list \"%s\".",
     ["LIST_FAILED"]        = "Auctionator refused the list: %s",
@@ -152,11 +153,7 @@ ns.RegisterLocale("enUS", {
 })
 
 ns.RegisterLocale("enUS", {
-    ["READY_ALL"] = "Ready to go: enchanted, socketed, stocked.",
-    ["READY_OPEN"] = "Still open: %s",
-    ["READY_ENCHANTS"] = "%d enchants",
-    ["READY_GEMS"] = "%d gems",
-    ["READY_CONSUM"] = "%d kinds of consumable",
+    ["CREDIT"] = "Created by Ego26",
     ["SOURCE_LINE"]  = "Recommendations: %s, %s",
     ["NO_MODE_DATA"] = "No data for this game mode yet - pick the stats yourself below.",
 })
@@ -331,7 +328,7 @@ ns.RegisterLocale("enUS", {
     ["ORIGIN_HONOR"]      = "Honor vendor",
     ["ORIGIN_PVPCRAFT"]   = "crafted (PvP)",
     ["ORIGIN_NONE"]       = "not an instance drop",
-    ["ORIGIN_WORLD"]      = "world, quest or vendor",
+    ["ORIGIN_WORLD"]      = "not in the journal: world, quest or vendor",
     ["LBL_ORIGIN"]        = "Source",
     ["SOURCE_ANY"]        = "Any source",
     ["KEY_STEP_UPGRADE"]  = "%d  (upgrade)",

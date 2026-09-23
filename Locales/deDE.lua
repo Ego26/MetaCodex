@@ -86,6 +86,7 @@ ns.RegisterLocale("deDE", {
     -- Meldungen
     ["NO_AUCTIONATOR"]     = "Auctionator ist nicht geladen – die Liste steht da, lässt sich aber nicht übergeben.",
     ["LIST_TEMPORARY"] = "Nur für diesen Einkauf - beim Schließen des Auktionshauses geht sie wieder weg.",
+    ["LIST_STAYS"] = "Dein Auctionator kann Listen nicht löschen, diese bleibt also stehen - sie behält ihren Namen und wird beim nächsten Mal ersetzt.",
     ["LIST_DROPPED"] = "Einkaufsliste entfernt: %s",
     ["LIST_CREATED"]       = "%d Einträge in die Liste \"%s\" geschrieben.",
     ["LIST_FAILED"]        = "Auctionator hat die Liste abgelehnt: %s",
@@ -152,11 +153,7 @@ ns.RegisterLocale("deDE", {
 })
 
 ns.RegisterLocale("deDE", {
-    ["READY_ALL"] = "Startklar: verzaubert, gesockelt, eingedeckt.",
-    ["READY_OPEN"] = "Noch offen: %s",
-    ["READY_ENCHANTS"] = "%d Verzauberungen",
-    ["READY_GEMS"] = "%d Steine",
-    ["READY_CONSUM"] = "%d Arten Verbrauchsgut",
+    ["CREDIT"] = "Created by Ego26",
     ["SOURCE_LINE"]  = "Empfehlungen: %s, %s",
     ["NO_MODE_DATA"] = "Für diesen Spielmodus gibt es noch keine Daten – Werte unten selbst wählen.",
 })
@@ -323,7 +320,7 @@ ns.RegisterLocale("deDE", {
     ["ORIGIN_HONOR"]      = "Ehre-Händler",
     ["ORIGIN_PVPCRAFT"]   = "Handwerk (PvP)",
     ["ORIGIN_NONE"]       = "kein Instanzdrop",
-    ["ORIGIN_WORLD"]      = "Welt, Quest oder Händler",
+    ["ORIGIN_WORLD"]      = "nicht im Journal: Welt, Quest oder Händler",
     ["LBL_ORIGIN"]        = "Fundort",
     ["SOURCE_ANY"]        = "Alle Fundorte",
     ["KEY_STEP_UPGRADE"]  = "%d  (Aufwertung)",

@@ -2089,10 +2089,8 @@ do
     ns.Profile.Set("onlyMissing", false)
     rowsInSection("enchants")
     local text = ns.UI.FooterText()
-    local offen = L["READY_OPEN"]:gsub("%%s", "")
-    check("die Fusszeile spricht vom Charakter",
-        text == L["READY_ALL"] or text:find(offen, 1, true) ~= nil, text)
-    check("und nicht mehr von der Quelle", text:find("murlok", 1, true) == nil, text)
+    check("die Fusszeile nennt den Urheber", text == L["CREDIT"], text)
+    check("und nicht die Quelle", text:find("murlok", 1, true) == nil, text)
     -- Die Quelle ist nicht verloren, sie haengt am Zeiger.
     check("die Herkunft steht im Zeiger",
         tostring(ns.UI.Frame().__provenance or ""):find("murlok", 1, true) ~= nil,
@@ -2283,12 +2281,31 @@ do
                     fehlt .. " von " .. #(sent and sent.rows or {}))
                 -- Sie ist fuer diesen einen Einkauf: schliesst das
                 -- Auktionshaus, raeumt sie sich weg.
+                -- Temporaer ist sie nur, wo Auctionator loeschen kann.
+                -- Kann es das nicht, bleibt sie stehen - und das Addon
+                -- behauptet dann auch nichts anderes.
                 local geloescht
                 local realDelete = ns.Adapter.DeleteList
+                local realHas = ns.Adapter.Has
                 ns.Adapter.DeleteList = function(name) geloescht = name return true end
+                ns.Adapter.Has = function(what)
+                    if what == "DeleteShoppingList" then return true end
+                    return realHas(what)
+                end
+                window.create.__scripts.OnClick(window.create)
                 wow.fire("AUCTION_HOUSE_CLOSED")
-                check("die Liste der Erinnerung ist temporaer",
-                    geloescht == "Liste", tostring(geloescht))
+                check("mit Loeschfunktion ist die Liste temporaer",
+                    type(geloescht) == "string" and geloescht:find("MetaCodex", 1, true) ~= nil,
+                    tostring(geloescht))
+                geloescht = nil
+                ns.Adapter.Has = function(what)
+                    if what == "DeleteShoppingList" then return false end
+                    return realHas(what)
+                end
+                window.create.__scripts.OnClick(window.create)
+                wow.fire("AUCTION_HOUSE_CLOSED")
+                check("ohne Loeschfunktion bleibt sie stehen", geloescht == nil)
+                ns.Adapter.Has = realHas
                 -- Und nur einmal: ein zweites Schliessen loescht nichts.
                 geloescht = nil
                 wow.fire("AUCTION_HOUSE_CLOSED")
