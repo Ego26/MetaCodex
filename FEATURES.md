@@ -33,7 +33,7 @@ Open it: **`/mc`** or the button in the minimap's addon compartment.
 - **Guides** linked, never copied.
 - **Shopping lists to Auctionator** with quantities; **Shift-click** links
   any item into chat or the auction house search.
-- **Every activity, every spec, three platforms** — and nothing shown that
+- **Every activity, every spec, four platforms** — and nothing shown that
   no platform can answer.
 - **English and German**, right on any client.
 
@@ -72,7 +72,8 @@ highest key, set and crafted marks and the **source**: which boss in which
 instance, which vendor, or honestly "not an instance drop". At the top
 right you pick *your* keystone — by upgrade track like KeystoneLoot
 (Champion / Hero / Great Vault) — and every tooltip shows the item at
-exactly the level you would get, with "Hero 3/8" in the tooltip.
+exactly the level you would get, with "Hero 3/8" in the tooltip. A piece
+you already wear or carry says so — **equipped** or **already in your bags**.
 
 **Enchants & Gems** — What the best wear on which slot, with two
 alternatives per slot and the special socket kept separate. Compared with
@@ -142,6 +143,7 @@ whether Auctionator is present.
 | **raider.io** | M+: gear, enchants, gems, talents with ready-made import strings. The top players' profiles |
 | **murlok.io** | All PvP brackets and M+: gear, gems, stat targets, talents, ranked lists of top players |
 | **Warcraft Logs** | Raids in full and consumables — what nobody else publishes |
+| **Battle.net** | The official PvP leaderboards with rating: every bracket, EU and US. Each top player's import string for the rated spec, PvP talents, hero tree, gear, enchants and gems — straight from Blizzard's character profile |
 
 Everything is collected once a day by the GitHub Action `Daily data` and
 attached to the release **nightly** as a finished addon package; in the
@@ -164,7 +166,7 @@ under PvP because no platform measures them — so there is no tab for them.
 | | |
 |---|---|
 | **10 activities** | M+ (High Keys), M+ (+7 to +21), Raid Normal / Heroic / Mythic, 2v2, 3v3, Solo Shuffle, RBG, RBG Blitz |
-| **3 platforms** | raider.io, murlok.io, Warcraft Logs — individually or "All platforms" |
+| **4 platforms** | raider.io, murlok.io, Warcraft Logs, Battle.net — individually or "All platforms" |
 | **All 40 specs** | Including classes you do not play — to look things up, or to shop for an alt |
 | **1,401 talent import strings** | Every one from a real player, every one copied with a click |
 | **2,472 player profiles** | The top players per spec and activity, with their full gear |

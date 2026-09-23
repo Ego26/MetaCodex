@@ -484,6 +484,8 @@ end
 ---@return table[] rows
 ---@return string|nil fromSource
 local function gearRows(specID, mode, source)
+    -- Was schon am Koerper haengt, einmal je Aufbau - nicht je Zeile.
+    local worn = ns.Compat.EquippedIDs()
     local gear, from = ns.Recommend.Gear(specID, mode, source)
     if not gear then return {}, nil end
 
@@ -550,6 +552,10 @@ local function gearRows(specID, mode, source)
                     atLevel = atLevel, wantLevel = yours, wantBonus = yoursBonus,
                     name = name or item.name, link = link, icon = icon,
                     group = L["GEARSLOT_" .. slot:gsub("%s", "")],
+                    -- Ob man es schon hat: angelegt oder im Gepaeck.
+                    -- Die Zahl ist egal, ein Stueck traegt man einmal.
+                    worn = worn[item.id] == true,
+                    owned = ns.Compat.ItemCount(item.id) > 0,
                 }
             end
         end
@@ -874,6 +880,16 @@ local function consumableRows(specID, mode, source)
             local id = entry.id
             local target = ns.Profile.ConsumableTarget(kind)
             local owned = id and ns.Compat.ItemCount(id) or 0
+            -- Dieselbe Ware in anderer Qualitaet, wie bei Steinen und
+            -- Verzauberungen: Gold deckt Silber, Silber steht nur dabei.
+            -- Diese Zeilen gehen nicht durch List.fill - deshalb stand
+            -- beim Heiltrank nichts, obwohl 23 in Silber im Beutel lagen.
+            local ownedLower, ownedHigher = 0, 0
+            if id then
+                local lower, higher = ns.Catalog.Tiers(id)
+                for _, other in ipairs(lower) do ownedLower = ownedLower + ns.Compat.ItemCount(other) end
+                for _, other in ipairs(higher) do ownedHigher = ownedHigher + ns.Compat.ItemCount(other) end
+            end
             local name, link, icon
             if id then
                 name, link, icon = ns.Compat.ItemInfo(id)
@@ -887,8 +903,9 @@ local function consumableRows(specID, mode, source)
                 name = name or entry.name,
                 link = link, icon = icon,
                 owned = owned, need = target,
+                ownedLower = ownedLower, ownedHigher = ownedHigher,
                 maxKey = entry.maxKey,
-                buy = first and math.max(0, target - owned) or 0,
+                buy = first and math.max(0, target - owned - ownedHigher) or 0,
                 group = group,
             }
             first = false
@@ -1742,6 +1759,12 @@ local function setItemRow(row, data)
         if data.badge then
             detail = detail .. "  ·  |cff" .. S:Hex("accent")
                 .. L["BADGE_" .. data.badge:upper()] .. "|r"
+        end
+        -- Schon im Besitz: angelegt zaehlt mehr als im Gepaeck.
+        if data.worn then
+            detail = detail .. "  ·  |cff" .. S:Hex("success") .. L["GEAR_WORN"] .. "|r"
+        elseif data.owned then
+            detail = detail .. "  ·  |cff" .. S:Hex("success") .. L["IN_BAGS"] .. "|r"
         end
         -- Der Fundort steht zuletzt, weil er der laengste Teil ist und
         -- die kurzen Angaben sonst nach rechts rutschen.

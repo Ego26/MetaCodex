@@ -38,7 +38,7 @@ optional — without it the lists still show, only the handover is missing.
 | **Consumables** | Grouped by kind, with share, highest key, stock and target |
 | **Reminder** | What is checked before you go in, and the settings for it |
 
-Ten activities, three platforms, all forty specs. Nothing is shown that no
+Ten activities, four platforms, all forty specs. Nothing is shown that no
 platform can answer: sections, activities and platforms without data are
 hidden. [FEATURES.md](FEATURES.md) has the whole picture.
 

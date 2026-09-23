@@ -235,12 +235,17 @@ local mplusSources = table.concat(ns.Recommend.SourcesFor("mplus"), ",")
 check("M+ kennt beide Quellen",
     mplusSources:find("murlok") ~= nil
         and mplusSources:find("warcraftlogs") ~= nil, mplusSources)
--- Und die Trennung haelt: den Arenamodus MISST nur murlok. raider.io
--- steht trotzdem dabei - fuer die verifizierten Ketten aus den Profilen
--- der murlok-Spieler. Warcraft Logs hat dort nichts zu suchen.
-check("2v2: murlok misst, raider.io liefert Ketten, sonst niemand",
-    table.concat(ns.Recommend.SourcesFor("2v2"), ",") == "murlok.io,raider.io",
-    table.concat(ns.Recommend.SourcesFor("2v2"), ","))
+-- Und die Trennung haelt: den Arenamodus messen murlok und die
+-- Battle.net-Rangliste. raider.io steht dabei fuer die verifizierten
+-- Strings aus den Profilen. Warcraft Logs hat dort nichts zu suchen -
+-- und die Reihenfolge ist fest: murlok zuerst, Battle.net zuletzt.
+do
+    local arena = table.concat(ns.Recommend.SourcesFor("2v2"), ",")
+    check("2v2: murlok, raider.io, Battle.net - kein Warcraft Logs",
+        arena:find("warcraftlogs") == nil and arena:sub(1, 9) == "murlok.io"
+            and (arena:find("Battle.net") == nil or arena:sub(-10) == "Battle.net"),
+        arena)
+end
 -- raider.io steht beim Raid dabei, seit die Ketten aus den Profilen der
 -- geloggten Spieler kommen - geprueft gegen die Talente des Kampfes.
 check("Raid: Warcraft Logs misst, raider.io liefert verifizierte Ketten",
@@ -1730,6 +1735,91 @@ do
         C_Item.GetItemCount = realCount
     else
         check("kein Verbrauchsgut in zwei Qualitaeten - Erinnerung uebersprungen", true)
+    end
+end
+
+-- --------------------------------------------- Besitz bei Ausruestung
+
+-- Ein empfohlenes Stueck, das man traegt, sagt es; eines im Gepaeck
+-- auch. Die Zeile sieht sonst aus, als fehlte alles.
+do
+    ns.Profile.SetMode("mplus")
+    rowsInSection("gear")
+    local ids, seen = {}, {}
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() and type(row.itemID) == "number" and not seen[row.itemID] then
+            ids[#ids + 1] = row.itemID
+            seen[row.itemID] = true
+        end
+    end
+    check("Ausruestungszeilen tragen IDs", #ids >= 2, #ids .. " IDs")
+    if #ids >= 2 then
+        local wornID, bagID = ids[1], ids[2]
+        local realLink, realCount = GetInventoryItemLink, C_Item.GetItemCount
+        GetInventoryItemLink = function(unit, slot)
+            if slot == 1 then return ("|Hitem:%d::::::::80:::::|h[Kopf]|h"):format(wornID) end
+            return realLink(unit, slot)
+        end
+        C_Item.GetItemCount = function(id, ...)
+            if id == bagID then return 1 end
+            return realCount(id, ...)
+        end
+        rowsInSection("gear")
+        local wornText, bagText
+        for _, row in ipairs(wow.rows()) do
+            if row:IsShown() and row.itemID == wornID and not wornText then wornText = row.detail:GetText() end
+            if row:IsShown() and row.itemID == bagID and not bagText then bagText = row.detail:GetText() end
+        end
+        check("getragenes Stueck sagt angelegt", wornText ~= nil and wornText:find(L["GEAR_WORN"], 1, true) ~= nil, tostring(wornText))
+        check("Stueck im Gepaeck sagt es", bagText ~= nil and bagText:find(L["IN_BAGS"], 1, true) ~= nil, tostring(bagText))
+        GetInventoryItemLink, C_Item.GetItemCount = realLink, realCount
+        rowsInSection("gear")
+        local plain
+        for _, row in ipairs(wow.rows()) do
+            if row:IsShown() and row.itemID == wornID and not plain then plain = row.detail:GetText() end
+        end
+        check("ohne Besitz kein Hinweis", plain ~= nil and plain:find(L["GEAR_WORN"], 1, true) == nil, tostring(plain))
+    end
+end
+
+-- Der Heiltrank in Silber (271883) zaehlt als niedrigere Stufe des
+-- goldenen (271884) - genau der Fall aus dem Spiel, in dem nichts stand.
+do
+    local lower = ns.Catalog.Tiers(271884)
+    check("Silber-Heiltrank ist die niedrigere Stufe", lower[1] == 271883, tostring(lower[1]))
+    ns.Profile.SetMode("mplus")
+    ns.Profile.Set("onlyMissing", false)
+    local realCount = C_Item.GetItemCount
+    C_Item.GetItemCount = function(id, ...)
+        if id == 271883 then return 23 end
+        return realCount(id, ...)
+    end
+    -- Die Zeile kommt aus dem Reiter, nicht aus List.Build - dort lag
+    -- der Fehler. Gesucht wird ueber die Speccs, bis eine den Trank
+    -- empfiehlt.
+    local wasSpec = MetaCodexDB.selectedSpec
+    local hint = L["OWNED_LOWER"]:format(23)
+    local found, saidLower, buyText
+    for specID in pairs(MetaCodex_Catalog.specs) do
+        MetaCodexDB.selectedSpec = specID
+        rowsInSection("consumables")
+        for _, row in ipairs(wow.rows()) do
+            if row:IsShown() and row.title:GetText() == "Item 271884" then
+                found = specID
+                local text = row.detail:GetText() or ""
+                saidLower = text:find(hint, 1, true) ~= nil
+                buyText = text
+                break
+            end
+        end
+        if found then break end
+    end
+    MetaCodexDB.selectedSpec = wasSpec
+    C_Item.GetItemCount = realCount
+    check("eine Spec empfiehlt den Heiltrank", found ~= nil, tostring(found))
+    if found then
+        check("Heiltrank sagt: 23 in Silber vorhanden", saidLower == true, buyText)
+        check("Silber deckt Gold nicht - es fehlt weiter", buyText:find(L["NEED"]:format(5), 1, true) ~= nil, buyText)
     end
 end
 

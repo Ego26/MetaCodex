@@ -192,6 +192,21 @@ function Compat.ItemInfo(itemID)
     return name, link, icon
 end
 
+---Was der Spieler gerade traegt, als Menge von Gegenstands-IDs.
+---Ueber den Link, nicht ueber GetInventoryItemID: der Link ist ueberall
+---da, wo auch die Ausruestung gelesen wird, und braucht keinen zweiten
+---Weg fuer denselben Platz.
+---@return table<number, boolean>
+function Compat.EquippedIDs()
+    local worn = {}
+    for inv = 1, 19 do
+        local link = GetInventoryItemLink("player", inv)
+        local id = link and tonumber(link:match("item:(%d+)"))
+        if id then worn[id] = true end
+    end
+    return worn
+end
+
 ---Bittet den Client, die Daten eines Gegenstands nachzuladen.
 ---@param itemID number
 function Compat.RequestItem(itemID)

@@ -44,6 +44,7 @@ ns.RegisterLocale("deDE", {
     ["OWNED"]              = "%d vorhanden",
     ["OWNED_HIGHER"] = "%d in höherer Qualität vorhanden",
     ["OWNED_LOWER"] = "%d in niedrigerer Qualität vorhanden",
+    ["GEAR_WORN"] = "angelegt",
     ["REMIND_LOWER"] = "%s (nur niedrigere Qualität: %d)",
     ["NEED"]               = "%d fehlen",
     ["EMPTY_SOCKETS"]      = "%d leere Sockel",

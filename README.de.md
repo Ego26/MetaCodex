@@ -40,7 +40,7 @@ fällt weg.
 | **Verbrauchsgüter** | Nach Art gruppiert, mit Anteil, höchstem Schlüssel, Bestand und Ziel |
 | **Erinnerung** | Was vor dem Start geprüft wird, und die Einstellungen dazu |
 
-Zehn Aktivitäten, drei Plattformen, alle vierzig Speccs. Nichts wird
+Zehn Aktivitäten, vier Plattformen, alle vierzig Speccs. Nichts wird
 gezeigt, was keine Plattform beantworten kann: Abschnitte, Aktivitäten und
 Plattformen ohne Daten sind ausgeblendet. [FEATURES.de.md](FEATURES.de.md)
 hat das ganze Bild.

@@ -32,7 +32,7 @@ trägst und im Beutel hast, damit du weißt, was noch fehlt.
 - **Guides** verlinkt, nie kopiert.
 - **Einkaufslisten an Auctionator** mit Stückzahlen; **Shift-Klick**
   verlinkt jeden Gegenstand in den Chat oder ins Suchfeld des Auktionshauses.
-- **Jede Aktivität, jede Spec, drei Plattformen** — und nichts angezeigt,
+- **Jede Aktivität, jede Spec, vier Plattformen** — und nichts angezeigt,
   was keine Plattform beantworten kann.
 - **Deutsch und Englisch**, auf jedem Client richtig.
 
@@ -73,7 +73,8 @@ Gegenstandsstufe, höchster Schlüsselstufe, Set- und Handwerksmarke und
 „kein Instanzdrop". Oben rechts wählst du *deinen* Schlüsselstein — nach
 Aufwertungspfad wie in KeystoneLoot (Champion / Held / Große Schatzkammer)
 — und jedes Tooltip zeigt den Gegenstand auf genau der Stufe, die du dafür
-bekämst, mit „Held 3/8" im Tooltip.
+bekämst, mit „Held 3/8" im Tooltip. Was du schon trägst oder dabeihast,
+sagt es — **angelegt** oder **liegt schon im Gepäck**.
 
 **Verzauberungen & Steine** — Was die Besten auf welchem Platz tragen, mit
 zwei Alternativen je Platz und dem besonderen Sockel getrennt. Verglichen
@@ -148,6 +149,7 @@ gemessen hat, und ob Auctionator da ist.
 | **raider.io** | M+: Ausrüstung, Verzauberungen, Steine, Talente mit fertigem Import-String. Die Profile der Top-Spieler |
 | **murlok.io** | Alle PvP-Klammern und M+: Ausrüstung, Steine, Zielwerte, Talente, Ranglisten der Top-Spieler |
 | **Warcraft Logs** | Raid komplett und Verbrauchsgüter — das, was sonst niemand veröffentlicht |
+| **Battle.net** | Die offiziellen PvP-Ranglisten mit Wertung: jede Wertungsart, EU und US. Je Top-Spieler der Import-String der gewerteten Spec, PvP-Talente, Held-Baum, Ausrüstung, Verzauberungen und Steine — direkt aus Blizzards Charakterprofil |
 
 Alles wird einmal täglich von der GitHub-Action `Daily data` gesammelt und
 als fertiges Addon-Paket an das Release **nightly** gehängt; im Spiel wird
@@ -172,7 +174,7 @@ also auch keinen Reiter dafür.
 | | |
 |---|---|
 | **10 Aktivitäten** | M+ (High Keys), M+ (+7 bis +21), Raid Normal / Heroisch / Mythisch, 2v2, 3v3, Solo Shuffle, RBG, RBG Blitz |
-| **3 Plattformen** | raider.io, murlok.io, Warcraft Logs — einzeln wählbar oder „Alle Plattformen" |
+| **4 Plattformen** | raider.io, murlok.io, Warcraft Logs, Battle.net — einzeln wählbar oder „Alle Plattformen" |
 | **Alle 40 Speccs** | Auch für Klassen, die du gar nicht spielst — zum Nachsehen oder zum Einkaufen für den Zweitcharakter |
 | **1.401 Talent-Import-Strings** | Jeder von einem echten Spieler, jeder mit einem Klick kopierbar |
 | **2.472 Spielerprofile** | Die Top-Spieler je Spec und Aktivität, mit kompletter Ausrüstung |

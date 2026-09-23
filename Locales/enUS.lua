@@ -44,6 +44,7 @@ ns.RegisterLocale("enUS", {
     ["OWNED"]              = "%d in bags",
     ["OWNED_HIGHER"] = "%d owned in higher quality",
     ["OWNED_LOWER"] = "%d owned in lower quality",
+    ["GEAR_WORN"] = "equipped",
     ["REMIND_LOWER"] = "%s (only lower quality: %d)",
     ["NEED"]               = "need %d",
     ["EMPTY_SOCKETS"]      = "%d empty sockets",

@@ -187,7 +187,7 @@ out.push('-- nur, WAS benutzt wird.');
 out.push('');
 out.push('MetaCodex_Recommendations = {');
 out.push(`  builtOn = ${newest},`);
-const SOURCE_ORDER = ['murlok.io', 'raider.io', 'Warcraft Logs', 'Battle.net'];
+const SOURCE_ORDER = ['murlok.io', 'raider.io', 'warcraftlogs.com', 'Battle.net'];
 const orderedSources = [...sources].sort((a, b) => {
   const ia = SOURCE_ORDER.indexOf(a), ib = SOURCE_ORDER.indexOf(b);
   return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b);

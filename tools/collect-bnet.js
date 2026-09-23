@@ -286,7 +286,9 @@ function summarise(players) {
   const gearTally = {};
   const names = {};
   const enchTally = {};
+  const enchSlots = {};
   const gemTally = {};
+  let gemCount = 0;
   const slotPlayers = {};
   for (const p of verified) {
     for (const row of p.rows) {
@@ -299,11 +301,15 @@ function summarise(players) {
     }
     for (const [type, key] of Object.entries(ENCHANT_KEY)) {
       const it = p.gear[SLOT_KEY[type]];
-      if (!it || !it.enchant) continue;
+      if (!it) continue;
+      // Ring und Waffe haben zwei Plaetze: der Anteil gilt je Platz, nicht
+      // je Spieler, sonst stuende 200 % an einem Ring.
+      enchSlots[key] = (enchSlots[key] || 0) + 1;
+      if (!it.enchant) continue;
       const e = enchTally[key] || (enchTally[key] = {});
       e[it.enchant] = (e[it.enchant] || 0) + 1;
     }
-    for (const it of Object.values(p.gear)) for (const gem of it.gems) gemTally[gem] = (gemTally[gem] || 0) + 1;
+    for (const it of Object.values(p.gear)) for (const gem of it.gems) { gemTally[gem] = (gemTally[gem] || 0) + 1; gemCount += 1; }
   }
   const gear = {};
   for (const [label, counter] of Object.entries(gearTally)) {
@@ -313,10 +319,11 @@ function summarise(players) {
   if (Object.keys(gear).length) out.gear = gear;
   const enchants = {};
   for (const [key, counter] of Object.entries(enchTally)) {
-    enchants[key] = pctRows(counter, verified.length).slice(0, 5).map((r) => ({ id: Number(r.key), pct: r.pct }));
+    enchants[key] = pctRows(counter, enchSlots[key]).slice(0, 5).map((r) => ({ id: Number(r.key), pct: r.pct }));
   }
   if (Object.keys(enchants).length) out.enchants = enchants;
-  const gems = pctRows(gemTally, verified.length).slice(0, 8).map((r) => ({ id: Number(r.key), pct: r.pct }));
+  // Anteil an allen gesockelten Steinen, wie murlok ihn zeigt.
+  const gems = pctRows(gemTally, gemCount).slice(0, 8).map((r) => ({ id: Number(r.key), pct: r.pct }));
   if (gems.length) out.gems = gems;
   return out;
 }
@@ -351,6 +358,9 @@ function summarise(players) {
       if (!mode || (ONLY && !ONLY.includes(mode))) continue;
       let specID = 0;
       if (kind === 'shuffle' || kind === 'blitz') {
+        // "shuffle-overall" und "blitz-overall" sind die Gesamtlisten - sie
+        // sagen nicht, welche Spec einer spielt, und bleiben still liegen.
+        if (name.endsWith('-overall')) continue;
         specID = specSlugs.get(name.slice(kind.length + 1)) || 0;
         if (!specID) { console.log('  ? ' + name + ': keine Spec dazu'); continue; }
       }
