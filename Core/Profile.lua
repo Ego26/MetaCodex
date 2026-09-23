@@ -227,6 +227,26 @@ function Profile.ConsumableTarget(kind)
     return TARGETS[kind] or 1
 end
 
+---Die eigene Wahl je Art - was DIESER Spieler benutzt.
+---
+---Gemessen wird, was die Besten nehmen; gekauft wird, was man selbst
+---nimmt. Wer seine Speise fuer ein Zehntel des Preises kauft, hat nicht
+---unrecht, und das Addon hat kein Recht, ihm dafuer "5 fehlen" unter
+---eine Speise zu schreiben, die er gar nicht will.
+---@param kind string
+---@return number|nil itemID
+function Profile.OwnConsumable(kind)
+    local db = MetaCodexDB or {}
+    return db.ownConsum and db.ownConsum[kind] or nil
+end
+
+---@param kind string
+---@param itemID number|nil
+function Profile.SetOwnConsumable(kind, itemID)
+    MetaCodexDB.ownConsum = MetaCodexDB.ownConsum or {}
+    MetaCodexDB.ownConsum[kind] = itemID
+end
+
 ---@param kind string
 ---@param count number
 function Profile.SetConsumableTarget(kind, count)

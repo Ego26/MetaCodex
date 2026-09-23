@@ -86,11 +86,11 @@ local SHOPPING = { enchants = true, consumables = true, remind = true }
 -- FAELLT, steht in jeder Zeile.
 -- Welche Abschnitte ein Dungeon wirklich veraendert.
 --
--- Talente und Verbrauchsgueter: beide misst Warcraft Logs je Dungeon UND
--- ueber alle - wie Archon es auch zeigt. Eine Verzauberung dagegen ist
--- ueberall dieselbe, und "Alle Dungeons" ueber der Steinliste beant-
--- wortet eine Frage, die dort niemand stellt.
-local DUNGEON_SECTIONS = { talents = true, consumables = true }
+-- Talente, Verbrauchsgueter, Verzauberungen und Steine: alle misst
+-- Warcraft Logs je Dungeon UND ueber alle - wie Archon es auch zeigt.
+-- Die Vorgabe ist ueberall "Alle Dungeons"; der Dungeon beantwortet die
+-- engere Frage, wenn jemand sie stellt.
+local DUNGEON_SECTIONS = { talents = true, consumables = true, enchants = true }
 
 -- Wessen Profil gerade offen ist, statt eines Abschnitts. Gesetzt vom
 -- Klick auf eine Zeile der Rangliste, geloescht vom Zurueck-Knopf oder
@@ -864,6 +864,63 @@ local function openTargetPicker(anchor, kind)
     end)
 end
 
+---Was an einer Verbrauchsgut-Zeile einzustellen ist: die Menge, und
+---welchen Gegenstand man selbst benutzt.
+---
+---Der zweite Punkt ist der wichtigere. Gemessen wird, was die Besten
+---nehmen - gekauft wird, was man selbst nimmt. Wer seine Speise fuer ein
+---Zehntel des Preises kauft, soll nicht unter einer fremden Speise "5
+---fehlen" lesen.
+---@param anchor table
+---@param kind string
+---@param id number|nil Gegenstand DIESER Zeile
+local function openConsumableMenu(anchor, kind, id)
+    local own = ns.Profile.OwnConsumable(kind)
+    if not (MenuUtil and MenuUtil.CreateContextMenu) then
+        openTargetPicker(anchor, kind)
+        return
+    end
+    MenuUtil.CreateContextMenu(anchor, function(_, root)
+        root:CreateTitle(L["CONSUM_" .. kind])
+
+        -- Die Menge.
+        local amount = root:CreateButton(L["CONSUM_TARGET_MENU"])
+        for _, count in ipairs({ 0, 1, 2, 3, 5, 10, 20, 40 }) do
+            amount:CreateRadio(tostring(count),
+                function() return ns.Profile.ConsumableTarget(kind) == count end,
+                function() ns.Profile.SetConsumableTarget(kind, count) UI.Refresh() end)
+        end
+
+        -- Diese Zeile als eigene Wahl.
+        if id and own ~= id then
+            root:CreateButton(L["CONSUM_USE_THIS"], function()
+                ns.Profile.SetOwnConsumable(kind, id)
+                UI.Refresh()
+            end)
+        end
+
+        -- Oder etwas aus dem Beutel - dort steht, was man wirklich
+        -- benutzt, und das sind selten mehr als eine Handvoll.
+        local owned = ns.Catalog.OwnedOfKind(kind)
+        if #owned > 0 then
+            local mine = root:CreateButton(L["CONSUM_FROM_BAGS"])
+            for _, entry in ipairs(owned) do
+                local name = ns.Compat.ItemInfo(entry.id) or entry.name
+                mine:CreateRadio(name .. "  (" .. ns.Compat.ItemCount(entry.id) .. ")",
+                    function() return ns.Profile.OwnConsumable(kind) == entry.id end,
+                    function() ns.Profile.SetOwnConsumable(kind, entry.id) UI.Refresh() end)
+            end
+        end
+
+        if own then
+            root:CreateButton(L["CONSUM_USE_MEASURED"], function()
+                ns.Profile.SetOwnConsumable(kind, nil)
+                UI.Refresh()
+            end)
+        end
+    end)
+end
+
 ---Verbrauchsgueter mit Bestand im Beutel.
 ---
 ---Die Anteile sind gemessen, die Zielmengen nicht - jene sind eine
@@ -883,6 +940,31 @@ local function consumableRows(specID, mode, source)
             or entry.kind or "other"
         byKind[kind] = byKind[kind] or {}
         table.insert(byKind[kind], entry)
+    end
+
+    -- Die eigene Wahl steht oben und ist der Posten; was gemessen wurde,
+    -- rutscht darunter zu den Alternativen. Ist sie in der Messung gar
+    -- nicht aufgetaucht - der billige Braten kommt in keiner Rangliste
+    -- vor -, kommt sie aus dem Katalog dazu.
+    for _, kind in ipairs(CONSUM_ORDER) do
+        local own = ns.Profile.OwnConsumable(kind)
+        if own then
+            local list2 = byKind[kind] or {}
+            local found
+            for i, entry in ipairs(list2) do
+                if entry.id == own then found = table.remove(list2, i) break end
+            end
+            if not found then
+                local known
+                for _, entry in ipairs(ns.Catalog.Consumables(kind)) do
+                    if entry.id == own then known = entry break end
+                end
+                found = { id = own, name = known and known.name or nil, pct = nil }
+            end
+            found.own = true
+            table.insert(list2, 1, found)
+            byKind[kind] = list2
+        end
     end
 
     local rows = {}
@@ -923,7 +1005,7 @@ local function consumableRows(specID, mode, source)
             local group = L["CONSUM_" .. kind]
             rows[#rows + 1] = {
                 kind = "consumable", ckind = kind,
-                alt = not first or nil,
+                alt = not first or nil, own = entry.own,
                 id = id, pct = entry.pct,
                 name = name or entry.name,
                 link = link, icon = icon,
@@ -1892,6 +1974,7 @@ local function setItemRow(row, data)
         row.detail:SetPoint("TOPLEFT", S.space.sm + 38, -S.space.sm - 16)
 
         local parts = {}
+        if data.own then parts[#parts + 1] = L["CONSUM_MINE"] end
         if data.alt then parts[#parts + 1] = L["ALT_ROW"] end
         if data.maxKey and data.maxKey > 0 then
             parts[#parts + 1] = L["MAX_KEY"]:format(data.maxKey)
@@ -1931,7 +2014,7 @@ local function setItemRow(row, data)
         -- Zu waehlen ist nur noch die Menge. Was benutzt wird, ist
         -- gemessen - bei Speisen inzwischen genauso wie bei allem anderen.
         row.onClick = function(self)
-            openTargetPicker(self, data.ckind)
+            openConsumableMenu(self, data.ckind, data.id)
         end
         return
     end
@@ -2806,11 +2889,6 @@ function UI.Refresh()
 
     local shown = currentRows
 
-    local scrollTop = 156 + (frame.controls:IsShown() and 0 or -128)
-        + headerRows * HEADER_ROW
-    frame.scroll:SetPoint("TOPLEFT", S.space.xl, -S.space.xl - scrollTop)
-    hintText:SetPoint("TOPLEFT", S.space.xl, -S.space.xl - (scrollTop - 16))
-
     -- Die Breite kann sich seit dem letzten Mal geaendert haben - das
     -- Fenster ist ziehbar. Alles, was an ihr haengt, folgt hier nach;
     -- die Zeilen selbst gleich beim Setzen.
@@ -2823,6 +2901,25 @@ function UI.Refresh()
         or (-S.space.xl - edge)
     hintText:SetWidth(math.max(120, width - reserved))
     sourceText:SetWidth(math.max(200, frame:GetWidth() - 360))
+
+    -- Erst den Hinweis setzen, dann die Liste darunter.
+    --
+    -- Die Liste begann auf fester Hoehe, der Hinweis stand 16 Pixel
+    -- darueber - Platz fuer GENAU EINE Zeile. Ein Satz, der umbrach,
+    -- lag auf der ersten Ueberschrift. Jetzt misst der Hinweis sich
+    -- selbst und die Liste faengt darunter an.
+    local hintTop = 140 + (frame.controls:IsShown() and 0 or -128)
+        + headerRows * HEADER_ROW
+    hintText:ClearAllPoints()
+    hintText:SetPoint("TOPLEFT", S.space.xl, -S.space.xl - hintTop)
+    local hintHeight = 0
+    if (hintText:GetText() or "") ~= "" then
+        hintHeight = math.max(14, hintText:GetStringHeight() or 14)
+    end
+    local scrollTop = hintTop + hintHeight + (hintHeight > 0 and S.space.md or S.space.sm)
+    frame.scroll:ClearAllPoints()
+    frame.scroll:SetPoint("TOPLEFT", S.space.xl, -S.space.xl - scrollTop)
+    frame.scroll:SetPoint("BOTTOMRIGHT", -S.space.xl - 20, S.space.md)
 
     local index, offset, lastSlot = 0, 0, nil
     local function place(row, height)

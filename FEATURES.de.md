@@ -87,7 +87,11 @@ deine Bank abgezogen. Qualitätsstufen zählen mit: eine höhere Stufe im
 Beutel deckt den Bedarf, eine niedrigere steht dabei, deckt aber nicht.
 Rechts steht, was du noch brauchst.
 
-**Verbrauchsgüter** — Gruppiert nach Art: Fläschchen,
+**Verbrauchsgüter** — Ein Klick auf eine Zeile sagt, **was du selbst
+nimmst**: deine Wahl aus deinen eigenen Taschen rückt nach oben, ihr
+Bestand wird gezählt, und Einkaufsliste wie Erinnerung kaufen diese. Eine
+billigere Speise, die niemand misst, ist trotzdem deine Speise. Gruppiert
+nach Art: Fläschchen,
 Speise, Kampftrank, Heiltrank, Waffenbuffs (Öle, Wetzsteine), Runen. Je
 Gruppe der Anteil der Spieler und die höchste Schlüsselstufe, bei der es
 noch benutzt wurde. Dazu dein Bestand — in jeder Qualitätsstufe — und eine

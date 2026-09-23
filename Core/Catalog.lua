@@ -207,6 +207,21 @@ function Catalog.Consumables(kind)
 end
 
 
+---Die Gegenstaende einer Art, die der Spieler wirklich dabeihat.
+---
+---Gebraucht fuer die Wahl "das nehme ich": eine Liste von 192 Speisen
+---waere ein Katalog zum Durchscrollen, der Beutel ist die Antwort auf
+---"was benutze ich denn".
+---@param kind string
+---@return table[] entries
+function Catalog.OwnedOfKind(kind)
+    local out = {}
+    for _, entry in ipairs(Catalog.Consumables(kind)) do
+        if ns.Compat.ItemCount(entry.id) > 0 then out[#out + 1] = entry end
+    end
+    return out
+end
+
 ---Woher ein Gegenstand kommt.
 ---
 ---Gibt IDs zurueck, keine Namen. Der Client loest sie ueber das

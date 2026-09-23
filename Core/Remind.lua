@@ -51,6 +51,13 @@ function Remind.Status(mode)
     local below = ns.Profile.WarnBelow()
     for _, kind in ipairs(KIND_ORDER) do
         local entry = bestOfKind[kind]
+        -- Die eigene Wahl schlaegt die Messung: gezaehlt wird, was man
+        -- benutzt, nicht was die Besten benutzen.
+        local own = ns.Profile.OwnConsumable(kind)
+        if own then
+            local name = ns.Compat.ItemInfo(own)
+            entry = { id = own, name = name, pct = nil, own = true }
+        end
         if entry and entry.id then
             local need = ns.Profile.ConsumableTarget(kind)
             -- Hoehere Qualitaet deckt den Bedarf; niedrigere steht dabei.
@@ -63,7 +70,7 @@ function Remind.Status(mode)
             elseif owned < need * below then state = "low" end
             if need > 0 then
                 out[#out + 1] = {
-                    kind = kind, id = entry.id,
+                    kind = kind, id = entry.id, own = entry.own,
                     name = ns.Compat.ItemInfo(entry.id) or entry.name,
                     owned = owned, lower = lower, need = need, state = state, pct = entry.pct,
                 }

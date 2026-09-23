@@ -85,7 +85,10 @@ socket by the gem that sits in it — your bags and bank subtracted. Quality
 tiers count: a higher tier in your bags covers the need, a lower one is
 shown but does not. On the right stands what you still need.
 
-**Consumables** — Grouped by kind: flask, food, combat
+**Consumables** — Click a row to say **which one you use**: your pick from
+your own bags moves to the top, its stock is counted, and the shopping list
+and the reminder buy that one instead. A cheaper food nobody measures is
+still your food. Grouped by kind: flask, food, combat
 potion, healing potion, weapon buffs (oils, stones), runes. Per group the
 share of players and the highest key it was still used at. Plus your stock
 — in every quality tier — and a target quantity you set with a click.

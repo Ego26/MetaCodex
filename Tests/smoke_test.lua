@@ -1828,6 +1828,55 @@ do
     end
 end
 
+-- ------------------------------------------- Eigenes Verbrauchsgut
+
+-- Wer seine Speise selbst waehlt - weil sie ein Zehntel kostet -, soll
+-- nicht unter einer fremden Speise "5 fehlen" lesen. Die eigene Wahl
+-- steht oben, zaehlt im Bestand und in der Erinnerung.
+do
+    ns.Profile.SetMode("raid")
+    ns.Profile.SetConsumableTarget("food", 5)
+    local mine = 255847 -- Impossibly Royal Roast, in keiner Rangliste
+    local realCount = C_Item.GetItemCount
+    C_Item.GetItemCount = function(id, ...)
+        if id == mine then return 3 end
+        return realCount(id, ...)
+    end
+    ns.Profile.SetOwnConsumable("food", mine)
+    rowsInSection("consumables")
+    local myName = ns.Compat.ItemInfo(mine)
+    local row
+    for _, r in ipairs(wow.rows()) do
+        if r:IsShown() and r.title:GetText() == myName and not row then row = r end
+    end
+    check("die eigene Speise steht in der Liste", row ~= nil, tostring(myName))
+    if row then
+        local text = row.detail:GetText() or ""
+        check("sie ist als eigene Wahl benannt", text:find(L["CONSUM_MINE"], 1, true) ~= nil, text)
+        check("sie ist keine Alternative", text:find(L["ALT_ROW"], 1, true) == nil, text)
+        check("ihr Bestand wird gezaehlt", text:find(L["OWNED"]:format(3), 1, true) ~= nil, text)
+        check("gekauft werden nur die fehlenden",
+            text:find(L["NEED"]:format(2), 1, true) ~= nil, text)
+    end
+    -- Die Erinnerung zaehlt dieselbe Speise.
+    local status
+    for _, r in ipairs(ns.Remind.Status("raid")) do
+        if r.kind == "food" then status = r end
+    end
+    check("die Erinnerung nimmt die eigene Wahl",
+        status ~= nil and status.id == mine and status.owned == 3,
+        status and (status.id .. " / " .. status.owned) or "keine Zeile")
+    -- Und zurueck zur Messung.
+    ns.Profile.SetOwnConsumable("food", nil)
+    rowsInSection("consumables")
+    local back
+    for _, r in ipairs(wow.rows()) do
+        if r:IsShown() and r.title:GetText() == myName then back = r end
+    end
+    check("ohne eigene Wahl ist sie wieder weg", back == nil)
+    C_Item.GetItemCount = realCount
+end
+
 -- ------------------------------------------ Wie die Erinnerung meldet
 
 -- Vier Wege, einzeln schaltbar, und eine Vorschau, die genau das zeigt,
@@ -1957,8 +2006,13 @@ do
         narrow .. " statt " .. wide)
     check("schmal: die Liste folgt nach unten",
         (function()
-            local p = f.scroll.__points[#f.scroll.__points]
-            return p ~= nil and p[3] < 0
+            -- Der letzte Punkt ist inzwischen die untere rechte Ecke;
+            -- gesucht ist die obere linke.
+            for i = #f.scroll.__points, 1, -1 do
+                local p = f.scroll.__points[i]
+                if p[1] == "TOPLEFT" then return p[3] < 0 end
+            end
+            return false
         end)())
     -- Kein Knopf darf ueber den linken Rand hinausragen, auch nicht bei
     -- der kleinsten erlaubten Breite.
@@ -1977,6 +2031,28 @@ do
     f:SetWidth(wasWidth)
     rowsInSection("gear")
     check("wieder breit: Knoepfe stehen wieder oben", buttonY() == wide, tostring(buttonY()))
+    -- Und der Hinweis draengt sich nicht mit der Liste: ein Satz, der
+    -- umbricht, schiebt sie nach unten, statt unter ihr zu liegen.
+    local function listTop()
+        for i = #f.scroll.__points, 1, -1 do
+            local p = f.scroll.__points[i]
+            if p[1] == "TOPLEFT" then return p[3] end
+        end
+    end
+    rowsInSection("talents")
+    local mitHinweis = listTop()
+    local hint = f.hintText
+    check("die Liste beginnt unter dem Hinweis",
+        mitHinweis ~= nil and math.abs(mitHinweis) > math.abs(hint.__points[#hint.__points][3]),
+        tostring(mitHinweis))
+    -- Und der Abstand reicht wirklich fuer den ganzen Satz: die Liste
+    -- beginnt unter der Unterkante des Hinweises, nicht 16 Pixel unter
+    -- seiner Oberkante.
+    local hintY = hint.__points[#hint.__points][3]
+    check("der Hinweis passt zwischen Titel und Liste",
+        math.abs(listTop()) >= math.abs(hintY) + hint:GetStringHeight(),
+        math.abs(listTop()) .. " >= " .. (math.abs(hintY) + hint:GetStringHeight()))
+    rowsInSection("talents")
 end
 
 -- ------------------------------------------------- Einstellungen
