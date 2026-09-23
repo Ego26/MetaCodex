@@ -198,8 +198,6 @@ under PvP because no platform measures them — so there is no tab for them.
   up.
 - **Guide texts inside the addon** — they belong to the sites that write
   them. Hence links instead of copies.
-- **An own talent encoder** — there was one, it is gone. Strings come from
-  real clients, not from a rebuild of the format.
 
 ---
 

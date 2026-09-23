@@ -48,7 +48,3 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 - Oberfläche auf Englisch und Deutsch, umschaltbar per `/mc lang`; auf
   jedem Client richtig, weil nur IDs gespeichert werden.
 - `/mc probe` Selbsttest mit kopierbarem Bericht.
-
-### Entfernt
-
-- Der eigene Talent-Kodierer. Strings kommen nur noch aus echten Clients.

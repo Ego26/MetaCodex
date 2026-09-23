@@ -206,8 +206,6 @@ also auch keinen Reiter dafür.
   loggt keine Arenen. Das Addon zeigt lieber nichts als etwas Erfundenes.
 - **Guide-Texte im Addon** — die gehören den Seiten, die sie schreiben.
   Deshalb Verweise statt Kopien.
-- **Ein eigener Talent-Kodierer** — es gab einen, er ist weg. Strings kommen
-  von echten Clients, nicht aus einem Nachbau des Formats.
 
 ---
 

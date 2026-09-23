@@ -46,7 +46,3 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 - Interface in English and German, switchable via `/mc lang`; correct on
   any client language because only IDs are stored.
 - `/mc probe` self-test with a copyable report.
-
-### Removed
-
-- The hand-written talent encoder. Strings come from real clients only.
