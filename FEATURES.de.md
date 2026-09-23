@@ -176,19 +176,11 @@ also auch keinen Reiter dafür.
 
 ## Was noch geplant ist
 
-- **Held-Talente getrennt.** Builds unterscheiden sich zwischen den beiden
-  Held-Talent-Bäumen (etwa Sturmbringer und Weitseher); heute stehen sie
-  gemischt. Geplant: je Baum eigene Zahlen.
-- **Omnium Folio.** Archon zeigt, welche Folio-Runen die Besten nutzen. Die
-  Runen sind in den Spieldaten nur als Kampfeffekte sichtbar, nicht als
-  Gegenstände oder Talente — sobald sie sich sauber zuordnen lassen, kommt
-  ein Reiter dafür.
-- **Fundort für die letzten Gegenstände.** 459 Stücke (Ruf- und
-  Weltbeute, etwa „Spellbreaker's", „Martyr's") haben in keiner Spieltabelle
-  eine Quelle und heißen deshalb „kein Instanzdrop". Eine Händlerliste würde
-  das schließen.
-- **Filter nach Fundort.** „Was fällt in diesem Dungeon" statt nur „wo fällt
-  das".
+- **Held-Talente getrennt** — Builds je Held-Talent-Baum statt gemischt.
+- **Omnium Folio** — welche Folio-Runen die Besten nutzen, als eigener Reiter.
+- **Ein Fundort für jeden Gegenstand** — Händler und Weltquellen für die
+  Stücke, die noch „kein Instanzdrop" heißen.
+- **Filter nach Fundort** — „Was fällt hier", nicht nur „wo fällt das".
 
 ---
 

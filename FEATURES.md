@@ -169,17 +169,11 @@ under PvP because no platform measures them — so there is no tab for them.
 
 ## What is planned
 
-- **Hero talents split.** Builds differ between the two hero-talent trees
-  (Stormbringer and Farseer, say); today they are mixed. Planned: numbers
-  per tree.
-- **Omnium Folio.** Archon shows which folio runes the best use. In the game
-  data the runes are visible only as combat effects, not as items or
-  talents — once they can be attributed cleanly, a tab follows.
-- **Sources for the last items.** 459 pieces (reputation and world loot,
-  "Spellbreaker's", "Martyr's" …) have no source in any game table and
-  therefore read "not an instance drop". A vendor table would close that.
-- **Filter by source.** "What drops here" instead of only "where does this
-  drop".
+- **Hero talents separately** — builds per hero-talent tree, not mixed.
+- **Omnium Folio** — which folio runes the best use, as its own tab.
+- **A source for every item** — vendors and world sources for the pieces
+  that still read "not an instance drop".
+- **Filter by source** — "what drops here", not only "where does this drop".
 
 ---
 
