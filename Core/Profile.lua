@@ -26,6 +26,21 @@ local DEFAULTS = {
     onlyMissing = false,
 }
 
+---Wer gerade spielt.
+---
+---Die Wahl im Fenster gehoert dem Charakter, der sie getroffen hat.
+---Ohne Namen - in Tests, oder wenn der Client vor dem Anmelden fragt -
+---gibt es einen gemeinsamen Schluessel; das ist das alte Verhalten und
+---schadet dort nicht.
+---@return string
+local function who()
+    local name = UnitName and UnitName("player")
+    if type(name) ~= "string" then return "?" end
+    local realm = GetRealmName and GetRealmName()
+    if type(realm) == "string" then return name .. "-" .. realm end
+    return name
+end
+
 function Profile.Init()
     MetaCodexDB = MetaCodexDB or {}
     local db = MetaCodexDB
@@ -43,6 +58,26 @@ function Profile.Init()
         db.version = 2
     end
 
+    -- Die Wahl im Fenster hing am Konto und wanderte mit.
+    --
+    -- Wer auf dem Schamanen Elementar angesehen hatte und sich dann mit
+    -- dem Hexenmeister in einen Dungeon stellte, bekam die Erinnerung
+    -- des Schamanen: /mc probe meldete "Elementar (262)" auf einem
+    -- Charakter, der keiner ist. Gemerkt wird jetzt je Charakter. Die
+    -- alte Wahl wird einmal weggeworfen - sie gehoerte niemandem.
+    if db.selectedSpec or db.selectedClass then
+        db.selectedSpec, db.selectedClass = nil, nil
+    end
+
+    -- Dasselbe fuer "das nehme ich": die alte Tabelle war flach, die
+    -- neue haengt am Charakter. Wer eine Wahl hatte, trifft sie einmal
+    -- neu - das ist besser, als sie dem falschen Charakter zuzuordnen.
+    if db.ownConsum then
+        for kind, value in pairs(db.ownConsum) do
+            if type(value) ~= "table" then db.ownConsum[kind] = nil end
+        end
+    end
+
     ns.SetLanguage(db.lang)
 end
 
@@ -54,7 +89,8 @@ end
 ---@return number specID
 function Profile.SelectedSpec()
     local db = MetaCodexDB or {}
-    return db.selectedSpec or ns.Compat.CurrentSpec() or 0
+    local pick = db.selected and db.selected[who()]
+    return (pick and pick.spec) or ns.Compat.CurrentSpec() or 0
 end
 
 ---Der gewaehlte Spielmodus.
@@ -80,20 +116,20 @@ end
 ---@return number|nil classID
 function Profile.SelectedClass()
     local db = MetaCodexDB or {}
-    return db.selectedClass or ns.Compat.PlayerClassID()
+    local pick = db.selected and db.selected[who()]
+    return (pick and pick.class) or ns.Compat.PlayerClassID()
 end
 
 ---@param classID number
 ---@param specID number
 function Profile.Select(classID, specID)
-    MetaCodexDB.selectedClass = classID
-    MetaCodexDB.selectedSpec = specID
+    MetaCodexDB.selected = MetaCodexDB.selected or {}
+    MetaCodexDB.selected[who()] = { class = classID, spec = specID }
 end
 
 ---Zurueck auf die aktive Spezialisierung.
 function Profile.SelectActive()
-    MetaCodexDB.selectedClass = nil
-    MetaCodexDB.selectedSpec = nil
+    if MetaCodexDB.selected then MetaCodexDB.selected[who()] = nil end
 end
 
 ---Gehoert die gewaehlte Spec zu einer anderen Klasse?
@@ -237,14 +273,22 @@ end
 ---@return number|nil itemID
 function Profile.OwnConsumable(kind)
     local db = MetaCodexDB or {}
-    return db.ownConsum and db.ownConsum[kind] or nil
+    local mine = db.ownConsum and db.ownConsum[who()]
+    return mine and mine[kind] or nil
 end
 
 ---@param kind string
 ---@param itemID number|nil
 function Profile.SetOwnConsumable(kind, itemID)
+    -- Je Charakter, wie die Spec-Wahl.
+    --
+    -- Gewaehlt wird aus den eigenen Taschen, und was der Hexenmeister
+    -- trinkt, kann der Krieger nicht. Kontoweit gemerkt haette die
+    -- Erinnerung auf dem naechsten Charakter etwas verlangt, das er
+    -- gar nicht benutzt.
     MetaCodexDB.ownConsum = MetaCodexDB.ownConsum or {}
-    MetaCodexDB.ownConsum[kind] = itemID
+    MetaCodexDB.ownConsum[who()] = MetaCodexDB.ownConsum[who()] or {}
+    MetaCodexDB.ownConsum[who()][kind] = itemID
 end
 
 ---@param kind string

@@ -1055,7 +1055,13 @@ end
 ---@return table[] rows
 local function remindRows(mode)
     local rows = {}
-    for _, row in ipairs(ns.Remind.Status(mode)) do
+    -- Der Reiter folgt der Ansicht, die Ansage dem Charakter.
+    --
+    -- Wer im Fenster einen anderen Spec ansieht, will hier dessen
+    -- Verbrauchsgueter sehen - gezaehlt gegen die eigenen Taschen. Vor
+    -- dem Dungeon ist die Frage eine andere, und dort gilt der aktive
+    -- Spec.
+    for _, row in ipairs(ns.Remind.Status(mode, ns.Profile.SelectedSpec())) do
         local name, link, icon = ns.Compat.ItemInfo(row.id)
         if not name then ns.Compat.RequestItem(row.id) end
         rows[#rows + 1] = {

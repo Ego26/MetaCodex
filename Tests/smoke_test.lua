@@ -325,6 +325,64 @@ check("fremde Klasse zaehlt beide Ringe", foreignRows.ring and foreignRows.ring.
 ns.Profile.SelectActive()
 check("zurueck auf die aktive Spec", ns.Profile.SelectedSpec() == 105)
 
+-- Die Wahl bleibt bei dem, der sie getroffen hat.
+--
+-- Die Ablage haengt am Konto, und die Wahl hing frueher darin: wer auf
+-- dem Schamanen Elementar angesehen hatte und sich dann mit dem
+-- Hexenmeister in einen Dungeon stellte, bekam dessen Erinnerung.
+-- /mc probe meldete "Elementar (262)" auf einem Charakter, der keiner
+-- ist.
+do
+    local realName = UnitName
+    ns.Profile.Select(1, 71)                   -- Krieger, Waffen
+    check("dieser Charakter hat gewaehlt", ns.Profile.SelectedSpec() == 71)
+    UnitName = function() return "EinAnderer" end
+    check("der naechste Charakter erbt sie nicht",
+        ns.Profile.SelectedSpec() == 105, tostring(ns.Profile.SelectedSpec()))
+    check("und auch nicht die fremde Klasse",
+        ns.Profile.IsForeignClass() == false)
+    -- Und der erste findet sie wieder.
+    UnitName = realName
+    check("der erste findet seine Wahl wieder", ns.Profile.SelectedSpec() == 71)
+    ns.Profile.SelectActive()
+
+    -- Dasselbe fuer "das nehme ich": gewaehlt wird aus den eigenen
+    -- Taschen, und was der eine trinkt, kann der andere nicht.
+    ns.Profile.SetOwnConsumable("flask", 241326)
+    check("die eigene Wahl steht", ns.Profile.OwnConsumable("flask") == 241326)
+    UnitName = function() return "EinAnderer" end
+    check("der naechste Charakter erbt sie nicht",
+        ns.Profile.OwnConsumable("flask") == nil,
+        tostring(ns.Profile.OwnConsumable("flask")))
+    UnitName = realName
+    check("und der erste hat sie noch", ns.Profile.OwnConsumable("flask") == 241326)
+    ns.Profile.SetOwnConsumable("flask", nil)
+end
+
+-- Vor dem Pull zaehlt, was dieser Charakter spielt - nicht, was im
+-- Fenster angesehen wird.
+do
+    local function ids(rows)
+        local out = {}
+        for _, row in ipairs(rows) do out[#out + 1] = tostring(row.id) end
+        table.sort(out)
+        return table.concat(out, ",")
+    end
+    local realCurrent = ns.Compat.CurrentSpec
+    -- Im Fenster steht ein fremder Spec. Die Erinnerung darf ihm nicht
+    -- folgen, sondern dem, was der Client als aktiv meldet.
+    ns.Profile.Select(1, 71)
+    ns.Compat.CurrentSpec = function() return 105 end
+    local active105 = ids(ns.Remind.Status("mplus"))
+    ns.Compat.CurrentSpec = function() return 71 end
+    local active71 = ids(ns.Remind.Status("mplus"))
+    ns.Compat.CurrentSpec = realCurrent
+    ns.Profile.SelectActive()
+    check("die Erinnerung folgt der aktiven Spec, nicht der Ansicht",
+        active105 ~= "" and active105 ~= active71,
+        "105: " .. active105 .. "  |  71: " .. active71)
+end
+
 -- ------------------------------------------------------- Auctionator
 
 local handed

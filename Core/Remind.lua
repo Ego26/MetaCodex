@@ -32,11 +32,19 @@ local KIND_ORDER = { "flask", "food", "potion", "heal", "oil", "other", "vantus"
 ---hier steht alles, auch was in Ordnung ist - sonst weiss niemand, OB
 ---die Erinnerung ueberhaupt etwas prueft.
 ---@param mode string
+---@param forSpec number|nil Spec, nach dem gefragt wird; ohne: der aktive
 ---@return table[] { kind, id, name, owned, need, state }  state: "ok" | "low" | "none"
-function Remind.Status(mode)
+function Remind.Status(mode, forSpec)
     local out = {}
     if not ns.Recommend.Ready() then return out end
-    local specID = ns.Profile.SelectedSpec()
+    -- Gefragt wird nach dem Spec, der gleich in den Dungeon geht.
+    --
+    -- Im Fenster darf man jeden ansehen - dafuer ist es da. Vor dem Pull
+    -- ist die Frage aber nicht "was nehmen die besten Elementar-
+    -- Schamanen", sondern was DIESER Charakter braucht. Was der Client
+    -- sagt, schlaegt deshalb die Ansicht; nur wenn er schweigt, gilt die
+    -- Wahl im Fenster.
+    local specID = forSpec or ns.Compat.CurrentSpec() or ns.Profile.SelectedSpec()
     if not specID then return out end
     local list = ns.Recommend.Consumables(specID, mode, ns.Recommend.ALL)
     if not list then return out end
