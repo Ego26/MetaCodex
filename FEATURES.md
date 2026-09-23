@@ -169,8 +169,8 @@ under PvP because no platform measures them — so there is no tab for them.
 | **10 activities** | M+ (High Keys), M+ (+7 to +21), Raid Normal / Heroic / Mythic, 2v2, 3v3, Solo Shuffle, RBG, RBG Blitz |
 | **4 platforms** | raider.io, murlok.io, Warcraft Logs, Battle.net — individually or "All platforms" |
 | **All 40 specs** | Including classes you do not play — to look things up, or to shop for an alt |
-| **1,401 talent import strings** | Every one from a real player, every one copied with a click |
-| **2,472 player profiles** | The top players per spec and activity, with their full gear |
+| **3,139 talent import strings** | Every one from a real player, every one copied with a click |
+| **3,115 player profiles** | The top players per spec and activity, with their full gear |
 | **Refreshed nightly** | The data are at most a day old |
 
 ---
