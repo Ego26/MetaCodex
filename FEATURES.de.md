@@ -116,6 +116,8 @@ gemessen hat, und ob Auctionator da ist.
   jede Stufe mit den Schlüsseln, die sie geben.
 - **Kategorie / Platz**: Listen lassen sich auf einen Platz oder eine Art
   eingrenzen.
+- **Fenster**: an der Ecke unten rechts ziehbar; Position und Größe werden
+  gemerkt. `/mc scale` skaliert zusätzlich für große und kleine Bildschirme.
 - **Klick auf eine Zeile**: kopiert einen String, öffnet ein Profil, stellt
   eine Zielmenge ein — je nachdem, was die Zeile ist.
 - **Shift-Klick auf eine Zeile mit Gegenstand**: verlinkt ihn — in den
@@ -195,9 +197,8 @@ also auch keinen Reiter dafür.
 - **Erster Klick auf einen Spieler** lädt 4,5 MB Profile — ob das spürbar
   ruckelt, entscheidet sich im Spiel. Wenn ja: weniger Spieler je Spec oder
   schlankere Profile.
-- **Frei ziehbares Fenster.** Heute gibt es `/mc scale 0.6–1.6`, was für
-  große und kleine Bildschirme reicht; freies Ziehen wäre der nächste
-  Schritt.
+- **Verbrauchsgüter für jede M+-Spec.** Die Stichprobe der Logs hat ein
+  paar Speccs nicht erwischt; der Tageslauf zieht jetzt mehr Berichte.
 
 ### Was nicht kommt, und warum
 

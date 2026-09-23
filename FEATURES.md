@@ -111,6 +111,8 @@ whether Auctionator is present.
 - **Keystone** (gear): Champion / Hero / Great Vault, every rank with the
   keys that award it.
 - **Category / slot**: lists can be narrowed to one slot or one kind.
+- **Window**: resizable from the bottom-right corner; position and size are
+  remembered. `/mc scale` additionally scales it for large and small screens.
 - **Click on a row**: copies a string, opens a profile, sets a target —
   whatever the row is.
 - **Shift-click on a row with an item**: links it — into chat, or straight
