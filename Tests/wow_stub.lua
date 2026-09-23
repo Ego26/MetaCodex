@@ -295,8 +295,18 @@ function M.install(opts)
         end,
     }
 
+    -- Zeitgeber, die sich abbrechen lassen: das Auffrischen wartet auf
+    -- das LETZTE Ereignis einer Folge und bricht dafuer den vorigen ab.
     G.C_Timer = {
         After = function(_, fn) M.pendingTimers[#M.pendingTimers + 1] = fn end,
+        NewTimer = function(_, fn)
+            local slot = #M.pendingTimers + 1
+            M.pendingTimers[slot] = fn
+            return {
+                Cancel = function() M.pendingTimers[slot] = false end,
+                IsCancelled = function() return M.pendingTimers[slot] == false end,
+            }
+        end,
     }
 
     G.C_SpecializationInfo = {
@@ -552,7 +562,11 @@ M.pendingTimers = {}
 function M.runTimers()
     local pending = M.pendingTimers
     M.pendingTimers = {}
-    for _, fn in ipairs(pending) do fn() end
+    -- Abgebrochene stehen als false darin und laufen nicht.
+    for i = 1, #pending do
+        local fn = pending[i]
+        if type(fn) == "function" then fn() end
+    end
 end
 
 ---Feuert ein Ereignis auf jedem Rahmen, der einen OnEvent-Haken hat.

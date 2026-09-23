@@ -9,18 +9,30 @@ frame:RegisterEvent("SOCKET_INFO_CLOSE")
 frame:RegisterEvent("GET_ITEM_INFO_RECEIVED")
 frame:RegisterEvent("BAG_UPDATE_DELAYED")
 frame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
+-- Auch das: es meldet den Wechsel am Spieler, wenn das andere Ereignis
+-- nur den Platz nennt.
+frame:RegisterEvent("UNIT_INVENTORY_CHANGED")
 
 -- Ein Auffrischen je Ereignis waere Verschwendung: beim Anlegen einer
--- Ruestung kommen Dutzende GET_ITEM_INFO_RECEIVED hintereinander. Gesammelt
--- wird deshalb auf den naechsten Rahmen.
-local pending = false
+-- Ruestung kommen Dutzende GET_ITEM_INFO_RECEIVED hintereinander.
+--
+-- Gewartet wird bis zum LETZTEN davon, nicht bis 0,1 Sekunden nach dem
+-- ersten. Das war der Unterschied zwischen "bereits drauf" und der
+-- Wahrheit: wer ein Stueck tauschte, bekam die Antwort auf den Stand von
+-- vor dem Tausch, weil der Client zum Zeitpunkt des ersten Ereignisses
+-- noch das alte Stueck fuehrte.
+local pendingTimer
 local function requestRefresh()
-    if pending or not ns.UI.IsShown() then return end
-    pending = true
-    C_Timer.After(0.1, function()
-        pending = false
-        ns.UI.Refresh()
-    end)
+    if not ns.UI.IsShown() then return end
+    if pendingTimer and pendingTimer.Cancel then pendingTimer:Cancel() end
+    if C_Timer.NewTimer then
+        pendingTimer = C_Timer.NewTimer(0.2, function()
+            pendingTimer = nil
+            ns.UI.Refresh()
+        end)
+    else
+        C_Timer.After(0.2, function() ns.UI.Refresh() end)
+    end
 end
 
 frame:SetScript("OnEvent", function(_, event)

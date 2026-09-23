@@ -1917,6 +1917,58 @@ do
     ns.Profile.SetConsumableTarget("heal", 5)
 end
 
+-- ------------------------------- Ausruestungswechsel im Fenster
+
+-- Wer ein Stueck tauscht, waehrend das Fenster offen steht, bekam die
+-- Antwort auf den Stand von vorher: "bereits drauf" unter einer frisch
+-- angelegten, unverzauberten Schulter. Das Auffrischen wartete 0,1
+-- Sekunden nach dem ERSTEN Ereignis - und zu dem Zeitpunkt fuehrte der
+-- Client noch das alte Stueck.
+do
+    ns.Profile.SetMode("mplus")
+    ns.Profile.Set("onlyMissing", false)
+    if not ns.UI.IsShown() then ns.UI.Toggle() end
+    rowsInSection("enchants")
+
+    local function schulterZeile()
+        for _, r in ipairs(wow.rows()) do
+            if r:IsShown() and (r.detail:GetText() or ""):find(L["SLOT_shoulders"], 1, true) then
+                return r
+            end
+        end
+    end
+    local vorher = schulterZeile()
+    check("die Schulterzeile steht da", vorher ~= nil)
+    check("und sie ist noch offen", vorher ~= nil
+        and (vorher.detail:GetText() or ""):find(L["ALREADY_DONE"], 1, true) == nil,
+        vorher and tostring(vorher.detail:GetText()))
+
+    -- Jetzt haengt eine verzauberte Schulter am Spieler.
+    local echterLink = GetInventoryItemLink
+    GetInventoryItemLink = function(unit, slot)
+        if slot == 3 then return "|Hitem:200003:7654::::::80:::::|h[Schultern]|h" end
+        return echterLink(unit, slot)
+    end
+
+    -- Eine Folge von Ereignissen, wie sie beim Anlegen wirklich kommt.
+    wow.fire("PLAYER_EQUIPMENT_CHANGED")
+    wow.fire("GET_ITEM_INFO_RECEIVED")
+    wow.fire("UNIT_INVENTORY_CHANGED")
+    wow.runTimers()
+
+    local nachher = schulterZeile()
+    check("nach dem Wechsel sagt sie: bereits drauf", nachher ~= nil
+        and (nachher.detail:GetText() or ""):find(L["ALREADY_DONE"], 1, true) ~= nil,
+        nachher and tostring(nachher.detail:GetText()))
+
+    GetInventoryItemLink = echterLink
+    wow.fire("PLAYER_EQUIPMENT_CHANGED")
+    wow.runTimers()
+    check("und danach wieder offen", (schulterZeile() ~= nil)
+        and (schulterZeile().detail:GetText() or ""):find(L["ALREADY_DONE"], 1, true) == nil,
+        schulterZeile() and tostring(schulterZeile().detail:GetText()))
+end
+
 -- ------------------------------------------ Eigene Zielmenge
 
 -- Die Stufen im Menue decken den Normalfall. Wer zwoelf Flaeschchen will,
