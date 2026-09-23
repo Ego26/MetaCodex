@@ -452,6 +452,18 @@ const playersFile = path.join(BASE, 'MetaCodex_Players', 'Players.lua');
 const pOut = [];
 pOut.push('-- ERZEUGT von tools/build-recommendations.js. Nicht von Hand aendern.');
 pOut.push('-- Die Profile der Top-Spieler von raider.io: Ausruestung mit allen');
+// Eine Verzauberung meldet sich als SpellItemEnchantment-ID. Der Client
+// kennt unter dieser Nummer keinen Gegenstand - und ohne Gegenstand gibt
+// es weder Namen noch Symbol noch Tooltip. Die Uebersetzung steht in der
+// Karte, die der Katalog beim Bauen anlegt, und sie passiert HIER, einmal,
+// statt im Addon bei jedem Blick auf ein Profil.
+let enchantItem = {};
+try {
+  enchantItem = JSON.parse(fs.readFileSync(path.join(BASE, 'tools', 'data', 'enchant-map.json'), 'utf8'));
+} catch (e) {
+  console.log('  ! keine enchant-map.json - Profile ohne Verzauberungsnamen');
+}
+
 pOut.push('-- Bonus-IDs, damit das Tooltip das getragene Stueck zeigt, und die');
 pOut.push('-- Talentkette. verified heisst: die Talente passen zu Kampf bzw. Heatmap.');
 pOut.push('MetaCodex_Players = {');
@@ -466,7 +478,12 @@ for (const [mode, bySpec] of Object.entries(profilesOut)) {
       const gear = Object.entries(pl.gear || {}).map(([slot, it]) => {
         const parts = [`slot = ${luaString(slot)}`, `id = ${it.id}`, `ilvl = ${it.ilvl}`];
         if (it.bonuses && it.bonuses.length) parts.push(`b = { ${it.bonuses.join(', ')} }`);
-        if (it.enchant) parts.push(`enchant = ${it.enchant}`);
+        if (it.enchant) {
+          parts.push(`enchant = ${it.enchant}`);
+          // Die Nummer des Gegenstands, wenn die Karte ihn kennt.
+          const asItem = enchantItem[String(it.enchant)];
+          if (asItem) parts.push(`ench = ${asItem}`);
+        }
         if (it.gems && it.gems.length) parts.push(`gems = { ${it.gems.join(', ')} }`);
         return `{ ${parts.join(', ')} }`;
       });

@@ -1884,12 +1884,19 @@ do
     check("Schalter fuer den Charakterknopf", labels[L["SET_CHARBTN"]] ~= nil)
     check("Fenstergroesse steht dabei", labels[L["SET_SCALE"]] ~= nil)
     check("Sprache steht dabei", labels[L["SET_LANG"]] ~= nil)
+    check("Zuruecksetzen steht dabei", labels[L["SET_RESET"]] ~= nil)
+    check("Startaktivitaet steht dabei", labels[L["SET_START"]] ~= nil)
     -- Ab Werk an, und der Klick schaltet wirklich um.
     check("Minimap-Knopf ist ab Werk an", ns.Profile.MinimapOn() == true)
     local row = labels[L["SET_MINIMAP"]]
     if row and row.onClick then
         row.onClick(row)
-        check("Klick schaltet den Minimap-Knopf ab", ns.Profile.MinimapOn() == false)
+        check("Klick oeffnet eine Auswahl", wow.menu() ~= nil and #wow.menu().items == 2,
+            wow.menu() and #wow.menu().items .. " Eintraege" or "kein Menue")
+        check("die Auswahl heisst wie die Zeile", wow.menu().title == L["SET_MINIMAP"],
+            tostring(wow.menu().title))
+        check("Aus waehlen schaltet den Minimap-Knopf ab",
+            wow.pick(L["OPTION_OFF"]) and ns.Profile.MinimapOn() == false)
         -- Die Zeile sagt danach "Aus" - ein Schalter ohne sichtbaren Stand
         -- ist keiner.
         rowsInSection("settings")
@@ -1901,20 +1908,111 @@ do
             again ~= nil and again.share:GetText() == L["OPTION_OFF"],
             again and tostring(again.share:GetText()) or "Zeile fehlt")
         again.onClick(again)
-        check("und wieder an", ns.Profile.MinimapOn() == true)
+        check("und wieder an", wow.pick(L["OPTION_ON"]) and ns.Profile.MinimapOn() == true)
     end
     -- Die Fenstergroesse laeuft in Stufen im erlaubten Bereich.
     local sizeRow = labels[L["SET_SCALE"]]
     if sizeRow and sizeRow.onClick then
-        local before = ns.Profile.WindowScale()
         sizeRow.onClick(sizeRow)
-        local after = ns.Profile.WindowScale()
-        check("Fenstergroesse geht eine Stufe weiter",
-            after ~= before and after >= 0.6 and after <= 1.6, tostring(after))
-        for _ = 1, 8 do sizeRow.onClick(sizeRow) end
-        check("und bleibt im erlaubten Bereich",
-            ns.Profile.WindowScale() >= 0.6 and ns.Profile.WindowScale() <= 1.6,
+        check("Fenstergroessen stehen zur Wahl", #wow.menu().items == 6,
+            #wow.menu().items .. " Stufen")
+        check("eine Stufe waehlen wirkt sofort",
+            wow.pick("125 %") and math.abs(ns.Profile.WindowScale() - 1.25) < 0.001,
             tostring(ns.Profile.WindowScale()))
+        -- Jede angebotene Stufe liegt im erlaubten Bereich - eine, die
+        -- SetWindowScale ablehnt, waere ein Eintrag ins Leere.
+        local bad = 0
+        sizeRow.onClick(sizeRow)
+        for _, entry in ipairs(wow.menu().items) do
+            entry.run()
+            if ns.Profile.WindowScale() < 0.6 or ns.Profile.WindowScale() > 1.6 then bad = bad + 1 end
+        end
+        check("jede angebotene Stufe ist erlaubt", bad == 0, bad .. " daneben")
+        ns.Profile.SetWindowScale(1)
+    end
+end
+
+-- Zuruecksetzen vergisst Lage und Groesse wirklich, statt sie auf einen
+-- Ersatzwert zu setzen: sonst stuende nach einem Umbau des Fensters eine
+-- alte Zahl da, die niemand mehr gewaehlt hat.
+do
+    ns.Profile.SetWindowPoint("TOPLEFT", 40, -40)
+    ns.Profile.SetWindowSize(1200, 800)
+    ns.Profile.SetWindowScale(1.25)
+    rowsInSection("settings")
+    local reset
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() and row.title:GetText() == L["SET_RESET"] then reset = row end
+    end
+    check("Zeile zum Zuruecksetzen gefunden", reset ~= nil)
+    if reset then
+        reset.onClick(reset)
+        check("Lage vergessen", ns.Profile.WindowPoint() == nil)
+        check("Groesse vergessen", ns.Profile.WindowSize() == nil)
+        check("Skalierung wieder auf eins", ns.Profile.WindowScale() == 1,
+            tostring(ns.Profile.WindowScale()))
+    end
+end
+
+-- Die Startaktivitaet: ohne Wahl bleibt, was zuletzt offen war; mit Wahl
+-- geht das Fenster immer damit auf.
+do
+    check("ohne Wahl keine Startaktivitaet", ns.Profile.StartMode() == nil)
+    ns.Profile.SetMode("mplus")
+    ns.Profile.SetStartMode("2v2")
+    if ns.UI.IsShown() then ns.UI.Toggle() end
+    ns.UI.Toggle()
+    check("Fenster geht mit der gewaehlten Aktivitaet auf", ns.Profile.Mode() == "2v2",
+        ns.Profile.Mode())
+    ns.Profile.SetStartMode(nil)
+    ns.Profile.SetMode("mplus")
+    ns.UI.Toggle()
+    ns.UI.Toggle()
+    check("ohne Wahl bleibt die letzte stehen", ns.Profile.Mode() == "mplus", ns.Profile.Mode())
+    -- Der Schalter laeuft durch alle Aktivitaeten und wieder zu "zuletzt".
+    rowsInSection("settings")
+    local startRow
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() and row.title:GetText() == L["SET_START"] then startRow = row end
+    end
+    if startRow then
+        startRow.onClick(startRow)
+        check("alle Aktivitaeten stehen zur Wahl", #wow.menu().items == #ns.MODES + 1,
+            #wow.menu().items .. " Eintraege")
+        check("eine Aktivitaet waehlen setzt sie",
+            wow.pick(ns.MODES[3].label) and ns.Profile.StartMode() == ns.MODES[3].key,
+            tostring(ns.Profile.StartMode()))
+        startRow.onClick(startRow)
+        check("zurueck auf zuletzt benutzt",
+            wow.pick(L["SET_START_LAST"]) and ns.Profile.StartMode() == nil,
+            tostring(ns.Profile.StartMode()))
+    end
+end
+
+-- Die Chatzeile beim Betreten ist getrennt von der am Auktionshaus
+-- schaltbar - beide haengen weiter am Hauptschalter.
+do
+    check("Erinnerung beim Betreten ist ab Werk an", ns.Profile.RemindOnEnter() == true)
+    -- Raid statt M+: der Test-Charakter ist Resto-Druide, dessen
+    -- M+-Verbrauchsgueter die Stichprobe nicht erwischt hat - dort ist der
+    -- Reiter regelkonform ausgeblendet.
+    ns.Profile.SetMode("raid")
+    rowsInSection("remind")
+    local enter, ah
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() and row.title:GetText() == L["REMIND_OPT_ENTER"] then enter = row end
+        if row:IsShown() and row.title:GetText() == L["REMIND_OPT_AH"] then ah = row end
+    end
+    check("beide Schalter stehen im Erinnerungsreiter", enter ~= nil and ah ~= nil,
+        (enter and "Betreten da" or "Betreten fehlt") .. ", "
+        .. (ah and "AH da" or "AH fehlt") .. " in " .. tostring(MetaCodexDB.section))
+    if enter and ah then
+        enter.onClick(enter)
+        check("Aus waehlen schaltet das Betreten ab",
+            wow.pick(L["OPTION_OFF"]) and ns.Profile.RemindOnEnter() == false)
+        check("das Auktionshaus bleibt davon unberuehrt", ns.Profile.RemindAtAuctionHouse() == true)
+        enter.onClick(enter)
+        check("und wieder an", wow.pick(L["OPTION_ON"]) and ns.Profile.RemindOnEnter() == true)
     end
 end
 
@@ -2042,6 +2140,18 @@ if top then
         check("Zurueck ist keine Zeile mehr", backRows == 0, backRows .. " Zeilen")
         check("kein 0 % in der Spieleransicht", zeroPct == 0, zeroPct .. " Zeilen")
         check("jedes Stueck hat einen Namen", unnamed == 0, unnamed .. " ohne")
+        -- Was auf den Stuecken sitzt, steht darunter. Vorher sah die
+        -- Ansicht aus, als spielte der Beste ohne Verzauberungen.
+        local ench, gems = 0, 0
+        for _, r in ipairs(wow.rows()) do
+            if r:IsShown() then
+                local text = r.detail:GetText() or ""
+                if text:find(L["PLAYER_ENCHANT"], 1, true) then ench = ench + 1 end
+                if text:find(L["PLAYER_GEM"], 1, true) then gems = gems + 1 end
+            end
+        end
+        check("Verzauberungen des Spielers stehen dabei", ench > 0, ench .. " Zeilen")
+        check("Steine des Spielers stehen dabei", gems > 0, gems .. " Zeilen")
         local button
         for _, f in ipairs(wow.frames) do
             if rawget(f, "label") and f.label:GetText() == L["PLAYER_BACK"] then button = f end

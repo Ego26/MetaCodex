@@ -102,8 +102,11 @@ am Auktionshaus einmal, wie viele Posten offen sind.
 ### Über
 
 **Einstellungen** — Minimap-Knopf und Charakterfenster-Knopf an oder aus,
-Fenstergröße in Stufen, Sprache. Die Erinnerung behält ihre eigenen
-Einstellungen, direkt neben dem, was sie steuern.
+Fenstergröße, Sprache, mit welcher Aktivität das Fenster aufgeht, und ein
+Zurücksetzen für Lage und Größe. Jede Einstellung ist ein Menü zum
+Auswählen, kein Wert zum Durchklicken. Die Erinnerung behält ihre eigenen
+Einstellungen: die Chatzeile beim Betreten und die am Auktionshaus sind
+getrennt schaltbar.
 
 **Info** — Version, Stand des Katalogs, wann jede Plattform zuletzt
 gemessen hat, und ob Auctionator da ist.

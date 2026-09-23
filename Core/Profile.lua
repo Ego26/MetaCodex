@@ -346,6 +346,42 @@ end
 ---Konstante ab, und ein Faktor skaliert sie alle zusammen - das ist
 ---das, was auf einem 4K-Schirm fehlt, und es kostet eine Zeile.
 ---@return number
+---Fensterlage und -groesse vergessen. Die Werte werden nicht auf einen
+---Ersatz gesetzt, sondern geloescht - dann greift wieder das, was das
+---Fenster von sich aus mitbringt, und zwar auch nach einem Umbau.
+function Profile.ResetWindow()
+    MetaCodexDB.window = nil
+    MetaCodexDB.scale = nil
+end
+
+---Die Chatzeile beim Betreten einer Instanz. Getrennt von der am
+---Auktionshaus schaltbar: die eine kommt mitten im Pull-Countdown, die
+---andere, wenn man ohnehin einkauft.
+---@return boolean
+function Profile.RemindOnEnter()
+    local db = MetaCodexDB or {}
+    if db.remindEnter == nil then return true end
+    return db.remindEnter and true or false
+end
+
+---@param on boolean
+function Profile.SetRemindOnEnter(on)
+    MetaCodexDB.remindEnter = on and true or false
+end
+
+---Die Aktivitaet, mit der das Fenster aufgeht, oder nil fuer die zuletzt
+---benutzte.
+---@return string|nil
+function Profile.StartMode()
+    local db = MetaCodexDB or {}
+    return db.startMode
+end
+
+---@param mode string|nil
+function Profile.SetStartMode(mode)
+    MetaCodexDB.startMode = mode
+end
+
 ---Der Knopf an der Minimap. An, solange niemand ihn abschaltet: wer ein
 ---Addon installiert, will es finden, ohne einen Befehl zu kennen.
 ---@return boolean

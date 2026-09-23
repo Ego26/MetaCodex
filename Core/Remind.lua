@@ -131,6 +131,7 @@ frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 frame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 frame:SetScript("OnEvent", function()
     if not ns.Profile.RemindersOn() then return end
+    if not ns.Profile.RemindOnEnter() then return end
 
     local inside, kind = IsInInstance()
     local mode = inside and MODE_BY_INSTANCE[kind] or nil

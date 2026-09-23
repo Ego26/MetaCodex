@@ -99,8 +99,11 @@ auction house how many items are open.
 ### About
 
 **Settings** — Minimap button and character frame button on or off, window
-size in steps, language. The reminder keeps its own settings, next to what
-they control.
+size, language, which activity the window opens on, and a reset for window
+position and size. Every setting is a menu you pick from, not a value you
+click through. The reminder keeps its own settings, next to what they
+control: the chat line on entering and the one at the auction house are
+separate switches.
 
 **Info** — Version, catalog build, when each platform last measured, and
 whether Auctionator is present.

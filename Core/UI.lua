@@ -169,6 +169,15 @@ local function makeCheck(parent, labelKey, key, x, y)
     return check
 end
 
+-- An oder aus, als Auswahl. Dieselben zwei Eintraege ueberall, damit
+-- kein Schalter anders bedient wird als der daneben.
+local function boolChoices()
+    return {
+        { value = true, label = L["OPTION_ON"] },
+        { value = false, label = L["OPTION_OFF"] },
+    }
+end
+
 -- ---------------------------------------------------------------- Menues
 
 local function contextMenu(anchor, title, entries, onPick)
@@ -958,27 +967,28 @@ local function remindRows(mode)
     local on = ns.Profile.RemindersOn()
     rows[#rows + 1] = {
         kind = "option", label = L["REMIND_OPT_ON"], on = on,
-        toggle = function() ns.Profile.SetReminders(not ns.Profile.RemindersOn()) end,
+        choices = boolChoices(), pick = function(value) ns.Profile.SetReminders(value) end,
+        group = L["REMIND_GROUP_SETTINGS"],
+    }
+    rows[#rows + 1] = {
+        kind = "option", label = L["REMIND_OPT_ENTER"], on = on and ns.Profile.RemindOnEnter(),
+        choices = boolChoices(), pick = function(value) ns.Profile.SetRemindOnEnter(value) end,
         group = L["REMIND_GROUP_SETTINGS"],
     }
     rows[#rows + 1] = {
         kind = "option", label = L["REMIND_OPT_AH"], on = on and ns.Profile.RemindAtAuctionHouse(),
-        toggle = function() ns.Profile.SetRemindAtAuctionHouse(not ns.Profile.RemindAtAuctionHouse()) end,
+        choices = boolChoices(), pick = function(value) ns.Profile.SetRemindAtAuctionHouse(value) end,
         group = L["REMIND_GROUP_SETTINGS"],
     }
     local below = ns.Profile.WarnBelow()
+    local shares = {}
+    for _, step in ipairs({ 0.25, 0.5, 0.75, 1 }) do
+        shares[#shares + 1] = { value = step, label = ("%d %%"):format(math.floor(step * 100 + 0.5)) }
+    end
     rows[#rows + 1] = {
         kind = "option", label = L["REMIND_OPT_BELOW"],
         value = ("%d %%"):format(math.floor(below * 100 + 0.5)),
-        -- Ein Klick weiter: 25, 50, 75, 100 und wieder von vorn.
-        toggle = function()
-            local steps = { 0.25, 0.5, 0.75, 1 }
-            local next = steps[1]
-            for i, step in ipairs(steps) do
-                if math.abs(step - ns.Profile.WarnBelow()) < 0.01 then next = steps[i % #steps + 1] end
-            end
-            ns.Profile.SetWarnBelow(next)
-        end,
+        choices = shares, pick = function(value) ns.Profile.SetWarnBelow(value) end,
         group = L["REMIND_GROUP_SETTINGS"],
     }
     return rows
@@ -993,55 +1003,79 @@ end
 ---@return table[] rows
 local function settingsRows()
     local rows = {}
-    rows[#rows + 1] = {
-        kind = "option", label = L["SET_MINIMAP"], on = ns.Profile.MinimapOn(),
-        toggle = function()
-            ns.Profile.SetMinimap(not ns.Profile.MinimapOn())
-            if ns.Minimap then ns.Minimap.Update() end
-        end,
-        group = L["SET_GROUP_OPEN"],
-    }
-    rows[#rows + 1] = {
-        kind = "option", label = L["SET_CHARBTN"], on = ns.Profile.CharButtonOn(),
-        toggle = function()
-            ns.Profile.SetCharButton(not ns.Profile.CharButtonOn())
-            UI.UpdateCharacterButton()
-        end,
-        group = L["SET_GROUP_OPEN"],
-    }
-    -- Fenstergroesse: dieselben Stufen wie /mc scale, nur zum Klicken.
+    local function switch(label, group, on, apply)
+        rows[#rows + 1] = {
+            kind = "option", label = label, group = group, on = on,
+            choices = boolChoices(), pick = apply,
+        }
+    end
+
+    switch(L["SET_MINIMAP"], L["SET_GROUP_OPEN"], ns.Profile.MinimapOn(), function(value)
+        ns.Profile.SetMinimap(value)
+        if ns.Minimap then ns.Minimap.Update() end
+    end)
+    switch(L["SET_CHARBTN"], L["SET_GROUP_OPEN"], ns.Profile.CharButtonOn(), function(value)
+        ns.Profile.SetCharButton(value)
+        UI.UpdateCharacterButton()
+    end)
+
+    -- Fenstergroesse: dieselben Stufen wie /mc scale, zum Auswaehlen.
     local scale = ns.Profile.WindowScale()
+    local sizes = {}
+    for _, step in ipairs({ 0.8, 0.9, 1, 1.1, 1.25, 1.4 }) do
+        sizes[#sizes + 1] = { value = step, label = ("%d %%"):format(math.floor(step * 100 + 0.5)) }
+    end
     rows[#rows + 1] = {
-        kind = "option", label = L["SET_SCALE"],
+        kind = "option", label = L["SET_SCALE"], group = L["SET_GROUP_WINDOW"],
         value = ("%d %%"):format(math.floor(scale * 100 + 0.5)),
-        toggle = function()
-            local steps = { 0.8, 0.9, 1, 1.1, 1.25, 1.4 }
-            local next = steps[1]
-            for i, step in ipairs(steps) do
-                if math.abs(step - ns.Profile.WindowScale()) < 0.01 then next = steps[i % #steps + 1] end
-            end
-            ns.Profile.SetWindowScale(next)
+        choices = sizes,
+        pick = function(value)
+            ns.Profile.SetWindowScale(value)
             UI.ApplyScale()
         end,
-        group = L["SET_GROUP_WINDOW"],
     }
+
     -- Sprache. Die Beschriftungen, die schon stehen, wechseln erst nach
     -- /reload - das sagt die Zeile, statt es den Spieler merken zu lassen.
-    local langs = { "auto", "en", "de" }
     local current = (MetaCodexDB and MetaCodexDB.lang) or "auto"
     local shown = current == "deDE" and "de" or current == "enUS" and "en" or "auto"
     rows[#rows + 1] = {
-        kind = "option", label = L["SET_LANG"], value = L["SET_LANG_" .. shown:upper()],
-        toggle = function()
-            local at = 1
-            for i, key in ipairs(langs) do if key == shown then at = i end end
-            ns.Profile.SetLanguage(langs[at % #langs + 1])
+        kind = "option", label = L["SET_LANG"], group = L["SET_GROUP_WINDOW"],
+        value = L["SET_LANG_" .. shown:upper()],
+        choices = {
+            { value = "auto", label = L["SET_LANG_AUTO"] },
+            { value = "en", label = L["SET_LANG_EN"] },
+            { value = "de", label = L["SET_LANG_DE"] },
+        },
+        pick = function(value)
+            ns.Profile.SetLanguage(value)
             ns.Print(L["SET_LANG_RELOAD"])
         end,
-        group = L["SET_GROUP_WINDOW"],
     }
     rows[#rows + 1] = {
         kind = "note", text = L["SET_LANG_RELOAD"], group = L["SET_GROUP_WINDOW"],
+    }
+    -- Zuruecksetzen ist keine Wahl, sondern eine Handlung: ein Menue mit
+    -- einem Eintrag waere Theater.
+    rows[#rows + 1] = {
+        kind = "option", label = L["SET_RESET"], value = L["SET_RESET_DO"],
+        toggle = function() UI.ResetWindow() end,
+        group = L["SET_GROUP_WINDOW"],
+    }
+
+    -- Womit das Fenster aufgeht. Ohne Wahl: mit dem, was zuletzt offen
+    -- war - wer immer dasselbe tut, waehlt hier einmal.
+    local start = ns.Profile.StartMode()
+    local startLabel = L["SET_START_LAST"]
+    local modes = { { value = false, label = L["SET_START_LAST"] } }
+    for _, m in ipairs(ns.MODES) do
+        modes[#modes + 1] = { value = m.key, label = m.label }
+        if m.key == start then startLabel = m.label end
+    end
+    rows[#rows + 1] = {
+        kind = "option", label = L["SET_START"], group = L["SET_GROUP_START"],
+        value = startLabel, choices = modes,
+        pick = function(value) ns.Profile.SetStartMode(value or nil) end,
     }
     return rows
 end
@@ -1152,14 +1186,31 @@ local function playerViewRows(who)
             -- Name noch, wird er angefordert und die Ansicht frischt auf.
             local name, _, icon = ns.Compat.ItemInfo(piece.id)
             if not name then ns.Compat.RequestItem(piece.id) end
+            local group = L["GEARSLOT_" .. (RIO_SLOT[slot] or "Head")]
             rows[#rows + 1] = {
                 kind = "gear", id = piece.id, name = name, icon = icon,
                 pct = nil, ilvl = piece.ilvl,
                 badge = ns.Catalog.ItemKind(piece.id),
                 drop = originText(piece.id, ns.Catalog.ItemKind(piece.id), who.mode),
                 link = link, atLevel = nil, wantLevel = nil,
-                group = L["GEARSLOT_" .. (RIO_SLOT[slot] or "Head")],
+                group = group,
             }
+            -- Was auf dem Stueck sitzt, steht darunter: erst die
+            -- Verzauberung, dann die Steine. Beides stand in den Daten
+            -- und wurde nirgends gezeigt - die Ansicht sah aus, als
+            -- spielte der Beste unverzaubert.
+            local function piecePart(id, labelKey)
+                if not id or id == 0 then return end
+                local pname, plink, picon = ns.Compat.ItemInfo(id)
+                if not pname then ns.Compat.RequestItem(id) end
+                rows[#rows + 1] = {
+                    kind = "gear", id = id, name = pname, icon = picon,
+                    link = plink, pct = nil, ilvl = nil,
+                    drop = L[labelKey], group = group,
+                }
+            end
+            piecePart(piece.ench, "PLAYER_ENCHANT")
+            for _, gem in ipairs(piece.gems or {}) do piecePart(gem, "PLAYER_GEM") end
         end
     end
     return rows
@@ -1628,7 +1679,7 @@ local function setItemRow(row, data)
         row.title:SetText(data.label)
         row.detail:ClearAllPoints()
         row.detail:SetPoint("TOPLEFT", S.space.md, -S.space.sm - 16)
-        row.detail:SetText(L["OPTION_CLICK"])
+        row.detail:SetText(data.choices and L["OPTION_PICK"] or L["OPTION_CLICK"])
         -- Rechts steht der Wert: "An", "Aus" oder eine Zahl. Ein
         -- Schalter, dessen Stand man nicht sieht, ist keiner.
         if data.value then
@@ -1638,7 +1689,18 @@ local function setItemRow(row, data)
             row.share:SetText(data.on and L["OPTION_ON"] or L["OPTION_OFF"])
             S:Recolor(row.share, data.on and "success" or "textMuted")
         end
-        row.onClick = function() data.toggle(); UI.Refresh() end
+        row.onClick = function(self)
+            if data.choices then
+                -- Auswahl statt Weiterschalten: wer von 80 auf 125 will,
+                -- soll nicht viermal klicken und dabei zusehen.
+                contextMenu(self, data.label, data.choices, function(entry)
+                    data.pick(entry.value)
+                end)
+            else
+                data.toggle()
+                UI.Refresh()
+            end
+        end
         return
     end
 
@@ -2940,6 +3002,12 @@ ahWatch:SetScript("OnEvent", function()
     if frame and frame:IsShown() then UI.Refresh() end
 end)
 
+---Die eingestellte Startaktivitaet anwenden, wenn es eine gibt.
+local function applyStartMode()
+    local start = ns.Profile.StartMode()
+    if start and start ~= ns.Profile.Mode() then ns.Profile.SetMode(start) end
+end
+
 function UI.Toggle()
     if not frame then build() end
     local ok, reason = ns.Data.Ensure()
@@ -2948,6 +3016,7 @@ function UI.Toggle()
     if frame:IsShown() then
         frame:Hide()
     else
+        applyStartMode()
         UI.Refresh()
         frame:Show()
     end
@@ -2981,6 +3050,17 @@ local function placeCharacterButton(button, host)
     else
         button:SetPoint("CENTER", host, "TOPRIGHT", CHAR_DEFAULT_X, CHAR_DEFAULT_Y)
     end
+end
+
+---Fenster auf Anfang: Lage, Groesse und Skalierung wie beim ersten Mal.
+function UI.ResetWindow()
+    ns.Profile.ResetWindow()
+    if not frame then return end
+    frame:SetSize(WIDTH, HEIGHT)
+    frame:ClearAllPoints()
+    frame:SetPoint("CENTER")
+    frame:SetScale(1)
+    UI.Refresh()
 end
 
 ---Zeigt einen Abschnitt - gebraucht vom Minimap-Knopf, der auf den

@@ -161,6 +161,46 @@ function M.install(opts)
     G.INVSLOT_TRINKET1, G.INVSLOT_TRINKET2, G.INVSLOT_BACK = 13, 14, 15
     G.INVSLOT_MAINHAND, G.INVSLOT_OFFHAND = 16, 17
 
+    -- Blizzards Menue-API, so weit das Addon sie benutzt: ein Titel und
+    -- Knoepfe. Was gebaut wird, bleibt stehen, damit ein Test einen
+    -- Eintrag waehlen kann.
+    G.MenuUtil = {
+        CreateContextMenu = function(anchor, builder)
+            local items = {}
+            -- Ein Knoten des Menues. Ein Knopf OHNE Funktion ist ein
+            -- Untermenue - so benutzt Blizzards API es, und so muss der
+            -- Nachbau es koennen, sonst stirbt jeder Waehler mit
+            -- Untermenues im Test.
+            local function node()
+                local self = {}
+                function self:CreateTitle(text) M.lastMenu.title = M.lastMenu.title or text end
+                function self:CreateDivider() end
+                function self:CreateButton(label, fn)
+                    if fn then
+                        items[#items + 1] = { label = label, run = fn }
+                        return node()
+                    end
+                    return node()
+                end
+                function self:CreateRadio(label, isSet, fn, value)
+                    items[#items + 1] = {
+                        label = label,
+                        run = function() if fn then fn(value) end end,
+                        set = isSet and isSet(value) or false,
+                    }
+                    return node()
+                end
+                function self:CreateCheckbox(label, isSet, fn, value)
+                    return self:CreateRadio(label, isSet, fn, value)
+                end
+                return self
+            end
+            M.lastMenu = { title = nil, items = items, anchor = anchor }
+            builder(anchor, node())
+            M.lastMenu.items = items
+        end,
+    }
+
     G.GetLocale = function() return opts.locale or "enUS" end
     G.UnitName = function() return "Tester" end
 
@@ -504,6 +544,27 @@ function M.fire(event, ...)
         local handler = frame.__scripts.OnEvent
         if handler then handler(frame, event, ...) end
     end
+end
+
+---Das zuletzt geoeffnete Auswahlmenue: Titel und Eintraege.
+---
+---Ohne das koennte ein Test nur pruefen, DASS ein Menue aufgeht, nicht
+---was darin steht - und genau das ist bei einer Einstellung die Frage.
+---@return table|nil
+function M.menu()
+    return M.lastMenu
+end
+
+---Einen Eintrag des offenen Menues waehlen, an seiner Beschriftung.
+---@param label string
+---@return boolean gefunden
+function M.pick(label)
+    local menu = M.lastMenu
+    if not menu then return false end
+    for _, entry in ipairs(menu.items) do
+        if entry.label == label then entry.run() return true end
+    end
+    return false
 end
 
 ---Alle Rahmen, die wie eine Listenzeile aussehen.
