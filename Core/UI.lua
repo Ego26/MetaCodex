@@ -67,6 +67,8 @@ local HEADER, FOOTER = 56, 48
 -- dem Titel nicht mehr passen.
 local HEADER_ROW = 28
 local ROW_HEIGHT = 46
+-- Zubehoer einer Zeile - Verzauberung, Stein - steht klein darunter.
+local SUB_ROW_HEIGHT = 24
 
 
 -- Aus welchen Abschnitten man etwas kauft.
@@ -1178,9 +1180,18 @@ local function playerViewRows(who)
     for _, slot in ipairs(RIO_ORDER) do
         local piece = bySlot[slot]
         if piece then
-            local link = "item:" .. piece.id
+            -- Der Link traegt Verzauberung und Steine an ihren festen
+            -- Plaetzen: item:ID:Verzauberung:Stein1..4:...
+            -- Damit steht im Tooltip, was auf dem Stueck sitzt - und
+            -- zwar so, wie der Client es schreibt, nicht wie wir es
+            -- nacherzaehlen wuerden.
+            local gems = piece.gems or {}
+            local head = ("item:%d:%s:%s:%s:%s:%s"):format(
+                piece.id, piece.enchant or "",
+                gems[1] or "", gems[2] or "", gems[3] or "", gems[4] or "")
+            local link = head .. "::::::"
             if piece.b and #piece.b > 0 then
-                link = ("item:%d::::::::::::%d:%s"):format(piece.id, #piece.b, table.concat(piece.b, ":"))
+                link = ("%s::::::%d:%s"):format(head, #piece.b, table.concat(piece.b, ":"))
             end
             -- Name und Symbol wie in jeder Ausruestungszeile; fehlt der
             -- Name noch, wird er angefordert und die Ansicht frischt auf.
@@ -1199,12 +1210,15 @@ local function playerViewRows(who)
             -- Verzauberung, dann die Steine. Beides stand in den Daten
             -- und wurde nirgends gezeigt - die Ansicht sah aus, als
             -- spielte der Beste unverzaubert.
+            -- Klein und eingerueckt: sie gehoeren zum Stueck darueber
+            -- und sind nicht selbst eines. Gleich gross nebeneinander
+            -- sah die Liste aus, als truege der Spieler drei Haelse.
             local function piecePart(id, labelKey)
                 if not id or id == 0 then return end
                 local pname, plink, picon = ns.Compat.ItemInfo(id)
                 if not pname then ns.Compat.RequestItem(id) end
                 rows[#rows + 1] = {
-                    kind = "gear", id = id, name = pname, icon = picon,
+                    kind = "gear", sub = true, id = id, name = pname, icon = picon,
                     link = plink, pct = nil, ilvl = nil,
                     drop = L[labelKey], group = group,
                 }
@@ -1859,6 +1873,23 @@ local function setItemRow(row, data)
     end
 
     if data.kind == "gear" then
+        -- Eine Unterzeile - Verzauberung oder Stein - ist keine eigene
+        -- Empfehlung, sondern Zubehoer der Zeile darueber. Kleines
+        -- Symbol, kleine Schrift, eingerueckt.
+        if data.sub then
+            row.link = data.link
+            row.itemID, row.wantLevel, row.wantBonus = data.id, nil, nil
+            if data.id and C_Item and C_Item.RequestLoadItemDataByID then
+                pcall(C_Item.RequestLoadItemDataByID, data.id)
+            end
+            row.icon:SetTexture(data.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+            row.title:SetText((data.name or ("#" .. tostring(data.id)))
+                .. "  |cff808080" .. (data.drop or "") .. "|r")
+            row.detail:SetText("")
+            row.share:SetText("")
+            row.onClick = nil
+            return
+        end
         -- Der Link auf der gewaehlten Stufe hat Vorrang: an ihm haengt
         -- das Tooltip.
         row.link = data.atLevel or data.link
@@ -2732,6 +2763,10 @@ function UI.Refresh()
         end
         row:ClearAllPoints()
         row:SetPoint("TOPLEFT", 0, -offset)
+        -- Die Zeile ist so hoch, wie sie Platz bekommt. Ohne das blieb
+        -- jede Zeile 46 Pixel hoch, auch wo nur 24 gezaehlt wurden - und
+        -- die Klickflaeche lag ueber der naechsten Zeile.
+        row:SetHeight(height)
         row:Show()
         offset = offset + height
     end
@@ -2751,7 +2786,25 @@ function UI.Refresh()
         index = index + 1
         local row = acquireRow(index)
         setItemRow(row, data)
-        place(row, data.kind == "stat" and STAT_ROW_HEIGHT or ROW_HEIGHT)
+        -- Eine Unterzeile ist halb so hoch und rueckt ein; die volle
+        -- Hoehe bekaeme sonst Zubehoer, das nur mitlaeuft.
+        if data.sub then
+            row.icon:SetSize(16, 16)
+            row.icon:ClearAllPoints()
+            row.icon:SetPoint("LEFT", S.space.sm + 38, 0)
+            row.title:ClearAllPoints()
+            row.title:SetPoint("LEFT", S.space.sm + 58, 0)
+            S:ApplyFont(row.title, "caption", "textSecondary")
+            place(row, SUB_ROW_HEIGHT)
+        else
+            row.icon:SetSize(30, 30)
+            row.icon:ClearAllPoints()
+            row.icon:SetPoint("LEFT", S.space.sm, 0)
+            row.title:ClearAllPoints()
+            row.title:SetPoint("TOPLEFT", S.space.sm + 38, -S.space.sm)
+            S:ApplyFont(row.title, "body", "textPrimary")
+            place(row, data.kind == "stat" and STAT_ROW_HEIGHT or ROW_HEIGHT)
+        end
     end
 
     for i = index + 1, #(rows or {}) do rows[i]:Hide() end

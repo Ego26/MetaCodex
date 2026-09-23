@@ -1823,6 +1823,23 @@ do
     end
 end
 
+-- ------------------------------------ Rangliste nach dem Neuladen
+
+-- Stand beim Abmelden noch ein Dungeon in der Auswahl, suchte der
+-- Abschnitt "Top-Spieler" die Rangliste nur unter diesem Dungeon - und
+-- dort fuehrt keine Quelle eine. Der Reiter war leer, bis man die
+-- Aktivitaet wechselte (was den Dungeon loescht).
+do
+    ns.Profile.SetMode("mplus")
+    local withoutDungeon = rowsInSection("players")
+    check("Rangliste ohne Dungeon", withoutDungeon > 0, withoutDungeon .. " Zeilen")
+    MetaCodexDB.dungeon = "mplus/kings-rest"
+    local withDungeon = rowsInSection("players")
+    check("Rangliste auch mit gewaehltem Dungeon", withDungeon == withoutDungeon,
+        withDungeon .. " statt " .. withoutDungeon)
+    MetaCodexDB.dungeon = nil
+end
+
 -- ------------------------------------------- Schmales Fenster
 
 -- Das Fenster ist ziehbar. Wird es schmal, passt die Knopfreihe nicht
@@ -2145,13 +2162,39 @@ if top then
         local ench, gems = 0, 0
         for _, r in ipairs(wow.rows()) do
             if r:IsShown() then
-                local text = r.detail:GetText() or ""
+                -- Die Unterzeilen tragen ihre Beschriftung klein IM Titel;
+                -- eine eigene Detailzeile haetten sie nur, waeren sie so
+                -- gross wie ein Ausruestungsstueck.
+                local text = (r.title:GetText() or "") .. " " .. (r.detail:GetText() or "")
                 if text:find(L["PLAYER_ENCHANT"], 1, true) then ench = ench + 1 end
                 if text:find(L["PLAYER_GEM"], 1, true) then gems = gems + 1 end
             end
         end
         check("Verzauberungen des Spielers stehen dabei", ench > 0, ench .. " Zeilen")
         check("Steine des Spielers stehen dabei", gems > 0, gems .. " Zeilen")
+        -- Klein, nicht gleich gross: das Zubehoer soll die Liste nicht
+        -- aussehen lassen, als truege der Spieler drei Haelse.
+        local big, small = 0, 0
+        for _, r in ipairs(wow.rows()) do
+            if r:IsShown() then
+                local text = r.title:GetText() or ""
+                if text:find(L["PLAYER_GEM"], 1, true) or text:find(L["PLAYER_ENCHANT"], 1, true) then
+                    small = small + 1
+                    if r:GetHeight() >= 40 then big = big + 1 end
+                end
+            end
+        end
+        check("Zubehoer steht in kleinen Zeilen", small > 0 and big == 0, big .. " zu gross")
+        -- Und was auf dem Stueck sitzt, steht auch im Link - damit das
+        -- Tooltip es zeigt und nicht nur unsere Zeile es behauptet.
+        local withEnchant = 0
+        for _, r in ipairs(wow.rows()) do
+            if r:IsShown() and type(r.link) == "string" then
+                local _, ench = r.link:match("^item:(%d+):(%d+)")
+                if ench and ench ~= "0" then withEnchant = withEnchant + 1 end
+            end
+        end
+        check("der Link traegt die Verzauberung", withEnchant > 0, withEnchant .. " Stuecke")
         local button
         for _, f in ipairs(wow.frames) do
             if rawget(f, "label") and f.label:GetText() == L["PLAYER_BACK"] then button = f end

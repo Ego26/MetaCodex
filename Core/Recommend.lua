@@ -569,7 +569,17 @@ function Recommend.Players(specID, mode, source)
     -- existiert. Sie existiert naemlich (aus den Logs), nur ohne
     -- Rangliste; der erste Anlauf prueft nur, OB es den Modus gibt.
     local names = (source and source ~= Recommend.ALL) and { source } or nil
-    for _, which in ipairs({ mode, Recommend.BaseMode(mode) }) do
+    -- Und zuletzt ohne Dungeon. Eine Rangliste gehoert zur Aktivitaet,
+    -- nicht zu einem einzelnen Dungeon - murlok fuehrt die besten
+    -- M+-Spieler, nicht die besten von Kings Rest. Stand nach einem
+    -- Neuladen noch ein Dungeon in der Auswahl, suchte der Abschnitt
+    -- nur dort und fand nichts: leer, bis man die Aktivitaet wechselte.
+    local plain = mode:match("^([^/]+)") or mode
+    local tries, seen = {}, {}
+    for _, which in ipairs({ mode, Recommend.BaseMode(mode), plain, Recommend.BaseMode(plain) }) do
+        if not seen[which] then seen[which] = true tries[#tries + 1] = which end
+    end
+    for _, which in ipairs(tries) do
         local byMode = d.modes[which]
         if byMode then
             for _, name in ipairs(names or Recommend.SourcesFor(which)) do
