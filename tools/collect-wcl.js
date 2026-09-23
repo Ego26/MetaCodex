@@ -191,8 +191,16 @@ async function gql(query, variables) {
       // kommt zurueck; was fehlte, war Geduld.
       if (err.status !== 429 || tries >= 6) throw err;
       const info = await quota();
+      // Ohne Auskunft gestaffelt warten, nicht immer eine Minute.
+      //
+      // Wenn das Kontingent erschoepft ist, ist es auch fuer die Frage
+      // nach dem Kontingent erschoepft - dann stand dort "?" und der
+      // Lauf wartete sechsmal eine Minute, waehrend die Stunde erst in
+      // vierzig lief. Sechs Stufen decken eine volle Stunde ab.
+      const steps = [60, 120, 300, 600, 900, 1200];
       const wait = info && info.pointsResetIn
-        ? Math.min(3600, Number(info.pointsResetIn) + 5) : 60;
+        ? Math.min(3600, Number(info.pointsResetIn) + 5)
+        : steps[Math.min(tries, steps.length - 1)];
       console.log(`
   Kontingent erschoepft, warte ${wait}s `
         + `(${info ? info.pointsSpentThisHour + '/' + info.limitPerHour : '?'})`);
