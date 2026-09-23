@@ -42,6 +42,7 @@ ns.RegisterLocale("enUS", {
 
     -- Zeilen
     ["ALREADY_DONE"]       = "already applied",
+    ["OTHER_ENCHANT"]      = "a different one is on it: %s",
     ["OWNED"]              = "%d in bags",
     ["OWNED_HIGHER"] = "%d owned in higher quality",
     ["OWNED_LOWER"] = "%d owned in lower quality",

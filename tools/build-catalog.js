@@ -806,6 +806,20 @@ function emitEnchants(groups) {
   }
   out.push('  },');
   out.push('');
+  // Welche Verzauberung zu welchem Gegenstand gehoert.
+  //
+  // Im Link steht die SpellItemEnchantment-ID, im Katalog stehen
+  // Gegenstaende. Ohne die Uebersetzung kann das Addon nur sagen, DASS
+  // etwas drauf ist - nicht, ob es das Richtige ist. Genau das hat
+  // gefehlt: auf der Hose sass eine andere Verzauberung, und die Zeile
+  // sagte "bereits drauf".
+  out.push('  enchantItem = {');
+  for (const [enchID, itemID] of Object.entries(enchantMap)) {
+    out.push(`    [${enchID}] = ${itemID},`);
+  }
+  out.push('  },');
+  out.push('');
+
   out.push('  consumables = {');
   for (const [kind, list] of Object.entries(consumables)) {
     if (!list.length) continue;

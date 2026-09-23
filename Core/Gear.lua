@@ -30,7 +30,9 @@ local function parseLink(link)
             gems[#gems + 1] = tonumber(gem)
         end
     end
-    return tonumber(itemID), (ench ~= nil and ench ~= "" and ench ~= "0"), filled, gems
+    local enchID = tonumber(ench)
+    if enchID == 0 then enchID = nil end
+    return tonumber(itemID), enchID ~= nil, filled, gems, enchID
 end
 
 ---Wie viele Sockel ein Gegenstand insgesamt hat.
@@ -80,13 +82,15 @@ function Gear.Scan()
             include = offhandEnchantable(link)
         end
         if include then
-            local itemID, enchanted = parseLink(link)
+            local itemID, enchanted, _, _, enchantID = parseLink(link)
             slots[#slots + 1] = {
                 slot = def.slot,
                 inv = def.inv,
                 link = link,
                 itemID = itemID,
                 enchanted = enchanted,
+                -- WELCHE Verzauberung, nicht nur OB eine.
+                enchantID = enchantID,
             }
             seen[def.slot] = true
         end
@@ -119,13 +123,30 @@ end
 ---@param slot string
 ---@return number missing
 ---@return number total
-function Gear.Missing(scan, slot)
-    local missing, total = 0, 0
+---@param scan table
+---@param slot string
+---@param wanted number|nil Gegenstand, der drauf soll
+---@return number missing
+---@return number total
+---@return number|nil other Gegenstand der fremden Verzauberung, wenn eine drauf ist
+function Gear.Missing(scan, slot, wanted)
+    local missing, total, other = 0, 0, nil
     for _, entry in ipairs(scan.slots) do
         if entry.slot == slot then
             total = total + 1
-            if not entry.enchanted then missing = missing + 1 end
+            if not entry.enchanted then
+                missing = missing + 1
+            elseif wanted then
+                -- Eine Verzauberung ist drauf - aber ist es die richtige?
+                -- Verglichen wird ueber den Gegenstand, denn der steht im
+                -- Katalog; im Link steht nur die Zauberkennung.
+                local onIt = ns.Catalog.EnchantItemOf(entry.enchantID)
+                if onIt and onIt ~= wanted then
+                    missing = missing + 1
+                    other = onIt
+                end
+            end
         end
     end
-    return missing, total
+    return missing, total, other
 end

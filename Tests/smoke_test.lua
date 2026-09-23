@@ -1917,6 +1917,70 @@ do
     ns.Profile.SetConsumableTarget("heal", 5)
 end
 
+-- ----------------------------------- Die FALSCHE Verzauberung
+
+-- "Bereits drauf" hiess bisher nur: irgendetwas ist drauf. Auf der Hose
+-- sass eine andere Verzauberung, und die Zeile behauptete, alles sei
+-- getan. Jetzt wird verglichen, welche es ist.
+do
+    ns.Profile.SetMode("mplus")
+    ns.Profile.Set("onlyMissing", false)
+
+    -- Die empfohlene Verzauberung fuer die Beine, und eine andere aus
+    -- demselben Platz.
+    local rec = ns.Recommend.For(105, "mplus", ns.Recommend.ALL)
+    local pick = rec and ns.Recommend.Enchant(rec, "legs")
+    check("es gibt eine Empfehlung fuer die Beine", pick ~= nil)
+    if pick then
+        -- Die Zauberkennung, die zu DIESEM Gegenstand gehoert, und eine,
+        -- die zu einem anderen gehoert.
+        local mine, foreignEnch
+        for enchID, itemID in pairs(MetaCodex_Catalog.enchantItem) do
+            if itemID == pick.id and not mine then mine = enchID end
+            if itemID ~= pick.id and not foreignEnch then
+                -- Nur eine, die der Katalog auch als Beinverzauberung fuehrt:
+                -- sonst vergleicht der Test etwas, das dort nie sitzt.
+                for _, e in ipairs(ns.Catalog.EnchantsFor("legs")) do
+                    if e.id == itemID and itemID ~= pick.id then foreignEnch = enchID end
+                end
+            end
+        end
+        check("die Karte kennt die empfohlene Verzauberung", mine ~= nil, tostring(mine))
+        check("und eine andere fuer denselben Platz", foreignEnch ~= nil, tostring(foreignEnch))
+
+        local realLink = GetInventoryItemLink
+        local function legsWith(enchID)
+            GetInventoryItemLink = function(unit, slot)
+                if slot == 7 then
+                    return ("|Hitem:200007:%d::::::80:::::|h[Beine]|h"):format(enchID)
+                end
+                return realLink(unit, slot)
+            end
+            local rows = ns.List.Build(ns.Gear.Scan())
+            for _, row in ipairs(rows) do
+                if row.slot == "legs" and not row.alt then return row end
+            end
+        end
+
+        if mine then
+            local right = legsWith(mine)
+            check("die richtige Verzauberung gilt als erledigt",
+                right ~= nil and right.missing == 0 and right.other == nil,
+                right and ("missing " .. tostring(right.missing)) or "keine Zeile")
+        end
+        if foreignEnch then
+            local wrong = legsWith(foreignEnch)
+            check("eine fremde Verzauberung zaehlt als offen",
+                wrong ~= nil and wrong.missing == 1,
+                wrong and ("missing " .. tostring(wrong.missing)) or "keine Zeile")
+            check("und die Zeile nennt sie beim Namen",
+                wrong ~= nil and wrong.other ~= nil and wrong.other ~= pick.id,
+                wrong and tostring(wrong.other) or "nichts")
+        end
+        GetInventoryItemLink = realLink
+    end
+end
+
 -- ------------------------------- Ausruestungswechsel im Fenster
 
 -- Wer ein Stueck tauscht, waehrend das Fenster offen steht, bekam die

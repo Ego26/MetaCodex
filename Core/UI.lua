@@ -2187,6 +2187,13 @@ local function setItemRow(row, data)
     if (data.owned or 0) > 0 then parts[#parts + 1] = L["OWNED"]:format(data.owned) end
     if (data.ownedHigher or 0) > 0 then parts[#parts + 1] = L["OWNED_HIGHER"]:format(data.ownedHigher) end
     if (data.ownedLower or 0) > 0 then parts[#parts + 1] = L["OWNED_LOWER"]:format(data.ownedLower) end
+    -- Es sitzt etwas anderes auf dem Platz. Nicht "bereits drauf" und
+    -- auch nicht "nichts drauf" - beides waere falsch.
+    if data.other then
+        local otherName = ns.Compat.ItemInfo(data.other)
+        if not otherName then ns.Compat.RequestItem(data.other) end
+        parts[#parts + 1] = L["OTHER_ENCHANT"]:format(otherName or ("#" .. data.other))
+    end
 
     -- Eine Alternative traegt keinen Zustand: sie ist nichts, was man
     -- noch braucht, sondern etwas, das andere stattdessen nehmen.

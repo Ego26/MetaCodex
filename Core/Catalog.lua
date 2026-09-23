@@ -207,6 +207,19 @@ function Catalog.Consumables(kind)
 end
 
 
+---Der Gegenstand zu einer Verzauberung.
+---
+---Im Link eines getragenen Stuecks steht die Zauberkennung, im Katalog
+---stehen Gegenstaende. Ohne diese Karte weiss das Addon nur, DASS etwas
+---drauf ist.
+---@param enchantID number|nil
+---@return number|nil itemID
+function Catalog.EnchantItemOf(enchantID)
+    if not enchantID then return nil end
+    local c = data()
+    return c and c.enchantItem and c.enchantItem[enchantID] or nil
+end
+
 ---Die Gegenstaende einer Art, die der Spieler wirklich dabeihat.
 ---
 ---Gebraucht fuer die Wahl "das nehme ich": eine Liste von 192 Speisen

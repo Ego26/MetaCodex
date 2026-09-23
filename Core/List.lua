@@ -72,14 +72,19 @@ function List.Build(scan)
     -- Fuer eine fremde Klasse ist die eigene Ausruestung die falsche. Dann
     -- wird nicht gezaehlt, sondern aufgezaehlt - und alles gilt als offen,
     -- weil das Gegenteil nicht feststellbar ist.
-    local function counts(slot)
+    ---@param slot string
+    ---@param wanted number|nil Gegenstand, der drauf soll
+    ---@return number need
+    ---@return number missing
+    ---@return number|nil other Fremde Verzauberung auf dem Platz
+    local function counts(slot, wanted)
         if foreign then
             local n = ns.SLOT_COUNT[slot] or 1
             return n, n
         end
-        local missing, total = Gear.Missing(scan, slot)
-        if p.onlyMissing then return missing, missing end
-        return total, missing
+        local missing, total, other = Gear.Missing(scan, slot, wanted)
+        if p.onlyMissing then return missing, missing, other end
+        return total, missing, other
     end
 
     ---Empfehlung schlaegt eigene Wahl.
@@ -127,12 +132,14 @@ function List.Build(scan)
         end
     end
 
-    local function add(slot, id, entry, pct, count, open)
+    local function add(slot, id, entry, pct, count, open, other)
         rows[#rows + 1] = fill({
             kind = "enchant", slot = slot, id = id,
             stat = entry and entry.stat or nil,
             fallback = entry and entry.name or nil,
             pct = pct, need = count, missing = open,
+            -- Was STATTDESSEN drauf ist, wenn es nicht das Empfohlene ist.
+            other = other,
         })
         addAlternatives(slot, id)
     end
@@ -224,30 +231,28 @@ function List.Build(scan)
 
     -- Ringe folgen dem Hauptwert, wenn keine Empfehlung vorliegt.
     do
-        local count, open = counts("ring")
-        if count > 0 then
-            local id, entry, pct = resolve("ring", p.main and Catalog.Enchant("ring", p.main) or nil)
-            if id then add("ring", id, entry, pct, count, open) end
-        end
+        -- Erst die Frage "was gehoert drauf", dann "was ist drauf":
+        -- ohne den Wunsch kann der Vergleich nicht stattfinden.
+        local id, entry, pct = resolve("ring", p.main and Catalog.Enchant("ring", p.main) or nil)
+        local count, open, other = counts("ring", id)
+        if count > 0 and id then add("ring", id, entry, pct, count, open, other) end
     end
 
     -- Brust: haengt sonst am Hauptattribut, nicht an der Auswahl.
     do
-        local count, open = counts("chest")
-        if count > 0 then
-            local id, entry, pct = resolve("chest", Catalog.ChestEnchant(primary))
-            if id then add("chest", id, entry, pct, count, open) end
-        end
+        local id, entry, pct = resolve("chest", Catalog.ChestEnchant(primary))
+        local count, open, other = counts("chest", id)
+        if count > 0 and id then add("chest", id, entry, pct, count, open, other) end
     end
 
     -- Kopf, Schultern, Fuesse teilen sich den Drittwert.
     for _, slot in ipairs({ "helm", "shoulders", "boots" }) do
-        local count, open = counts(slot)
+        local id, entry, pct = resolve(slot,
+            p.tertiary and Catalog.Enchant(slot, p.tertiary) or nil)
+        local count, open, other = counts(slot, id)
         if count > 0 then
-            local id, entry, pct = resolve(slot,
-                p.tertiary and Catalog.Enchant(slot, p.tertiary) or nil)
             if id then
-                add(slot, id, entry, pct, count, open)
+                add(slot, id, entry, pct, count, open, other)
             else
                 rows[#rows + 1] = { kind = "enchant", slot = slot, need = count, pending = "tertiary" }
             end
@@ -259,13 +264,13 @@ function List.Build(scan)
     -- Waffenverzauberung an der Spec. Liegt eine Empfehlung vor, entfaellt
     -- die Frage.
     for _, def in ipairs({ { slot = "legs", key = "legs" }, { slot = "weapon", key = "weapon" } }) do
-        local count, open = counts(def.slot)
+        local chosen = p[def.key]
+        local fallback = chosen and byID(Catalog.EnchantsFor(def.slot), chosen) or nil
+        local id, entry, pct = resolve(def.slot, fallback)
+        local count, open, other = counts(def.slot, id)
         if count > 0 then
-            local chosen = p[def.key]
-            local fallback = chosen and byID(Catalog.EnchantsFor(def.slot), chosen) or nil
-            local id, entry, pct = resolve(def.slot, fallback)
             if id then
-                add(def.slot, id, entry, pct, count, open)
+                add(def.slot, id, entry, pct, count, open, other)
             else
                 rows[#rows + 1] = { kind = "enchant", slot = def.slot, need = count, pending = def.key }
             end
