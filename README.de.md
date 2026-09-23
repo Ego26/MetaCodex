@@ -2,7 +2,7 @@
 
 # MetaCodex
 
-**Was die Besten wirklich spielen.** Talentbuilds mit Importkette,
+**Was die Besten wirklich spielen.** Talentbuilds mit Import-String,
 Ausrüstung mit Fundort, Verzauberungen, Steine, Verbrauchsgüter, Zielwerte
 und die Top-Spieler je Spec — für Mythic+, Raid und jede PvP-Klammer.
 Täglich gemessen aus raider.io, murlok.io und Warcraft Logs, nie aus einem
@@ -33,8 +33,8 @@ fällt weg.
 |---|---|
 | **Guides & Rotation** | Verweise auf die geschriebenen Guides zur Spec |
 | **Zielwerte** | Gemessene Mediane der Besten, deine Werte als zweiter Balken |
-| **Talente** | Der häufigste Build mit Importkette, Alternativen als *X statt Y*, umstrittene Talente — je Dungeon in M+, je Boss im Raid |
-| **Top-Spieler** | Wer oben steht, klickbar: Profil mit Kette und kompletter Ausrüstung |
+| **Talente** | Der häufigste Build mit Import-String, Alternativen als *X statt Y*, umstrittene Talente — je Dungeon in M+, je Boss im Raid |
+| **Top-Spieler** | Wer oben steht, klickbar: Profil mit String und kompletter Ausrüstung |
 | **Ausrüstung** | Fünf je Platz mit Fundort; Tooltips auf der Schlüsselstufe, die du wählst |
 | **Verzauberungen & Steine** | Gegen deine angelegte Ausrüstung: was noch offen ist |
 | **Verbrauchsgüter** | Nach Art gruppiert, mit Anteil, höchstem Schlüssel, Bestand und Ziel |
@@ -80,7 +80,7 @@ Locales/               enUS.lua, deDE.lua
 Tests/                 Rauch- und Logiktests in einer echten Lua-VM (fengari)
 
 tools/build-catalog.js         Spieltabellen → MetaCodex_Data/Catalog.lua
-tools/collect-raiderio.js      M+: Ausrüstung, Verzauberungen, Steine, Talentketten
+tools/collect-raiderio.js      M+: Ausrüstung, Verzauberungen, Steine, Talent-Strings
 tools/collect-murlok.js        PvP und M+: Anteile, Talente, Top-Spieler
 tools/collect-wcl.js           Warcraft Logs: Raids und Verbrauchsgüter
 tools/collect-profiles.js      raider.io-Profile der Top-Spieler, geprüft
@@ -118,8 +118,8 @@ Der Katalog liest `ItemSparse`, `ItemBonus`, `JournalEncounterItem`,
 dieselben Tabellen, die der Client selbst benutzt. Keine ID in diesem
 Projekt ist abgeschrieben. Jede kommt aus den Spieldaten und ist nachprüfbar.
 
-Talentketten werden nie erzeugt: jede stammt aus dem Client eines echten
-Spielers. Raid- und PvP-Ketten werden gegen den geloggten Kampf bzw. die
+Talent-Strings werden nie erzeugt: jede stammt aus dem Client eines echten
+Spielers. Raid- und PvP-Strings werden gegen den geloggten Kampf bzw. die
 murlok-Heatmap geprüft, bevor sie als Build gelten.
 
 Releases: ein Tag `v1.2.3` genügt, der Workflow `Release` packt den Code
@@ -151,7 +151,7 @@ Siehe [Tests/README.md](Tests/README.md).
    Auctionators `CreateShoppingList` ersetzt eine Liste vollständig; wer den
    Namen einer fremden Liste träfe, löschte sie.
 3. **Nichts wird gezeigt, was es nicht gibt.** Keine erfundenen Vorgaben,
-   keine geratenen Fundorte, keine Talentketten, die kein Client geschrieben
+   keine geratenen Fundorte, keine Talent-Strings, die kein Client geschrieben
    hat.
 
 ## Lizenz

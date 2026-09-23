@@ -16,7 +16,7 @@ trägst und im Beutel hast, damit du weißt, was noch fehlt.
 
 ## Auf einen Blick
 
-- **Talentbuilds mit Importkette** — der häufigste Build und seine
+- **Talentbuilds mit Import-String** — der häufigste Build und seine
   Alternativen, je Dungeon in M+, je Boss im Raid, je Klammer im PvP.
   Kopieren, einfügen, fertig.
 - **Ausrüstung mit Fundort** — fünf Gegenstände je Platz, wo jeder fällt,
@@ -25,7 +25,7 @@ trägst und im Beutel hast, damit du weißt, was noch fehlt.
   was du schon hast, was du kaufen musst.
 - **Verbrauchsgüter**, gruppiert nach Art, mit Bestand und Ziel.
 - **Zielwerte**, gemessen an den Besten, deine Werte daneben.
-- **Top-Spieler**, klickbar — ihre Kette, ihre Ausrüstung, ihr Profil.
+- **Top-Spieler**, klickbar — ihr String, ihre Ausrüstung, ihr Profil.
 - **Erinnerung** vor dem Start und am Auktionshaus — und ein Reiter, der
   zeigt, was sie prüft.
 - **Guides** verlinkt, nie kopiert.
@@ -50,18 +50,18 @@ Weg dorthin kurz machen.
 gemessen als Median aus echten Kämpfen. Zwei Balken je Wert: das Ziel und
 dein Stand. Grün, sobald du da bist; sonst steht dabei, wie viel fehlt.
 
-**Talente** — Der häufigste Build als eine Zeile: Klick, Kette kopieren, im
+**Talente** — Der häufigste Build als eine Zeile: Klick, String kopieren, im
 Talentfenster bei „Importieren" einfügen. Darunter bis zu sechs
 Alternativen, jede beschrieben als *„Talent X statt Talent Y"*, damit du
-siehst, worin sich die Meinungen unterscheiden — und jede mit eigener
-Kette. Dann die umstrittenen Talente (die, die zwischen 15 und 85 % der
+siehst, worin sich die Meinungen unterscheiden — und jede mit eigenem
+String. Dann die umstrittenen Talente (die, die zwischen 15 und 85 % der
 Besten nehmen) und bei PvP die PvP-Talente in eigener Gruppe. Bei M+
 zusätzlich je Dungeon wählbar, im Raid je Boss — nach Raid gruppiert, wenn
 mehrere laufen.
 
 **Top-Spieler** — Wer diese Spec gerade oben spielt, je Aktivität. Ein
-Klick öffnet das Profil *im Fenster*: seine Talentkette (mit Vermerk, ob
-sie zur Aktivität passt), seine komplette Ausrüstung — Tooltips zeigen
+Klick öffnet das Profil *im Fenster*: seinen Talent-String (mit Vermerk, ob
+er zur Aktivität passt), seine komplette Ausrüstung — Tooltips zeigen
 jedes Stück genau so, wie er es trägt — und die Adresse seines Profils.
 
 ### Ausrüstung
@@ -115,7 +115,7 @@ gemessen hat, und ob Auctionator da ist.
   jede Stufe mit den Schlüsseln, die sie geben.
 - **Kategorie / Platz**: Listen lassen sich auf einen Platz oder eine Art
   eingrenzen.
-- **Klick auf eine Zeile**: kopiert eine Kette, öffnet ein Profil, stellt
+- **Klick auf eine Zeile**: kopiert einen String, öffnet ein Profil, stellt
   eine Zielmenge ein — je nachdem, was die Zeile ist.
 - **Shift-Klick auf eine Zeile mit Gegenstand**: verlinkt ihn — in den
   Chat, oder bei offenem Auktionshaus direkt ins Suchfeld. Ctrl-Klick:
@@ -136,7 +136,7 @@ gemessen hat, und ob Auctionator da ist.
 
 | Plattform | Liefert |
 |---|---|
-| **raider.io** | M+: Ausrüstung, Verzauberungen, Steine, Talente mit fertiger Importkette. Die Profile der Top-Spieler |
+| **raider.io** | M+: Ausrüstung, Verzauberungen, Steine, Talente mit fertigem Import-String. Die Profile der Top-Spieler |
 | **murlok.io** | Alle PvP-Klammern und M+: Ausrüstung, Steine, Zielwerte, Talente, Ranglisten der Top-Spieler |
 | **Warcraft Logs** | Raid komplett und Verbrauchsgüter — das, was sonst niemand veröffentlicht |
 
@@ -145,8 +145,8 @@ als fertiges Addon-Paket an das Release **nightly** gehängt; im Spiel wird
 nichts aus dem Internet nachgeladen. Gespeichert werden nur IDs — Namen und
 Symbole holt dein Client in seiner Sprache.
 
-**Talentketten sind nie ausgedacht.** Jede stammt aus dem Client eines
-echten Spielers. Für Raid und PvP wird jede Kette geprüft, bevor sie als
+**Talent-Strings sind nie ausgedacht.** Jede stammt aus dem Client eines
+echten Spielers. Für Raid und PvP wird jeder String geprüft, bevor er als
 Build gilt: die Talente im Profil müssen zu denen passen, die derselbe
 Spieler im geloggten Kampf hatte (Raid) beziehungsweise zu dem, was fast
 alle Top-Spieler nehmen (PvP). Was die Prüfung nicht besteht, wird nicht
@@ -165,7 +165,7 @@ also auch keinen Reiter dafür.
 | **10 Aktivitäten** | M+ (High Keys), M+ (+7 bis +21), Raid Normal / Heroisch / Mythisch, 2v2, 3v3, Solo Shuffle, RBG, RBG Blitz |
 | **3 Plattformen** | raider.io, murlok.io, Warcraft Logs — einzeln wählbar oder „Alle Plattformen" |
 | **Alle 40 Speccs** | Auch für Klassen, die du gar nicht spielst — zum Nachsehen oder zum Einkaufen für den Zweitcharakter |
-| **1.401 Talent-Importketten** | Jede von einem echten Spieler, jede mit einem Klick kopierbar |
+| **1.401 Talent-Import-Strings** | Jede von einem echten Spieler, jede mit einem Klick kopierbar |
 | **2.472 Spielerprofile** | Die Top-Spieler je Spec und Aktivität, mit kompletter Ausrüstung |
 | **Jede Nacht neu** | Die Daten sind höchstens einen Tag alt |
 
@@ -207,7 +207,7 @@ also auch keinen Reiter dafür.
   und die nutzt MetaCodex selbst.
 - **Guide-Texte im Addon** — die gehören den Seiten, die sie schreiben.
   Deshalb Verweise statt Kopien.
-- **Ein eigener Talent-Kodierer** — es gab einen, er ist weg. Ketten kommen
+- **Ein eigener Talent-Kodierer** — es gab einen, er ist weg. Strings kommen
   von echten Clients, nicht aus einem Nachbau des Formats.
 
 ---

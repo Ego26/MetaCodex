@@ -7,10 +7,10 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 ### Neu
 
 - **Talente** für jede Aktivität: der häufigste Build mit fertiger
-  Importkette, bis zu sechs Alternativen als *welches Talent statt
+  Import-String, bis zu sechs Alternativen als *welches Talent statt
   welchem*, die umstrittenen Talente, PvP-Talente in eigener Gruppe. Je
-  Dungeon in M+, je Boss im Raid. Jede Kette stammt aus dem Client eines
-  echten Spielers; Raid- und PvP-Ketten werden gegen den geloggten Kampf
+  Dungeon in M+, je Boss im Raid. Jeder String stammt aus dem Client eines
+  echten Spielers; Raid- und PvP-Strings werden gegen den geloggten Kampf
   bzw. die murlok-Heatmap geprüft, bevor sie als Build gelten.
 - **Ausrüstung** je Platz mit Anteil, Gegenstandsstufe, höchstem Schlüssel,
   Set-/Handwerksmarke und Fundort (Boss und Instanz, PvP-Händler oder „kein
@@ -19,7 +19,7 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
   dem gewählten Pfad.
 - **Zielwerte** als gemessene Mediane aus echten Kämpfen, mit den eigenen
   Werten als zweitem Balken.
-- **Top-Spieler** je Spec und Aktivität, klickbar: Profil mit Talentkette,
+- **Top-Spieler** je Spec und Aktivität, klickbar: Profil mit Talent-String,
   Adresse und kompletter Ausrüstung in einem dritten nachladbaren Addon.
 - **Verbrauchsgüter**, gruppiert nach Art — Fläschchen, Speise, Kampftrank,
   Heiltrank, Waffenbuffs, Runen — mit Anteil, höchstem Schlüssel, Bestand
@@ -51,4 +51,4 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ### Entfernt
 
-- Der eigene Talent-Kodierer. Ketten kommen nur noch aus echten Clients.
+- Der eigene Talent-Kodierer. Strings kommen nur noch aus echten Clients.

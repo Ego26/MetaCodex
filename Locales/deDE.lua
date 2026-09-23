@@ -239,8 +239,8 @@ ns.RegisterLocale("deDE", {
 
 ns.RegisterLocale("deDE", {
     ["TALENT_BUILD"] = "Häufigster Build  ·  %d%% spielen genau diesen",
-    ["LOADOUT_FROM_BASE"] = "Kette aus M+ gesamt",
-    ["LOADOUT_FROM_SOURCE"] = "Kette von %s",
+    ["LOADOUT_FROM_BASE"] = "String aus M+ gesamt",
+    ["LOADOUT_FROM_SOURCE"] = "String von %s",
     ["TALENT_PICKS"] = "Wo die Meinungen auseinandergehen",
     ["TALENT_RANK"]  = "Rang %d",
 })
@@ -252,7 +252,7 @@ ns.RegisterLocale("deDE", {
     ["GUIDE_GROUP"]       = "Geschriebene Guides",
     ["GUIDE_COPY"]        = "Klick kopiert die Adresse",
     ["PLAYER_COPY"]       = "Klick öffnet das Profil",
-    ["PLAYER_HINT"]       = "Wer diese Spezialisierung gerade oben spielt. Klick auf eine Zeile öffnet ihr Profil: Talentkette, Ausrüstung, Adresse.",
+    ["PLAYER_HINT"]       = "Wer diese Spezialisierung gerade oben spielt. Klick auf eine Zeile öffnet ihr Profil: Talent-String, Ausrüstung, Adresse.",
     ["PLAYER_RANK"]       = "Platz %d",
     ["ORIGIN_CONQUEST"]   = "Eroberungspunkte-Händler",
     ["ORIGIN_HONOR"]      = "Ehre-Händler",
@@ -263,7 +263,7 @@ ns.RegisterLocale("deDE", {
     ["KEY_LABEL"]         = "%s %d · %d",
     ["PLAYER_BACK"]       = "Zurück zu Top-Spieler",
     ["PLAYER_VIEW_HINT"]  = "Was dieser Spieler gerade trägt und spielt, laut raider.io. Tooltips zeigen das Stück genau so, wie er es trägt.",
-    ["PLAYER_LOADOUT"]    = "Talentkette dieses Spielers kopieren",
+    ["PLAYER_LOADOUT"]    = "Talent-String dieses Spielers kopieren",
     ["PLAYER_VERIFIED"]   = "geprüft: Talente passen zur Aktivität",
     ["PLAYER_UNVERIFIED"] = "ungeprüft: könnte sein Build für eine andere Aktivität sein",
     ["PLAYER_PROFILE"]    = "Profil im Browser",
@@ -280,7 +280,7 @@ ns.RegisterLocale("deDE", {
     ["TRACK_974"]         = "Held",
     ["TRACK_978"]         = "Mythisch",
     ["KEY_STEP_TRACK"]    = "%d · %s (%s %d)",
-    ["LOADOUT_NO_STRING"] = "Für diese Aktivität liefert keine Quelle eine fertige Kette — die Talente unten stimmen trotzdem",
+    ["LOADOUT_NO_STRING"] = "Für diese Aktivität liefert keine Quelle einen fertigen String — die Talente unten stimmen trotzdem",
     ["NO_PLAYERS"]        = "Für diese Aktivität führt keine Quelle eine Rangliste.",
     ["GUIDE_BY"]          = "von %s — öffnet im Browser",
     ["GUIDE_WOWHEAD"]     = "Rotation, Abklingzeiten und Fähigkeiten",
