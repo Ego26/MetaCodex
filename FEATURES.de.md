@@ -109,7 +109,8 @@ gemessen hat, und ob Auctionator da ist.
 - **Plattform**: einzeln oder alle. Wo eine Plattform zu einem Reiter
   nichts hat, wird sie gar nicht erst angeboten; bleibt nur eine, gibt es
   keinen Knopf.
-- **Dungeon** (bei Talenten unter M+): alle acht der Saison einzeln.
+- **Dungeon / Boss** (bei Talenten): alle acht Dungeons der Saison, oder
+  jeder Boss jedes laufenden Raids.
 - **Schlüsselstein** (bei Ausrüstung): Champion / Held / Große Schatzkammer,
   jede Stufe mit den Schlüsseln, die sie geben.
 - **Kategorie / Platz**: Listen lassen sich auf einen Platz oder eine Art
@@ -139,9 +140,9 @@ gemessen hat, und ob Auctionator da ist.
 | **murlok.io** | Alle PvP-Klammern und M+: Ausrüstung, Steine, Zielwerte, Talente, Ranglisten der Top-Spieler |
 | **Warcraft Logs** | Raid komplett und Verbrauchsgüter — das, was sonst niemand veröffentlicht |
 
-Alles wird einmal täglich gesammelt (`tools/schedule.ps1` richtet das als
-Windows-Aufgabe ein) und kommt als Daten mit dem Addon; im Spiel wird
-nichts nachgeladen. Gespeichert werden nur IDs — Namen und
+Alles wird einmal täglich von der GitHub-Action `Daily data` gesammelt und
+als fertiges Addon-Paket an das Release **nightly** gehängt; im Spiel wird
+nichts aus dem Internet nachgeladen. Gespeichert werden nur IDs — Namen und
 Symbole holt dein Client in seiner Sprache.
 
 **Talentketten sind nie ausgedacht.** Jede stammt aus dem Client eines
