@@ -1185,13 +1185,22 @@ local function playerViewRows(who)
             -- Damit steht im Tooltip, was auf dem Stueck sitzt - und
             -- zwar so, wie der Client es schreibt, nicht wie wir es
             -- nacherzaehlen wuerden.
+            -- Der Itemstring hat feste Felder, und zwar ELF zwischen der
+            -- ID und der Zahl der Bonus-IDs: Verzauberung, vier Steine,
+            -- Suffix, Unique, Stufe, Spec, Maske, Kontext. Eines zu wenig,
+            -- und die Zahl steht im Feld daneben - der Client wirft den
+            -- ganzen Link weg, und das Tooltip bleibt leer.
             local gems = piece.gems or {}
-            local head = ("item:%d:%s:%s:%s:%s:%s"):format(
-                piece.id, piece.enchant or "",
-                gems[1] or "", gems[2] or "", gems[3] or "", gems[4] or "")
-            local link = head .. "::::::"
+            local fields = {
+                piece.enchant or "",
+                gems[1] or "", gems[2] or "", gems[3] or "", gems[4] or "",
+                "", "", "", "", "", "",
+            }
+            local link = "item:" .. piece.id .. ":" .. table.concat(fields, ":")
             if piece.b and #piece.b > 0 then
-                link = ("%s::::::%d:%s"):format(head, #piece.b, table.concat(piece.b, ":"))
+                link = link .. ":" .. #piece.b .. ":" .. table.concat(piece.b, ":")
+            else
+                link = link .. ":"
             end
             -- Name und Symbol wie in jeder Ausruestungszeile; fehlt der
             -- Name noch, wird er angefordert und die Ansicht frischt auf.

@@ -2195,6 +2195,22 @@ if top then
             end
         end
         check("der Link traegt die Verzauberung", withEnchant > 0, withEnchant .. " Stuecke")
+        -- Und er hat die richtige Form. Ein Feld zu wenig, und die Zahl
+        -- der Bonus-IDs steht im Feld daneben: der Client verwirft den
+        -- Link, das Tooltip bleibt leer - genau so war es.
+        local schief = 0
+        for _, r in ipairs(wow.rows()) do
+            if r:IsShown() and type(r.link) == "string" and r.link:find("^item:") then
+                local parts = {}
+                for piece in (r.link .. ":"):gmatch("([^:]*):") do parts[#parts + 1] = piece end
+                -- 1 item, 2 ID, 3 Verzauberung, 4-7 Steine, 8-13 Rest,
+                -- 14 Zahl der Bonus-IDs, danach die Bonus-IDs selbst.
+                local count = tonumber(parts[14]) or 0
+                if #parts < 14 then schief = schief + 1
+                elseif count > 0 and #parts ~= 14 + count then schief = schief + 1 end
+            end
+        end
+        check("jeder Link hat die richtige Form", schief == 0, schief .. " schief")
         local button
         for _, f in ipairs(wow.frames) do
             if rawget(f, "label") and f.label:GetText() == L["PLAYER_BACK"] then button = f end
