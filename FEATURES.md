@@ -198,7 +198,6 @@ under PvP because no platform measures them — so there is no tab for them.
 
 ## What is planned
 
-- **Omnium Folio** — which folio runes the best use, as its own tab.
 - **A source for every item** — vendors and world sources for the pieces
   that still read "not an instance drop".
 

@@ -90,7 +90,7 @@ const STEPS = [
   },
   {
     key: 'keys',
-    what: 'M+ je Schluesselstufe: Verbrauchsgueter, Talente, Folio',
+    what: 'M+ je Schluesselstufe: Verbrauchsgueter und Talente',
     why: 'Die Aktivitaet "M+ (+7 bis +21)" hat ihre eigenen Zahlen - andere Stufen, andere Mischung. Sie lief bisher nur von Hand, und ihre Daten wurden still alt.',
     script: 'collect-wcl.js',
     args: ['mplus-keys'],

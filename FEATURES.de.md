@@ -207,7 +207,6 @@ also auch keinen Reiter dafür.
 
 ## Was noch geplant ist
 
-- **Omnium Folio** — welche Folio-Runen die Besten nutzen, als eigener Reiter.
 - **Ein Fundort für jeden Gegenstand** — Händler und Weltquellen für die
   Stücke, die noch „kein Instanzdrop" heißen.
 

@@ -502,50 +502,6 @@ function emitEnchants(groups) {
   const used = new Set(Object.values(treeBySpec));
   for (const id of Object.keys(treesOut)) if (!used.has(Number(id))) delete treesOut[id];
 
-  // --- Der Omnium Folio -----------------------------------------------
-  //
-  // Ein Talentbaum wie jeder andere, nur ohne Spec. Seine Definitionen
-  // sind die Runen; die Zeile ist die Position im Baum. Der Baum wird
-  // nicht per Nummer gesucht, sondern ueber seine Runen - die Nummer
-  // kann sich aendern, der Name 'Rune of' nicht.
-  const nameOfSpell = new Map(spellNames.map((r) => [Number(r.ID), r.Name_lang]));
-  const runeTrees = new Map();
-  for (const row of traitNodes) {
-    for (const e of entriesOfNode.get(Number(row.ID)) || []) {
-      const info = entryInfo.get(e.entry);
-      const name = info && nameOfSpell.get(info.spell);
-      if (name && /^Rune of /.test(name) && info.spell > 1270000) {
-        const list = runeTrees.get(Number(row.TraitTreeID)) || [];
-        list.push({ y: Number(row.PosY) || 0, x: Number(row.PosX) || 0, spell: info.spell, name });
-        runeTrees.set(Number(row.TraitTreeID), list);
-      }
-    }
-  }
-  let folio = null;
-  for (const [treeID, list] of runeTrees) {
-    if (!folio || list.length > folio.runes.length) folio = { tree: treeID, runes: list };
-  }
-  const folioRows = [];
-  if (folio) {
-    // Die Aura, die im Kampf sichtbar ist, heisst wie die Rune, hat aber
-    // eine andere Nummer. Gesucht wird sie beim Namen - INNERHALB der
-    // Runen des Baums, nicht ueber alle Zauber: so faengt sich kein
-    // Todesritter-Runenschmied mehr darin.
-    const byName = new Map();
-    for (const [id, name] of nameOfSpell) if (id > 1270000) { const l = byName.get(name) || []; l.push(id); byName.set(name, l); }
-    const rows = new Map();
-    for (const r of folio.runes) {
-      const auras = (byName.get(r.name) || []).filter((id) => id !== r.spell);
-      const short = r.name.replace(/^Rune of (the )?/, '');
-      const auras2 = (byName.get(short) || []).filter((id) => id !== r.spell);
-      const row = rows.get(r.y) || []; rows.set(r.y, row);
-      row.push({ spell: r.spell, auras: [...new Set([...auras, ...auras2])], x: r.x });
-    }
-    for (const y of [...rows.keys()].sort((a, b) => a - b)) folioRows.push(rows.get(y).sort((a, b) => a.x - b.x).map((r) => ({ spell: r.spell, auras: r.auras })));
-    console.log('Omnium Folio: Baum', folio.tree, '|', folio.runes.length, 'Runen in', folioRows.length, 'Zeilen');
-  } else {
-    console.log('Omnium Folio: kein Runenbaum gefunden');
-  }
 
 
   // --- Set-Teil oder Handwerksstueck ------------------------------------
@@ -798,14 +754,6 @@ function emitEnchants(groups) {
   }
   out.push('  },');
   out.push('');
-  out.push('  -- Der Omnium Folio: Runen je Zeile, als Zauber-IDs. Die Aura, an der');
-  out.push('  -- man sie im Kampf erkennt, steht daneben.');
-  out.push('  folio = {');
-  for (const row of folioRows) {
-    out.push('    { ' + row.map((r) => `{ spell = ${r.spell}, auras = { ${r.auras.join(', ')} } }`).join(', ') + ' },');
-  }
-  out.push('  },');
-  out.push('');
   out.push('  tracks = {');
   for (const t of tracks) {
     out.push(`    { path = ${t.path}, name = ${t.name}, lists = { ${t.lists.join(', ')} } },`);
@@ -912,7 +860,7 @@ function emitEnchants(groups) {
     (pvpBySpec[spec] = pvpBySpec[spec] || []).push(id);
   }
   fs.writeFileSync(path.join(mapDir, 'trait-map.json'), JSON.stringify({
-    build, trees: treesOut, treeBySpec, subTrees, folio: folioRows,
+    build, trees: treesOut, treeBySpec, subTrees,
   }), 'utf8');
   console.log('Talentbaeume:', Object.keys(treesOut).length, '| Speccs mit Baum:', Object.keys(treeBySpec).length, '| Held-Baeume:', Object.keys(subTrees).length);
   fs.writeFileSync(path.join(mapDir, 'journal-drops.json'), JSON.stringify(journalAll), 'utf8');

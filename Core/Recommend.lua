@@ -522,8 +522,6 @@ function Recommend.HasSection(specID, mode, source, section)
         return Recommend.Gear(specID, mode, source) ~= nil
     elseif section == "players" then
         return Recommend.Players(specID, mode, source) ~= nil
-    elseif section == "folio" then  -- noch gefragt von HasSection("enchants")
-        return Recommend.Folio(specID, mode, source) ~= nil
     elseif section == "enchants" then
         local entry = Recommend.For(specID, mode, source)
         return entry ~= nil and (entry.enchants ~= nil or entry.gems ~= nil)
@@ -704,34 +702,3 @@ function Recommend.HeroTrees(specID, mode, source)
     return out
 end
 
----Ob eine Rune ueberhaupt messbar ist.
----
----Gezaehlt wird, was im Kampf als Buff erscheint; eine rein passive Rune
----erscheint nie. "0 %" waere dort eine Aussage, die niemand gemessen hat.
----@param spell number
----@return boolean
-function Recommend.FolioBlind(spell)
-    local d = data()
-    return (d and d.folioBlind and d.folioBlind[spell]) == true
-end
-
----Die Folio-Runen einer Spec: je Rune der Anteil. Erste Quelle, die
----sie misst - das ist Warcraft Logs, denn nur dort sind sie sichtbar.
----@param specID number
----@param mode string
----@param source string|nil
----@return table[]|nil { spell, pct }
----@return string|nil fromSource
-function Recommend.Folio(specID, mode, source)
-    local d = data()
-    local byMode = d and d.modes and d.modes[mode]
-    if not byMode or not specID then return nil end
-    local names = (source and source ~= Recommend.ALL) and { source }
-        or Recommend.SourcesFor(mode)
-    for _, name in ipairs(names) do
-        local part = byMode[name]
-        local entry = part and part.specs and part.specs[specID]
-        if entry and entry.folio and #entry.folio > 0 then return entry.folio, name end
-    end
-    return nil
-end

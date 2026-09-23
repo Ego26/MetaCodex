@@ -1247,16 +1247,14 @@ do
 end
 check("Erinnerung fehlt bei PvP", not ns.UI.SectionHasData("remind", "2v2"))
 
--- ------------------------------------------------- Held-Baeume und Folio
+-- ------------------------------------------------------- Held-Baeume
 
 -- Die Namen der Held-Baeume kommen aus dem Katalog, in der Sprache des
--- Fensters; der Folio hat Zeilen. Ob die Daten schon Anteile tragen,
--- entscheidet der naechste Sammellauf - hier zaehlt, dass nichts bricht.
+-- Fensters.
 check("Held-Baum hat einen deutschen Namen", ns.Catalog.SubTreeName(40) == "Zauberer", ns.Catalog.SubTreeName(40))
 ns.SetLanguage("enUS")
 check("und einen englischen", ns.Catalog.SubTreeName(40) == "Spellslinger", ns.Catalog.SubTreeName(40))
 ns.SetLanguage("deDE")
-check("Folio hat fuenf Zeilen", #(ns.Catalog.Folio() or {}) == 5, tostring(#(ns.Catalog.Folio() or {})))
 do
     ns.Profile.SetMode("mplus")
     local trees = ns.Recommend.HeroTrees(105, "mplus", ns.Recommend.ALL)
@@ -1270,8 +1268,6 @@ do
     else
         check("ohne Held-Daten kein Knopf", true)
     end
-    check("Folio ohne Daten bleibt verborgen oder zeigt Zeilen",
-        (not ns.UI.SectionHasData("folio", "raid")) or rowsInSection("folio") > 0)
 end
 
 -- ---------------------------------------------------------- Fundort-Filter

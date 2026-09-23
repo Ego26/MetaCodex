@@ -1399,46 +1399,6 @@ local function playerViewRows(who)
     return rows
 end
 
----Der Omnium Folio: die Runen des Baums, Zeile fuer Zeile, mit dem
----Anteil der Besten, die sie beim Pull trugen.
----
----Die Zeilen kommen aus dem Katalog (dem Baum in den Spieldaten), die
----Anteile aus den Logs. Eine Rune ohne Anteil steht trotzdem da - mit
----null - damit die Zeile vollstaendig ist und man sieht, was es gibt.
----@return table[] rows
----@return string|nil fromSource
-local function folioRows(specID, mode, source)
-    local shares, from = ns.Recommend.Folio(specID, mode, source)
-    if not shares then return {}, nil end
-    local pctOf = {}
-    for _, r in ipairs(shares) do pctOf[r.spell] = r.pct end
-    -- Eine Zeile je REIHE, die Runen nebeneinander.
-    --
-    -- Untereinander waren es dreizehn Zeilen, in denen dieselbe Auskunft
-    -- dreizehnmal stand. Der Folio ist aber eine Entscheidung je Reihe -
-    -- und so sieht man sie: die haeufigste hell, die anderen daneben
-    -- gedimmt, jede mit ihrem Anteil.
-    -- Was die Zahl bedeutet, steht ueber der Gruppe: weder Warcraft Logs
-    -- noch Blizzard fuehren den Folio im Spielerblatt, gezaehlt wird also
-    -- das Ausloesen im Kampf.
-    local rows = { { kind = "note", text = L["FOLIO_HINT"], group = L["FOLIO_GROUP"] } }
-    for i, line in ipairs(ns.Catalog.Folio() or {}) do
-        local runes, best = {}, 0
-        for _, rune in ipairs(line) do
-            local blind = ns.Recommend.FolioBlind(rune.spell)
-            local pct = pctOf[rune.spell] or 0
-            runes[#runes + 1] = { spell = rune.spell, pct = pct, blind = blind }
-            if not blind and pct > best then best = pct end
-        end
-        for _, r in ipairs(runes) do r.best = (r.pct == best and best > 0) end
-        rows[#rows + 1] = {
-            kind = "folio", index = i, runes = runes,
-            group = L["FOLIO_GROUP"],
-        }
-    end
-    return rows, from
-end
-
 ---Die Spieler, die eine Quelle gerade oben fuehrt.
 ---
 ---Der einzige Abschnitt, der keine Empfehlung ist. Er beantwortet die
@@ -1761,40 +1721,6 @@ local function openPicker(row, slot, key)
     end)
 end
 
--- Eine Rune in einer Folio-Zeile: Symbol, Name, Anteil.
---
--- Sie haengen am Zeilenrahmen und werden wiederverwendet wie die Zeilen
--- selbst; was eine Zeile nicht braucht, wird versteckt statt geloescht.
-local function folioCell(row, index)
-    row.cells = rawget(row, "cells") or {}
-    if row.cells[index] then return row.cells[index] end
-    local cell = CreateFrame("Button", nil, row)
-    cell.bg = S:Fill(cell, "bgOverlay", 0)
-    cell.icon = cell:CreateTexture(nil, "ARTWORK")
-    cell.icon:SetSize(28, 28)
-    cell.icon:SetPoint("LEFT", S.space.sm, 0)
-    cell.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    cell.name = S:Text(cell, "body", "textPrimary")
-    cell.name:SetPoint("TOPLEFT", S.space.sm + 34, -6)
-    cell.name:SetPoint("TOPRIGHT", -S.space.sm, -6)
-    cell.name:SetJustifyH("LEFT")
-    cell.pct = S:Text(cell, "caption", "accent")
-    cell.pct:SetPoint("TOPLEFT", S.space.sm + 34, -22)
-    cell:SetScript("OnEnter", function(self)
-        self.bg:SetAlpha(0.6)
-        if not self.spellID then return end
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        if GameTooltip.SetSpellByID then GameTooltip:SetSpellByID(self.spellID) end
-        GameTooltip:Show()
-    end)
-    cell:SetScript("OnLeave", function(self)
-        self.bg:SetAlpha(0)
-        GameTooltip:Hide()
-    end)
-    row.cells[index] = cell
-    return cell
-end
-
 local function setItemRow(row, data)
     resetRow(row)
     row.__header = false
@@ -2051,49 +1977,6 @@ local function setItemRow(row, data)
         return
     end
 
-    if data.kind == "folio" then
-        row.link = nil
-        row.icon:SetTexture(nil)
-        row.icon:SetSize(1, 1)
-        row.detail:SetText("")
-        row.share:SetText("")
-        row.onClick = nil
-        -- Links die Nummer der Reihe, rechts daneben die Runen.
-        row.title:ClearAllPoints()
-        row.title:SetPoint("LEFT", S.space.md, 0)
-        row.title:SetWidth(58)
-        S:ApplyFont(row.title, "caption", "textMuted")
-        row.title:SetText(L["FOLIO_ROW"]:format(data.index))
-
-        local runes = data.runes or {}
-        local width = contentWidth()
-        local left = S.space.md + 62
-        local space = math.max(120, width - left - S.space.md)
-        local each = math.floor(space / math.max(1, #runes))
-        for i, rune in ipairs(runes) do
-            local cell = folioCell(row, i)
-            local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(rune.spell)
-            cell.spellID = rune.spell
-            cell:ClearAllPoints()
-            cell:SetPoint("TOPLEFT", left + (i - 1) * each, -2)
-            cell:SetSize(each - S.space.sm, 40)
-            cell.icon:SetTexture((info and info.iconID)
-                or "Interface\\Icons\\INV_Misc_QuestionMark")
-            cell.name:SetText((info and info.name) or ("#" .. tostring(rune.spell)))
-            -- Ohne Messung ein Strich, keine Null.
-            cell.pct:SetText(rune.blind and L["FOLIO_UNMEASURED"] or (rune.pct .. "%"))
-            -- Die haeufigste hell, die anderen zurueckgenommen. Sie
-            -- bleiben lesbar: sie sind eine Wahl, kein Fehler.
-            local strong = rune.best
-            cell.icon:SetAlpha(strong and 1 or 0.4)
-            cell.icon:SetDesaturated(not strong)
-            S:Recolor(cell.name, strong and "textPrimary" or "textMuted")
-            S:Recolor(cell.pct, strong and "accent" or "textMuted")
-            cell:Show()
-        end
-        for i = #runes + 1, #(rawget(row, "cells") or {}) do row.cells[i]:Hide() end
-        return
-    end
 
     if data.kind == "runeforge" then
         row.link = nil
@@ -3052,13 +2935,6 @@ function UI.Refresh()
     else
         hintText:SetText(foreign and L["FOREIGN_CLASS"] or "")
         currentRows = ns.List.Build(ns.Gear.Scan())
-        -- Der Omnium Folio gehoert hierher und nicht in einen eigenen
-        -- Reiter: er ist eine Verzauberung des Charakters, keine eigene
-        -- Gattung. Archon zeigt ihn an derselben Stelle.
-        if section.key == "enchants" then
-            local folio = folioRows(specID, mode, wanted)
-            for _, row in ipairs(folio) do currentRows[#currentRows + 1] = row end
-        end
     end
     frame.__fromSource = fromSource
 
@@ -3263,10 +3139,6 @@ function UI.Refresh()
             row.title:SetPoint("LEFT", S.space.sm + 58, 0)
             S:ApplyFont(row.title, "caption", "textSecondary")
             place(row, SUB_ROW_HEIGHT * (S.fontScale or 1))
-        elseif data.kind == "folio" then
-            -- Eine Reihe ist hoeher als eine Textzeile, aber niedriger
-            -- als dreizehn Zeilen untereinander.
-            place(row, 46 * (S.fontScale or 1))
         elseif data.kind == "note" then
             -- Eine Notiz ist eine Zeile Text, kein Gegenstand: Symbol
             -- klein, Text daneben auf halber Hoehe.

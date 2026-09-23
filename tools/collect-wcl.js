@@ -805,23 +805,18 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
   } catch (e) { /* ohne Karte zaehlt nur, was gekauft wird */ }
   const consumables = await readConsumableItems(gameBuild, catalog.expansion);
   const talentSpells = await readTalentSpells(gameBuild);
-  // Held-Baum je Talenteintrag und die Folio-Runen - aus der Baumkarte,
+  // Held-Baum je Talenteintrag - aus der Baumkarte,
   // die build-catalog.js aus den Spieldaten schreibt.
   const entrySubTree = new Map();
-  const folioAura = new Map();   // Auren-ID -> Runen-Zauber
-  let folioFilter = '';          // fuer die Abfrage: nur diese Auren
+
   try {
     const tm = JSON.parse(fs.readFileSync(path.join(BASE, 'tools', 'data', 'trait-map.json'), 'utf8'));
     for (const tree of Object.values(tm.trees || {})) {
       // Der Held-Baum steht am Knoten; ein Eintrag traegt ihn nur selten selbst.
       for (const node of tree.nodes) for (const e of node.entries) { const sub = node.subTree || e.subTree; if (sub) entrySubTree.set(e.id, sub); }
     }
-    for (const row of tm.folio || []) for (const r of row) for (const a of r.auras || []) folioAura.set(a, r.spell);
-    if (folioAura.size) {
-      folioFilter = 'ability.id in (' + [...folioAura.keys()].join(', ') + ')';
-    }
-    console.log('Baumkarte: ' + entrySubTree.size + ' Held-Eintraege, ' + folioAura.size + ' Folio-Auren');
-  } catch (e) { console.log('  ! keine trait-map.json - ohne Held-Baeume und Folio'); }
+    console.log('Baumkarte: ' + entrySubTree.size + ' Held-Eintraege');
+  } catch (e) { console.log('  ! keine trait-map.json - ohne Held-Baeume'); }
 
   console.log(`Katalog: ${catalog.enchantByName.size} Verzauberungen, ${catalog.gemIDs.size} Steine`);
   console.log(`Verzauberungs-IDs: ${Object.keys(enchantMap).length}, `
@@ -846,7 +841,7 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
       enchants: {}, gems: {}, consumables: {}, gear: {},
       talents: {}, builds: {}, ratings: [], maxKey: {}, players: 0,
       names: [],
-      hero: {}, folio: {},
+      hero: {},
     });
   };
   // Welche Zaehlwerke der gerade gelesene Kampf fuettert.
@@ -899,18 +894,10 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
     }
     let data;
     try {
-      // Die Folio-Runen stehen NICHT im CombatantInfo.
-      //
-      // Nachgesehen statt geraten: das Ereignis fuehrt Ausruestung,
-      // Auren beim Pull, Talente und drei leere "customPower"-Felder -
-      // keine Rune. Sie erscheinen als Buff WAEHREND des Kampfes. Also
-      // werden sie hier mitgeholt, in derselben Anfrage und auf die
-      // Runen gefiltert; ein zweiter Rundgang waere teurer.
       data = await gql(`
         query ($code: String!, $fight: Int!) {
           reportData { report(code: $code) {
             events(dataType: CombatantInfo, fightIDs: [$fight], limit: 60) { data }
-            ${folioFilter ? `folio: events(dataType: Buffs, fightIDs: [$fight], limit: 400, filterExpression: "${folioFilter}") { data }` : ''}
             masterData { actors(type: "Player") { id name server } }
             region { slug }
           } }
@@ -1081,10 +1068,6 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
       // einen Einkaufszettel.
       for (const aura of event.auras || []) {
         const spellID = Number(aura.ability);
-        // Eine Folio-Rune? Dann zaehlt sie hier - und sonst nirgends: sie
-        // ist kein Gegenstand und kein Talent, nur eine Aura beim Pull.
-        const rune = folioAura.get(spellID);
-        if (rune) { for (const spec of seenAll) spec.folio[rune] = (spec.folio[rune] || 0) + 1; }
         const itemID = consumables.bySpell.get(spellID);
         if (itemID) {
           bump(specID, 'consumables', itemID);
@@ -1102,29 +1085,7 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
       }
     }
 
-    // Die Runen des Folio, je Spieler. Der Buff kann im Kampf hundertmal
-    // kommen - gezaehlt wird er einmal, sonst zaehlt man Ausloesungen
-    // statt Spielern.
-    const folioEvents = (report && report.folio && report.folio.data) || [];
-    if (folioEvents.length) {
-      const seenRune = new Set();
-      for (const ev of folioEvents) {
-        const rune = folioAura.get(Number(ev.abilityGameID));
-        if (!rune) continue;
-        const who = Number(ev.targetID);
-        const spec = specBySource.get(who);
-        if (!spec) continue;
-        const key = who + ':' + rune;
-        if (seenRune.has(key)) continue;
-        seenRune.add(key);
-        for (const mode of active) {
-          const entry = entryFor(mode, spec);
-          entry.folio[rune] = (entry.folio[rune] || 0) + 1;
-        }
-      }
-    }
 
-    // --- Was gewirkt wurde ------------------------------------------
     //
     // Speisen, Traenke und Heiltraenke stehen NICHT in den Auren beim
     // Pull: gegessen und getrunken wird davor oder mittendrin. Sie
@@ -1217,18 +1178,6 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
 
   console.log(`\n\nSpieler ausgewertet: ${players}`
     + (unknownSpec ? `, ${unknownSpec} ohne erkennbare Spec` : ''));
-  // Und wie viele Folio-Runen dabei herausgekommen sind. Die Zahl stand
-  // nirgends, und deshalb fiel monatelang nicht auf, dass sie null war.
-  {
-    let runen = 0, speccs = 0;
-    for (const mode of Object.keys(tallies)) {
-      for (const entry of Object.values(tallyFor(mode))) {
-        const n = Object.keys(entry.folio || {}).length;
-        if (n) { runen += n; speccs += 1; }
-      }
-    }
-    console.log(`Folio-Runen gezaehlt: ${runen} in ${speccs} Speccs`);
-  }
   if (missedEnchants.size) {
     console.log(`Nicht zugeordnete Verzauberungen: ${missedEnchants.size}`);
     for (const name of [...missedEnchants].slice(0, 8)) console.log(`  ? ${name}`);
@@ -1356,13 +1305,6 @@ Haeufigste nicht zugeordnete Auren (${missedAuras.size} verschiedene):`);
           }
           out.hero[sub] = ho;
         }
-      }
-      // Der Omnium Folio: je Rune der Anteil der Spieler, die sie trugen.
-      if (entry.folio && Object.keys(entry.folio).length) {
-        out.folio = Object.entries(entry.folio)
-          .map(([spell, n]) => ({ spell: Number(spell), pct: Math.round((n / Math.max(1, entry.players)) * 100) }))
-          .filter((r) => r.pct > 0)
-          .sort((a, b) => b.pct - a.pct);
       }
 
       const builds = Object.entries(entry.builds || {}).sort((a, b) => b[1] - a[1]);

@@ -344,12 +344,6 @@ function Catalog.SubTreeName(subTreeID)
     return row.en
 end
 
----Die Runen des Omnium Folio, Zeile fuer Zeile.
----@return table[]|nil rows  je Zeile { { spell, auras }, ... }
-function Catalog.Folio()
-    local c = data()
-    return c and c.folio or nil
-end
 
 ---Die Aufwertungspfade der laufenden Saison.
 ---
