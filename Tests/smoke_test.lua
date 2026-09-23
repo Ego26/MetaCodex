@@ -1895,6 +1895,56 @@ do
     end
 end
 
+-- ------------------------------------------ Eigene Zielmenge
+
+-- Die Stufen im Menue decken den Normalfall. Wer zwoelf Flaeschchen will,
+-- soll sie eintippen koennen statt zwischen zehn und zwanzig zu waehlen.
+do
+    ns.Profile.SetMode("raid")
+    rowsInSection("consumables")
+    local row
+    for _, r in ipairs(wow.rows()) do
+        if r:IsShown() and rawget(r, "onClick") and (r.detail:GetText() or ""):find(L["CONSUM_TARGET"]:format(0):gsub("%d+", ""), 1, true) then
+            row = r break
+        end
+    end
+    if not row then
+        for _, r in ipairs(wow.rows()) do
+            if r:IsShown() and rawget(r, "onClick") then row = r break end
+        end
+    end
+    check("eine Verbrauchsgut-Zeile gefunden", row ~= nil)
+    if row then
+        row.onClick(row)
+        -- Welche Art die Zeile ist, verraet der Titel des Menues.
+        local kind
+        for _, k in ipairs({ "flask", "food", "potion", "heal", "oil", "other", "vantus" }) do
+            if wow.menu() and wow.menu().title == L["CONSUM_" .. k] then kind = k end
+        end
+        check("das Menue nennt die Art", kind ~= nil, wow.menu() and tostring(wow.menu().title))
+        check("das Menue bietet eine eigene Zahl an", wow.pick(L["CONSUM_TARGET_OWN"]),
+            wow.menu() and #wow.menu().items .. " Eintraege" or "kein Menue")
+        local box = _G.MetaCodexNumber
+        check("das Eingabefenster steht da", box ~= nil and box:IsShown())
+        if box then
+            box.box:SetText("12")
+            box.ok.__scripts.OnClick(box.ok)
+            check("die eigene Zahl wird uebernommen",
+                kind ~= nil and ns.Profile.ConsumableTarget(kind) == 12,
+                kind and tostring(ns.Profile.ConsumableTarget(kind)) or "keine Art")
+            check("und das Fenster ist wieder zu", not box:IsShown())
+        end
+    end
+    -- Die Zielmenge zurueck auf einen ueblichen Wert, damit die
+    -- folgenden Pruefungen nicht auf zwoelf Flaeschchen rechnen.
+    ns.Profile.SetConsumableTarget("flask", 2)
+    -- Und ueber der Liste steht, was ein Klick tut.
+    rowsInSection("consumables")
+    check("der Hinweis erklaert den Klick",
+        (ns.UI.Frame().hintText:GetText() or "") == L["CONSUM_HINT"],
+        tostring(ns.UI.Frame().hintText:GetText()))
+end
+
 -- --------------------------------------------------- Info-Reiter
 
 -- Fehlt Auctionator, sagt die Zeile nicht nur "fehlt", sondern gibt die

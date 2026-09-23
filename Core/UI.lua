@@ -867,7 +867,13 @@ local function openTargetPicker(anchor, kind)
     for _, count in ipairs({ 0, 1, 2, 3, 5, 10, 20, 40 }) do
         entries[#entries + 1] = { count = count, label = tostring(count) }
     end
+    entries[#entries + 1] = { own = true, label = L["CONSUM_TARGET_OWN"] }
     contextMenu(anchor, L["CONSUM_" .. kind], entries, function(entry)
+        if entry.own then
+            UI.AskNumber(L["CONSUM_" .. kind], ns.Profile.ConsumableTarget(kind),
+                function(value) ns.Profile.SetConsumableTarget(kind, value) end)
+            return
+        end
         ns.Profile.SetConsumableTarget(kind, entry.count)
     end)
 end
@@ -898,6 +904,11 @@ local function openConsumableMenu(anchor, kind, id)
                 function() return ns.Profile.ConsumableTarget(kind) == count end,
                 function() ns.Profile.SetConsumableTarget(kind, count) UI.Refresh() end)
         end
+        -- Und eine eigene Zahl, fuer alles dazwischen.
+        amount:CreateButton(L["CONSUM_TARGET_OWN"], function()
+            UI.AskNumber(L["CONSUM_" .. kind], ns.Profile.ConsumableTarget(kind),
+                function(value) ns.Profile.SetConsumableTarget(kind, value) end)
+        end)
 
         -- Diese Zeile als eigene Wahl.
         if id and own ~= id then
@@ -2826,7 +2837,8 @@ function UI.Refresh()
         currentRows, fromSource = withFallback(function(source)
             return consumableRows(specID, mode, source)
         end)
-        hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted) or "")
+        hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted)
+            or L["CONSUM_HINT"])
     elseif section.key == "talents" then
         currentRows, fromSource = withFallback(function(source)
             return talentRows(specID, mode, source)
@@ -3449,6 +3461,64 @@ function UI.ShowReminder(text, list)
         remindFrame.timer = C_Timer.NewTimer(20, function() remindFrame:Hide() end)
     end
     return remindFrame
+end
+
+local numberFrame
+
+---Fragt nach einer Zahl.
+---
+---Die Stufen im Menue decken den Normalfall; wer zwoelf Fläschchen will,
+---soll nicht zwischen zehn und zwanzig waehlen muessen.
+---@param title string
+---@param current number
+---@param accept function(number)
+function UI.AskNumber(title, current, accept)
+    if not numberFrame then
+        numberFrame = CreateFrame("Frame", "MetaCodexNumber", UIParent)
+        numberFrame:SetSize(280, 120)
+        numberFrame:SetPoint("CENTER")
+        numberFrame:SetFrameStrata("FULLSCREEN_DIALOG")
+        numberFrame:SetToplevel(true)
+        numberFrame:EnableMouse(true)
+        S:Fill(numberFrame, "bgBase")
+        S:Border(numberFrame, "borderStrong")
+
+        numberFrame.title = S:Text(numberFrame, "title", "textPrimary")
+        numberFrame.title:SetPoint("TOPLEFT", S.space.lg, -S.space.lg)
+
+        local box = CreateFrame("EditBox", nil, numberFrame)
+        box:SetAutoFocus(true)
+        box:SetNumeric(true)
+        box:SetMaxLetters(4)
+        box:SetFontObject("GameFontHighlightLarge")
+        box:SetSize(80, 24)
+        box:SetPoint("TOPLEFT", S.space.lg, -S.space.lg - 30)
+        S:Fill(box, "bgOverlay")
+        S:Border(box, "borderSubtle")
+        box:SetScript("OnEscapePressed", function() numberFrame:Hide() end)
+        box:SetScript("OnEnterPressed", function() numberFrame.ok:Click() end)
+        numberFrame.box = box
+
+        numberFrame.ok = makeButton(numberFrame, 90, 24, L["NUMBER_OK"], function()
+            local value = tonumber(numberFrame.box:GetText())
+            numberFrame:Hide()
+            if value and numberFrame.accept then numberFrame.accept(math.max(0, math.floor(value))) end
+            UI.Refresh()
+        end)
+        numberFrame.ok:SetPoint("BOTTOMRIGHT", -S.space.lg, S.space.md)
+        numberFrame.cancel = makeButton(numberFrame, 90, 24, L["LINK_CLOSE"], function()
+            numberFrame:Hide()
+        end)
+        numberFrame.cancel:SetPoint("BOTTOMRIGHT", numberFrame.ok, "BOTTOMLEFT", -S.space.sm, 0)
+    end
+    numberFrame.title:SetText(title)
+    numberFrame.accept = accept
+    numberFrame.box:SetText(tostring(current or 0))
+    numberFrame.box:HighlightText()
+    numberFrame:Show()
+    if numberFrame.Raise then numberFrame:Raise() end
+    numberFrame.box:SetFocus()
+    return numberFrame
 end
 
 function UI.ShowText(text)
