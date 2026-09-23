@@ -460,6 +460,28 @@ function parseCSV(text) {
 const specKey = (cls, spec) =>
   `${cls || ''}${spec || ''}`.toLowerCase().replace(/[^a-z0-9]/g, '');
 
+/**
+ * Klassen- und Specname je Spec-ID, so geschrieben, wie die Warcraft-Logs-
+ * Abfrage sie will: ohne Leerzeichen ("DeathKnight", "BeastMastery").
+ */
+async function readSpecNames() {
+  const builds = JSON.parse(await fetchText('https://wago.tools/api/builds'));
+  const build = builds.wow[0].version;
+  const [specs, classes] = await Promise.all([
+    fetchText(`https://wago.tools/db2/ChrSpecialization/csv?build=${build}`).then(parseCSV),
+    fetchText(`https://wago.tools/db2/ChrClasses/csv?build=${build}`).then(parseCSV),
+  ]);
+  const className = new Map(classes.map((c) => [c.ID, c.Name_lang]));
+  const out = new Map();
+  for (const spec of specs) {
+    const cls = className.get(spec.ClassID);
+    if (!cls || !spec.Name_lang || Number(spec.OrderIndex) > 3) continue;
+    const tidy = (t) => String(t).replace(/[^A-Za-z]/g, '');
+    out.set(Number(spec.ID), { cls: tidy(cls), spec: tidy(spec.Name_lang), healer: Number(spec.Role) === 1 });
+  }
+  return out;
+}
+
 async function readSpecIndex() {
   const builds = JSON.parse(await fetchText('https://wago.tools/api/builds'));
   const build = builds.wow[0].version;
@@ -821,6 +843,7 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
   // je Spieler die Spec-ID direkt (kein Namensabgleich mehr), die
   // Ausruestung, die Auren beim Pull und die Talente. Gleicher Preis,
   // dreifacher Ertrag.
+  const readReports = async (codes) => {
   for (const [code, info] of codes) {
     const fightID = info.fightID;
     // Ein hoher Key zaehlt in beide Auswertungen: er ist ein M+-Lauf
@@ -1067,6 +1090,58 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
 
     process.stdout.write('.');
     await sleep(250);
+  }
+  };
+  await readReports(codes);
+
+  // --- Nachlese ----------------------------------------------------------
+  //
+  // Die Ranglistenspitze ist nicht die Spielerschaft: neun Speccs kamen
+  // in 400 Berichten kein einziges Mal vor - kein Wiederherstellungs-
+  // Druide unter den besten Laeufen heisst nicht, dass keiner spielt.
+  // Also wird fuer jede Spec mit zu wenig Spielern gezielt gefragt:
+  // dieselbe Rangliste, nach Klasse und Spec gefiltert, und ein paar
+  // Berichte daraus nachgelesen. Nur fuer die Luecken - die kosten wenig.
+  const MIN_PLAYERS = Number(process.env.MC_MIN_PLAYERS || 15);
+  const specNames = await readSpecNames();
+  const baseTally = tallyFor(BASE_MODE);
+  const thin = [...specNames.keys()].filter((id) => ((baseTally[id] || {}).players || 0) < MIN_PLAYERS);
+  if (thin.length) {
+    console.log(`\nNachlese fuer ${thin.length} Speccs mit unter ${MIN_PLAYERS} Spielern`);
+    const extra = new Map();
+    for (const specID of thin) {
+      const names = specNames.get(specID);
+      const metric = names.healer ? 'hps' : 'dps';
+      let found = 0;
+      for (const enc of encounters.slice(0, 4)) {
+        let data;
+        try {
+          data = await gql(`
+            query ($encounter: Int!, $difficulty: Int!, $metric: CharacterRankingMetricType!, $cls: String!, $spec: String!) {
+              worldData { encounter(id: $encounter) {
+                characterRankings(difficulty: $difficulty, metric: $metric, page: 1, className: $cls, specName: $spec)
+              } }
+            }`, { encounter: enc.id, difficulty: DIFFICULTY, metric, cls: names.cls, spec: names.spec });
+        } catch (err) {
+          console.log(`  ! ${names.cls}/${names.spec}: ${err.message}`);
+          break;
+        }
+        const list = (data.worldData.encounter.characterRankings || {}).rankings || [];
+        for (const rank of list.slice(0, 3)) {
+          const report = rank.report;
+          if (report && report.code && !reports.has(report.code) && !extra.has(report.code)) {
+            extra.set(report.code, { fightID: report.fightID, key: Number(rank.bracketData) || 0, dungeon: enc.name, raid: enc.raid || null });
+            found += 1;
+          }
+        }
+        await sleep(250);
+      }
+      process.stdout.write(`  ${names.cls}/${names.spec}: ${found} Berichte\n`);
+    }
+    if (extra.size) {
+      for (const [code, info] of extra) reports.set(code, info);
+      await readReports([...extra.entries()]);
+    }
   }
 
   console.log(`\n\nSpieler ausgewertet: ${players}`
