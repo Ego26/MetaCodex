@@ -2805,8 +2805,7 @@ function UI.Refresh()
     if rec then
         local names = wanted == ns.Recommend.ALL
             and table.concat(available, ", ") or wanted
-        provenance = L["SOURCE_LINE"]:format(
-            names, ns.Compat.DateText(ns.Recommend.Stamp(mode, wanted)))
+        provenance = UI.ProvenanceLine(names, specID, mode, wanted)
     end
     frame.__provenance = provenance
     -- Unten steht, wer es gemacht hat. Woher die Zahlen stammen, haengt
@@ -2918,8 +2917,7 @@ function UI.Refresh()
     -- Statuszeile: bei "alle Plattformen" wird hier nicht gemittelt,
     -- sondern die erste genommen, die etwas hat.
     if fromSource then
-        frame.__provenance = L["SOURCE_LINE"]:format(
-            fromSource, ns.Compat.DateText(ns.Recommend.Stamp(mode, fromSource)))
+        frame.__provenance = UI.ProvenanceLine(fromSource, specID, mode, fromSource)
     end
 
     -- Die Kategorien kommen aus den Zeilen selbst, also erst hier. Ein
@@ -3335,6 +3333,29 @@ local function remindWindowRow(parent, index)
     end)
     remindRows[index] = row
     return row
+end
+
+---Der Satz unter dem Zeiger: Quelle, Datum, Grundlage.
+---
+---Die Grundlage stand lange nicht dabei, und das war ein Fehler. Bei
+---Daemonologie in hohen Keys zeigte das Fenster 57 % fuer einen Trank,
+---eine bekannte Seite 9 % - beides "Warcraft Logs", aber nicht dieselbe
+---Frage: hier die Bestenliste (+20 bis +22), dort alles ab einer
+---Schwelle. Eine Prozentzahl ohne ihre Stichprobe laedt genau zu
+---diesem Vergleich ein.
+---@param names string
+---@param specID number
+---@param mode string
+---@param source string|nil
+---@return string
+function UI.ProvenanceLine(names, specID, mode, source)
+    local line = L["SOURCE_LINE"]:format(
+        names, ns.Compat.DateText(ns.Recommend.Stamp(mode, source)))
+    local sample, from, to = ns.Recommend.Sample(specID, mode, source)
+    if not sample then return line end
+    line = line .. "  " .. L["SOURCE_SAMPLE"]:format(sample)
+    if from and to then line = line .. " " .. L["SOURCE_KEYS"]:format(from, to) end
+    return line
 end
 
 ---Der Zeilenvorrat - nur fuer Tests und /mc probe.

@@ -87,6 +87,35 @@ end
 ---@param mode string
 ---@param source string|nil
 ---@return number
+---Worauf die Prozente einer Quelle ruhen.
+---
+---Ein Anteil ohne seine Grundlage laedt zum falschen Vergleich ein:
+---57 % aus 54 Beobachtungen und 9 % aus zehntausend sehen im Fenster
+---gleich aus und sind es nicht. Zurueck kommt, wie viele Messungen
+---hinter dieser Spec stehen und aus welchen Schluesseln sie stammen.
+---@param specID number
+---@param mode string
+---@param source string|nil
+---@return number|nil sample, number|nil keyFrom, number|nil keyTo
+function Recommend.Sample(specID, mode, source)
+    local d = data()
+    local byMode = d and d.modes and d.modes[mode]
+    if not byMode then return nil end
+    local best, keys
+    for _, name in ipairs(Recommend.SourcesFor(mode)) do
+        if not source or source == Recommend.ALL or source == name then
+            local part = byMode[name]
+            local entry = part and part.specs and part.specs[specID]
+            local n = entry and entry.sample or nil
+            if n and (not best or n > best) then
+                best, keys = n, part.keys
+            end
+        end
+    end
+    if not best then return nil end
+    return best, keys and keys[1] or nil, keys and keys[2] or nil
+end
+
 function Recommend.Stamp(mode, source)
     local d = data()
     local byMode = d and d.modes and d.modes[mode]

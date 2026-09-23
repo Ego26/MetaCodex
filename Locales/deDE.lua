@@ -158,6 +158,8 @@ ns.RegisterLocale("deDE", {
 ns.RegisterLocale("deDE", {
     ["CREDIT"] = "Created by Ego26",
     ["SOURCE_LINE"]  = "Empfehlungen: %s, %s",
+    ["SOURCE_SAMPLE"] = "· %d Messungen",
+    ["SOURCE_KEYS"]  = "aus Läufen +%d bis +%d",
     ["NO_MODE_DATA"] = "Für diesen Spielmodus gibt es noch keine Daten – Werte unten selbst wählen.",
 })
 

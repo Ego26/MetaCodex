@@ -898,6 +898,7 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
         query ($code: String!, $fight: Int!) {
           reportData { report(code: $code) {
             events(dataType: CombatantInfo, fightIDs: [$fight], limit: 60) { data }
+            fights(fightIDs: [$fight]) { startTime endTime }
             masterData { actors(type: "Player") { id name server } }
             region { slug }
           } }
@@ -910,6 +911,9 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
 
     const report = data.reportData.report;
     const events = (report && report.events && report.events.data) || [];
+    // Wann dieser Lauf lief. Ohne das las die Wirkungs-Abfrage weiter
+    // unten den GANZEN Bericht - siehe dort.
+    const thisFight = (report && report.fights && report.fights[0]) || null;
     // Wer die Spieler SIND. Die Kampfdaten tragen nur eine Nummer;
     // Name und Realm stehen im Stammblatt des Berichts. Gebraucht wird
     // das fuer genau eines: das raider.io-Profil desselben Spielers zu
@@ -1094,6 +1098,30 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
     //
     // Gezaehlt wird je Spieler einmal, nicht je Schluck: gefragt ist,
     // wie viele es benutzen, nicht wie oft.
+    //
+    // Der ganze Bericht wird gelesen, aber nicht alles zaehlt fuer
+    // diesen Lauf.
+    //
+    // Eine Gruppe, die fuenf Dungeons am Stueck loggt, hat sie alle in
+    // EINEM Bericht. Was in einem davon getrunken wurde, zaehlte bisher
+    // fuer jeden der fuenf - und damit stieg ein Trank, den einer
+    // einmal nimmt, auf den Anteil eines Tranks, den er immer nimmt.
+    // Bei Daemonologie in hohen Keys stand so "Fluessiger Ruhm 57 %",
+    // wo die breitere Stichprobe 21 % misst.
+    //
+    // Unterschieden wird nach der Art, denn die Gegenstaende werden zu
+    // verschiedenen Zeiten benutzt:
+    //
+    //   Kampf- und Heiltraenke gehoeren in den Lauf. Sie zaehlen nur,
+    //   wenn sie waehrend dieses Laufs getrunken wurden.
+    //
+    //   Speise, Fläschchen und Runen nimmt man davor, oft lange davor
+    //   und einmal fuer den ganzen Abend. Sie zaehlen aus dem ganzen
+    //   Bericht - sonst waere jeder zweite Lauf "ohne Speise", obwohl
+    //   die Wirkung noch steht.
+    const fightFrom = thisFight ? Number(thisFight.startTime) : null;
+    const fightTo = thisFight ? Number(thisFight.endTime) : null;
+    const perFight = new Set(['potion', 'heal']);
     try {
       const used = await gql(`
         query ($code: String!, $expr: String!) {
@@ -1108,6 +1136,14 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
         if (!specID) continue;
         const itemID = consumables.bySpell.get(Number(cast.abilityGameID));
         if (!itemID) continue;
+        // Getrunken wird im Lauf - alles andere davor. Siehe oben.
+        if (perFight.has(consumables.kindOf.get(Number(itemID))) && fightFrom !== null) {
+          const when = Number(cast.timestamp);
+          // Ohne brauchbaren Zeitstempel wird nicht gefiltert. Ein
+          // fehlendes Feld duerfte nicht dazu fuehren, dass gar kein
+          // Trank mehr zaehlt.
+          if (Number.isFinite(when) && !(when >= fightFrom && when <= fightTo)) continue;
+        }
         const key = cast.sourceID + ':' + itemID;
         if (seenPerPlayer.has(key)) continue;
         // Und nicht noch einmal, was schon als Aura gezaehlt wurde.
@@ -1206,7 +1242,14 @@ Haeufigste nicht zugeordnete Auren (${missedAuras.size} verschiedene):`);
   for (const [mode, tally] of Object.entries(tallies)) {
     const specs = {};
     for (const [specID, entry] of Object.entries(tally)) {
-      const out = { enchants: {}, gems: [], consumables: [], gear: {} };
+      // Worauf die Prozente ruhen.
+      //
+      // Ein Anteil ohne seine Grundlage laedt zum falschen Vergleich
+      // ein: 57 % aus 54 Beobachtungen und 8,9 % aus zehntausend sind
+      // nicht dieselbe Art von Zahl. Im Fenster steht sie deshalb
+      // dabei.
+      const out = { sample: entry.players || 0,
+        enchants: {}, gems: [], consumables: [], gear: {} };
       for (const [slot, counts] of Object.entries(entry.enchants)) {
         const total = Object.values(counts).reduce((a, b) => a + b, 0);
         out.enchants[slot] = Object.entries(counts)
@@ -1353,7 +1396,14 @@ Haeufigste nicht zugeordnete Auren (${missedAuras.size} verschiedene):`);
 
     if (DRY) {
       // Ein Probelauf, der nichts zeigt, ist kein Probelauf.
-      const [id, one] = Object.entries(specs)[0] || [];
+      //
+      // Mit MC_SHOW_SPEC=266 zeigt er eine bestimmte Spec statt der
+      // ersten. Gebraucht, als "Fluessiger Ruhm 57 %" bei Daemonologie
+      // nachzurechnen war und nicht bei irgendwem.
+      const wantSpec = process.env.MC_SHOW_SPEC;
+      const [id, one] = (wantSpec && specs[wantSpec])
+        ? [wantSpec, specs[wantSpec]]
+        : (Object.entries(specs)[0] || []);
       console.log(`
 Probelauf ${mode}, ${Object.keys(specs).length} Speccs, Spec ${id}:`);
       for (const c of (one || {}).consumables || []) {

@@ -221,9 +221,16 @@ for (const [mode, bySource] of Object.entries(byMode)) {
   for (const [source, part] of Object.entries(bySource)) {
     out.push(`      [${luaString(source)}] = {`);
     out.push(`        builtOn = ${part.builtOn || 0},`);
+    // Aus welchen Schluesseln die Stichprobe stammt. "Hohe Keys" heisst
+    // bei uns die Bestenliste (+20 bis +22), bei anderen Seiten etwas
+    // Breiteres - wer die Zahlen vergleicht, soll sehen, worueber.
+    if (Array.isArray(part.keyRange) && part.keyRange.length === 2) {
+      out.push(`        keys = { ${part.keyRange[0]}, ${part.keyRange[1]} },`);
+    }
     out.push('        specs = {');
     for (const [specID, entry] of Object.entries(part.specs)) {
       out.push(`          [${specID}] = {`);
+      if (entry.sample) out.push(`            sample = ${entry.sample},`);
 
       // Zielwerte: Rangfolge und die beobachteten Werte. Der Name des
       // Gegenstands steht bei der Ausruestung mit dabei, weil sie - anders
