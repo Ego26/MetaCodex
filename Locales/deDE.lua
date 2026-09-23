@@ -262,7 +262,6 @@ ns.RegisterLocale("deDE", {
     ["REMIND_STATE_LOW"] = "%d von %d",
     ["REMIND_STATE_LOWER"] = "%d in niedrigerer Qualität",
     ["REMIND_WINDOW_TITLE"] = "Bevor du reingehst",
-    ["REMIND_WINDOW_DRAG"] = "Ziehen verschiebt  ·  schließt von selbst",
     ["REMIND_OPT_AH"]  = "Am Auktionshaus an Fehlendes erinnern",
     ["REMIND_OPT_BELOW"] = "Als knapp gilt, was unter diesem Anteil des Ziels liegt",
     ["REMIND_GROUP_ENCHANTS"] = "Verzauberungen & Steine, die noch fehlen",

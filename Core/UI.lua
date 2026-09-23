@@ -3292,9 +3292,6 @@ function UI.ShowReminder(text, list)
             UI.Handover(false)
         end)
         remindFrame.create:SetPoint("RIGHT", remindFrame.search, "LEFT", -S.space.sm, 0)
-        remindFrame.hint = S:Text(foot, "caption", "textMuted")
-        remindFrame.hint:SetPoint("LEFT", S.space.lg, 0)
-        remindFrame.hint:SetText(L["REMIND_WINDOW_DRAG"])
         -- Solange der Zeiger darauf liegt, laeuft die Uhr nicht: ein
         -- Fenster, das unter der Hand verschwindet, ist aergerlich.
         remindFrame:SetScript("OnEnter", function(self)

@@ -264,7 +264,6 @@ ns.RegisterLocale("enUS", {
     ["REMIND_STATE_LOW"] = "%d of %d",
     ["REMIND_STATE_LOWER"] = "%d in lower quality",
     ["REMIND_WINDOW_TITLE"] = "Before you go in",
-    ["REMIND_WINDOW_DRAG"] = "Drag to move  ·  closes by itself",
     ["REMIND_OPT_AH"]  = "Remind at the auction house",
     ["REMIND_OPT_BELOW"] = "Counts as low when below this share of the target",
     ["REMIND_GROUP_ENCHANTS"] = "Enchants & gems still missing",
