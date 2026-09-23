@@ -89,6 +89,10 @@ Mock.methods.CreateTexture = function(self)
     return texture
 end
 Mock.methods.CreateFontString = function() return Mock.new("fontstring") end
+-- Welche Textur gesetzt wurde - damit ein Test fragen kann, ob das
+-- Logo dran ist und nicht ein Fragezeichen.
+Mock.methods.SetTexture = function(self, texture) self.__texture = texture end
+Mock.methods.GetTexture = function(self) return self.__texture end
 Mock.methods.GetChecked = function(self) return self.__checked == true end
 Mock.methods.SetChecked = function(self, v) self.__checked = v and true or false end
 Mock.methods.SetEnabled = function(self, v) self.__enabled = v and true or false end

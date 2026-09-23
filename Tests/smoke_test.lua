@@ -1832,14 +1832,32 @@ do
     CharacterFrame = CreateFrame("Frame", "CharacterFrame")
     CharacterFrame.CloseButton = CreateFrame("Button", nil, CharacterFrame)
     local button = ns.UI.AttachCharacterButton()
-    check("Knopf im Charakterfenster gebaut", button ~= nil and button.label:GetText() == "MetaCodex")
+    check("Knopf im Charakterfenster gebaut", button ~= nil and button.icon ~= nil)
     check("ein zweiter Aufruf baut keinen zweiten", ns.UI.AttachCharacterButton() == button)
     if button then
+        check("das Symbol ist das Logo", tostring(button.icon.__texture or ""):find("logo", 1, true) ~= nil,
+            tostring(button.icon.__texture))
         local before = ns.UI.IsShown()
-        button.__scripts.OnClick(button)
+        button.__scripts.OnClick(button, "LeftButton")
         check("Klick schaltet das Fenster um", ns.UI.IsShown() ~= before)
-        button.__scripts.OnClick(button)
+        button.__scripts.OnClick(button, "LeftButton")
         check("zweiter Klick schaltet zurueck", ns.UI.IsShown() == before)
+        -- Rechtsklick ohne Umschalt tut nichts; mit Umschalt setzt er die
+        -- gemerkte Lage zurueck.
+        MetaCodexDB.charButton = { x = 123, y = 45 }
+        IsShiftKeyDown = function() return false end
+        button.__scripts.OnClick(button, "RightButton")
+        check("Rechtsklick allein laesst die Lage", MetaCodexDB.charButton ~= nil and ns.UI.IsShown() == before)
+        IsShiftKeyDown = function() return true end
+        button.__scripts.OnClick(button, "RightButton")
+        check("Umschalt-Rechtsklick setzt die Lage zurueck", MetaCodexDB.charButton == nil)
+        IsShiftKeyDown = nil
+        -- Tooltip nennt beides: oeffnen und verschieben.
+        GameTooltip.__lines = {}
+        GameTooltip.AddLine = function(self, text) self.__lines[#self.__lines + 1] = text end
+        button.__scripts.OnEnter(button)
+        check("Tooltip erklaert den Knopf", #GameTooltip.__lines == 3 and GameTooltip.__lines[3] == L["CHARBTN_MOVE"],
+            table.concat(GameTooltip.__lines, " / "))
         if not ns.UI.IsShown() then ns.UI.Toggle() end
     end
 end

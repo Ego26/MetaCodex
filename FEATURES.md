@@ -12,7 +12,8 @@ compares that with what *you* wear and carry, so you know what is still
 missing.
 
 Open it: **`/mc`**, the button in the minimap's addon compartment, or the
-**MetaCodex** button in the character frame next to its close cross.
+round **MetaCodex** icon on the character frame's left edge (Shift-drag
+moves it, Shift-right-click puts it back).
 
 ---
 

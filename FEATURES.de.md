@@ -10,8 +10,9 @@ aus einem Guide abgeschrieben, sondern täglich aus raider.io, murlok.io und
 Warcraft Logs gemessen. Und es vergleicht das mit dem, was *du* gerade
 trägst und im Beutel hast, damit du weißt, was noch fehlt.
 
-Öffnen: **`/mc`**, der Knopf in der Addon-Leiste der Minimap oder der
-**MetaCodex**-Knopf im Charakterfenster neben dem Schließen-Kreuz.
+Öffnen: **`/mc`**, der Knopf in der Addon-Leiste der Minimap oder das
+runde **MetaCodex**-Symbol am linken Rand des Charakterfensters
+(Umschalt-Ziehen verschiebt es, Umschalt-Rechtsklick setzt es zurück).
 
 ---
 

@@ -45,6 +45,8 @@ ns.RegisterLocale("enUS", {
     ["OWNED_HIGHER"] = "%d owned in higher quality",
     ["OWNED_LOWER"] = "%d owned in lower quality",
     ["GEAR_WORN"] = "equipped",
+    ["CHARBTN_CLICK"] = "Click to open or close MetaCodex",
+    ["CHARBTN_MOVE"] = "Shift-drag to move  ·  Shift-right-click to reset",
     ["REMIND_LOWER"] = "%s (only lower quality: %d)",
     ["NEED"]               = "need %d",
     ["EMPTY_SOCKETS"]      = "%d empty sockets",

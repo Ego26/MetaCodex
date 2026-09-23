@@ -2868,19 +2868,95 @@ end
 ---haengt am Fenster selbst und geht mit ihm auf und zu.
 function UI.Frame() return frame end
 
+local CHAR_ICON = "Interface\\AddOns\\MetaCodex\\Media\\Textures\\logo"
+-- Wo der Knopf ohne eigene Wahl sitzt: am linken Rand, im unteren Drittel,
+-- halb ueber der Kante - wie die runden Knoepfe an der Minimap.
+local CHAR_DEFAULT_X, CHAR_DEFAULT_Y = 2, 70
+
+local function placeCharacterButton(button, host)
+    local saved = MetaCodexDB and MetaCodexDB.charButton
+    button:ClearAllPoints()
+    button:SetPoint("CENTER", host, "BOTTOMLEFT",
+        saved and saved.x or CHAR_DEFAULT_X, saved and saved.y or CHAR_DEFAULT_Y)
+end
+
 function UI.AttachCharacterButton()
     local host = CharacterFrame
     -- rawget: das Feld soll fehlen duerfen, ohne dass ein Stellvertreter
     -- fuer ein Kind gehalten wird.
     if not host then return nil end
     if rawget(host, "MetaCodexButton") then return host.MetaCodexButton end
-    local button = makeButton(host, 84, 18, "MetaCodex", function() UI.Toggle() end)
-    if host.CloseButton then
-        button:SetPoint("RIGHT", host.CloseButton, "LEFT", -2, 0)
-    else
-        button:SetPoint("TOPRIGHT", -30, -4)
-    end
+
+    -- Ein rundes Symbol im Stil der Minimap-Knoepfe: Hintergrund, Logo,
+    -- Ring, Leuchten beim Hovern. Ein Textkaestchen ging in der Kopfzeile
+    -- unter; das Logo erkennt man aus dem Augenwinkel.
+    local button = CreateFrame("Button", "MetaCodexCharacterButton", host)
+    button:SetSize(40, 40)
     button:SetFrameLevel((host.GetFrameLevel and host:GetFrameLevel() or 0) + 5)
+    button:SetMovable(true)
+    button:SetClampedToScreen(true)
+    button:RegisterForDrag("LeftButton")
+    button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+
+    button.background = button:CreateTexture(nil, "BACKGROUND")
+    button.background:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
+    button.background:SetSize(26, 26)
+    button.background:SetPoint("CENTER")
+
+    button.icon = button:CreateTexture(nil, "ARTWORK")
+    button.icon:SetTexture(CHAR_ICON)
+    button.icon:SetSize(24, 24)
+    button.icon:SetPoint("CENTER")
+    button.icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
+    if button.CreateMaskTexture then
+        local mask = button:CreateMaskTexture()
+        mask:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask")
+        mask:SetAllPoints(button.icon)
+        button.icon:AddMaskTexture(mask)
+    end
+
+    button.ring = button:CreateTexture(nil, "OVERLAY")
+    button.ring:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
+    button.ring:SetSize(68, 68)
+    button.ring:SetPoint("TOPLEFT")
+
+    button:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
+
+    button:SetScript("OnClick", function(self, mouse)
+        if mouse == "RightButton" then
+            -- Umschalt-Rechtsklick: zurueck an den Platz ohne Wahl.
+            if IsShiftKeyDown and IsShiftKeyDown() then
+                if MetaCodexDB then MetaCodexDB.charButton = nil end
+                placeCharacterButton(self, host)
+            end
+            return
+        end
+        UI.Toggle()
+    end)
+    -- Umschalt-Ziehen verschiebt; die Lage wird relativ zum Fenster
+    -- gemerkt, damit der Knopf mit ihm wandert.
+    button:SetScript("OnDragStart", function(self)
+        if IsShiftKeyDown and IsShiftKeyDown() then self:StartMoving() end
+    end)
+    button:SetScript("OnDragStop", function(self)
+        self:StopMovingOrSizing()
+        local cx, cy = self:GetCenter()
+        local hx, hy = host:GetLeft(), host:GetBottom()
+        if cx and cy and hx and hy and MetaCodexDB then
+            MetaCodexDB.charButton = { x = cx - hx, y = cy - hy }
+        end
+        placeCharacterButton(self, host)
+    end)
+    button:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine("MetaCodex")
+        GameTooltip:AddLine(L["CHARBTN_CLICK"], 0.8, 0.8, 0.8)
+        GameTooltip:AddLine(L["CHARBTN_MOVE"], 0.4, 1, 0.4)
+        GameTooltip:Show()
+    end)
+    button:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+    placeCharacterButton(button, host)
     host.MetaCodexButton = button
     return button
 end

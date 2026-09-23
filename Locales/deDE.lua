@@ -45,6 +45,8 @@ ns.RegisterLocale("deDE", {
     ["OWNED_HIGHER"] = "%d in höherer Qualität vorhanden",
     ["OWNED_LOWER"] = "%d in niedrigerer Qualität vorhanden",
     ["GEAR_WORN"] = "angelegt",
+    ["CHARBTN_CLICK"] = "Klicken, um MetaCodex zu öffnen oder zu schließen",
+    ["CHARBTN_MOVE"] = "Umschalt-Ziehen zum Verschieben  ·  Umschalt-Rechtsklick zum Zurücksetzen",
     ["REMIND_LOWER"] = "%s (nur niedrigere Qualität: %d)",
     ["NEED"]               = "%d fehlen",
     ["EMPTY_SOCKETS"]      = "%d leere Sockel",
