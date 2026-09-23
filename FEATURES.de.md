@@ -78,14 +78,16 @@ bekämst, mit „Held 3/8" im Tooltip.
 **Verzauberungen & Steine** — Was die Besten auf welchem Platz tragen, mit
 zwei Alternativen je Platz und dem besonderen Sockel getrennt. Verglichen
 mit deiner Ausrüstung: verzauberte Plätze werden übersprungen, leere Sockel
-gezählt, dein Beutel und deine Bank abgezogen. Rechts steht, was du noch
-brauchst.
+gezählt — der besondere Sockel am Stein, der drinsteckt —, dein Beutel und
+deine Bank abgezogen. Qualitätsstufen zählen mit: eine höhere Stufe im
+Beutel deckt den Bedarf, eine niedrigere steht dabei, deckt aber nicht.
+Rechts steht, was du noch brauchst.
 
 **Verbrauchsgüter** — Gruppiert nach Art: Fläschchen,
 Speise, Kampftrank, Heiltrank, Waffenbuffs (Öle, Wetzsteine), Runen. Je
 Gruppe der Anteil der Spieler und die höchste Schlüsselstufe, bei der es
-noch benutzt wurde. Dazu dein Bestand und eine Zielmenge, die du per Klick
-einstellst.
+noch benutzt wurde. Dazu dein Bestand — in jeder Qualitätsstufe — und eine
+Zielmenge, die du per Klick einstellst.
 
 **Erinnerung** — Was das Addon prüft, bevor es losgeht: je Verbrauchsart
 der Stand gegen dein Ziel (reicht / knapp / leer), die Verzauberungen und

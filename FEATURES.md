@@ -76,13 +76,15 @@ exactly the level you would get, with "Hero 3/8" in the tooltip.
 
 **Enchants & Gems** — What the best wear on which slot, with two
 alternatives per slot and the special socket kept separate. Compared with
-your gear: enchanted slots are skipped, empty sockets counted, your bags
-and bank subtracted. On the right stands what you still need.
+your gear: enchanted slots are skipped, empty sockets counted — the special
+socket by the gem that sits in it — your bags and bank subtracted. Quality
+tiers count: a higher tier in your bags covers the need, a lower one is
+shown but does not. On the right stands what you still need.
 
 **Consumables** — Grouped by kind: flask, food, combat
 potion, healing potion, weapon buffs (oils, stones), runes. Per group the
 share of players and the highest key it was still used at. Plus your stock
-and a target quantity you set with a click.
+— in every quality tier — and a target quantity you set with a click.
 
 **Reminder** — What the addon checks before you go in: per consumable kind
 the stand against your target (enough / low / none), the enchants and gems

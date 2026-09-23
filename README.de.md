@@ -84,6 +84,7 @@ tools/collect-raiderio.js      M+: Ausrüstung, Verzauberungen, Steine, Talent-S
 tools/collect-murlok.js        PvP und M+: Anteile, Talente, Top-Spieler
 tools/collect-wcl.js           Warcraft Logs: Raids und Verbrauchsgüter
 tools/collect-profiles.js      raider.io-Profile der Top-Spieler, geprüft
+tools/collect-bnet.js          Battle.net: PvP-Ranglisten, Loadouts, PvP-Talente, Ausrüstung
 tools/build-recommendations.js alles → die drei Datenaddons
 tools/collect-all.js           der Tageslauf, in Reihenfolge
 tools/package.sh               die Zip für ein Release
@@ -110,6 +111,8 @@ node tools/build-catalog.js .      # nur der Katalog aus den Spieltabellen
 Warcraft Logs braucht Zugangsdaten: `tools/wcl-credentials.json` (siehe
 `.example`) oder die Umgebungsvariablen `WCL_CLIENT_ID` und
 `WCL_CLIENT_SECRET`. Die Action nimmt sie aus den Repository-Secrets.
+Battle.net genauso: `tools/bnet-credentials.json` oder `BNET_CLIENT_ID` und
+`BNET_CLIENT_SECRET`; ohne sie wird dieser Schritt übersprungen.
 Unter Windows richtet `.\tools\schedule.ps1` denselben Lauf als tägliche
 Aufgabe ein.
 

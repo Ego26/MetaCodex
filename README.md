@@ -81,6 +81,7 @@ tools/collect-raiderio.js      M+: gear, enchants, gems, talent strings
 tools/collect-murlok.js        PvP and M+: shares, talents, top players
 tools/collect-wcl.js           Warcraft Logs: raids and consumables
 tools/collect-profiles.js      raider.io profiles of the top players, verified
+tools/collect-bnet.js          Battle.net: PvP leaderboards, loadouts, PvP talents, gear
 tools/build-recommendations.js everything -> the three data addons
 tools/collect-all.js           the daily run, in order
 tools/package.sh               the zip for a release
@@ -107,6 +108,8 @@ node tools/build-catalog.js .      # only the catalog from the game tables
 Warcraft Logs needs credentials: `tools/wcl-credentials.json` (see the
 `.example`) or the environment variables `WCL_CLIENT_ID` and
 `WCL_CLIENT_SECRET`. The Action reads them from the repository secrets.
+Battle.net likewise: `tools/bnet-credentials.json` or `BNET_CLIENT_ID` and
+`BNET_CLIENT_SECRET`; without them that step is skipped.
 On Windows, `.\tools\schedule.ps1` registers the same run as a daily task.
 
 The catalog reads `ItemSparse`, `ItemBonus`, `JournalEncounterItem`,
