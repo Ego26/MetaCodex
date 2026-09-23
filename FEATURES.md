@@ -169,8 +169,6 @@ under PvP because no platform measures them — so there is no tab for them.
 
 ## What is planned
 
-### Extensions
-
 - **Hero talents split.** Builds differ between the two hero-talent trees
   (Stormbringer and Farseer, say); today they are mixed. Planned: numbers
   per tree.
@@ -182,14 +180,6 @@ under PvP because no platform measures them — so there is no tab for them.
   therefore read "not an instance drop". A vendor table would close that.
 - **Filter by source.** "What drops here" instead of only "where does this
   drop".
-
-### Improvements
-
-- **First click on a player** loads 4.5 MB of profiles — whether that
-  visibly hitches is decided in the game. If so: fewer players per spec or
-  leaner profiles.
-- **Consumables for every M+ spec.** The log sample missed a few specs; the
-  daily run now draws more reports.
 
 ---
 

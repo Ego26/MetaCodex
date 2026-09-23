@@ -176,8 +176,6 @@ also auch keinen Reiter dafür.
 
 ## Was noch geplant ist
 
-### Erweiterungen
-
 - **Held-Talente getrennt.** Builds unterscheiden sich zwischen den beiden
   Held-Talent-Bäumen (etwa Sturmbringer und Weitseher); heute stehen sie
   gemischt. Geplant: je Baum eigene Zahlen.
@@ -191,14 +189,6 @@ also auch keinen Reiter dafür.
   das schließen.
 - **Filter nach Fundort.** „Was fällt in diesem Dungeon" statt nur „wo fällt
   das".
-
-### Verbesserungen
-
-- **Erster Klick auf einen Spieler** lädt 4,5 MB Profile — ob das spürbar
-  ruckelt, entscheidet sich im Spiel. Wenn ja: weniger Spieler je Spec oder
-  schlankere Profile.
-- **Verbrauchsgüter für jede M+-Spec.** Die Stichprobe der Logs hat ein
-  paar Speccs nicht erwischt; der Tageslauf zieht jetzt mehr Berichte.
 
 ---
 
