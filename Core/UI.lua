@@ -2054,6 +2054,7 @@ local function build()
     hintText:SetPoint("TOPLEFT", S.space.xl, -S.space.xl - 140)
     hintText:SetWidth(contentWidth())
     hintText:SetWordWrap(true)
+    frame.hintText = hintText
 
     local scroll = CreateFrame("ScrollFrame", "MetaCodexScroll", content, "UIPanelScrollFrameTemplate")
     scroll:SetPoint("TOPLEFT", S.space.xl, -S.space.xl - 156)
@@ -2536,6 +2537,7 @@ function UI.Refresh()
         widget:SetPoint("TOPRIGHT", edge, -S.space.lg - 2)
         edge = edge - width - gap
     end
+    placeRight(frame.backButton, 175)
     placeRight(frame.levelButton, 175)
     placeRight(frame.slotButton, 150)
     placeRight(frame.originButton, 170)
@@ -2556,7 +2558,11 @@ function UI.Refresh()
     -- die Zeilen selbst gleich beim Setzen.
     local width = contentWidth()
     scrollChild:SetWidth(width)
-    hintText:SetWidth(width)
+    -- Ohne die Kennwert-Zeilen steht der Hinweis direkt unter dem Titel,
+    -- auf der Hoehe der Knopfreihe. Dann endet er, wo die Knoepfe
+    -- beginnen - sonst liegt "Zurueck zu Top-Spieler" auf dem Satz.
+    local reserved = frame.controls:IsShown() and 0 or (-S.space.xl - edge)
+    hintText:SetWidth(math.max(120, width - reserved))
     sourceText:SetWidth(math.max(200, frame:GetWidth() - 360))
 
     local index, offset, lastSlot = 0, 0, nil
@@ -2853,6 +2859,30 @@ end
 
 function UI.IsShown()
     return frame ~= nil and frame:IsShown()
+end
+
+---Ein Knopf im Charakterfenster, neben dem Schliessen-Kreuz.
+---
+---Wer seine Ausruestung ansieht, fragt sich als naechstes, was fehlt -
+---der Weg dorthin soll ein Klick sein, nicht ein Befehl. Der Knopf
+---haengt am Fenster selbst und geht mit ihm auf und zu.
+function UI.Frame() return frame end
+
+function UI.AttachCharacterButton()
+    local host = CharacterFrame
+    -- rawget: das Feld soll fehlen duerfen, ohne dass ein Stellvertreter
+    -- fuer ein Kind gehalten wird.
+    if not host then return nil end
+    if rawget(host, "MetaCodexButton") then return host.MetaCodexButton end
+    local button = makeButton(host, 84, 18, "MetaCodex", function() UI.Toggle() end)
+    if host.CloseButton then
+        button:SetPoint("RIGHT", host.CloseButton, "LEFT", -2, 0)
+    else
+        button:SetPoint("TOPRIGHT", -30, -4)
+    end
+    button:SetFrameLevel((host.GetFrameLevel and host:GetFrameLevel() or 0) + 5)
+    host.MetaCodexButton = button
+    return button
 end
 
 ---Wendet die gemerkte Groesse an - nach /mc scale sofort, nicht erst

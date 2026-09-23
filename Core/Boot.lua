@@ -31,6 +31,8 @@ frame:SetScript("OnEvent", function(_, event)
         -- Abend nie oeffnen, ist genau die Ladezeit, die Addons
         -- verrufen macht.
         ns.Profile.Init()
+        -- Der Knopf im Charakterfenster: das Fenster gibt es ab jetzt.
+        ns.UI.AttachCharacterButton()
     else
         requestRefresh()
     end

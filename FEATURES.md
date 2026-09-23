@@ -11,7 +11,8 @@ measured daily from raider.io, murlok.io and Warcraft Logs. And it
 compares that with what *you* wear and carry, so you know what is still
 missing.
 
-Open it: **`/mc`** or the button in the minimap's addon compartment.
+Open it: **`/mc`**, the button in the minimap's addon compartment, or the
+**MetaCodex** button in the character frame next to its close cross.
 
 ---
 

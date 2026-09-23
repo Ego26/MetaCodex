@@ -1823,6 +1823,27 @@ do
     end
 end
 
+-- ---------------------------------------------- Charakterfenster
+
+-- Der Knopf im Charakterfenster oeffnet und schliesst das Fenster. Das
+-- Charakterfenster gibt es im Stub nicht - hier steht ein Platzhalter
+-- mit Schliessen-Kreuz, damit die Verankerung denselben Weg nimmt.
+do
+    CharacterFrame = CreateFrame("Frame", "CharacterFrame")
+    CharacterFrame.CloseButton = CreateFrame("Button", nil, CharacterFrame)
+    local button = ns.UI.AttachCharacterButton()
+    check("Knopf im Charakterfenster gebaut", button ~= nil and button.label:GetText() == "MetaCodex")
+    check("ein zweiter Aufruf baut keinen zweiten", ns.UI.AttachCharacterButton() == button)
+    if button then
+        local before = ns.UI.IsShown()
+        button.__scripts.OnClick(button)
+        check("Klick schaltet das Fenster um", ns.UI.IsShown() ~= before)
+        button.__scripts.OnClick(button)
+        check("zweiter Klick schaltet zurueck", ns.UI.IsShown() == before)
+        if not ns.UI.IsShown() then ns.UI.Toggle() end
+    end
+end
+
 -- ------------------------------------------------- Spieleransicht
 
 -- Zurueck ist ein Knopf im Kopf, keine Zeile in der Liste; ein einzelnes
@@ -1858,6 +1879,12 @@ if top then
             if rawget(f, "label") and f.label:GetText() == L["PLAYER_BACK"] then button = f end
         end
         check("Zurueck-Knopf sichtbar", button ~= nil and button:IsShown())
+        -- Der Hinweis unter dem Titel endet vor dem Knopf - vorher lag
+        -- "Zurueck zu Top-Spieler" auf dem Satz.
+        local hint = ns.UI.Frame().hintText
+        local full = ns.UI.Frame():GetWidth() - 196 - 24 * 2 - 20
+        check("Hinweis weicht dem Zurueck-Knopf aus", hint ~= nil and (tonumber(hint:GetWidth()) or 0) > 0 and tonumber(hint:GetWidth()) <= full - 175,
+            hint and (hint:GetWidth() .. " von " .. full) or "kein Hinweis")
         if button then
             button.__scripts.OnClick(button)
             check("Zurueck-Knopf versteckt nach dem Klick", not button:IsShown())
