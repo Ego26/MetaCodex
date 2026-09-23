@@ -1416,6 +1416,18 @@ do
         if r:IsShown() and r:GetHeight() > 46 then tall = tall + 1 end
     end
     check("Zeilen wachsen mit der Schrift", tall > 0, tall .. " hoehere Zeilen")
+    -- Die Seitenleiste wird breiter, und der Spec-Knopf haengt hinter dem
+    -- Titel statt auf festem Platz - sonst stand "MetaCodex" auf ihm.
+    local f2 = ns.UI.Frame()
+    check("die Seitenleiste waechst mit", f2.sidebar:GetWidth() > 196,
+        tostring(f2.sidebar:GetWidth()))
+    local p = f2.specButton.__points[#f2.specButton.__points]
+    check("der Spec-Knopf haengt am Titel",
+        p ~= nil and p[2] == f2.titleText and p[3] == "RIGHT",
+        p and tostring(p[3]) or "kein Anker")
+    -- Und das Fenster ist mindestens so breit, wie sein Inhalt braucht.
+    check("das Fenster faellt nicht unter sein Mindestmass",
+        f2:GetWidth() >= 760 * 1.4 - 1, tostring(f2:GetWidth()))
     ns.Profile.SetWindowScale(1)
     ns.UI.ApplyScale()
 end

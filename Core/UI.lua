@@ -48,10 +48,18 @@ local MIN_W, MIN_H, MAX_W, MAX_H = 760, 480, 1600, 1100
 -- Als Funktion, weil das Fenster ziehbar ist. Jede Breite, die von
 -- ihr abhaengt, wird beim Auffrischen neu gesetzt.
 local SIDEBAR = 196
+---Die Seitenleiste ist so breit, wie ihre Schrift es braucht.
+---
+---Feste 196 Pixel waren richtig, solange die Schrift fest war. Bei
+---125 % stand "Verzauberungen & Steine" bis an die Kante.
+local function sidebarWidth()
+    return math.floor(SIDEBAR * (S.fontScale or 1) + 0.5)
+end
+
 local function contentWidth()
     local w = frame and frame:GetWidth()
     if type(w) ~= "number" or w <= 0 then w = WIDTH end
-    return w - SIDEBAR - 24 * 2 - 20
+    return w - sidebarWidth() - 24 * 2 - 20
 end
 
 -- Wo die Zielwert-Bahn beginnt und wie breit sie ist.
@@ -2244,7 +2252,7 @@ local function build()
     frame.titleText:SetText(L["TITLE"])
 
     local specButton = makeButton(header, 180, 26, "", function(self) UI.OpenSpecPicker(self) end)
-    specButton:SetPoint("LEFT", 140, 0)
+    specButton:SetPoint("LEFT", frame.titleText, "RIGHT", S.space.lg, 0)
     frame.specButton = specButton
 
     local activityButton = makeButton(header, 140, 26, "", function(self) openActivityPicker(self) end)
@@ -2266,7 +2274,8 @@ local function build()
     local sidebar = CreateFrame("Frame", nil, frame)
     sidebar:SetPoint("TOPLEFT", 0, -HEADER)
     sidebar:SetPoint("BOTTOMLEFT", 0, FOOTER)
-    sidebar:SetWidth(SIDEBAR)
+    sidebar:SetWidth(sidebarWidth())
+    frame.sidebar = sidebar
     S:Fill(sidebar, "bgInset")
     S:Border(sidebar, "borderSubtle", 1, { right = true })
 
@@ -2293,7 +2302,7 @@ local function build()
 
     for _, section in ipairs(SECTIONS) do
         local button = CreateFrame("Button", nil, sidebar)
-        button:SetSize(SIDEBAR - S.space.md * 2, 28)
+        button:SetSize(sidebarWidth() - S.space.md * 2, 28)
         button.bg = S:Fill(button, "bgOverlay", 0)
         button.marker = button:CreateTexture(nil, "ARTWORK")
         button.marker:SetTexture("Interface\\Buttons\\WHITE8X8")
@@ -2316,7 +2325,8 @@ local function build()
 
     -- --- Inhalt --------------------------------------------------------
     local content = CreateFrame("Frame", nil, frame)
-    content:SetPoint("TOPLEFT", SIDEBAR, -HEADER)
+    content:SetPoint("TOPLEFT", sidebarWidth(), -HEADER)
+    frame.content = content
     content:SetPoint("BOTTOMRIGHT", 0, FOOTER)
 
     sectionTitle = S:Text(content, "title", "textPrimary")
@@ -2539,6 +2549,16 @@ function UI.Refresh()
     -- waren richtig, solange die Schrift fest war; mit 140 % lagen die
     -- Eintraege uebereinander.
     local fs = S.fontScale or 1
+    -- Die Seitenleiste und der Inhalt folgen der Schrift. Ohne das lag
+    -- bei 125 % der Titel auf dem Spec-Knopf und der Text der
+    -- Seitenleiste auf ihrer Kante.
+    frame.sidebar:SetWidth(sidebarWidth())
+    frame.content:ClearAllPoints()
+    frame.content:SetPoint("TOPLEFT", sidebarWidth(), -HEADER)
+    frame.content:SetPoint("BOTTOMRIGHT", 0, FOOTER)
+    for _, button in ipairs(navButtons) do
+        button:SetWidth(sidebarWidth() - S.space.md * 2)
+    end
     local y = -S.space.md
     for _, head in ipairs(groupHeads) do
         local collapsed = ns.Profile.IsCollapsed(head.group)
@@ -3667,12 +3687,19 @@ end
 ---Wendet die gemerkte Groesse an - nach /mc scale sofort, nicht erst
 ---beim naechsten Oeffnen.
 function UI.ApplyScale()
-    -- Nur die Schrift. Das Fenster behaelt die Groesse, die jemand ihm
-    -- am Rand gegeben hat - sonst haette eine Einstellung zwei
-    -- Wirkungen, und die zweite hat niemand bestellt.
-    S:SetFontScale(ns.Profile.WindowScale())
-    if frame then
-        frame:SetScale(1)
-        UI.Refresh()
+    -- Die Schrift skaliert, nicht das Fenster: dessen Groesse zieht man
+    -- am Rand. Aber schmaler als sein Inhalt darf es nicht sein - sonst
+    -- steht der Titel auf dem ersten Knopf.
+    local scale = ns.Profile.WindowScale()
+    S:SetFontScale(scale)
+    if not frame then return end
+    frame:SetScale(1)
+    local minW, minH = math.floor(MIN_W * scale), math.floor(MIN_H * scale)
+    if frame.SetResizeBounds then frame:SetResizeBounds(minW, minH, MAX_W, MAX_H) end
+    local w, h = frame:GetWidth(), frame:GetHeight()
+    if w < minW or h < minH then
+        frame:SetSize(math.max(w, minW), math.max(h, minH))
+        ns.Profile.SetWindowSize(frame:GetWidth(), frame:GetHeight())
     end
+    UI.Refresh()
 end
