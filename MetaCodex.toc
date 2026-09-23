@@ -12,6 +12,10 @@
 ## X-Category: Class
 ## X-Website: https://github.com/Ego26/MetaCodex
 
+# The project on CurseForge. The packager reads the id from here and
+# uploads there; without this line it builds the zip and stops.
+## X-Curse-Project-ID: 1708886
+
 # Auctionator ist ausdruecklich KEINE harte Abhaengigkeit.
 #
 # Ohne ihn zeigt MetaCodex die Liste trotzdem: was fehlt, welcher Stein, welche

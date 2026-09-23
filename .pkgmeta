@@ -1,0 +1,55 @@
+# What goes into the package, and under which names.
+#
+# The BigWigs packager reads this file in the GitHub Action. It does what
+# tools/package.sh does locally: replace @project-version@, drop what has
+# no business in an addon folder, zip it - and then hand the zip to
+# CurseForge.
+package-as: MetaCodex
+
+# MetaCodex is four addons in one download. The three data folders live in
+# the repository root next to the code, so the packager first copies them
+# into MetaCodex/ and then moves them back out, beside it.
+move-folders:
+  MetaCodex/MetaCodex_Data: MetaCodex_Data
+  MetaCodex/MetaCodex_Dungeons: MetaCodex_Dungeons
+  MetaCodex/MetaCodex_Players: MetaCodex_Players
+
+# No embedded libraries: MetaCodex uses Blizzard's API only.
+externals: {}
+
+# Without this the packager would build the change notes from commit
+# messages. What stands on CurseForge should be written on purpose.
+#
+# This file is English, because the project page is. The German version is
+# branding/RELEASE-NOTES-de.md and is not shipped.
+manual-changelog:
+  filename: RELEASE-NOTES.md
+  markup-type: markdown
+
+# LICENSE ships on purpose: whoever downloads the addon should find the
+# licence inside it, not have to look for the repository.
+#
+# The data files themselves (MetaCodex_Data/*.lua and the like) are not in
+# git - they are collected each night and copied into the checkout before
+# this runs. The workflow stages them with "git add -f", otherwise the
+# packager would treat them as untracked and leave them out.
+ignore:
+  - Tests
+  - tools
+  - assets
+  - branding
+  - docs
+  - dist
+  - .github
+  - .editorconfig
+  - .gitattributes
+  - .gitignore
+  - .pkgmeta
+  - README.md
+  - README.de.md
+  - FEATURES.md
+  - FEATURES.de.md
+  # The history stays in the repository. Into the package goes
+  # RELEASE-NOTES.md with what this one version brought.
+  - CHANGELOG.md
+  - CHANGELOG.de.md

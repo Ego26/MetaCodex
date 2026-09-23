@@ -1,8 +1,14 @@
 # A release: push a tag v1.2.3, done.
 #
 # The code of that tag is packed with the data of the latest nightly -
-# exactly what the nightly held at that moment, only with a version
-# number instead of a date.
+# exactly what the nightly held at that moment, only with a version number
+# instead of a date. The package then goes to CurseForge and to a GitHub
+# release, both from here.
+#
+# CurseForge offers to pack the repository itself. That must stay switched
+# off for this project: the data are deliberately not in git, so a package
+# built from the repository alone would install an addon with an empty
+# window.
 name: Release
 
 on:
@@ -17,6 +23,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The packager derives the version from the tag, and it needs the
+          # history to find it.
+          fetch-depth: 0
 
       - name: Fetch the data from the latest nightly
         env:
@@ -29,11 +39,25 @@ jobs:
             cp -r "/tmp/nightly/$addon/." "$GITHUB_WORKSPACE/$addon/"
           done
 
-      - name: Build the package
-        run: tools/package.sh "${GITHUB_REF_NAME}" dist
+      # Without this the package would be built without the data.
+      #
+      # The packager asks git which files are untracked and ignores exactly
+      # those - a sensible rule, and here the wrong one: the tables were
+      # just copied in and git has never seen them. Staging them makes them
+      # known without committing anything; the checkout is thrown away
+      # afterwards anyway.
+      - name: Let git know about the data
+        run: |
+          git add -f MetaCodex_Data MetaCodex_Dungeons MetaCodex_Players
+          git -c core.fileMode=false status --short | head -n 5
+          test -s MetaCodex_Data/Recommendations.lua
 
-      - name: Create the release
-        uses: softprops/action-gh-release@v2
-        with:
-          generate_release_notes: true
-          files: dist/MetaCodex-${{ github.ref_name }}.zip
+      - name: Build and upload
+        uses: BigWigsMods/packager@v2
+        env:
+          # From the CurseForge account under "API Tokens", kept here as a
+          # repository secret. Without it the packager builds but uploads
+          # nothing.
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
+          # Creates the GitHub release along the way and attaches the zip.
+          GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}

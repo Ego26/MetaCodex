@@ -33,6 +33,11 @@ jobs:
     timeout-minutes: 300
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The tags come along: the CurseForge build at the end packs the
+          # code of the newest release, and git needs the history to know
+          # which one that is.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -40,10 +45,10 @@ jobs:
 
       - name: Collect every source and build the tables
         env:
-          # Das Konto hinter diesen Zugangsdaten hat 9 000 Punkte je
-          # Stunde (Gold). Der ganze Lauf kostet knapp 5 000 - er passt
-          # also in eine Stunde, ohne zu warten. Mit dem freien Limit von
-          # 3 600 wartete er eine Stunde mittendrin.
+          # The account behind these credentials has 9,000 points an hour
+          # (Gold). A whole run costs just under 5,000, so it fits into one
+          # hour without waiting. On the free limit of 3,600 it stopped
+          # halfway and waited an hour.
           WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
           WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
           BNET_CLIENT_ID: ${{ secrets.BNET_CLIENT_ID }}
@@ -60,9 +65,12 @@ jobs:
       - name: Build the package
         id: pack
         run: |
-          STAMP="nightly-$(date -u +%Y%m%d)"
+          YMD="$(date -u +%Y%m%d)"
+          STAMP="nightly-$YMD"
           tools/package.sh "$STAMP" dist
           echo "stamp=$STAMP" >> "$GITHUB_OUTPUT"
+          echo "ymd=$YMD" >> "$GITHUB_OUTPUT"
+          echo "date=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
 
       # Keep the intermediate files (tools/data) for seven days: when a
       # run builds something odd, one can look at what it was built from.
@@ -83,3 +91,53 @@ jobs:
             The addon with the data of ${{ steps.pack.outputs.stamp }}.
             Unpack into `Interface/AddOns` - it is four folders.
           files: dist/MetaCodex-${{ steps.pack.outputs.stamp }}.zip
+
+      # And the same data to CurseForge - that is the point of the whole
+      # run. Nobody should have to upload a file by hand every morning.
+      #
+      # What goes up is NOT the current state of main: it is the code of
+      # the newest tag with the data of tonight. Main is where work
+      # happens, and a commit from the small hours has no business being a
+      # release by morning. What was released stays released; only its
+      # tables are newer.
+      - name: Which code was released last?
+        id: released
+        run: |
+          TAG="$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          if [ -z "$TAG" ]; then
+            echo "No release tag yet, so nothing goes to CurseForge tonight." >&2
+          else
+            echo "Packing $TAG with the data of ${{ steps.pack.outputs.date }}." >&2
+          fi
+
+      - name: Take the released code, keep tonight's data
+        if: steps.released.outputs.tag != ''
+        run: |
+          # The data files are untracked, so the checkout leaves them where
+          # they are. Staging them afterwards is what makes the packager
+          # take them along.
+          git checkout --detach "${{ steps.released.outputs.tag }}"
+          git add -f MetaCodex_Data MetaCodex_Dungeons MetaCodex_Players
+          test -s MetaCodex_Data/Recommendations.lua
+          # The change notes of that release, with one line saying which
+          # night these tables are from.
+          { echo "**Data of ${{ steps.pack.outputs.date }}.**"; echo; cat RELEASE-NOTES.md; } > /tmp/notes.md
+          mv /tmp/notes.md RELEASE-NOTES.md
+
+      - name: Upload to CurseForge
+        if: steps.released.outputs.tag != ''
+        uses: BigWigsMods/packager@v2
+        env:
+          # From the CurseForge account under "API Tokens". No token, no
+          # upload - the run says so and stops there.
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
+          # Deliberately no GITHUB_OAUTH here: the GitHub side was done
+          # above, under the release "nightly". The packager would
+          # otherwise hang another file on the release of the tag.
+        with:
+          # Same code, new data, every night - so the file name has to say
+          # which night, otherwise CurseForge shows a dozen files of the
+          # same name.
+          args: >-
+            -n "{package-name}-{project-version}-data-${{ steps.pack.outputs.ymd }}:{project-version} (data ${{ steps.pack.outputs.date }})"
