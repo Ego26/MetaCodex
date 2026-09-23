@@ -182,7 +182,10 @@ function Remind.Announce(mode)
     Remind.Deliver(
         L["REMIND_MISSING"]:format(table.concat(parts, ", ")),
         L["REMIND_MISSING"]:format(table.concat(linked, ", "))
-            .. "  " .. Remind.AddonLink("list", L["REMIND_OPEN_LIST"]),
+            -- Der Link fuehrt dorthin, wovon die Zeile handelt: zur
+            -- Erinnerung. Die Einkaufsliste ist der naechste Schritt,
+            -- nicht die Antwort auf "was fehlt mir".
+            .. "  " .. Remind.AddonLink("remind", L["REMIND_OPEN_LIST"]),
         Remind.Check(mode))
 end
 

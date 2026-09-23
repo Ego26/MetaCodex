@@ -1109,7 +1109,7 @@ local function remindRows(mode)
                 and L["REMIND_MISSING"]:format(table.concat(linked, ", "))
                 or L["REMIND_PREVIEW_EMPTY"]
             ns.Remind.Deliver(text,
-                chat .. "  " .. ns.Remind.AddonLink("list", L["REMIND_OPEN_LIST"]),
+                chat .. "  " .. ns.Remind.AddonLink("remind", L["REMIND_OPEN_LIST"]),
                 ns.Remind.Check(ns.Profile.Mode()))
         end,
         group = L["REMIND_GROUP_WAYS"],

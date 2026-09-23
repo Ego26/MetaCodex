@@ -49,7 +49,9 @@ if hooksecurefunc then
     hooksecurefunc("SetItemRef", function(link)
         local what = tostring(link or ""):match("^addon:MetaCodex:(.+)$")
         if not what then return end
-        if what == "list" then
+        if what == "remind" then
+            ns.UI.OpenSection("remind")
+        elseif what == "list" then
             ns.UI.OpenSection("consumables")
         else
             ns.UI.Toggle()

@@ -2019,8 +2019,10 @@ do
             said ~= nil and said:sub(1, #expected) == expected, tostring(said))
         check("im Chat stehen Gegenstandslinks",
             #parts == 0 or (said:find("|Hitem:", 1, true) ~= nil), tostring(said))
-        check("und ein Weg ins Addon",
-            said:find("|Haddon:MetaCodex:list|h", 1, true) ~= nil, tostring(said))
+        -- Und zwar zur Erinnerung: davon handelt die Zeile. Die
+        -- Einkaufsliste ist der naechste Schritt, nicht die Antwort.
+        check("und ein Weg zur Erinnerung",
+            said:find("|Haddon:MetaCodex:remind|h", 1, true) ~= nil, tostring(said))
         -- Und das Fenster steht wirklich da, als Liste mit Symbolen.
         local window
         for _, f in ipairs(wow.frames) do
