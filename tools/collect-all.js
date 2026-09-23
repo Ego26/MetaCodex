@@ -89,6 +89,14 @@ const STEPS = [
     env: { MC_ENCOUNTERS: '8', MC_REPORTS: '400' },
   },
   {
+    key: 'keys',
+    what: 'M+ je Schluesselstufe: Verbrauchsgueter, Talente, Folio',
+    why: 'Die Aktivitaet "M+ (+7 bis +21)" hat ihre eigenen Zahlen - andere Stufen, andere Mischung. Sie lief bisher nur von Hand, und ihre Daten wurden still alt.',
+    script: 'collect-wcl.js',
+    args: ['mplus-keys'],
+    env: { MC_DUNGEONS: '1', MC_REPORTS: '200' },
+  },
+  {
     key: 'bnet',
     what: 'Battle.net: PvP-Ranglisten und die Profile der Spitze',
     why: 'Blizzard fuehrt Wertung, Import-String und PvP-Talente selbst - die Quelle, aus der die anderen abschreiben. Ohne Zugangsdaten wird der Schritt uebersprungen.',

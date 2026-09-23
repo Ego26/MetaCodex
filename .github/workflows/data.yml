@@ -40,6 +40,10 @@ jobs:
 
       - name: Collect every source and build the tables
         env:
+          # Das Konto hinter diesen Zugangsdaten hat 9 000 Punkte je
+          # Stunde (Gold). Der ganze Lauf kostet knapp 5 000 - er passt
+          # also in eine Stunde, ohne zu warten. Mit dem freien Limit von
+          # 3 600 wartete er eine Stunde mittendrin.
           WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
           WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
           BNET_CLIENT_ID: ${{ secrets.BNET_CLIENT_ID }}
