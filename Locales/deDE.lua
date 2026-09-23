@@ -152,6 +152,11 @@ ns.RegisterLocale("deDE", {
 })
 
 ns.RegisterLocale("deDE", {
+    ["READY_ALL"] = "Startklar: verzaubert, gesockelt, eingedeckt.",
+    ["READY_OPEN"] = "Noch offen: %s",
+    ["READY_ENCHANTS"] = "%d Verzauberungen",
+    ["READY_GEMS"] = "%d Steine",
+    ["READY_CONSUM"] = "%d Arten Verbrauchsgut",
     ["SOURCE_LINE"]  = "Empfehlungen: %s, %s",
     ["NO_MODE_DATA"] = "Für diesen Spielmodus gibt es noch keine Daten – Werte unten selbst wählen.",
 })
@@ -184,8 +189,10 @@ ns.RegisterLocale("deDE", {
     ["SECTION_stats"]      = "Zielwerte",
     ["SECTION_players"]    = "Top-Spieler",
     ["SECTION_folio"]      = "Omnium Folio",
+    ["FOLIO_GROUP"]        = "Omnium-Foliant",
     ["FOLIO_ROW"]          = "Zeile %d",
-    ["FOLIO_HINT"]         = "Welche Runen die Besten beim Pull trugen — je Zeile eine Wahl.",
+    ["FOLIO_UNMEASURED"]   = "-",
+    ["FOLIO_HINT"]         = "Anteil der Besten, bei denen die Rune im Kampf ausgelöst hat. Rein passive Runen lösen nie aus und stehen ohne Zahl.",
     ["LBL_HERO"]           = "Held-Talente",
     ["HERO_ALL"]           = "Alle Held-Bäume",
     ["HERO_ENTRY"]         = "%s · %d %%",

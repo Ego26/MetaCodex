@@ -2083,6 +2083,26 @@ do
         tostring(ns.UI.Frame().hintText:GetText()))
 end
 
+-- ------------------------------------------------- Die Fusszeile
+
+-- Unten stand, woher die Daten kommen und von wann - eine Auskunft ueber
+-- das Addon, nicht ueber den Spieler, und im Info-Reiter steht sie
+-- vollstaendiger. Jetzt steht dort, was dem Charakter noch fehlt.
+do
+    ns.Profile.SetMode("mplus")
+    ns.Profile.Set("onlyMissing", false)
+    rowsInSection("enchants")
+    local text = ns.UI.FooterText()
+    local offen = L["READY_OPEN"]:gsub("%%s", "")
+    check("die Fusszeile spricht vom Charakter",
+        text == L["READY_ALL"] or text:find(offen, 1, true) ~= nil, text)
+    check("und nicht mehr von der Quelle", text:find("murlok", 1, true) == nil, text)
+    -- Die Quelle ist nicht verloren, sie haengt am Zeiger.
+    check("die Herkunft steht im Zeiger",
+        tostring(ns.UI.Frame().__provenance or ""):find("murlok", 1, true) ~= nil,
+        tostring(ns.UI.Frame().__provenance))
+end
+
 -- --------------------------------------------------- Info-Reiter
 
 -- Fehlt Auctionator, sagt die Zeile nicht nur "fehlt", sondern gibt die

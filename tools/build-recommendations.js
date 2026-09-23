@@ -186,6 +186,36 @@ out.push('-- Data/Catalog.lua - also aus den Spieldaten. Von den Quellen kommt')
 out.push('-- nur, WAS benutzt wird.');
 out.push('');
 out.push('MetaCodex_Recommendations = {');
+// Welche Folio-Runen ueberhaupt messbar sind.
+//
+// Die Logs kennen den Folio nicht - weder Warcraft Logs noch Blizzard
+// fuehren ihn im Spielerblatt, nachgesehen am 23.09.2026. Gezaehlt wird
+// deshalb, was WAEHREND des Kampfes als Buff erscheint. Eine Rune, die
+// rein passiv wirkt, erscheint nie - und stand dann mit "0 %" da, als
+// naehme sie niemand. Das ist keine Messung, das ist eine Luecke, und
+// sie gehoert benannt.
+const folioSeen = new Set();
+for (const part of Object.values(byMode)) {
+  for (const source of Object.values(part)) {
+    for (const entry of Object.values(source.specs || {})) {
+      for (const r of entry.folio || []) if ((r.pct || 0) > 0) folioSeen.add(r.spell);
+    }
+  }
+}
+const folioAll = new Set();
+try {
+  const tm = JSON.parse(fs.readFileSync(path.join(BASE, 'tools', 'data', 'trait-map.json'), 'utf8'));
+  for (const row of tm.folio || []) for (const r of row) folioAll.add(r.spell);
+} catch (e) { /* ohne Baumkarte gibt es nichts zu melden */ }
+const folioBlind = [...folioAll].filter((id) => !folioSeen.has(id));
+if (folioBlind.length) {
+  out.push('  -- Runen, die in keinem einzigen Kampf als Buff erscheinen:');
+  out.push('  -- rein passiv, also nicht messbar. Sie stehen ohne Zahl statt');
+  out.push('  -- mit einer erfundenen Null.');
+  out.push('  folioBlind = { ' + folioBlind.map((id) => '[' + id + '] = true').join(', ') + ' },');
+  console.log('  Folio: ' + folioSeen.size + ' Runen messbar, ' + folioBlind.length + ' passiv');
+}
+
 out.push(`  builtOn = ${newest},`);
 const SOURCE_ORDER = ['murlok.io', 'raider.io', 'warcraftlogs.com', 'Battle.net'];
 const orderedSources = [...sources].sort((a, b) => {

@@ -152,6 +152,11 @@ ns.RegisterLocale("enUS", {
 })
 
 ns.RegisterLocale("enUS", {
+    ["READY_ALL"] = "Ready to go: enchanted, socketed, stocked.",
+    ["READY_OPEN"] = "Still open: %s",
+    ["READY_ENCHANTS"] = "%d enchants",
+    ["READY_GEMS"] = "%d gems",
+    ["READY_CONSUM"] = "%d kinds of consumable",
     ["SOURCE_LINE"]  = "Recommendations: %s, %s",
     ["NO_MODE_DATA"] = "No data for this game mode yet - pick the stats yourself below.",
 })
@@ -184,8 +189,10 @@ ns.RegisterLocale("enUS", {
     ["SECTION_stats"]      = "Stat targets",
     ["SECTION_players"]    = "Top players",
     ["SECTION_folio"]      = "Omnium Folio",
+    ["FOLIO_GROUP"]        = "Omnium Folio",
     ["FOLIO_ROW"]          = "Row %d",
-    ["FOLIO_HINT"]         = "Which runes the best carried at the pull — one choice per row.",
+    ["FOLIO_UNMEASURED"]   = "-",
+    ["FOLIO_HINT"]         = "Share of the best whose rune fired during the fight. A purely passive rune never fires and carries no number.",
     ["LBL_HERO"]           = "Hero talents",
     ["HERO_ALL"]           = "All hero trees",
     ["HERO_ENTRY"]         = "%s · %d %%",

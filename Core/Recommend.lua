@@ -704,6 +704,17 @@ function Recommend.HeroTrees(specID, mode, source)
     return out
 end
 
+---Ob eine Rune ueberhaupt messbar ist.
+---
+---Gezaehlt wird, was im Kampf als Buff erscheint; eine rein passive Rune
+---erscheint nie. "0 %" waere dort eine Aussage, die niemand gemessen hat.
+---@param spell number
+---@return boolean
+function Recommend.FolioBlind(spell)
+    local d = data()
+    return (d and d.folioBlind and d.folioBlind[spell]) == true
+end
+
 ---Die Folio-Runen einer Spec: je Rune der Anteil. Erste Quelle, die
 ---sie misst - das ist Warcraft Logs, denn nur dort sind sie sichtbar.
 ---@param specID number

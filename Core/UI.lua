@@ -1412,15 +1412,29 @@ local function folioRows(specID, mode, source)
     if not shares then return {}, nil end
     local pctOf = {}
     for _, r in ipairs(shares) do pctOf[r.spell] = r.pct end
-    local rows = {}
+    -- Eine Zeile je REIHE, die Runen nebeneinander.
+    --
+    -- Untereinander waren es dreizehn Zeilen, in denen dieselbe Auskunft
+    -- dreizehnmal stand. Der Folio ist aber eine Entscheidung je Reihe -
+    -- und so sieht man sie: die haeufigste hell, die anderen daneben
+    -- gedimmt, jede mit ihrem Anteil.
+    -- Was die Zahl bedeutet, steht ueber der Gruppe: weder Warcraft Logs
+    -- noch Blizzard fuehren den Folio im Spielerblatt, gezaehlt wird also
+    -- das Ausloesen im Kampf.
+    local rows = { { kind = "note", text = L["FOLIO_HINT"], group = L["FOLIO_GROUP"] } }
     for i, line in ipairs(ns.Catalog.Folio() or {}) do
+        local runes, best = {}, 0
         for _, rune in ipairs(line) do
-            rows[#rows + 1] = {
-                kind = "talent", spell = rune.spell, rank = 1,
-                pct = pctOf[rune.spell] or 0,
-                group = L["FOLIO_ROW"]:format(i),
-            }
+            local blind = ns.Recommend.FolioBlind(rune.spell)
+            local pct = pctOf[rune.spell] or 0
+            runes[#runes + 1] = { spell = rune.spell, pct = pct, blind = blind }
+            if not blind and pct > best then best = pct end
         end
+        for _, r in ipairs(runes) do r.best = (r.pct == best and best > 0) end
+        rows[#rows + 1] = {
+            kind = "folio", index = i, runes = runes,
+            group = L["FOLIO_GROUP"],
+        }
     end
     return rows, from
 end
@@ -1747,6 +1761,40 @@ local function openPicker(row, slot, key)
     end)
 end
 
+-- Eine Rune in einer Folio-Zeile: Symbol, Name, Anteil.
+--
+-- Sie haengen am Zeilenrahmen und werden wiederverwendet wie die Zeilen
+-- selbst; was eine Zeile nicht braucht, wird versteckt statt geloescht.
+local function folioCell(row, index)
+    row.cells = rawget(row, "cells") or {}
+    if row.cells[index] then return row.cells[index] end
+    local cell = CreateFrame("Button", nil, row)
+    cell.bg = S:Fill(cell, "bgOverlay", 0)
+    cell.icon = cell:CreateTexture(nil, "ARTWORK")
+    cell.icon:SetSize(28, 28)
+    cell.icon:SetPoint("LEFT", S.space.sm, 0)
+    cell.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    cell.name = S:Text(cell, "body", "textPrimary")
+    cell.name:SetPoint("TOPLEFT", S.space.sm + 34, -6)
+    cell.name:SetPoint("TOPRIGHT", -S.space.sm, -6)
+    cell.name:SetJustifyH("LEFT")
+    cell.pct = S:Text(cell, "caption", "accent")
+    cell.pct:SetPoint("TOPLEFT", S.space.sm + 34, -22)
+    cell:SetScript("OnEnter", function(self)
+        self.bg:SetAlpha(0.6)
+        if not self.spellID then return end
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        if GameTooltip.SetSpellByID then GameTooltip:SetSpellByID(self.spellID) end
+        GameTooltip:Show()
+    end)
+    cell:SetScript("OnLeave", function(self)
+        self.bg:SetAlpha(0)
+        GameTooltip:Hide()
+    end)
+    row.cells[index] = cell
+    return cell
+end
+
 local function setItemRow(row, data)
     resetRow(row)
     row.__header = false
@@ -2000,6 +2048,50 @@ local function setItemRow(row, data)
         row.onClick = usable and function(self)
             UI.ShowLink(data.text)
         end or nil
+        return
+    end
+
+    if data.kind == "folio" then
+        row.link = nil
+        row.icon:SetTexture(nil)
+        row.icon:SetSize(1, 1)
+        row.detail:SetText("")
+        row.share:SetText("")
+        row.onClick = nil
+        -- Links die Nummer der Reihe, rechts daneben die Runen.
+        row.title:ClearAllPoints()
+        row.title:SetPoint("LEFT", S.space.md, 0)
+        row.title:SetWidth(58)
+        S:ApplyFont(row.title, "caption", "textMuted")
+        row.title:SetText(L["FOLIO_ROW"]:format(data.index))
+
+        local runes = data.runes or {}
+        local width = contentWidth()
+        local left = S.space.md + 62
+        local space = math.max(120, width - left - S.space.md)
+        local each = math.floor(space / math.max(1, #runes))
+        for i, rune in ipairs(runes) do
+            local cell = folioCell(row, i)
+            local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(rune.spell)
+            cell.spellID = rune.spell
+            cell:ClearAllPoints()
+            cell:SetPoint("TOPLEFT", left + (i - 1) * each, -2)
+            cell:SetSize(each - S.space.sm, 40)
+            cell.icon:SetTexture((info and info.iconID)
+                or "Interface\\Icons\\INV_Misc_QuestionMark")
+            cell.name:SetText((info and info.name) or ("#" .. tostring(rune.spell)))
+            -- Ohne Messung ein Strich, keine Null.
+            cell.pct:SetText(rune.blind and L["FOLIO_UNMEASURED"] or (rune.pct .. "%"))
+            -- Die haeufigste hell, die anderen zurueckgenommen. Sie
+            -- bleiben lesbar: sie sind eine Wahl, kein Fehler.
+            local strong = rune.best
+            cell.icon:SetAlpha(strong and 1 or 0.4)
+            cell.icon:SetDesaturated(not strong)
+            S:Recolor(cell.name, strong and "textPrimary" or "textMuted")
+            S:Recolor(cell.pct, strong and "accent" or "textMuted")
+            cell:Show()
+        end
+        for i = #runes + 1, #(rawget(row, "cells") or {}) do row.cells[i]:Hide() end
         return
     end
 
@@ -2480,6 +2572,21 @@ local function build()
 
     sourceText = S:Text(footer, "caption", "textMuted")
     sourceText:SetPoint("LEFT", S.space.lg, 0)
+    -- Woher die Zahlen stammen, steht im Zeiger darueber - und
+    -- vollstaendig unter "Info". Die Zeile selbst gehoert dem Spieler.
+    local sourceHover = CreateFrame("Frame", nil, footer)
+    sourceHover:SetPoint("TOPLEFT", sourceText, "TOPLEFT", 0, 2)
+    sourceHover:SetPoint("BOTTOMRIGHT", sourceText, "BOTTOMRIGHT", 0, -2)
+    sourceHover:EnableMouse(true)
+    sourceHover:SetScript("OnEnter", function(self)
+        local text = frame and frame.__provenance
+        if not text or text == "" then return end
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:AddLine(text, 1, 1, 1)
+        GameTooltip:Show()
+    end)
+    sourceHover:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    frame.sourceHover = sourceHover
     sourceText:SetWidth(math.max(200, (savedW or WIDTH) - 360))
 
     local search = makeButton(footer, 150, 28, L["BTN_SEARCH"], function() UI.Handover(true) end)
@@ -2576,6 +2683,42 @@ function activeSection()
         if section.key == "enchants" then return section end
     end
     return SECTIONS[1]
+end
+
+---Was dem Charakter noch fehlt, in einer Zeile.
+---
+---Die Fusszeile trug bisher, woher die Daten kommen und von wann. Das
+---ist eine Auskunft ueber das Addon, keine ueber den Spieler - und sie
+---steht vollstaendiger im Info-Reiter. Hier steht jetzt, was ihn
+---betrifft: was noch offen ist, ueber alle Abschnitte hinweg.
+---@return string text
+---@return boolean alright Nichts mehr offen
+local function readinessText()
+    if not ns.Profile.Complete() or ns.Profile.IsForeignClass() then return "", false end
+    if not ns.Catalog.Ready() then return "", false end
+
+    local enchants, gems = 0, 0
+    for _, row in ipairs(ns.List.Build(ns.Gear.Scan())) do
+        if not row.alt and not row.pending and (row.buy or 0) > 0 then
+            if row.kind == "gem" then gems = gems + row.buy
+            elseif row.kind == "enchant" then enchants = enchants + 1 end
+        end
+    end
+    -- Verbrauchsgueter zaehlen nach ART, nicht nach Stueck: "drei Arten
+    -- fehlen" ist die Auskunft, "siebzehn Stueck" waere Ballast.
+    local kinds = 0
+    for _, row in ipairs(ns.Remind.Status(ns.Profile.Mode())) do
+        if row.state ~= "ok" then kinds = kinds + 1 end
+    end
+
+    if enchants == 0 and gems == 0 and kinds == 0 then
+        return L["READY_ALL"], true
+    end
+    local parts = {}
+    if enchants > 0 then parts[#parts + 1] = L["READY_ENCHANTS"]:format(enchants) end
+    if gems > 0 then parts[#parts + 1] = L["READY_GEMS"]:format(gems) end
+    if kinds > 0 then parts[#parts + 1] = L["READY_CONSUM"]:format(kinds) end
+    return L["READY_OPEN"]:format(table.concat(parts, "  \194\183  ")), false
 end
 
 function UI.Refresh()
@@ -2796,15 +2939,25 @@ function UI.Refresh()
     -- Unter Talenten oder Spielern haette sie nichts zu tun.
     frame.controls:SetShown(section.key == "enchants" and rec == nil)
 
+    -- Woher die Daten kommen, haengt jetzt am Zeiger; unten steht, was
+    -- dem Charakter fehlt.
+    local provenance = ""
     if rec then
         local names = wanted == ns.Recommend.ALL
             and table.concat(available, ", ") or wanted
-        sourceText:SetText(L["SOURCE_LINE"]:format(
-            names, ns.Compat.DateText(ns.Recommend.Stamp(mode, wanted))))
-    elseif ns.Recommend.Ready() then
+        provenance = L["SOURCE_LINE"]:format(
+            names, ns.Compat.DateText(ns.Recommend.Stamp(mode, wanted)))
+    end
+    frame.__provenance = provenance
+    local ready, alright = readinessText()
+    if ready ~= "" then
+        sourceText:SetText(ready)
+        S:Recolor(sourceText, alright and "success" or "textSecondary")
+    elseif ns.Recommend.Ready() and not rec then
         sourceText:SetText("|cff" .. S:Hex("warning") .. L["NO_MODE_DATA"] .. "|r")
     else
-        sourceText:SetText("")
+        sourceText:SetText(provenance)
+        S:Recolor(sourceText, "textMuted")
     end
 
     -- Jeder Abschnitt hat seine eigene Quelle fuer Zeilen. Nur der
@@ -2913,8 +3066,12 @@ function UI.Refresh()
     -- Statuszeile: bei "alle Plattformen" wird hier nicht gemittelt,
     -- sondern die erste genommen, die etwas hat.
     if fromSource then
-        sourceText:SetText(L["SOURCE_LINE"]:format(
-            fromSource, ns.Compat.DateText(ns.Recommend.Stamp(mode, fromSource))))
+        frame.__provenance = L["SOURCE_LINE"]:format(
+            fromSource, ns.Compat.DateText(ns.Recommend.Stamp(mode, fromSource)))
+        if (sourceText:GetText() or "") == "" then
+            sourceText:SetText(frame.__provenance)
+            S:Recolor(sourceText, "textMuted")
+        end
     end
 
     -- Die Kategorien kommen aus den Zeilen selbst, also erst hier. Ein
@@ -3106,6 +3263,10 @@ function UI.Refresh()
             row.title:SetPoint("LEFT", S.space.sm + 58, 0)
             S:ApplyFont(row.title, "caption", "textSecondary")
             place(row, SUB_ROW_HEIGHT * (S.fontScale or 1))
+        elseif data.kind == "folio" then
+            -- Eine Reihe ist hoeher als eine Textzeile, aber niedriger
+            -- als dreizehn Zeilen untereinander.
+            place(row, 46 * (S.fontScale or 1))
         elseif data.kind == "note" then
             -- Eine Notiz ist eine Zeile Text, kein Gegenstand: Symbol
             -- klein, Text daneben auf halber Hoehe.
@@ -3753,6 +3914,12 @@ function UI.Relayout()
     local ok, err = pcall(UI.Refresh)
     layoutOnly = false
     if not ok then error(err) end
+end
+
+---Was gerade in der Fusszeile steht. Fuer Tests und /mc probe.
+---@return string
+function UI.FooterText()
+    return sourceText and sourceText:GetText() or ""
 end
 
 function UI.IsShown()
