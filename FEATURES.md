@@ -17,14 +17,24 @@ Open it: **`/mc`** or the button in the minimap's addon compartment.
 
 ## At a glance
 
-| | |
-|---|---|
-| **10 activities** | M+ (High Keys), M+ (+7 to +21), Raid Normal / Heroic / Mythic, 2v2, 3v3, Solo Shuffle, RBG, RBG Blitz |
-| **3 platforms** | raider.io, murlok.io, Warcraft Logs — individually or "All platforms" |
-| **All 40 specs** | Including classes you do not play — to look things up, or to shop for an alt |
-| **1,401 talent import strings** | Every one from a real player, every one copied with a click |
-| **2,472 player profiles** | The top players per spec and activity, with their full gear |
-| **Two languages** | English and German, correct on any client |
+- **Talent builds with import strings** — the most common build and its
+  alternatives, per dungeon in M+, per boss in raids, per bracket in PvP.
+  Copy, paste, done.
+- **Gear with drop sources** — five items per slot, where each one drops,
+  and tooltips at the level *your* keystone would give.
+- **Enchants & gems against your own gear** — what is still open, what
+  you already have, what to buy.
+- **Consumables** in Archon's groups, with your stock and a target.
+- **Stat targets** measured from the best, with your values next to them.
+- **Top players**, clickable — their string, their gear, their profile.
+- **Reminder** before you go in and at the auction house — and a tab that
+  shows what it checks.
+- **Guides** linked, never copied.
+- **Shopping lists to Auctionator** with quantities; **Shift-click** links
+  any item into chat or the auction house search.
+- **Every activity, every spec, three platforms** — and nothing shown that
+  no platform can answer.
+- **English and German**, right on any client.
 
 ---
 
@@ -140,6 +150,17 @@ fails verification is not offered as a build.
 activity leaves the sidebar, an activity without data leaves the menu, a
 platform without data leaves the picker. Example: there are no consumables
 under PvP because no platform measures them — so there is no tab for them.
+
+## By the numbers
+
+| | |
+|---|---|
+| **10 activities** | M+ (High Keys), M+ (+7 to +21), Raid Normal / Heroic / Mythic, 2v2, 3v3, Solo Shuffle, RBG, RBG Blitz |
+| **3 platforms** | raider.io, murlok.io, Warcraft Logs — individually or "All platforms" |
+| **All 40 specs** | Including classes you do not play — to look things up, or to shop for an alt |
+| **1,401 talent import strings** | Every one from a real player, every one copied with a click |
+| **2,472 player profiles** | The top players per spec and activity, with their full gear |
+| **Refreshed nightly** | The data are at most a day old |
 
 ---
 

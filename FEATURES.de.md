@@ -16,14 +16,24 @@ trägst und im Beutel hast, damit du weißt, was noch fehlt.
 
 ## Auf einen Blick
 
-| | |
-|---|---|
-| **10 Aktivitäten** | M+ (High Keys), M+ (+7 bis +21), Raid Normal / Heroisch / Mythisch, 2v2, 3v3, Solo Shuffle, RBG, RBG Blitz |
-| **3 Plattformen** | raider.io, murlok.io, Warcraft Logs — einzeln wählbar oder „Alle Plattformen" |
-| **Alle 40 Speccs** | Auch für Klassen, die du gar nicht spielst — zum Nachsehen oder zum Einkaufen für den Zweitcharakter |
-| **1.401 Talent-Importketten** | Jede von einem echten Spieler, jede mit einem Klick kopierbar |
-| **2.472 Spielerprofile** | Die Top-Spieler je Spec und Aktivität, mit kompletter Ausrüstung |
-| **Zwei Sprachen** | Deutsch und Englisch, auf jedem Client richtig |
+- **Talentbuilds mit Importkette** — der häufigste Build und seine
+  Alternativen, je Dungeon in M+, je Boss im Raid, je Klammer im PvP.
+  Kopieren, einfügen, fertig.
+- **Ausrüstung mit Fundort** — fünf Gegenstände je Platz, wo jeder fällt,
+  und Tooltips auf der Stufe, die *dein* Schlüsselstein gibt.
+- **Verzauberungen & Steine gegen deine Ausrüstung** — was noch offen ist,
+  was du schon hast, was du kaufen musst.
+- **Verbrauchsgüter** in Archons Gruppen, mit Bestand und Ziel.
+- **Zielwerte**, gemessen an den Besten, deine Werte daneben.
+- **Top-Spieler**, klickbar — ihre Kette, ihre Ausrüstung, ihr Profil.
+- **Erinnerung** vor dem Start und am Auktionshaus — und ein Reiter, der
+  zeigt, was sie prüft.
+- **Guides** verlinkt, nie kopiert.
+- **Einkaufslisten an Auctionator** mit Stückzahlen; **Shift-Klick**
+  verlinkt jeden Gegenstand in den Chat oder ins Suchfeld des Auktionshauses.
+- **Jede Aktivität, jede Spec, drei Plattformen** — und nichts angezeigt,
+  was keine Plattform beantworten kann.
+- **Deutsch und Englisch**, auf jedem Client richtig.
 
 ---
 
@@ -146,6 +156,17 @@ gewählte Aktivität verschwindet aus der Leiste, eine Aktivität ohne Daten
 aus dem Menü, eine Plattform ohne Daten aus der Auswahl. Beispiel: unter
 PvP gibt es keine Verbrauchsgüter, weil keine Plattform sie dort misst —
 also auch keinen Reiter dafür.
+
+## In Zahlen
+
+| | |
+|---|---|
+| **10 Aktivitäten** | M+ (High Keys), M+ (+7 bis +21), Raid Normal / Heroisch / Mythisch, 2v2, 3v3, Solo Shuffle, RBG, RBG Blitz |
+| **3 Plattformen** | raider.io, murlok.io, Warcraft Logs — einzeln wählbar oder „Alle Plattformen" |
+| **Alle 40 Speccs** | Auch für Klassen, die du gar nicht spielst — zum Nachsehen oder zum Einkaufen für den Zweitcharakter |
+| **1.401 Talent-Importketten** | Jede von einem echten Spieler, jede mit einem Klick kopierbar |
+| **2.472 Spielerprofile** | Die Top-Spieler je Spec und Aktivität, mit kompletter Ausrüstung |
+| **Jede Nacht neu** | Die Daten sind höchstens einen Tag alt |
 
 ---
 
