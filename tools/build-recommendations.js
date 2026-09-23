@@ -48,6 +48,16 @@ let newest = 0;
 const profileParts = [];
 // Fuer das Spieler-Addon: Modus -> Spec -> Spieler mit Ausruestung.
 const profilesOut = {};
+// Zwei Quellen koennen denselben Spieler fuehren; er steht dann einmal.
+function addProfiles(mode, specID, profiles) {
+  const byMode = profilesOut[mode] || (profilesOut[mode] = {});
+  const list = byMode[specID] || (byMode[specID] = []);
+  for (const pl of profiles) {
+    if (!pl.found) continue;
+    if (list.some((x) => x.name === pl.name && x.realm === pl.realm)) continue;
+    list.push(pl);
+  }
+}
 
 for (const name of fs.readdirSync(dir).sort()) {
   if (!name.endsWith('.json')) continue;
@@ -92,6 +102,13 @@ for (const name of fs.readdirSync(dir).sort()) {
   mode[part.source] = part;
   sources.add(part.source);
   newest = Math.max(newest, part.builtOn || 0);
+  // Eine Quelle, die ihre Spieler samt Ausruestung mitbringt (Battle.net):
+  // die Profile gehen in das Spieler-Addon, die Rangliste bleibt hier.
+  for (const [specID, entry] of Object.entries(part.specs)) {
+    if (!entry.profiles) continue;
+    addProfiles(part.mode, specID, entry.profiles);
+    delete entry.profiles;
+  }
   console.log(`  + ${name}: ${Object.keys(part.specs).length} Speccs -> ${key} / ${part.source}`);
 }
 
@@ -122,8 +139,7 @@ for (const part of profileParts) {
       players += 1;
     }
     // Und die Details fuer die Spieleransicht - alle, verifiziert oder nicht.
-    const list = (profilesOut[part.mode] = profilesOut[part.mode] || {});
-    list[specID] = (entry.players || []).filter((pl) => pl.found).slice(0, 10);
+    addProfiles(part.mode, specID, (entry.players || []).slice(0, 10));
   }
   console.log(`  + prof-${part.mode}.json: ${builds} Builds ergaenzt, ${players} Ranglisten, ${Object.keys(part.specs).length} Speccs Profile`);
 }
@@ -171,7 +187,12 @@ out.push('-- nur, WAS benutzt wird.');
 out.push('');
 out.push('MetaCodex_Recommendations = {');
 out.push(`  builtOn = ${newest},`);
-out.push('  sources = { ' + [...sources].map(luaString).join(', ') + ' },');
+const SOURCE_ORDER = ['murlok.io', 'raider.io', 'Warcraft Logs', 'Battle.net'];
+const orderedSources = [...sources].sort((a, b) => {
+  const ia = SOURCE_ORDER.indexOf(a), ib = SOURCE_ORDER.indexOf(b);
+  return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b);
+});
+out.push('  sources = { ' + orderedSources.map(luaString).join(', ') + ' },');
 if (Object.keys(dungeons).length) {
   out.push('  -- Welche Dungeons zu einem Modus einzeln vorliegen.');
   out.push('  dungeons = {');
@@ -316,10 +337,11 @@ for (const [mode, bySource] of Object.entries(byMode)) {
       if (entry.players && entry.players.length) {
         out.push('            players = { ' + entry.players.slice(0, 10)
           .map((p) => '{ rank = ' + p.rank
+            + (p.rating ? ', rating = ' + p.rating : '')
             + ', name = ' + luaString(p.name)
             + ', realm = ' + luaString(p.realm)
-            + ', url = ' + luaString('https://murlok.io/character/'
-              + p.region + '/' + p.slug + '/' + p.character) + ' }')
+            + ', url = ' + luaString(p.url || ('https://murlok.io/character/'
+              + p.region + '/' + p.slug + '/' + p.character)) + ' }')
           .join(', ') + ' },');
       }
       if (entry.gear && Object.keys(entry.gear).length) {

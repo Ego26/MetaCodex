@@ -112,6 +112,10 @@ gemessen hat, und ob Auctionator da ist.
   keinen Knopf.
 - **Dungeon / Boss** (bei Talenten): alle acht Dungeons der Saison, oder
   jeder Boss jedes laufenden Raids.
+- **Held-Talente** (bei Talenten): alle Bäume oder einer — die Talente und
+  Builds nur dieses Baums, mit seinem Anteil an den Besten.
+- **Fundort** (bei Ausrüstung): eine Instanz, PvP-Händler, Handwerk — „was
+  fällt hier".
 - **Schlüsselstein** (bei Ausrüstung): Champion / Held / Große Schatzkammer,
   jede Stufe mit den Schlüsseln, die sie geben.
 - **Kategorie / Platz**: Listen lassen sich auf einen Platz oder eine Art
@@ -176,11 +180,9 @@ also auch keinen Reiter dafür.
 
 ## Was noch geplant ist
 
-- **Held-Talente getrennt** — Builds je Held-Talent-Baum statt gemischt.
 - **Omnium Folio** — welche Folio-Runen die Besten nutzen, als eigener Reiter.
 - **Ein Fundort für jeden Gegenstand** — Händler und Weltquellen für die
   Stücke, die noch „kein Instanzdrop" heißen.
-- **Filter nach Fundort** — „Was fällt hier", nicht nur „wo fällt das".
 
 ---
 

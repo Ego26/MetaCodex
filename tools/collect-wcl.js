@@ -781,7 +781,8 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
   try {
     const tm = JSON.parse(fs.readFileSync(path.join(BASE, 'tools', 'data', 'trait-map.json'), 'utf8'));
     for (const tree of Object.values(tm.trees || {})) {
-      for (const node of tree.nodes) for (const e of node.entries) if (e.subTree) entrySubTree.set(e.id, e.subTree);
+      // Der Held-Baum steht am Knoten; ein Eintrag traegt ihn nur selten selbst.
+      for (const node of tree.nodes) for (const e of node.entries) { const sub = node.subTree || e.subTree; if (sub) entrySubTree.set(e.id, sub); }
     }
     for (const row of tm.folio || []) for (const r of row) for (const a of r.auras || []) folioAura.set(a, r.spell);
     console.log('Baumkarte: ' + entrySubTree.size + ' Held-Eintraege, ' + folioAura.size + ' Folio-Auren');

@@ -6,8 +6,9 @@
 # finished addon is packed and attached to the release "nightly" - always
 # the same release, always the newest file.
 #
-# The Warcraft Logs credentials come from the repository secrets
-# WCL_CLIENT_ID and WCL_CLIENT_SECRET. They are in no file.
+# The Warcraft Logs and Battle.net credentials come from the repository
+# secrets WCL_CLIENT_ID / WCL_CLIENT_SECRET and BNET_CLIENT_ID /
+# BNET_CLIENT_SECRET. They are in no file.
 name: Daily data
 
 on:
@@ -41,6 +42,8 @@ jobs:
         env:
           WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
           WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
+          BNET_CLIENT_ID: ${{ secrets.BNET_CLIENT_ID }}
+          BNET_CLIENT_SECRET: ${{ secrets.BNET_CLIENT_SECRET }}
         run: node tools/collect-all.js .
 
       - name: Tests against the fresh data

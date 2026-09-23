@@ -89,6 +89,14 @@ const STEPS = [
     env: { MC_ENCOUNTERS: '8', MC_REPORTS: '400' },
   },
   {
+    key: 'bnet',
+    what: 'Battle.net: PvP-Ranglisten und die Profile der Spitze',
+    why: 'Blizzard fuehrt Wertung, Import-String und PvP-Talente selbst - die Quelle, aus der die anderen abschreiben. Ohne Zugangsdaten wird der Schritt uebersprungen.',
+    script: 'collect-bnet.js',
+    args: [],
+    env: {},
+  },
+  {
     key: 'profiles',
     what: 'Profile der Top-Spieler: Ketten fuer Raid und PvP, Ausruestung',
     why: 'Die einzige Quelle einer fertigen Kette ist der Client des Spielers - und das Profil zeigt sie. Geprueft gegen Kampf und Heatmap.',

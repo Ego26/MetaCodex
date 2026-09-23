@@ -108,6 +108,9 @@ whether Auctionator is present.
   not offered; if only one remains there is no button.
 - **Dungeon / boss** (talents): all eight dungeons of the season, or every
   boss of every current raid.
+- **Hero talents** (talents): all trees, or one — the talents and builds of
+  that tree alone, with its share of the best.
+- **Source** (gear): one instance, PvP vendor, crafted — "what drops here".
 - **Keystone** (gear): Champion / Hero / Great Vault, every rank with the
   keys that award it.
 - **Category / slot**: lists can be narrowed to one slot or one kind.
@@ -169,11 +172,9 @@ under PvP because no platform measures them — so there is no tab for them.
 
 ## What is planned
 
-- **Hero talents separately** — builds per hero-talent tree, not mixed.
 - **Omnium Folio** — which folio runes the best use, as its own tab.
 - **A source for every item** — vendors and world sources for the pieces
   that still read "not an instance drop".
-- **Filter by source** — "what drops here", not only "where does this drop".
 
 ---
 
