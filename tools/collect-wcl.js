@@ -1122,7 +1122,18 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
     //   und einmal fuer den ganzen Abend. Sie zaehlen aus dem ganzen
     //   Bericht - sonst waere jeder zweite Lauf "ohne Speise", obwohl
     //   die Wirkung noch steht.
-    const fightFrom = thisFight ? Number(thisFight.startTime) : null;
+    // Eine halbe Minute Vorlauf, denn der Praetrank gehoert dazu.
+    //
+    // Getrunken wird er Sekunden VOR dem Pull - das ist der Sinn der
+    // Sache. Ein Fenster, das exakt beim Start beginnt, wuerfe genau
+    // die Traenke weg, die am sichersten zu diesem Kampf gehoeren, und
+    // der Anteil der Kampftraenke fiele auf die paar Nachschuebe
+    // mittendrin zusammen. Im Raid waere das der groesste Teil.
+    //
+    // Dreissig Sekunden sind lang genug fuer das Vorglaesschen und kurz
+    // genug, um nicht den Kampf davor einzusammeln.
+    const PRE_PULL = 30000;
+    const fightFrom = thisFight ? Number(thisFight.startTime) - PRE_PULL : null;
     const fightTo = thisFight ? Number(thisFight.endTime) : null;
     const perFight = new Set(['potion', 'heal']);
     try {
