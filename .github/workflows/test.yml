@@ -1,0 +1,44 @@
+# On every push: load the addon in a real Lua VM and run both test suites.
+#
+# The tests need data (catalog, recommendations), and those are not in
+# git. They come from the latest nightly package - the same files a player
+# would get. If there is none yet, the tests run without and report what
+# they are missing.
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lua:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Fetch the data from the latest nightly
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download nightly --pattern 'MetaCodex-*.zip' --dir /tmp/nightly
+          cd /tmp/nightly && unzip -q MetaCodex-*.zip
+          for addon in MetaCodex_Data MetaCodex_Dungeons MetaCodex_Players; do
+            mkdir -p "$GITHUB_WORKSPACE/$addon"
+            cp -r "/tmp/nightly/$addon/." "$GITHUB_WORKSPACE/$addon/"
+          done
+
+      - name: Test suites
+        working-directory: Tests
+        run: |
+          npm install --no-audit --no-fund
+          node run.js smoke_test.lua
+          node run.js

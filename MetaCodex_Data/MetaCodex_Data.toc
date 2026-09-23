@@ -1,0 +1,19 @@
+## Interface: 120100
+## Title: MetaCodex Data
+## Author: Ego26
+## Version: @project-version@
+## X-License: MIT
+
+# Nachladbar, und das ist der ganze Zweck dieses Ordners.
+#
+# Die Empfehlungen sind Lua-Quelltext, der beim Laden geparst wird. Mit
+# Ausruestung, Zielwerten und spaeter Talenten je Dungeon geht das in die
+# Megabyte - und jemand, der einmal am Abend einkauft, zahlt das bei jedem
+# Login. Hier wird es erst geladen, wenn das Fenster aufgeht.
+#
+# Kein SavedVariables, keine Ereignisse, kein Code: nur zwei Tabellen.
+## LoadOnDemand: 1
+## Dependencies: MetaCodex
+
+Catalog.lua
+Recommendations.lua

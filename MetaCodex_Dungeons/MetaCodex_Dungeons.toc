@@ -1,0 +1,19 @@
+## Interface: 120100
+## Title: MetaCodex Dungeons
+## Author: Ego26
+## Version: @project-version@
+## X-License: MIT
+
+# Die Auswertung je Dungeon, getrennt vom Rest.
+#
+# Gemessen lohnt sie sich: bei 18 % der Ausruestungsplaetze steht ein
+# anderer Gegenstand oben als in der Gesamtsicht. Sie wiegt aber auch fast
+# ein Megabyte, und die meisten waehlen nie einen einzelnen Dungeon.
+#
+# Deshalb ein eigenes Addon, das erst laedt, wenn jemand danach fragt. Wer
+# es nicht anfasst, zahlt nichts dafuer - und wer es loescht, verliert nur
+# die Dungeon-Auswahl, nicht das Addon.
+## LoadOnDemand: 1
+## Dependencies: MetaCodex
+
+Dungeons.lua

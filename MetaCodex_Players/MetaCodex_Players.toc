@@ -1,0 +1,15 @@
+## Interface: 120100
+## Title: MetaCodex Players
+## Author: Ego26
+## Version: @project-version@
+## X-License: MIT
+
+# Die Profile der Top-Spieler: Ausruestung mit allen Bonus-IDs und die
+# Talentkette, je Spec und Aktivitaet.
+#
+# Ein eigenes Addon, wie die Dungeons: es laedt erst, wenn jemand auf
+# einen Spieler klickt. Wer das nie tut, traegt die Daten nicht.
+## LoadOnDemand: 1
+## Dependencies: MetaCodex
+
+Players.lua

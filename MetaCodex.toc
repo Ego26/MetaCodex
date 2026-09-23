@@ -1,0 +1,59 @@
+## Interface: 120100
+## Title: MetaCodex
+## Title-deDE: MetaCodex
+## Notes: What the best players actually run - talent builds with import strings, gear with drop sources, enchants, gems, consumables, stat targets and the top players per spec, for M+, raid and every PvP bracket. Measured from raider.io, murlok.io and Warcraft Logs, never copied from a guide. Reads your gear and hands the missing pieces to Auctionator. Type /mc.
+## Notes-deDE: Was die Besten wirklich spielen - Talentbuilds mit Importkette, Ausruestung mit Fundort, Verzauberungen, Steine, Verbrauchsgueter, Zielwerte und die Top-Spieler je Spec, fuer M+, Raid und jede PvP-Klammer. Gemessen aus raider.io, murlok.io und Warcraft Logs, nie aus einem Guide abgeschrieben. Liest deine Ausruestung und uebergibt das Fehlende an Auctionator. Tippe /mc.
+## Author: Ego26
+## Version: @project-version@
+## SavedVariables: MetaCodexDB
+## IconTexture: Interface\AddOns\MetaCodex\Media\Textures\logo
+## AddonCompartmentFunc: MetaCodex_OnCompartmentClick
+## X-License: MIT
+## X-Category: Class
+## X-Website: https://github.com/Ego26/MetaCodex
+
+# Auctionator ist ausdruecklich KEINE harte Abhaengigkeit.
+#
+# Ohne ihn zeigt MetaCodex die Liste trotzdem: was fehlt, welcher Stein, welche
+# Verzauberung, wie viele Stueck. Das allein hat schon Wert. Nur die
+# Uebergabe ins Auktionshaus faellt weg, und dann ist der Knopf grau statt
+# das Addon tot.
+## OptionalDeps: Auctionator
+
+# --- Kern, Teil 1 (Reihenfolge ist bindend) ---
+Core\Init.lua
+Core\Locale.lua
+Core\Style.lua
+
+# --- Sprachen: enUS ist die Basis und muss zuerst geladen werden ---
+Locales\enUS.lua
+Locales\deDE.lua
+
+# --- Daten ---
+#
+# Die Tabellen liegen NICHT hier, sondern im nachladbaren Addon
+# MetaCodex_Data. Sie sind fast ein Megabyte Lua-Quelltext, und wer sie bei
+# jedem Login parst, zahlt Ladezeit fuer etwas, das er vielleicht einmal am
+# Abend oeffnet. Geladen wird beim ersten Oeffnen des Fensters, ueber
+# Core/Data.lua.
+#
+# Fehlt das Datenaddon, laeuft MetaCodex weiter - dann waehlt der Spieler
+# die Kennwerte selbst.
+
+# --- Kern, Teil 2 ---
+Core\Compat.lua
+Core\Data.lua
+Core\Catalog.lua
+Core\Recommend.lua
+Core\Profile.lua
+Core\Gear.lua
+Core\List.lua
+Core\Auctionator.lua
+Core\Guides.lua
+Core\UI.lua
+Core\Remind.lua
+Core\Probe.lua
+Core\Slash.lua
+
+# --- Startet den Ablauf, deshalb ganz zum Schluss ---
+Core\Boot.lua

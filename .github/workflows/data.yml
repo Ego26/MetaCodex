@@ -1,0 +1,78 @@
+# The daily data run - the same steps as tools/collect-all.js, only on
+# GitHub instead of a machine that has to be on in the morning.
+#
+# What comes out does NOT go into git: 13 MB of Lua that change every
+# night would bloat the repository by gigabytes a year. Instead the
+# finished addon is packed and attached to the release "nightly" - always
+# the same release, always the newest file.
+#
+# The Warcraft Logs credentials come from the repository secrets
+# WCL_CLIENT_ID and WCL_CLIENT_SECRET. They are in no file.
+name: Daily data
+
+on:
+  schedule:
+    # 04:30 UTC - after the daily leaderboard reset, before the European
+    # evening.
+    - cron: "30 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-data
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    # Warcraft Logs waits for its hourly quota; a full run can take two
+    # hours.
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Collect every source and build the tables
+        env:
+          WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
+          WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
+        run: node tools/collect-all.js .
+
+      - name: Tests against the fresh data
+        working-directory: Tests
+        run: |
+          npm install --no-audit --no-fund
+          node run.js smoke_test.lua
+          node run.js
+
+      - name: Build the package
+        id: pack
+        run: |
+          STAMP="nightly-$(date -u +%Y%m%d)"
+          tools/package.sh "$STAMP" dist
+          echo "stamp=$STAMP" >> "$GITHUB_OUTPUT"
+
+      # Keep the intermediate files (tools/data) for seven days: when a
+      # run builds something odd, one can look at what it was built from.
+      - name: Keep the intermediate files
+        uses: actions/upload-artifact@v4
+        with:
+          name: tools-data-${{ steps.pack.outputs.stamp }}
+          path: tools/data/*.json
+          retention-days: 7
+
+      - name: Update the "nightly" release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: nightly
+          name: Nightly data
+          prerelease: true
+          body: |
+            The addon with the data of ${{ steps.pack.outputs.stamp }}.
+            Unpack into `Interface/AddOns` - it is four folders.
+          files: dist/MetaCodex-${{ steps.pack.outputs.stamp }}.zip

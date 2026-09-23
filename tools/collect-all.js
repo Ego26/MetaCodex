@@ -1,0 +1,151 @@
+// Der taegliche Lauf: alle Quellen in der richtigen Reihenfolge.
+//
+//     node tools/collect-all.js <Pfad zum Repo> [nur=<quelle>]
+//
+// WARUM ES DIESE DATEI GIBT. Die Aufteilung der Quellen ist eine
+// Entscheidung, und eine Entscheidung, die nur in einem Dokument steht,
+// wird beim naechsten Mal anders getroffen. Hier steht sie als Ablauf:
+//
+//   raider.io       M+: Ausruestung, Verzauberungen, Steine, Talente.
+//                   Offene API, kein Stundenkontingent.
+//
+//   murlok.io       Fertige Prozentwerte und alle PvP-Klammern.
+//                   Abrufbar, aggregiert, kein Kontingent.
+//
+//   Warcraft Logs   NUR was sonst niemand veroeffentlicht:
+//                   Verbrauchsgueter und Raid.
+//
+// Die letzte Zeile ist der Punkt. Warcraft Logs rechnet in Punkten je
+// Stunde, und ein voller Durchgang ueber M+ UND Raid hat sie an einem
+// Abend verbrannt - drei Sammlungen danach starben an HTTP 429 und
+// schrieben nichts. Seit M+ von raider.io kommt, bleibt bei Warcraft Logs
+// nur der Rest, und der passt.
+//
+// Der Katalog laeuft zuerst: die Sammler brauchen die Verzauberungskarte,
+// und eine veraltete Karte laesst Verzauberungen still verschwinden.
+
+const path = require('path');
+const { spawn } = require('child_process');
+
+const BASE = process.argv[2];
+if (!BASE) {
+  console.error('Aufruf: node tools/collect-all.js <Pfad zum Repo> [nur=<quelle>]');
+  process.exit(1);
+}
+const ONLY = (process.argv.find((a) => a.startsWith('nur=')) || '').slice(4);
+
+// Jeder Schritt nennt, WAS er holt und WARUM von dort. Wer hier etwas
+// verschiebt, soll die Begruendung mitverschieben muessen.
+const STEPS = [
+  {
+    key: 'catalog',
+    what: 'Katalog aus den Spieldaten',
+    why: 'Die Verzauberungskarte muss stimmen, bevor jemand sie benutzt.',
+    script: 'build-catalog.js',
+    args: [],
+    env: {},
+  },
+  {
+    key: 'raiderio',
+    what: 'M+: Ausruestung, Verzauberungen, Steine, Talente',
+    why: 'Offene API ohne Kontingent, und die Talentketten liegen fertig vor.',
+    script: 'collect-raiderio.js',
+    args: [],
+    env: { MC_DUNGEONS: '1', MC_PAGES: '30', MC_PROFILES: '1200' },
+  },
+  {
+    key: 'murlok',
+    what: 'Fertige Anteile und die PvP-Klammern',
+    why: 'Aggregiert man nicht nach, was schon aggregiert vorliegt.',
+    script: 'collect-murlok.js',
+    args: ['m+,2v2,3v3,rbg,solo,blitz'],
+    env: {},
+  },
+  {
+    key: 'raid',
+    what: 'Raid, heroisch',
+    why: 'Kein Aggregator veroeffentlicht Raiddaten in dieser Tiefe.',
+    script: 'collect-wcl.js',
+    args: ['raid', '4'],
+    // Alle Bosse aller laufenden Raids; 200 Berichte reihum verteilt.
+    env: { MC_DUNGEONS: '1', MC_REPORTS: '200' },
+  },
+  {
+    key: 'raid-mythic',
+    what: 'Raid, mythisch',
+    why: 'Andere Schwierigkeit, andere Ausruestung.',
+    script: 'collect-wcl.js',
+    args: ['raid', '5'],
+    env: { MC_DUNGEONS: '1', MC_REPORTS: '160' },
+  },
+  {
+    key: 'consumables',
+    what: 'M+: Verbrauchsgueter',
+    why: 'Speisen, Traenke und Oele fuehrt kein Aggregator - nur die Logs.',
+    script: 'collect-wcl.js',
+    args: ['mplus'],
+    // 400 statt 250: mit 250 fehlten zwoelf Speccs ganz - ein Wiederherstellungs-
+    // Druide war in keinem einzigen Bericht, und sein Abschnitt blieb leer.
+    env: { MC_ENCOUNTERS: '8', MC_REPORTS: '400' },
+  },
+  {
+    key: 'profiles',
+    what: 'Profile der Top-Spieler: Ketten fuer Raid und PvP, Ausruestung',
+    why: 'Die einzige Quelle einer fertigen Kette ist der Client des Spielers - und das Profil zeigt sie. Geprueft gegen Kampf und Heatmap.',
+    script: 'collect-profiles.js',
+    args: [],
+    env: {},
+  },
+  {
+    key: 'build',
+    what: 'Alles zu den Addon-Tabellen zusammenbauen',
+    why: '',
+    script: 'build-recommendations.js',
+    args: [],
+    env: {},
+  },
+];
+
+function run(step) {
+  return new Promise((resolve) => {
+    const file = path.join(BASE, 'tools', step.script);
+    const child = spawn(process.execPath, [file, BASE, ...step.args], {
+      env: { ...process.env, ...step.env },
+      stdio: 'inherit',
+    });
+    child.on('exit', (code) => resolve(code === 0));
+    child.on('error', () => resolve(false));
+  });
+}
+
+(async () => {
+  const started = Date.now();
+  const failed = [];
+
+  for (const step of STEPS) {
+    if (ONLY && ONLY !== step.key) continue;
+    console.log('\n' + '='.repeat(64));
+    console.log(step.key + ': ' + step.what);
+    if (step.why) console.log('  ' + step.why);
+    console.log('='.repeat(64));
+
+    const ok = await run(step);
+    if (!ok) {
+      failed.push(step.key);
+      // Weitermachen statt abbrechen. Jeder Schritt schreibt seine eigene
+      // Datei; ein gescheiterter macht die anderen nicht wertlos, und der
+      // Zusammenbau nimmt, was da ist.
+      console.log('\n  ! ' + step.key + ' fehlgeschlagen - der Rest laeuft weiter.');
+    }
+  }
+
+  const minutes = Math.round((Date.now() - started) / 60000);
+  console.log('\n' + '='.repeat(64));
+  console.log('Fertig nach ' + minutes + ' Minuten.');
+  if (failed.length) {
+    console.log('Fehlgeschlagen: ' + failed.join(', '));
+    console.log('Einzeln nachholen: node tools/collect-all.js . nur=' + failed[0]);
+    process.exit(1);
+  }
+  console.log('Jetzt ins Spiel: tools/sync.ps1');
+})();

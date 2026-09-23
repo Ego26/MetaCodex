@@ -1,0 +1,2692 @@
+-- Das Fenster.
+--
+-- Aufbau nach egoUIs UI-Konzept: eine feste Grundflaeche, persistente
+-- Navigation links, Inhalt rechts, Statuszeile unten. Kein Blizzard-Rahmen,
+-- keine aufpoppenden Zweitfenster.
+--
+-- Zwei Dinge entscheiden hier ueber den Eindruck, und beide sind
+-- unscheinbar: der 1-px-Rahmen muss auf jeder Aufloesung ein Pixel sein
+-- (ns.Style.Pixel), und es duerfen nicht mehr Schriftgroessen vorkommen,
+-- als in ns.Style.font stehen. Wer davon abweicht, baut wieder ein
+-- Addon-Optionsfenster aus 2012.
+
+local _, ns = ...
+
+local UI = {}
+ns.UI = UI
+
+local L = ns.L
+local S = ns.Style
+
+-- Vorwaerts angekuendigt, und zwar GANZ oben.
+--
+-- Dreimal derselbe Fehler an diesem Abend: eine local-Funktion, die
+-- weiter unten steht, aber weiter oben in einem Klickhaken benutzt wird.
+-- Lua sieht dort dann eine globale Leere, und der Knopf tut nichts -
+-- ohne Fehlermeldung, solange niemand klickt.
+--
+-- Hier stehen alle, die aus mehreren Richtungen gebraucht werden.
+local activeSection
+
+local linkFrame
+local textFrame
+local frame, rows, scrollChild
+local navButtons, groupHeads = {}, {}
+local statButtons, optionChecks = { main = {}, second = {}, tertiary = {} }, {}
+local headerText, hintText, sourceText, sectionTitle, sectionCount
+
+-- Die gebaute Groesse - und die Grenzen, in denen man zieht. Unter 760
+-- Pixeln passt die Kopfzeile nicht mehr, ueber 1600 liest niemand mehr.
+local WIDTH, HEIGHT = 960, 640
+local MIN_W, MIN_H, MAX_W, MAX_H = 760, 480, 1600, 1100
+
+-- Die nutzbare Breite einer Zeile - aus der FENSTERBREITE, nicht aus
+-- einer Zahl. Sie MUSS der Breite des Scrollkindes entsprechen: einmal
+-- war die Zeile zwanzig Pixel breiter als ihr Behaelter, und genau diese
+-- zwanzig Pixel trug die Prozentspalte - aus "78%" wurde "78".
+--
+-- Als Funktion, weil das Fenster ziehbar ist. Jede Breite, die von
+-- ihr abhaengt, wird beim Auffrischen neu gesetzt.
+local SIDEBAR = 196
+local function contentWidth()
+    local w = frame and frame:GetWidth()
+    if type(w) ~= "number" or w <= 0 then w = WIDTH end
+    return w - SIDEBAR - 24 * 2 - 20
+end
+
+-- Wo die Zielwert-Bahn beginnt und wie breit sie ist.
+local BAR_X = 24 + 26 + 200
+local function barWidth()
+    return contentWidth() - BAR_X - 96
+end
+
+-- Zielwerte brauchen mehr Hoehe als eine Einkaufszeile: Bahn UND Zahl.
+local STAT_ROW_HEIGHT = 46
+local HEADER, FOOTER = 56, 48
+local ROW_HEIGHT = 46
+
+
+-- Aus welchen Abschnitten man etwas kauft.
+--
+-- Talente kauft man nicht, Zielwerte auch nicht, und Ausruestung faellt -
+-- ausser dem Handwerksteil - im Dungeon. Die beiden Knoepfe unten gehoeren
+-- deshalb nur hierher; ueberall sonst waren sie eine Einladung zu einer
+-- Suche, die nichts findet.
+local SHOPPING = { enchants = true, consumables = true, remind = true }
+
+-- Wo ein einzelner Dungeon die Antwort aendert: nur bei den Talenten.
+--
+-- Bei der Ausruestung war er auch, und dort unnoetig: welcher Gegenstand
+-- oben steht, entscheidet die Spec und nicht der Dungeon - und wo er
+-- FAELLT, steht in jeder Zeile.
+local DUNGEON_SECTIONS = { talents = true }
+
+-- Wessen Profil gerade offen ist, statt eines Abschnitts. Gesetzt vom
+-- Klick auf eine Zeile der Rangliste, geloescht vom Zurueck-Knopf oder
+-- vom Wechsel des Abschnitts.
+local viewingPlayer
+
+local SECTIONS = {
+    { key = "guides",      group = "GROUP_KNOW" },
+    { key = "stats",       group = "GROUP_KNOW" },
+    { key = "talents",     group = "GROUP_KNOW" },
+    { key = "players",     group = "GROUP_KNOW" },
+
+    { key = "gear",        group = "GROUP_GEAR" },
+    { key = "enchants",    group = "GROUP_GEAR" },
+    { key = "consumables", group = "GROUP_GEAR" },
+    { key = "remind",      group = "GROUP_GEAR" },
+    { key = "info",        group = "GROUP_ABOUT" },
+}
+
+local GROUPS = { "GROUP_KNOW", "GROUP_GEAR", "GROUP_ABOUT" }
+
+-- ------------------------------------------------------------- Bausteine
+
+local function makeButton(parent, width, height, label, onClick)
+    local button = CreateFrame("Button", nil, parent)
+    button:SetSize(width, height)
+    button.bg = S:Fill(button, "bgOverlay")
+    button.border = S:Border(button, "borderSubtle")
+    button.label = S:Text(button, "body", "textPrimary")
+    button.label:SetPoint("CENTER")
+    button.label:SetJustifyH("CENTER")
+    button.label:SetText(label or "")
+    button:SetScript("OnEnter", function(self) self.bg:SetVertexColor(S:Color("bgHover")) end)
+    button:SetScript("OnLeave", function(self)
+        self.bg:SetVertexColor(S:Color(self.__active and "bgHover" or "bgOverlay"))
+    end)
+    if onClick then button:SetScript("OnClick", onClick) end
+    return button
+end
+
+local function setButtonActive(button, active)
+    button.__active = active and true or false
+    button.bg:SetVertexColor(S:Color(active and "bgHover" or "bgOverlay"))
+    S:Recolor(button.label, active and "textPrimary" or "textSecondary")
+end
+
+local function makeStatRow(parent, labelKey, key, values, y)
+    local caption = S:Text(parent, "caption", "textMuted")
+    caption:SetPoint("TOPLEFT", S.space.lg, y)
+    caption:SetWidth(84)
+    caption:SetText(L["LBL_" .. labelKey])
+
+    local x = S.space.lg + 88
+    for _, value in ipairs(values) do
+        local button = makeButton(parent, 76, 22, L["STATSHORT_" .. value], function()
+            local current = ns.Profile.Current()
+            ns.Profile.Set(key, current[key] == value and nil or value)
+            if key == "main" and not current.second then
+                ns.Profile.Set("second", current.main)
+            end
+            UI.Refresh()
+        end)
+        button:SetPoint("TOPLEFT", x, y + 4)
+        statButtons[key][value] = button
+        x = x + 80
+    end
+    return y - 28
+end
+
+local function makeCheck(parent, labelKey, key, x, y)
+    local check = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
+    check:SetPoint("TOPLEFT", x, y)
+    check:SetSize(20, 20)
+    check.text = S:Text(check, "caption", "textSecondary")
+    check.text:SetPoint("LEFT", check, "RIGHT", 2, 0)
+    check.text:SetText(L[labelKey])
+    check:SetScript("OnClick", function(self)
+        ns.Profile.Set(key, self:GetChecked() and true or false)
+        UI.Refresh()
+    end)
+    optionChecks[key] = check
+    return check
+end
+
+-- ---------------------------------------------------------------- Menues
+
+local function contextMenu(anchor, title, entries, onPick)
+    if MenuUtil and MenuUtil.CreateContextMenu then
+        MenuUtil.CreateContextMenu(anchor, function(_, root)
+            root:CreateTitle(title)
+            for _, entry in ipairs(entries) do
+                root:CreateButton(entry.label, function() onPick(entry) UI.Refresh() end)
+            end
+        end)
+        return
+    end
+    -- Ohne Menue-API bleibt Weiterschalten. Nicht schoen, aber es fuehrt
+    -- zum selben Ziel und bricht nicht.
+    if #entries == 0 then return end
+    onPick(entries[1])
+    UI.Refresh()
+end
+
+---Klasse und Spezialisierung waehlen.
+---@param anchor table
+function UI.OpenSpecPicker(anchor)
+    local ownClass = ns.Compat.PlayerClassID()
+
+    if not (MenuUtil and MenuUtil.CreateContextMenu) then
+        local specs = ns.Compat.SpecsForClass(ownClass)
+        if #specs == 0 then return end
+        local current, index = ns.Profile.SelectedSpec(), 1
+        for i, spec in ipairs(specs) do
+            if spec.id == current then index = i % #specs + 1 break end
+        end
+        ns.Profile.Select(ownClass, specs[index].id)
+        UI.Refresh()
+        return
+    end
+
+    MenuUtil.CreateContextMenu(anchor, function(_, root)
+        root:CreateTitle(L["LBL_SPEC"])
+        root:CreateButton(L["SPEC_ACTIVE"], function()
+            ns.Profile.SelectActive()
+            UI.Refresh()
+        end)
+
+        -- Weitere Speccs fuer die EINKAUFSLISTE, nicht fuer die Anzeige.
+        -- Der Unterschied steht in der Ueberschrift, sonst sucht jemand
+        -- vergeblich nach zwei Spalten im Fenster.
+        local own = ns.Compat.SpecsForClass(ownClass)
+        if #own > 1 then
+            local sub = root:CreateButton(L["SPEC_ALSO_BUY"])
+            for _, spec in ipairs(own) do
+                sub:CreateCheckbox(spec.name, function()
+                    return ns.Profile.ListSpecs()[spec.id] == true
+                end, function()
+                    ns.Profile.ToggleListSpec(spec.id)
+                    UI.Refresh()
+                    return MenuResponse and MenuResponse.Refresh or nil
+                end)
+            end
+        end
+        -- Klassenfarbe und Specsymbol: in WoW erkennt man eine Klasse an
+        -- ihrer Farbe, lange bevor man ihren Namen gelesen hat. Ein
+        -- schwarz-weisses Menue waere hier schlicht langsamer zu bedienen.
+        local function addClass(entry)
+            local specs = ns.Compat.SpecsForClass(entry.id)
+            if #specs == 0 then return end
+            local color = ns.Compat.ClassColor(entry.file)
+            local submenu = root:CreateButton(("|cff%s%s|r"):format(color, entry.name))
+            for _, spec in ipairs(specs) do
+                local icon = spec.icon and ("|T%d:16:16:0:0|t "):format(spec.icon) or ""
+                submenu:CreateButton(("%s|cff%s%s|r"):format(icon, color, spec.name), function()
+                    ns.Profile.Select(entry.id, spec.id)
+                    UI.Refresh()
+                end)
+            end
+        end
+        local classes = ns.Compat.Classes()
+        for _, entry in ipairs(classes) do if entry.id == ownClass then addClass(entry) end end
+        for _, entry in ipairs(classes) do if entry.id ~= ownClass then addClass(entry) end end
+    end)
+end
+
+---Aktivitaet waehlen. Nur die, zu denen es fuer diesen Abschnitt etwas
+---gibt - siehe UI.SectionHasData.
+local function openActivityPicker(anchor)
+    -- Nach Gruppen, nicht als Liste von acht.
+    --
+    -- M+ hat zwei Stichproben, Raid drei Schwierigkeiten, PvP fuenf
+    -- Klammern. Flach untereinander liest sich das wie eine Aufzaehlung;
+    -- in Untermenues wie eine Auswahl.
+    local byKey = {}
+    for _, mode in ipairs(ns.MODES) do byKey[mode.key] = mode end
+
+    -- Was keine Daten hat, steht nicht zur Wahl.
+    --
+    -- Hier stand ein "(keine Daten)" hinter dem Namen. Das war ehrlich
+    -- und trotzdem falsch: es fuellt eine Liste mit Zeilen, die nichts
+    -- tun. Eine Aktivitaet ohne Daten ist keine Aktivitaet, die man
+    -- auswaehlen koennte.
+    local function has(mode)
+        if not ns.Recommend.HasMode(mode.key) then return false end
+        -- Und sie muss zu DIESEM Abschnitt etwas haben. "2v2" unter
+        -- Verbrauchsguetern fuehrt auf eine leere Seite - also steht
+        -- es dort nicht.
+        return UI.SectionHasData(activeSection().key, mode.key)
+    end
+
+    if MenuUtil and MenuUtil.CreateContextMenu then
+        MenuUtil.CreateContextMenu(anchor, function(_, root)
+            root:CreateTitle(L["LBL_ACTIVITY"])
+            local current = ns.Profile.Mode()
+            for _, group in ipairs(ns.MODE_GROUPS) do
+                -- Eine Gruppe, in der nichts uebrig bleibt, wird gar
+                -- nicht erst aufgemacht.
+                local any = false
+                for _, key in ipairs(group.keys) do
+                    if byKey[key] and has(byKey[key]) then any = true end
+                end
+                local sub = any and root:CreateButton(group.label) or nil
+                for _, key in ipairs(group.keys) do
+                    local mode = byKey[key]
+                    if sub and mode and has(mode) then
+                        -- Ein Haken zeigt, wo man gerade steht. Ohne ihn
+                        -- muss man das Untermenue aufklappen, um es zu
+                        -- sehen - und dafuer ist es das falsche Werkzeug.
+                        sub:CreateRadio(mode.label, function()
+                            return ns.Profile.Mode() == mode.key
+                        end, function()
+                            ns.Profile.SetMode(mode.key)
+                            UI.Refresh()
+                        end)
+                    end
+                end
+            end
+        end)
+        return
+    end
+
+    -- Ohne Menue-API bleibt Weiterschalten.
+    local order = {}
+    for _, group in ipairs(ns.MODE_GROUPS) do
+        for _, key in ipairs(group.keys) do
+            if byKey[key] and has(byKey[key]) then order[#order + 1] = key end
+        end
+    end
+    local at = 1
+    for i, key in ipairs(order) do
+        if key == ns.Profile.Mode() then at = i % #order + 1 break end
+    end
+    if order[at] then
+        ns.Profile.SetMode(order[at])
+        UI.Refresh()
+    end
+end
+
+---Dungeon waehlen.
+---
+---"Alle" ist nicht die Summe der einzelnen: die Gesamtauswertung stammt
+---aus allen Laeufen, die einzelne nur aus denen dieses Dungeons. Wer
+---beides addierte, kaeme auf andere Zahlen.
+---Ob die Einzelauswahl einer Aktivitaet Bosse oder Dungeons sind.
+---
+---Dieselbe Mechanik, andere Woerter: im Raid steht je Boss ein eigener
+---Datensatz, in M+ je Dungeon. "Alle Dungeons" ueber einer Bossliste
+---waere die Art Beschriftung, die niemand ernst nimmt.
+---@param mode string
+---@return string allKey, string titleKey
+local function unitLabels(mode)
+    if ns.Recommend.BaseMode(mode):sub(1, 4) == "raid" then
+        return "BOSS_ALL", "LBL_BOSS"
+    end
+    return "DUNGEON_ALL", "LBL_DUNGEON"
+end
+
+local function openDungeonPicker(anchor)
+    local mode = ns.Profile.Mode()
+    local allKey, titleKey = unitLabels(mode)
+    local list = ns.Recommend.Dungeons(mode)
+    local function pick(key)
+        -- Erst hier laden. Wer nie einen Dungeon waehlt, zahlt nie dafuer.
+        if key and not ns.Data.EnsureDungeons() then
+            ns.Print(L["NO_DUNGEON_DATA"])
+            return
+        end
+        ns.Profile.SetDungeon(key or nil)
+    end
+
+    -- Zwei Raids nebeneinander: dann je Raid ein Untermenue mit seinen
+    -- Bossen. Neun Bosse flach untereinander, ohne zu sagen, welcher
+    -- wohin gehoert, waeren eine Liste zum Raten.
+    local groups, order = {}, {}
+    for _, entry in ipairs(list) do
+        if entry.group then
+            if not groups[entry.group] then groups[entry.group] = {}; order[#order + 1] = entry.group end
+            table.insert(groups[entry.group], entry)
+        end
+    end
+    if #order > 0 and MenuUtil and MenuUtil.CreateContextMenu then
+        MenuUtil.CreateContextMenu(anchor, function(_, root)
+            root:CreateTitle(L[titleKey])
+            root:CreateRadio(L[allKey], function() return ns.Profile.Dungeon() == nil end,
+                function() pick(nil); UI.Refresh() end)
+            for _, name in ipairs(order) do
+                local sub = root:CreateButton(name)
+                for _, entry in ipairs(groups[name]) do
+                    sub:CreateRadio(entry.name, function() return ns.Profile.Dungeon() == entry.key end,
+                        function() pick(entry.key); UI.Refresh() end)
+                end
+            end
+            -- Was keinem Raid zugeordnet ist, steht darunter.
+            for _, entry in ipairs(list) do
+                if not entry.group then
+                    root:CreateRadio(entry.name, function() return ns.Profile.Dungeon() == entry.key end,
+                        function() pick(entry.key); UI.Refresh() end)
+                end
+            end
+        end)
+        return
+    end
+
+    local entries = { { key = false, label = L[allKey] } }
+    for _, dungeon in ipairs(list) do
+        entries[#entries + 1] = {
+            key = dungeon.key,
+            label = dungeon.group and (dungeon.group .. ": " .. dungeon.name) or dungeon.name,
+        }
+    end
+    contextMenu(anchor, L[titleKey], entries, function(entry) pick(entry.key) end)
+end
+
+---Plattform waehlen.
+---
+---Angeboten werden nur Quellen, die diesen Spielmodus wirklich messen -
+---murlok fuehrt kein Raid, Warcraft Logs kein PvP-Bracket. Ein Waehler,
+---der trotzdem alle anbietet, fuehrt in leere Listen.
+---
+---"Alle" steht oben und ist die Voreinstellung: wer das Addon oeffnet,
+---will eine Antwort und keine Quellenfrage.
+local function openSourcePicker(anchor)
+    -- Die Quellen haengen an der AKTIVITAET, nicht am gewaehlten Dungeon:
+    -- wer einen Dungeon waehlt, wechselt nicht die Plattform.
+    local available = ns.Recommend.SourcesFor(ns.Profile.Mode())
+    local section = activeSection()
+    local specID = ns.Profile.SelectedSpec()
+    local mode = ns.Profile.LookupMode()
+
+    -- Was hier nichts liefert, steht gar nicht erst zur Wahl.
+    --
+    -- Erst habe ich solche Quellen still uebersprungen (dann sah
+    -- Umschalten aus wie "passiert nichts"), dann gekennzeichnet (dann
+    -- standen tote Eintraege in der Liste). Beides war Beiwerk um eine
+    -- Auswahl herum, die es nicht gibt: raider.io fuehrt keine
+    -- Zielwerte und wird es auch nicht.
+    local entries = { { key = ns.Recommend.ALL, label = L["SOURCE_ALL"] } }
+    for _, source in ipairs(available) do
+        if ns.Recommend.HasSection(specID, mode, source, section.key) then
+            entries[#entries + 1] = { key = source, label = source }
+        end
+    end
+    contextMenu(anchor, L["LBL_SOURCE"], entries, function(entry)
+        ns.Profile.SetSource(entry.key)
+    end)
+end
+
+-- -------------------------------------------------------- Zeilenquellen
+
+-- Die Reihenfolge der Ausruestungsplaetze. murlok liefert sie als Text
+-- ("Main Hand"), und sortiert man nach Namen, steht die Waffe zwischen
+-- Hals und Schultern. Am Charakter hat die Reihenfolge einen Sinn - also
+-- steht sie hier.
+local GEAR_ORDER = {
+    "Head", "Neck", "Shoulders", "Back", "Chest", "Wrist", "Hands",
+    "Waist", "Legs", "Feet", "Rings", "Trinkets", "Main Hand", "Off Hand",
+}
+
+---Woher ein Gegenstand kommt - in absteigender Sicherheit.
+---
+---1. Das Abenteuerjournal: Boss und Instanz. Auch fuer die alten
+---   Saisondungeons, deren Beute der Zusammenbau aus dem ganzen Journal
+---   neben die Empfehlungen legt.
+---2. PvP-Ware, am englischen Namen im Katalog erkannt: Eroberung, Ehre,
+---   Handwerk.
+---3. Set-Teil: dann kommt es aus dem Schlachtzug oder dem Tresor.
+---4. Handwerk: dann stellt man es her.
+---5. Sonst "kein Instanzdrop". Welt-, Ruf- und Delve-Beute steht in
+---   keiner Tabelle, die von aussen lesbar waere; sie zu erfinden waere
+---   schlimmer als sie so zu benennen.
+---@param itemID number
+---@param badge string|nil
+---@param mode string
+---@return string|nil
+local function originText(itemID, badge, mode)
+    local enc, inst = ns.Catalog.DropSource(itemID)
+    local text = ns.Compat.DropText(enc, inst)
+    if text then return text end
+    -- PvP-Ware, am englischen Namen im Katalog erkannt.
+    local origin = ns.Catalog.Origin and ns.Catalog.Origin(itemID)
+    if origin == "conquest" then return L["ORIGIN_CONQUEST"] end
+    if origin == "honor" then return L["ORIGIN_HONOR"] end
+    if origin == "pvpcraft" then return L["ORIGIN_PVPCRAFT"] end
+    if badge == "set" then return L["ORIGIN_SET"] end
+    if badge == "craft" then return L["ORIGIN_CRAFT"] end
+    -- Was uebrig bleibt, hat keinen Boss und keinen Haendler in den
+    -- Spieldaten. "gesehen in Mythisch+" stand hier und sagte nichts;
+    -- das hier sagt wenigstens, was es NICHT ist.
+    return L["ORIGIN_NONE"]
+end
+
+---Die haeufigste Ausruestung je Platz.
+---@return table[] rows
+---@return string|nil fromSource
+local function gearRows(specID, mode, source)
+    local gear, from = ns.Recommend.Gear(specID, mode, source)
+    if not gear then return {}, nil end
+
+    local minLevel = ns.Profile.MinItemLevel()
+    -- Ein einzelner Platz statt aller. Nicht "hinspringen", sondern
+    -- filtern: die Liste scrollt ohnehin, und wer den Schmuck sucht,
+    -- will den Rest gar nicht sehen.
+    local only = ns.Profile.GearSlot()
+    -- Einmal ausgerechnet statt je Zeile: die Belohnungsstufe haengt am
+    -- Schluessel, nicht am Gegenstand.
+    -- Welche Stufe gemeint ist: die vom Dungeonende oder die aus der
+    -- Schatzkammer. Ohne diese Unterscheidung zeigte die Truhenauswahl
+    -- dieselbe Zahl wie das Dungeonende.
+    -- Stufe UND Pfad: "305" ist Champion 5 oder Held 1, und welcher
+    -- gemeint ist, hat der Spieler im Menue gesagt.
+    local yours, yoursBonus = ns.Profile.TargetLevel()
+    local rows = {}
+    for _, slot in ipairs(GEAR_ORDER) do
+        local list = (not only or only == slot) and gear[slot] or nil
+        local shown = 0
+        for _, item in ipairs(list or {}) do
+            -- Der Filter greift VOR der Begrenzung auf drei. Sonst
+            -- verbrauchen drei alte Gegenstaende die Plaetze, und der
+            -- aktuelle faellt hinten heraus.
+            if (item.ilvl or 0) >= minLevel then
+                shown = shown + 1
+                -- Drei je Platz. Wer den vierthaeufigsten Gegenstand
+                -- traegt, braucht keine Liste, sondern einen eigenen Kopf.
+                if shown > 5 then break end
+                local name, link, icon = ns.Compat.ItemInfo(item.id)
+                -- Noch nicht im Zwischenspeicher: anfordern. Boot.lua
+                -- hoert auf GET_ITEM_INFO_RECEIVED und frischt auf.
+                if not name then ns.Compat.RequestItem(item.id) end
+                -- Woher es kommt. Steht nicht in den Empfehlungen,
+                -- sondern im Katalog: das ist Spieldatum, keine
+                -- Beobachtung, und es gehoert zum Gegenstand, nicht zum
+                -- Modus.
+                local badge = item.kind or ns.Catalog.ItemKind(item.id)
+                -- Auf der gewaehlten Stufe, wenn eine gewaehlt ist.
+                --
+                -- Der Link traegt die Bonus-ID fuer die Stufendifferenz;
+                -- Stufe und Werte rechnet der Client. Ohne ihn stand im
+                -- Tooltip die Grundstufe - "Stufe 28" unter einer Zeile,
+                -- die 334 sagt.
+                local showLevel = yours or item.ilvl
+                local atLevel = yours and ns.Compat.LinkAtLevel(item.id, yours) or nil
+                rows[#rows + 1] = {
+                    kind = "gear", id = item.id, pct = item.pct,
+                    drop = originText(item.id, badge, mode),
+                    -- Die Quelle darf es sagen; wenn sie schweigt,
+                    -- sagen es die Spieldaten. murlok liefert die Marke
+                    -- mit, Warcraft Logs nicht - und ein Set-Teil bleibt
+                    -- eines, egal wer es beobachtet hat.
+                    badge = badge,
+                    ilvl = showLevel, maxKey = item.maxKey,
+                    -- Die Stufe reist als ZAHL mit, nicht nur als
+                    -- fertiger Link. Warum: GetItemInfo schweigt,
+                    -- solange der Client den Gegenstand nicht vom
+                    -- Server hat, und beim Aufbau der Liste hat er die
+                    -- wenigsten. Dann kam kein Link zustande und das
+                    -- Tooltip zeigte die Grundstufe - "71" unter einer
+                    -- Zeile, die 318 sagt. Beim Hovern ist er da.
+                    atLevel = atLevel, wantLevel = yours, wantBonus = yoursBonus,
+                    name = name or item.name, link = link, icon = icon,
+                    group = L["GEARSLOT_" .. slot:gsub("%s", "")],
+                }
+            end
+        end
+    end
+    return rows, from
+end
+
+---Die Ausruestungsplaetze, zu denen es ueberhaupt etwas gibt.
+---
+---Aus den Daten, nicht aus einer festen Liste: eine Spec ohne Schild
+---soll keinen leeren Schildeintrag im Waehler haben.
+---@return string[] in der Reihenfolge der Anzeige
+local function slotsInGear(specID, mode, source)
+    local gear = ns.Recommend.Gear(specID, mode, source)
+    local out = {}
+    for _, slot in ipairs(GEAR_ORDER) do
+        if gear and gear[slot] and #gear[slot] > 0 then out[#out + 1] = slot end
+    end
+    return out
+end
+
+---Die Kategorien eines Abschnitts, aus seinen eigenen Zeilen.
+---
+---Abgeleitet, nicht aufgezaehlt: eine feste Liste waere falsch, sobald
+---eine Spec einen Platz nicht hat oder eine Quelle eine Art nicht fuehrt.
+---Die Zeilen wissen es besser als jede Tabelle im Quelltext.
+---@param section table
+---@param rows table[] die ungefilterten Zeilen des Abschnitts
+---@return table[] { key, label }
+local function categoriesIn(section, rows)
+    local seen, out = {}, {}
+    for _, row in ipairs(rows or {}) do
+        local key, label
+        if section.key == "consumables" then
+            key = row.ckind
+            label = key and L["CONSUM_" .. key]
+        else
+            key = row.slot
+            label = key and L["SLOT_" .. key]
+        end
+        if key and not seen[key] then
+            seen[key] = true
+            out[#out + 1] = { key = key, label = label or key }
+        end
+    end
+    return out
+end
+
+---Ausruestungsplatz waehlen.
+local function openSlotPicker(anchor, specID, mode, source)
+    local entries = { { slot = false, label = L["SLOT_ALL"] } }
+    for _, slot in ipairs(slotsInGear(specID, mode, source)) do
+        entries[#entries + 1] = {
+            slot = slot, label = L["GEARSLOT_" .. slot:gsub("%s", "")],
+        }
+    end
+    contextMenu(anchor, L["LBL_GEARSLOT"], entries, function(entry)
+        ns.Profile.SetGearSlot(entry.slot or nil)
+    end)
+end
+
+---Kategorie eines beliebigen Abschnitts waehlen.
+local function openCategoryPicker(anchor, section, categories)
+    local entries = { { key = false, label = L["CATEGORY_ALL"] } }
+    for _, cat in ipairs(categories) do
+        entries[#entries + 1] = { key = cat.key, label = cat.label }
+    end
+    contextMenu(anchor, L["LBL_CATEGORY"], entries, function(entry)
+        ns.Profile.SetCategory(section.key, entry.key or nil)
+    end)
+end
+
+---Die Gegenstandsstufen, die in dieser Liste ueberhaupt vorkommen.
+---
+---Abgeleitet statt festgeschrieben: eine fest verdrahtete Stufenliste
+---waere in der naechsten Saison falsch, und niemand wuerde es merken.
+---@return number[] absteigend
+local function levelsInGear(specID, mode, source)
+    local gear = ns.Recommend.Gear(specID, mode, source)
+    local seen, out = {}, {}
+    for _, list in pairs(gear or {}) do
+        for _, item in ipairs(list) do
+            local level = item.ilvl or 0
+            if level > 0 and not seen[level] then
+                seen[level] = true
+                out[#out + 1] = level
+            end
+        end
+    end
+    table.sort(out, function(a, b) return a > b end)
+    return out
+end
+
+---Welchen Schluesselstein man selbst laeuft.
+---
+---Hier stand ein Filter "ab Stufe X aufwaerts", und der beantwortete die
+---falsche Frage. Interessant ist nicht, was man ausblendet, sondern was
+---man SELBST bekommt: wer +10 laeuft, sieht in einer Liste voller 334er
+---Gegenstaende nicht, dass daraus bei ihm 311 wird.
+---
+---Die Stufen kommen aus dem Spiel, nicht aus einer Liste hier: sie
+---aendern sich mit jeder Saison, und eine abgeschriebene Tabelle waere
+---beim naechsten Patch still falsch.
+local function openKeyPicker(anchor)
+    local rewards = ns.Compat.RewardTable()
+    if #rewards == 0 then return end
+    if not (MenuUtil and MenuUtil.CreateContextMenu) then return end
+
+    -- Welche Schluessel eine Stufe geben - am Ende des Dungeons und in
+    -- der Schatzkammer. Nur Beschriftung: gewaehlt wird die Stufe.
+    local keysAt = { endOfRun = {}, vault = {} }
+    for _, row in ipairs(rewards) do
+        for _, which in ipairs({ "endOfRun", "vault" }) do
+            local level = row[which]
+            if level and level > 0 then
+                local list = keysAt[which][level] or {}
+                keysAt[which][level] = list
+                list[#list + 1] = row.key
+            end
+        end
+    end
+    local function keyText(keys)
+        table.sort(keys)
+        if #keys <= 2 then
+            local parts = {}
+            for _, k in ipairs(keys) do parts[#parts + 1] = "+" .. k end
+            return table.concat(parts, " ")
+        end
+        return ("+%d-%d"):format(keys[1], keys[#keys])
+    end
+
+    local probe = ns.Catalog.ProbeItem and ns.Catalog.ProbeItem()
+    local tracks = ns.Catalog.Tracks and ns.Catalog.Tracks()
+    local season = probe and tracks and ns.Compat.SeasonTracks(probe)
+    local read = C_Item and C_Item.GetDetailedItemLevelInfo
+
+    MenuUtil.CreateContextMenu(anchor, function(_, root)
+        root:CreateTitle(L["LBL_KEY"])
+        root:CreateRadio(L["KEY_BEST"], function()
+            return ns.Profile.Target() == nil and ns.Profile.KeyLevel() == nil
+        end, function()
+            ns.Profile.SetTarget(nil)
+            ns.Profile.SetKeyLevel(nil)
+            UI.Refresh()
+        end)
+
+        -- Ohne Pfade (Probegegenstand noch nicht geladen): die Stufen
+        -- nach Herkunft, wie bisher.
+        if not (season and read) then
+            for _, group in ipairs({
+                { label = L["KEY_GROUP_RUN"], which = "endOfRun" },
+                { label = L["KEY_GROUP_VAULT"], which = "vault" },
+            }) do
+                local steps = ns.Compat.RewardSteps(group.which)
+                if #steps > 0 then
+                    local sub = root:CreateButton(group.label)
+                    for _, step in ipairs(steps) do
+                        local key, which = step.keys[1], group.which
+                        sub:CreateRadio(L["KEY_STEP"]:format(step.level, step.label), function()
+                            return ns.Profile.KeyLevel() == key and ns.Profile.KeySource() == which
+                        end, function()
+                            ns.Profile.SetKeyLevel(key, which)
+                            UI.Refresh()
+                        end)
+                    end
+                end
+            end
+            return
+        end
+
+        -- Je Pfad ein Untermenue mit ALLEN Raengen - genau wie
+        -- KeystoneLoot. Der Client rechnet die Stufe je Rang; daneben
+        -- steht, welcher Schluessel sie gibt, oder "Aufwertung", wenn
+        -- keiner. Ein Pfad, den nur die Schatzkammer erreicht, heisst
+        -- so wie sie.
+        for t, track in ipairs(tracks) do
+            if season[t] then
+                local ranks = {}
+                local viaRun, viaVault = false, false
+                for rank, bonus in ipairs(track.lists or {}) do
+                    local ok, level = pcall(read, ("item:%d::::::::::::1:%d"):format(probe, bonus))
+                    if ok and level and level > 0 then
+                        local run, vault = keysAt.endOfRun[level], keysAt.vault[level]
+                        if run then viaRun = true end
+                        if vault then viaVault = true end
+                        ranks[#ranks + 1] = { rank = rank, bonus = bonus, level = level, run = run, vault = vault }
+                    end
+                end
+                if viaRun or viaVault then
+                    local title = (viaRun and ns.Compat.TrackName(t)) or L["KEY_GROUP_VAULT"]
+                    local sub = root:CreateButton(title)
+                    for _, r in ipairs(ranks) do
+                        local label
+                        if r.run then
+                            label = L["KEY_STEP"]:format(r.level, keyText(r.run))
+                        elseif r.vault then
+                            label = L["KEY_STEP_VAULT"]:format(r.level, keyText(r.vault))
+                        else
+                            label = L["KEY_STEP_UPGRADE"]:format(r.level)
+                        end
+                        local target = {
+                            level = r.level, bonus = r.bonus,
+                            label = L["KEY_LABEL"]:format(ns.Compat.TrackName(t), r.rank, r.level),
+                        }
+                        sub:CreateRadio(label, function()
+                            local cur = ns.Profile.Target()
+                            return cur ~= nil and cur.bonus == r.bonus
+                        end, function()
+                            ns.Profile.SetTarget(target)
+                            UI.Refresh()
+                        end)
+                    end
+                end
+            end
+        end
+    end)
+end
+
+
+-- Die Reihenfolge der Gruppen. Fest, damit der Blick nicht wandert:
+-- das Flaeschchen steht immer oben, weil es immer gebraucht wird.
+-- Dieselbe Aufteilung, die Archon zeigt, und in derselben Reihenfolge:
+-- Flaeschchen, Speise, Trank, Waffenoel. Wer beide Seiten nebeneinander
+-- legt, soll nicht uebersetzen muessen.
+local CONSUM_ORDER = { "flask", "food", "potion", "heal", "oil", "other", "vantus" }
+
+---Wie viele Stueck man haben will.
+---
+---Die Zahlen sind eine Einstellung, keine Messung - das steht auch in der
+---Zeile. Die Empfehlungen sagen, WAS die Besten benutzen; wie viel davon
+---jemand mitnimmt, sagen sie nicht, und eine erfundene Zahl als Messung
+---auszugeben waere die eine Luege, die dieses Addon sich nicht leisten
+---kann.
+local function openTargetPicker(anchor, kind)
+    local entries = {}
+    for _, count in ipairs({ 0, 1, 2, 3, 5, 10, 20, 40 }) do
+        entries[#entries + 1] = { count = count, label = tostring(count) }
+    end
+    contextMenu(anchor, L["CONSUM_" .. kind], entries, function(entry)
+        ns.Profile.SetConsumableTarget(kind, entry.count)
+    end)
+end
+
+---Verbrauchsgueter mit Bestand im Beutel.
+---
+---Die Anteile sind gemessen, die Zielmengen nicht - jene sind eine
+---Einstellung und heissen im Fenster auch so. Siehe Profile.ConsumableTarget.
+---@return table[] rows
+---@return string|nil fromSource
+local function consumableRows(specID, mode, source)
+    local list, from = ns.Recommend.Consumables(specID, mode, source)
+    if not list then return {}, nil end
+
+    local byKind = {}
+    for _, entry in ipairs(list) do
+        -- Der Katalog zuerst: dort steht, WAS der Gegenstand ist, und
+        -- eine geaenderte Einteilung wirkt sofort statt erst beim
+        -- naechsten Sammellauf. Die Beobachtung ist der Rueckfall.
+        local kind = (entry.id and ns.Catalog.ConsumableKind(entry.id))
+            or entry.kind or "other"
+        byKind[kind] = byKind[kind] or {}
+        table.insert(byKind[kind], entry)
+    end
+
+    local rows = {}
+    for _, kind in ipairs(CONSUM_ORDER) do
+        -- Nur das haeufigste je Art ist ein Posten; der Rest sind
+        -- Alternativen.
+        --
+        -- Vorher stand unter jedem Flaeschchen "Ziel 2 - 2 fehlen", auch
+        -- unter denen, die man gar nicht will. Drei Flaeschchen je zwei
+        -- Stueck ist nicht, was jemand einkauft - man nimmt EINES.
+        local first = true
+        for _, entry in ipairs(byKind[kind] or {}) do
+            -- Speisen brauchen hier keine Sonderbehandlung mehr.
+            --
+            -- Sie hatten eine: solange ich glaubte, die Logs koennten die
+            -- Speise nicht nennen, fragte die Zeile zurueck und der
+            -- Spieler waehlte aus dem Katalog. Sie koennen es - ueber die
+            -- Wirkung statt ueber die Aura. Damit ist eine Speise eine
+            -- Zeile wie ein Flaeschchen, und der Notbehelf faellt weg.
+            local id = entry.id
+            local target = ns.Profile.ConsumableTarget(kind)
+            local owned = id and ns.Compat.ItemCount(id) or 0
+            local name, link, icon
+            if id then
+                name, link, icon = ns.Compat.ItemInfo(id)
+                if not name then ns.Compat.RequestItem(id) end
+            end
+            local group = L["CONSUM_" .. kind]
+            rows[#rows + 1] = {
+                kind = "consumable", ckind = kind,
+                alt = not first or nil,
+                id = id, pct = entry.pct,
+                name = name or entry.name,
+                link = link, icon = icon,
+                owned = owned, need = target,
+                maxKey = entry.maxKey,
+                buy = first and math.max(0, target - owned) or 0,
+                group = group,
+            }
+            first = false
+        end
+    end
+    return rows, from
+end
+
+---Der Reiter "Erinnerung": was die Erinnerung prueft, und wie.
+---
+---Oben der Stand je Art - gruen, gelb, rot -, darunter die drei
+---Einstellungen, die es gibt. Die Zeilen tragen Gegenstand und
+---Fehlmenge, deshalb funktionieren die beiden Einkaufsknoepfe unten
+---hier genauso wie unter Verbrauchsguetern.
+---@return table[] rows
+local function remindRows(mode)
+    local rows = {}
+    for _, row in ipairs(ns.Remind.Status(mode)) do
+        local name, link, icon = ns.Compat.ItemInfo(row.id)
+        if not name then ns.Compat.RequestItem(row.id) end
+        rows[#rows + 1] = {
+            kind = "remind", ckind = row.kind, id = row.id,
+            name = name or row.name, link = link, icon = icon,
+            owned = row.owned, need = row.need, state = row.state,
+            buy = math.max(0, row.need - row.owned),
+            group = L["REMIND_GROUP_STATUS"],
+        }
+    end
+    -- Und die Verzauberungen und Steine, die am Charakter noch fehlen.
+    -- Dieselben Zeilen wie unter "Verzauberungen & Steine", nur auf
+    -- das Offene gekuerzt - damit man hier sieht, was noch zu kaufen
+    -- ist, und es mit den Knoepfen unten gleich tut.
+    local open = 0
+    if ns.Profile.Complete() and not ns.Profile.IsForeignClass() then
+        for _, row in ipairs(ns.List.Build(ns.Gear.Scan())) do
+            if not row.pending and not row.alt and (row.buy or 0) > 0 then
+                row.group = L["REMIND_GROUP_ENCHANTS"]
+                rows[#rows + 1] = row
+                open = open + 1
+            end
+        end
+        if open == 0 then
+            rows[#rows + 1] = { kind = "note", text = L["REMIND_ENCHANTS_OK"], group = L["REMIND_GROUP_ENCHANTS"] }
+        end
+    end
+    local on = ns.Profile.RemindersOn()
+    rows[#rows + 1] = {
+        kind = "option", label = L["REMIND_OPT_ON"], on = on,
+        toggle = function() ns.Profile.SetReminders(not ns.Profile.RemindersOn()) end,
+        group = L["REMIND_GROUP_SETTINGS"],
+    }
+    rows[#rows + 1] = {
+        kind = "option", label = L["REMIND_OPT_AH"], on = on and ns.Profile.RemindAtAuctionHouse(),
+        toggle = function() ns.Profile.SetRemindAtAuctionHouse(not ns.Profile.RemindAtAuctionHouse()) end,
+        group = L["REMIND_GROUP_SETTINGS"],
+    }
+    local below = ns.Profile.WarnBelow()
+    rows[#rows + 1] = {
+        kind = "option", label = L["REMIND_OPT_BELOW"],
+        value = ("%d %%"):format(math.floor(below * 100 + 0.5)),
+        -- Ein Klick weiter: 25, 50, 75, 100 und wieder von vorn.
+        toggle = function()
+            local steps = { 0.25, 0.5, 0.75, 1 }
+            local next = steps[1]
+            for i, step in ipairs(steps) do
+                if math.abs(step - ns.Profile.WarnBelow()) < 0.01 then next = steps[i % #steps + 1] end
+            end
+            ns.Profile.SetWarnBelow(next)
+        end,
+        group = L["REMIND_GROUP_SETTINGS"],
+    }
+    return rows
+end
+
+---Was dieses Addon gerade ist: Stand der Daten, und was es braucht.
+---
+---Diese Angaben standen klein und grau in der Kopf- und Fusszeile. Dort
+---las sie niemand, und Platz nahmen sie trotzdem. Hier stehen sie
+---vollstaendig - vor allem die eine, die vorher NIRGENDS stand: dass die
+---Uebergabe ans Auktionshaus Auctionator braucht.
+---@return table[] rows
+local function infoRows()
+    local rows = {}
+    local function line(label, value, token)
+        rows[#rows + 1] = {
+            kind = "info", label = label, value = value, token = token,
+            group = L["INFO_GROUP"],
+        }
+    end
+
+    line(L["INFO_VERSION"], tostring(ns.version or "?"))
+
+    local build, builtOn = ns.Catalog.Stamp()
+    line(L["INFO_CATALOG"], build .. "  ·  " .. ns.Compat.DateText(builtOn))
+
+    -- Je Quelle, wann sie zuletzt gemessen hat. Eine Zahl, die drei
+    -- Wochen alt ist, sieht genauso aus wie eine von heute - bis man
+    -- nachsieht.
+    local mode = ns.Profile.LookupMode()
+    for _, source in ipairs(ns.Recommend.SourcesFor(mode)) do
+        local stamp = ns.Recommend.Stamp(mode, source)
+        line(source, ns.Compat.DateText(stamp))
+    end
+
+    -- Die Auskunft, die gefehlt hat.
+    local has = ns.Adapter.Loaded()
+    rows[#rows + 1] = {
+        kind = "info", label = "Auctionator",
+        value = has and L["INFO_AUCTIONATOR_OK"] or L["INFO_AUCTIONATOR_MISSING"],
+        token = has and "success" or "warning",
+        note = L["INFO_AUCTIONATOR_WHY"],
+        group = L["INFO_NEEDS"],
+    }
+    return rows
+end
+
+---Verweise auf geschriebene Guides.
+---
+---Der eine Abschnitt ohne Messung, und der einzige, der fremde Arbeit
+---nennt statt sie zu zeigen.
+---@return table[] rows
+local function guideRows(specID)
+    local rows = {}
+    for _, link in ipairs(ns.Guides.For(specID)) do
+        rows[#rows + 1] = {
+            kind = "guide", key = link.key, site = link.site,
+            url = link.url, icon = link.icon,
+            -- Die Quelle ALS Ueberschrift, nicht in jeder Zeile. Sechsmal
+            -- "von X" untereinander wiederholte sich nur; einmal oben
+            -- ordnet es.
+            group = link.site,
+        }
+    end
+    return rows
+end
+
+---Das Profil eines Spielers als Zeilen: Kette, Adresse, Ausruestung.
+---
+---Die Ausruestung traegt jede Bonus-ID, die raider.io gesehen hat. Der
+---Link ist damit DAS Stueck, das der Spieler traegt - Stufe, Pfad,
+---Sockel - und das Tooltip zeigt genau das.
+---@param who table { mode, specID, name, realm, rank, url }
+---@return table[] rows
+local RIO_SLOT = {
+    head = "Head", neck = "Neck", shoulder = "Shoulders", back = "Back",
+    chest = "Chest", waist = "Waist", wrist = "Wrist", hands = "Hands",
+    legs = "Legs", feet = "Feet", finger1 = "Rings", finger2 = "Rings",
+    trinket1 = "Trinkets", trinket2 = "Trinkets", mainhand = "MainHand", offhand = "OffHand",
+}
+local RIO_ORDER = { "head", "neck", "shoulder", "back", "chest", "wrist", "hands", "waist",
+    "legs", "feet", "finger1", "finger2", "trinket1", "trinket2", "mainhand", "offhand" }
+local function playerViewRows(who)
+    local rows = {}
+    rows[#rows + 1] = { kind = "back" }
+    local profile, why = ns.Recommend.Player(who.mode, who.specID, who.name, who.realm)
+    rows[#rows + 1] = { kind = "link", url = who.url, group = who.name .. " \194\183 " .. (who.realm or "") }
+    if not profile then
+        rows[#rows + 1] = { kind = "note", text = L[why == "loading" and "PLAYER_LOADING" or "PLAYER_NO_PROFILE"] }
+        return rows
+    end
+    if profile.text and profile.text ~= "" then
+        rows[#rows + 1] = {
+            kind = "loadout", text = profile.text, specID = who.specID,
+            nodes = {}, count = 0, pct = nil,
+            verified = profile.verified, playerRow = true,
+            group = L["SECTION_talents"],
+        }
+    end
+    local bySlot = {}
+    for _, piece in ipairs(profile.gear or {}) do bySlot[piece.slot] = piece end
+    for _, slot in ipairs(RIO_ORDER) do
+        local piece = bySlot[slot]
+        if piece then
+            local link = "item:" .. piece.id
+            if piece.b and #piece.b > 0 then
+                link = ("item:%d::::::::::::%d:%s"):format(piece.id, #piece.b, table.concat(piece.b, ":"))
+            end
+            if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, piece.id) end
+            rows[#rows + 1] = {
+                kind = "gear", id = piece.id, pct = nil, ilvl = piece.ilvl,
+                badge = ns.Catalog.ItemKind(piece.id),
+                drop = originText(piece.id, ns.Catalog.ItemKind(piece.id), who.mode),
+                link = link, atLevel = nil, wantLevel = nil,
+                group = L["GEARSLOT_" .. (RIO_SLOT[slot] or "Head")],
+            }
+        end
+    end
+    return rows
+end
+
+---Die Spieler, die eine Quelle gerade oben fuehrt.
+---
+---Der einzige Abschnitt, der keine Empfehlung ist. Er beantwortet die
+---Frage hinter jeder Prozentzahl - WER spielt das so - und ueberlaesst
+---die Antwort dem Profil, das die Quelle ohnehin oeffentlich fuehrt.
+---@return table[] rows
+---@return string|nil fromSource
+local function playerRows(specID, mode, source)
+    local players, from, foundIn = ns.Recommend.Players(specID, mode, source)
+    if not players then return {}, nil end
+    local rows = {}
+    for _, player in ipairs(players) do
+        rows[#rows + 1] = {
+            kind = "player", rank = player.rank, name = player.name,
+            realm = player.realm, mode = foundIn, specID = specID,
+            -- Die Adresse kommt fertig aus den Daten. Sie hier noch
+            -- einmal zusammenzusetzen hiesse, ein Format an zwei
+            -- Stellen zu pflegen - und diese haette es falsch gehabt.
+            url = player.url,
+        }
+    end
+    return rows, from
+end
+
+---Talente: erst der haeufigste ganze Build, dann die Einzelanteile.
+---
+---Zwei Gruppen, weil es zwei Fragen sind. "Was stelle ich ein" beantwortet
+---der Build; "lohnt sich das eine Talent" beantworten die Anteile. Der
+---Build ist nicht die Liste der haeufigsten Einzeltalente - die schliessen
+---einander teilweise aus und ergaeben zusammen etwas, das so niemand
+---spielt.
+---@return table[] rows
+---@return string|nil fromSource
+local function talentRows(specID, mode, source)
+    local picks, build, from = ns.Recommend.Talents(specID, mode, source)
+    if not picks then return {}, nil end
+
+    local rows = {}
+
+    -- Der Build als EINE Zeile, nicht als sechsundsiebzig.
+    --
+    -- Vorher standen hier alle Knoten untereinander. Das sah nach Inhalt
+    -- aus und war keiner: niemand tippt einen Build ab. Gebraucht wird
+    -- die Importkette - ein Klick, einfuegen, fertig.
+    if build and build.nodes and #build.nodes > 0 then
+        rows[#rows + 1] = {
+            kind = "loadout", nodes = build.nodes, specID = specID,
+            -- Die fertige Kette der Quelle, wenn es eine gibt.
+            text = build.text,
+            pct = build.pct, count = #build.nodes,
+            fromBase = build.fromBase, fromSource = build.fromSource,
+            group = L["TALENT_BUILD"]:format(build.pct or 0),
+        }
+    end
+
+    -- Und die naechsthaeufigsten, je mit dem Unterschied.
+    for _, other in ipairs(ns.Recommend.OtherBuilds(specID, mode, source) or {}) do
+        rows[#rows + 1] = {
+            kind = "loadout", specID = specID, text = other.text,
+            nodes = build and build.nodes or {},
+            pct = other.pct, added = other.added, removed = other.removed,
+            -- Ein Alternativbuild traegt nur seinen Unterschied, keine
+            -- Knotenliste - "0 Talente" darunter war darum wahr und
+            -- nutzlos. Gezaehlt wird, worin er abweicht.
+            count = #(other.added or {}) + #(other.removed or {}), diff = true,
+            group = L["TALENT_OTHERS"],
+        }
+    end
+
+    -- Darunter nur, wo es wirklich etwas zu entscheiden gibt.
+    -- PvP-Talente in eigener Gruppe: sie sitzen in einem anderen
+    -- Fenster und sind eine andere Entscheidung.
+    for _, pick in ipairs(picks) do
+        if not pick.pvp then
+            rows[#rows + 1] = {
+                kind = "talent", spell = pick.spell, rank = pick.rank,
+                pct = pick.pct, group = L["TALENT_PICKS"],
+            }
+        end
+    end
+    for _, pick in ipairs(picks) do
+        if pick.pvp then
+            rows[#rows + 1] = {
+                kind = "talent", spell = pick.spell, rank = pick.rank,
+                pct = pick.pct, group = L["TALENT_PVP"],
+            }
+        end
+    end
+    return rows, from
+end
+
+---Zielwerte als Rangfolge mit den beobachteten Zahlen.
+---@return table[] rows
+---@return string|nil fromSource
+local function statRows(specID, mode, source)
+    local stats, from = ns.Recommend.Stats(specID, mode, source)
+    if not stats then return {}, nil end
+
+    -- Die eigenen Werte nur fuer die eigene Spec. Fuer eine fremde
+    -- Klasse waere "du hast 8421" schlicht falsch - es sind die Werte
+    -- des Charakters, der gerade eingeloggt ist.
+    local own = not ns.Profile.IsForeignClass()
+
+    local rows = {}
+    local widest = 0
+    for _, key in ipairs(stats.priority or {}) do
+        local value = (stats.values or {})[key]
+        widest = math.max(widest, (value and value.rating) or 0)
+    end
+    for rank, key in ipairs(stats.priority or {}) do
+        local value = (stats.values or {})[key]
+        local target = value and value.rating or nil
+        local mine = own and ns.Compat.OwnRating(key) or nil
+        widest = math.max(widest, mine or 0)
+        rows[#rows + 1] = {
+            kind = "stat", statKey = key, rank = rank,
+            pct = value and value.pct or nil,
+            rating = target,
+            mine = mine,
+            -- Der Massstab ist fuer alle Zeilen derselbe, sonst
+            -- vergleichen die Balken nichts miteinander.
+            scale = widest,
+            players = stats.players,
+        }
+    end
+    return rows, from
+end
+
+-- ----------------------------------------------------------------- Zeilen
+
+local function acquireRow(index)
+    rows = rows or {}
+    if rows[index] then return rows[index] end
+
+    local row = CreateFrame("Button", nil, scrollChild)
+    row:SetSize(contentWidth(), ROW_HEIGHT)
+    -- Auch die rechte Taste: bei Verbrauchsguetern waehlt sie die
+    -- Zielmenge. Ohne das kaeme OnClick nur bei Linksklick.
+    row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+
+    row.bg = S:Fill(row, "bgRaised", 0)
+
+    -- Die beiden Balken der Zielwerte. Sie gehoeren zu jeder Zeile, weil
+    -- Zeilen wiederverwendet werden; gezeigt werden sie nur dort, wo ein
+    -- Zielwert steht.
+    -- Drei Lagen statt zweier Striche.
+    --
+    -- Vorher lagen zwei vier Pixel hohe Linien uebereinander, und beide
+    -- sahen nach Beiwerk aus. Eine Bahn, die sich fuellt, beantwortet
+    -- "wie weit bin ich" beim Hinsehen; die Zahlen begruenden es nur.
+    row.barTrack = row:CreateTexture(nil, "ARTWORK")
+    row.barTrack:SetTexture("Interface\\Buttons\\WHITE8X8")
+    row.barTrack:SetVertexColor(S:Color("bgOverlay"))
+    row.barTrack:SetHeight(S:Pixel(14))
+    row.barTrack:SetPoint("TOPLEFT", BAR_X, -S.space.sm - 6)
+    row.barTrack:Hide()
+
+    -- Das Ziel: wie weit die Bahn gefuellt sein SOLL.
+    row.barTarget = row:CreateTexture(nil, "ARTWORK")
+    row.barTarget:SetTexture("Interface\\Buttons\\WHITE8X8")
+    row.barTarget:SetVertexColor(S:Color("accent", 0.30))
+    row.barTarget:SetHeight(S:Pixel(14))
+    row.barTarget:SetPoint("TOPLEFT", BAR_X, -S.space.sm - 6)
+    row.barTarget:Hide()
+
+    -- Der eigene Stand, darueber und voll deckend.
+    row.barMine = row:CreateTexture(nil, "OVERLAY")
+    row.barMine:SetTexture("Interface\\Buttons\\WHITE8X8")
+    row.barMine:SetHeight(S:Pixel(14))
+    row.barMine:SetPoint("TOPLEFT", BAR_X, -S.space.sm - 6)
+    row.barMine:Hide()
+
+    -- Der eigene Wert als Zahl, unter der Bahn.
+    row.own = S:Text(row, "caption", "textMuted")
+    row.own:SetPoint("TOPLEFT", BAR_X, -S.space.sm - 24)
+    row.own:Hide()
+
+    row.icon = row:CreateTexture(nil, "ARTWORK")
+    row.icon:SetSize(30, 30)
+    row.icon:SetPoint("LEFT", S.space.sm, 0)
+    row.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+
+    row.title = S:Text(row, "body", "textPrimary")
+    row.title:SetPoint("TOPLEFT", S.space.sm + 38, -S.space.sm)
+    row.title:SetWidth(contentWidth() - 140)
+
+    row.detail = S:Text(row, "caption", "textMuted")
+    row.detail:SetPoint("TOPLEFT", S.space.sm + 38, -S.space.sm - 16)
+    row.detail:SetWidth(contentWidth() - 140)
+
+    row.share = S:Text(row, "body", "textSecondary")
+    row.share:SetPoint("RIGHT", -S.space.md, 0)
+    row.share:SetJustifyH("RIGHT")
+
+    -- EIN Klickhaken je Zeile. Was die Zeile beim Klick tut, steht in
+    -- row.onClick; davor kommt, was jede Zeile mit Gegenstand kann:
+    -- Shift-Klick verlinkt ihn, wie ueberall in WoW. In den Chat als
+    -- Link - und steht das Auktionshaus offen, setzt Blizzards eigene
+    -- Logik den Namen ins Suchfeld. Ctrl-Klick zeigt ihn im Ankleideraum.
+    row:SetScript("OnClick", function(self, button)
+        if self.itemID or self.link then
+            local link = self.link
+            -- Der volle Link, nicht der nackte Itemstring: nur der
+            -- traegt Farbe und Namen, und nur der ist im Chat ein Link.
+            if self.itemID then
+                local _, full = ns.Compat.ItemInfo(self.itemID)
+                link = full or link
+            end
+            if link and IsModifiedClick and (IsModifiedClick("CHATLINK") or IsModifiedClick("DRESSUP")) then
+                if HandleModifiedItemClick and HandleModifiedItemClick(link) then return end
+                if ChatEdit_InsertLink and ChatEdit_InsertLink(link) then return end
+            end
+        end
+        if self.onClick then self.onClick(self, button) end
+    end)
+
+    row:SetScript("OnEnter", function(self)
+        self.bg:SetAlpha(1)
+        -- Der Link wird JETZT gebaut, nicht beim Aufbau der Liste.
+        -- Zu dem Zeitpunkt kennt der Client die Grundstufe meist noch
+        -- nicht, und ohne Grundstufe gibt es keine Differenz und keine
+        -- Bonus-ID. Beim Hovern kennt er sie.
+        local link = self.link
+        if self.itemID and self.wantBonus then
+            link = ("item:%d::::::::::::1:%d"):format(self.itemID, self.wantBonus)
+        elseif self.itemID and self.wantLevel then
+            link = ns.Compat.LinkAtLevel(self.itemID, self.wantLevel) or link
+        end
+        if not link then return end
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetHyperlink(link)
+        GameTooltip:Show()
+    end)
+    row:SetScript("OnLeave", function(self)
+        self.bg:SetAlpha(self.__header and 0 or 0.5)
+        GameTooltip:Hide()
+    end)
+
+    rows[index] = row
+    return row
+end
+
+---Alles, was eine Zeile aus ihrem vorigen Leben mitbringt.
+---
+---Zeilen werden wiederverwendet: dieselbe Zeile ist erst ein Zielwert mit
+---zwei Balken, gleich darauf eine Ueberschrift. Was nicht ausdruecklich
+---zurueckgesetzt wird, bleibt stehen - und genau das ist passiert: der
+---blaue Balken der Zielwerte hing danach quer ueber der Ueberschrift der
+---Talente.
+---
+---Deshalb EINE Stelle statt zweier, die sich auseinanderentwickeln. Wer
+---hier etwas ergaenzt, ergaenzt es fuer beide Zeilenarten.
+local function resetRow(row)
+    row.link = nil
+    -- Auch das, woraus der Link beim Hovern entsteht. Eine Zeile wird
+    -- wiederverwendet, und eine vergessene Gegenstands-ID zeigte sonst
+    -- das Tooltip des Vorgaengers.
+    row.itemID, row.wantLevel, row.wantBonus = nil, nil, nil
+    row.barTrack:Hide()
+    row.barTarget:Hide()
+    row.barMine:Hide()
+    row.own:Hide()
+    row.onClick = nil
+end
+
+local function setHeaderRow(row, text)
+    resetRow(row)
+    row.__header = true
+    row.bg:SetAlpha(0)
+    row.icon:SetTexture(nil)
+    S:Recolor(row.title, "textMuted")
+    row.title:ClearAllPoints()
+    row.title:SetPoint("BOTTOMLEFT", S.space.sm, 4)
+    row.title:SetText(text:upper())
+    row.detail:SetText("")
+    row.share:SetText("")
+    row:SetHeight(26)
+    row.onClick = nil
+end
+
+local function openPicker(row, slot, key)
+    local entries = {}
+    for _, entry in ipairs(ns.Catalog.EnchantsFor(slot)) do
+        entries[#entries + 1] = {
+            id = entry.id,
+            label = ns.Compat.ItemInfo(entry.id) or entry.name,
+        }
+    end
+    contextMenu(row, L["SLOT_" .. slot], entries, function(entry)
+        ns.Profile.Set(key, entry.id)
+    end)
+end
+
+local function setItemRow(row, data)
+    resetRow(row)
+    row.__header = false
+    row.bg:SetAlpha(0.5)
+    -- Zielwerte setzen eine groessere Schrift; ohne diese Zeile behielte
+    -- sie die naechste Zeile, die dieselbe Zeile wiederverwendet.
+    S:ApplyFont(row.title, "body", "textPrimary")
+    row.title:ClearAllPoints()
+    row.title:SetPoint("TOPLEFT", S.space.sm + 38, -S.space.sm)
+    row:SetHeight(ROW_HEIGHT)
+
+    -- Zielwerte haben keinen Gegenstand: statt eines Symbols traegt die
+    -- Zeile ihren Rang, und statt einer Stueckzahl den Prozentwert und das
+    -- Rating.
+    if data.kind == "stat" then
+        row.link = nil
+        row.icon:SetTexture(nil)
+        row.title:ClearAllPoints()
+        row.title:SetPoint("TOPLEFT", S.space.md + 26, -S.space.sm)
+        row.title:SetText(L["STAT_" .. data.statKey])
+        row.detail:ClearAllPoints()
+        row.detail:SetPoint("TOPLEFT", S.space.md + 26, -S.space.sm - 16)
+
+        -- Eine Bahn, die sich fuellt. Der gemeinsame Massstab bleibt,
+        -- damit sichtbar ist, dass ein Kritziel groesser ist als ein
+        -- Vielseitigkeitsziel - und darin steht, wie weit man selbst ist.
+        row:SetHeight(STAT_ROW_HEIGHT)
+        S:ApplyFont(row.title, "title", "textPrimary")
+
+        local scale = math.max(data.scale or 0, 1)
+        local BAR_WIDTH = barWidth()
+        row.barTrack:SetWidth(BAR_WIDTH)
+        row.barTrack:Show()
+        row.barTarget:SetWidth(math.max(1, BAR_WIDTH * (data.rating or 0) / scale))
+        row.barTarget:Show()
+
+        local reached = data.mine ~= nil and data.mine >= (data.rating or 0)
+        if data.mine then
+            row.barMine:SetWidth(math.max(1, BAR_WIDTH * data.mine / scale))
+            row.barMine:SetVertexColor(S:Color(reached and "success" or "warning"))
+            row.barMine:Show()
+            row.own:SetText(L["STAT_YOURS"]:format(data.mine, data.rating or 0))
+            row.own:Show()
+        end
+
+        row.detail:SetText(L["STAT_SHARE"]:format(data.pct or 0))
+
+        -- Rechts steht, was zaehlt: was fehlt. Dort stand der Rang, und
+        -- der ist die kleinere Auskunft - die Rangfolge liest man an der
+        -- Reihenfolge ab.
+        if data.mine and data.rating then
+            row.share:SetText(reached and L["STAT_DONE"]
+                or L["STAT_GAP"]:format(data.rating - data.mine))
+            S:Recolor(row.share, reached and "success" or "warning")
+        else
+            row.share:SetText("#" .. data.rank)
+            S:Recolor(row.share, data.rank == 1 and "accent" or "textMuted")
+        end
+        return
+    end
+
+    if data.kind == "info" then
+        row.link = nil
+        row.icon:SetTexture(nil)
+        row.title:ClearAllPoints()
+        row.title:SetPoint("TOPLEFT", S.space.md, -S.space.sm)
+        row.title:SetText(data.label)
+        row.detail:ClearAllPoints()
+        row.detail:SetPoint("TOPLEFT", S.space.md, -S.space.sm - 16)
+        row.detail:SetText(data.note or "")
+        row.share:SetText(data.value or "")
+        S:Recolor(row.share, data.token or "textSecondary")
+        return
+    end
+
+    if data.kind == "guide" then
+        row.link = nil
+        row.icon:SetTexture(data.icon or "Interface\\Icons\\INV_Misc_Book_09")
+        row.title:SetText(L["GUIDE_" .. data.key:upper()])
+        row.detail:ClearAllPoints()
+        row.detail:SetPoint("TOPLEFT", S.space.sm + 38, -S.space.sm - 16)
+        -- Die Quelle steht schon in der Ueberschrift; hier steht, was
+        -- der Klick tut.
+        row.detail:SetText(L["GUIDE_COPY"])
+        row.share:SetText("")
+        -- Ein Addon kann keinen Browser oeffnen. Es kann die Adresse aber
+        -- zum Kopieren hinlegen, und das ist ein Klick mehr, kein Hindernis.
+        row.onClick = function() UI.ShowLink(data.url) end
+        return
+    end
+
+    if data.kind == "player" then
+        row.link = nil
+        row.icon:SetTexture("Interface\\Icons\\Achievement_PVP_A_A")
+        row.title:SetText(data.name or "?")
+        row.detail:ClearAllPoints()
+        row.detail:SetPoint("TOPLEFT", S.space.sm + 38, -S.space.sm - 16)
+        -- Der Realm traegt die Region schon: "Trollbane (EU)".
+        row.detail:SetText((data.realm or "") .. "  \194\183  " .. L["PLAYER_COPY"])
+        -- Der Platz steht rechts, wo sonst der Anteil steht: beides
+        -- ist die Zahl, nach der die Zeile sortiert ist.
+        row.share:SetText(data.rank and ("#" .. data.rank) or "")
+        S:Recolor(row.share, (data.rank or 99) <= 3 and "accent" or "textMuted")
+        -- Klick oeffnet das Profil im Fenster; die Adresse gibt es dort.
+        row.onClick = function()
+            viewingPlayer = {
+                mode = data.mode, specID = data.specID, name = data.name,
+                realm = data.realm, url = data.url, section = activeSection().key,
+            }
+            UI.Refresh()
+        end
+        return
+    end
+
+    if data.kind == "remind" then
+        row.link = data.link
+        row.icon:SetTexture(data.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+        row.title:SetText(data.name or ("#" .. tostring(data.id)))
+        row.detail:ClearAllPoints()
+        row.detail:SetPoint("TOPLEFT", S.space.sm + 38, -S.space.sm - 16)
+        local token = data.state == "ok" and "success" or data.state == "low" and "warning" or "danger"
+        row.detail:SetText(("%s  \194\183  %s  \194\183  |cff%s%s|r"):format(
+            L["CONSUM_" .. data.ckind], L["REMIND_HAVE"]:format(data.owned, data.need),
+            S:Hex(token), L["REMIND_STATE_" .. data.state:upper()]))
+        row.share:SetText(data.buy > 0 and L["NEED"]:format(data.buy) or "")
+        S:Recolor(row.share, token)
+        -- Wie unter Verbrauchsguetern: Klick waehlt die Zielmenge.
+        row.onClick = function(self) openTargetPicker(self, data.ckind) end
+        return
+    end
+
+    if data.kind == "option" then
+        row.link = nil
+        row.icon:SetTexture(nil)
+        row.title:ClearAllPoints()
+        row.title:SetPoint("TOPLEFT", S.space.md, -S.space.sm)
+        row.title:SetText(data.label)
+        row.detail:ClearAllPoints()
+        row.detail:SetPoint("TOPLEFT", S.space.md, -S.space.sm - 16)
+        row.detail:SetText(L["OPTION_CLICK"])
+        -- Rechts steht der Wert: "An", "Aus" oder eine Zahl. Ein
+        -- Schalter, dessen Stand man nicht sieht, ist keiner.
+        if data.value then
+            row.share:SetText(data.value)
+            S:Recolor(row.share, "accent")
+        else
+            row.share:SetText(data.on and L["OPTION_ON"] or L["OPTION_OFF"])
+            S:Recolor(row.share, data.on and "success" or "textMuted")
+        end
+        row.onClick = function() data.toggle(); UI.Refresh() end
+        return
+    end
+
+    if data.kind == "back" then
+        row.link = nil
+        row.icon:SetTexture("Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Up")
+        row.title:SetText(L["PLAYER_BACK"])
+        row.detail:SetText("")
+        row.share:SetText("")
+        row.onClick = function() viewingPlayer = nil; UI.Refresh() end
+        return
+    end
+
+    if data.kind == "link" then
+        row.link = nil
+        row.icon:SetTexture("Interface\\Icons\\INV_Misc_Note_06")
+        row.title:SetText(L["PLAYER_PROFILE"])
+        row.detail:ClearAllPoints()
+        row.detail:SetPoint("TOPLEFT", S.space.sm + 38, -S.space.sm - 16)
+        row.detail:SetText(L["GUIDE_COPY"])
+        row.share:SetText("")
+        row.onClick = function() UI.ShowLink(data.url) end
+        return
+    end
+
+    if data.kind == "note" then
+        row.link = nil
+        row.icon:SetTexture(nil)
+        row.title:SetText(data.text or "")
+        row.detail:SetText("")
+        row.share:SetText("")
+        row.onClick = nil
+        return
+    end
+
+    if data.kind == "loadout" then
+        row.link = nil
+        row.icon:SetTexture("Interface\\Icons\\INV_Misc_Note_01")
+        -- Ein Alternativbuild sagt, WORIN er abweicht - nicht, dass er
+        -- existiert. "Statt X nimm Y" ist die Auskunft; die Kette ist
+        -- nur der Knopf darunter.
+        if data.added or data.removed then
+            local function names(list, limit)
+                local out = {}
+                for _, spell in ipairs(list or {}) do
+                    if #out >= (limit or 2) then break end
+                    local info = C_Spell and C_Spell.GetSpellInfo
+                        and C_Spell.GetSpellInfo(spell)
+                    out[#out + 1] = (info and info.name) or ("#" .. spell)
+                end
+                return table.concat(out, ", ")
+            end
+            local plus, minus = names(data.added), names(data.removed)
+            if plus ~= "" and minus ~= "" then
+                row.title:SetText(L["TALENT_SWAP"]:format(plus, minus))
+            elseif plus ~= "" then
+                row.title:SetText(L["TALENT_PLUS"]:format(plus))
+            else
+                row.title:SetText(L["TALENT_MINUS"]:format(minus))
+            end
+        elseif data.playerRow then
+            row.title:SetText(L["PLAYER_LOADOUT"])
+        else
+            row.title:SetText(L["LOADOUT_TITLE"])
+        end
+        row.detail:ClearAllPoints()
+        row.detail:SetPoint("TOPLEFT", S.space.sm + 38, -S.space.sm - 16)
+
+        -- Nur eine Kette, die eine Quelle fertig mitliefert. Sie stammt
+        -- aus dem Client eines echten Spielers, und damit ist sie richtig
+        -- - auch naechsten Dienstag, wenn der Baum-Hash sich aendert.
+        -- Ohne Kette sagt die Zeile das, statt einen Knopf zu zeigen,
+        -- der nichts tut.
+        local ready = data.text ~= nil and data.text ~= ""
+        local usable = ready
+        local hint = ready and L[data.diff and "LOADOUT_DIFF_HINT" or "LOADOUT_HINT"]:format(data.count)
+            or L["LOADOUT_NO_STRING"]
+        -- Geliehen? Dann steht es hier, kurz - nicht in der Ueberschrift,
+        -- wo es umbrach und abgeschnitten wurde.
+        if data.playerRow then
+            hint = L[data.verified and "PLAYER_VERIFIED" or "PLAYER_UNVERIFIED"]
+        end
+        if data.fromBase then hint = hint .. "  \194\183  " .. L["LOADOUT_FROM_BASE"] end
+        if data.fromSource then hint = hint .. "  \194\183  " .. L["LOADOUT_FROM_SOURCE"]:format(data.fromSource) end
+        row.detail:SetText(hint)
+        S:Recolor(row.detail, usable and "textSecondary" or "warning")
+        row.share:SetText(data.pct and (data.pct .. "%") or "")
+        S:Recolor(row.share, "accent")
+
+        row.onClick = usable and function(self)
+            UI.ShowLink(data.text)
+        end or nil
+        return
+    end
+
+    if data.kind == "talent" then
+        row.link = nil
+        -- Name und Symbol holt der Client aus der Zauber-ID. Gespeichert
+        -- ist nur die Zahl, und darum stimmt die Zeile auf jedem Client,
+        -- egal in welcher Sprache er laeuft.
+        local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(data.spell)
+        local name = info and info.name
+        row.icon:SetTexture((info and info.iconID)
+            or "Interface\\Icons\\INV_Misc_QuestionMark")
+        row.title:SetText(name or ("#" .. tostring(data.spell)))
+        row.detail:ClearAllPoints()
+        row.detail:SetPoint("TOPLEFT", S.space.sm + 38, -S.space.sm - 16)
+        row.detail:SetText((data.rank or 1) > 1
+            and L["TALENT_RANK"]:format(data.rank) or "")
+        row.share:SetText(data.pct and (data.pct .. "%") or "")
+        S:Recolor(row.share, (data.pct or 0) >= 50 and "accent" or "textMuted")
+        row.onClick = nil
+        return
+    end
+
+    if data.kind == "consumable" then
+        row.link = data.link
+        row.icon:SetTexture(data.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+        row.title:SetText(data.name or ("#" .. tostring(data.id)))
+        row.detail:ClearAllPoints()
+        row.detail:SetPoint("TOPLEFT", S.space.sm + 38, -S.space.sm - 16)
+
+        local parts = {}
+        if data.alt then parts[#parts + 1] = L["ALT_ROW"] end
+        if data.maxKey and data.maxKey > 0 then
+            parts[#parts + 1] = L["MAX_KEY"]:format(data.maxKey)
+        end
+        if not data.alt then
+            parts[#parts + 1] = L["CONSUM_TARGET"]:format(data.need)
+        end
+        -- Die Zielmenge ist der eine Wert im Fenster, der nicht gemessen
+        -- ist. Deshalb steht neben ihr, dass man sie aendern kann.
+        if data.owned > 0 then parts[#parts + 1] = L["OWNED"]:format(data.owned) end
+        local status, token
+        if data.alt then
+            status, token = nil, nil
+        elseif data.buy > 0 then
+            status, token = L["NEED"]:format(data.buy), "warning"
+        else
+            status, token = L["IN_BAGS"], "success"
+        end
+        -- Eine Alternative hat keinen Zustand: sie ist nichts, was
+        -- fehlt, sondern etwas, das andere stattdessen nehmen.
+        if status then
+            row.detail:SetText(("%s  ·  |cff%s%s|r"):format(
+                table.concat(parts, "  ·  "), S:Hex(token), status))
+        else
+            row.detail:SetText(table.concat(parts, "  ·  "))
+            S:Recolor(row.detail, "textMuted")
+        end
+        row.title:SetAlpha(data.alt and 0.75 or 1)
+        row.icon:SetAlpha(data.alt and 0.6 or 1)
+
+        row.share:SetText(data.pct and (data.pct .. "%") or "")
+        S:Recolor(row.share, (data.pct or 0) >= 50 and "accent" or "textMuted")
+        -- Nur die Speisenzeile fragt zurueck. Ein Flaeschchen ist
+        -- gemessen; daran gibt es nichts zu waehlen.
+        -- Zu waehlen ist nur noch die Menge. Was benutzt wird, ist
+        -- gemessen - bei Speisen inzwischen genauso wie bei allem anderen.
+        row.onClick = function(self)
+            openTargetPicker(self, data.ckind)
+        end
+        return
+    end
+
+    if data.kind == "gear" then
+        -- Der Link auf der gewaehlten Stufe hat Vorrang: an ihm haengt
+        -- das Tooltip.
+        row.link = data.atLevel or data.link
+        row.itemID, row.wantLevel, row.wantBonus = data.id, data.wantLevel, data.wantBonus
+        -- Den Gegenstand anfordern, damit er beim Hovern da ist.
+        if data.id and C_Item and C_Item.RequestLoadItemDataByID then
+            pcall(C_Item.RequestLoadItemDataByID, data.id)
+        end
+        row.icon:SetTexture(data.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+        row.title:SetText(data.name or ("#" .. tostring(data.id)))
+        row.detail:ClearAllPoints()
+        row.detail:SetPoint("TOPLEFT", S.space.sm + 38, -S.space.sm - 16)
+        -- Set- und Handwerksteile werden benannt. Ohne das sehen Kopf
+        -- und Schultern aus, als gaebe es nur Tier - die Alternativen
+        -- stehen unkommentiert daneben.
+        local detail = data.group or ""
+        if (data.ilvl or 0) > 0 then
+            detail = detail .. "  ·  " .. L["ILVL"]:format(data.ilvl)
+        end
+        -- Die hoechste Schluesselstufe, bei der es noch getragen wurde.
+        -- Beantwortet etwas, das ein Prozentwert nicht kann: ob es auch
+        -- oben noch mitgeht oder nur in der Breite beliebt ist.
+        if (data.maxKey or 0) > 0 then
+            detail = detail .. "  ·  " .. L["MAX_KEY"]:format(data.maxKey)
+        end
+        if data.badge then
+            detail = detail .. "  ·  |cff" .. S:Hex("accent")
+                .. L["BADGE_" .. data.badge:upper()] .. "|r"
+        end
+        -- Der Fundort steht zuletzt, weil er der laengste Teil ist und
+        -- die kurzen Angaben sonst nach rechts rutschen.
+        if data.drop then
+            detail = detail .. "  ·  " .. data.drop
+        end
+        row.detail:SetText(detail)
+        row.share:SetText((data.pct or 0) .. "%")
+        S:Recolor(row.share, (data.pct or 0) >= 50 and "accent" or "textMuted")
+        row.onClick = nil
+        return
+    end
+
+    if data.pending then
+        row.link = nil
+        row.icon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
+        row.title:SetText(L["PICK_" .. data.pending:upper()])
+        S:Recolor(row.title, "warning")
+        row.detail:SetText(L["SLOT_" .. data.slot] .. "  ·  " .. L["SLOT_COUNT"]:format(data.need or 0))
+        row.share:SetText("")
+        if data.pending == "tertiary" then
+            row.onClick = nil
+        else
+            row.onClick = function(self) openPicker(self, data.slot, data.pending) end
+        end
+        return
+    end
+
+    row.link = data.link
+    row.icon:SetTexture(data.icon or "Interface\\Icons\\INV_Misc_Gem_01")
+    row.title:SetText(data.name or data.fallback or ("#" .. tostring(data.id)))
+
+    -- Der Anteil steht rechts und in einer eigenen Spalte: er ist die
+    -- Antwort auf "warum das und nicht das andere", und in der Zeile
+    -- mitlaufend waere er nur ein weiteres Wort.
+    if data.pct then
+        row.share:SetText(data.pct .. "%")
+        S:Recolor(row.share, data.pct >= 50 and "accent" or "textMuted")
+    else
+        row.share:SetText("")
+    end
+
+    local parts = { L["SLOT_" .. data.slot] }
+    if data.kind == "gem" then
+        parts[#parts + 1] = L["SOCKETS"]:format(data.need, data.missing or 0)
+    else
+        parts[#parts + 1] = L["SLOT_COUNT"]:format(data.need)
+    end
+    if (data.owned or 0) > 0 then parts[#parts + 1] = L["OWNED"]:format(data.owned) end
+
+    -- Eine Alternative traegt keinen Zustand: sie ist nichts, was man
+    -- noch braucht, sondern etwas, das andere stattdessen nehmen.
+    if data.alt then
+        local parts = { L["ALT_ROW"] }
+        if data.maxKey and data.maxKey > 0 then
+            parts[#parts + 1] = L["MAX_KEY"]:format(data.maxKey)
+        end
+        row.detail:SetText(table.concat(parts, "  ·  "))
+        S:Recolor(row.detail, "textMuted")
+        row.title:SetAlpha(0.75)
+        row.icon:SetAlpha(0.6)
+        row.onClick = nil
+        return
+    end
+    row.title:SetAlpha(1)
+    row.icon:SetAlpha(1)
+
+    local status, token
+    if (data.missing or 0) == 0 then
+        status, token = L["ALREADY_DONE"], "success"
+    elseif (data.buy or 0) > 0 then
+        status, token = L["NEED"]:format(data.buy), "warning"
+    else
+        status, token = L["IN_BAGS"], "success"
+    end
+    row.detail:SetText(("%s  ·  |cff%s%s|r"):format(
+        table.concat(parts, "  ·  "), S:Hex(token), status))
+
+    if data.slot == "weapon" or data.slot == "legs" then
+        row.onClick = function(self) openPicker(self, data.slot, data.slot) end
+    else
+        row.onClick = nil
+    end
+end
+
+-- ------------------------------------------------------------- Aufbau
+
+local function build()
+    frame = CreateFrame("Frame", "MetaCodexFrame", UIParent)
+    -- So gross wie zuletzt gezogen, sonst wie gebaut.
+    local savedW, savedH = ns.Profile.WindowSize()
+    frame:SetSize(savedW or WIDTH, savedH or HEIGHT)
+    -- Dort, wo es zuletzt stand. Beim ersten Mal in der Mitte.
+    local point, px, py = ns.Profile.WindowPoint()
+    if point then
+        frame:SetPoint(point, UIParent, point, px, py)
+    else
+        frame:SetPoint("CENTER")
+    end
+    frame:SetMovable(true)
+    frame:EnableMouse(true)
+    frame:RegisterForDrag("LeftButton")
+    frame:SetScript("OnDragStart", frame.StartMoving)
+    frame:SetScript("OnDragStop", function(self)
+        self:StopMovingOrSizing()
+        -- Der Anker und nicht die Bildschirmkoordinate: bei anderer
+        -- Aufloesung faende man das Fenster sonst neben dem Bild wieder.
+        local anchor, _, _, x, y = self:GetPoint(1)
+        if anchor then
+            ns.Profile.SetWindowPoint(anchor, math.floor(x + 0.5), math.floor(y + 0.5))
+        end
+    end)
+    frame:SetScale(ns.Profile.WindowScale())
+    -- Ziehbar, in Grenzen. Der Griff sitzt unten rechts; waehrend des
+    -- Ziehens zeichnet nichts neu - erst beim Loslassen, einmal.
+    frame:SetResizable(true)
+    if frame.SetResizeBounds then frame:SetResizeBounds(MIN_W, MIN_H, MAX_W, MAX_H) end
+    frame:SetClampedToScreen(true)
+    frame:SetFrameStrata("HIGH")
+    frame:SetToplevel(true)
+    frame:Hide()
+    tinsert(UISpecialFrames, "MetaCodexFrame")
+
+    S:Fill(frame, "bgBase")
+    S:Border(frame, "borderStrong")
+
+    -- --- Kopfzeile ---------------------------------------------------
+    local header = CreateFrame("Frame", nil, frame)
+    header:SetPoint("TOPLEFT")
+    header:SetPoint("TOPRIGHT")
+    header:SetHeight(HEADER)
+    S:Fill(header, "bgRaised")
+    S:Border(header, "borderSubtle", 1, { bottom = true })
+
+    frame.titleText = S:Text(header, "display", "textPrimary")
+    frame.titleText:SetPoint("LEFT", S.space.lg, 0)
+    frame.titleText:SetText(L["TITLE"])
+
+    local specButton = makeButton(header, 180, 26, "", function(self) UI.OpenSpecPicker(self) end)
+    specButton:SetPoint("LEFT", 140, 0)
+    frame.specButton = specButton
+
+    local activityButton = makeButton(header, 140, 26, "", function(self) openActivityPicker(self) end)
+    activityButton:SetPoint("LEFT", specButton, "RIGHT", S.space.sm, 0)
+    frame.activityButton = activityButton
+
+    local sourceButton = makeButton(header, 150, 26, "", function(self) openSourcePicker(self) end)
+    sourceButton:SetPoint("LEFT", activityButton, "RIGHT", S.space.sm, 0)
+    frame.sourceButton = sourceButton
+
+    headerText = S:Text(header, "caption", "textMuted")
+    headerText:SetPoint("RIGHT", -44, 0)
+    headerText:SetJustifyH("RIGHT")
+
+    local close = makeButton(header, 26, 26, "X", function() frame:Hide() end)
+    close:SetPoint("RIGHT", -S.space.md, 0)
+
+    -- --- Seitenleiste -------------------------------------------------
+    local sidebar = CreateFrame("Frame", nil, frame)
+    sidebar:SetPoint("TOPLEFT", 0, -HEADER)
+    sidebar:SetPoint("BOTTOMLEFT", 0, FOOTER)
+    sidebar:SetWidth(SIDEBAR)
+    S:Fill(sidebar, "bgInset")
+    S:Border(sidebar, "borderSubtle", 1, { right = true })
+
+    -- Gruppenkoepfe sind Knoepfe, keine Beschriftungen: sie klappen ihre
+    -- Eintraege weg. Die Position der Eintraege wird beim Auffrischen neu
+    -- gesetzt, weil sie davon abhaengt, was darueber eingeklappt ist.
+    for _, group in ipairs(GROUPS) do
+        local head = CreateFrame("Button", nil, sidebar)
+        head:SetSize(SIDEBAR - S.space.md * 2, 22)
+        head.chevron = S:Text(head, "caption", "textMuted")
+        head.chevron:SetPoint("LEFT", 0, 0)
+        head.label = S:Text(head, "caption", "textMuted")
+        head.label:SetPoint("LEFT", 14, 0)
+        head.label:SetText(L[group]:upper())
+        head.group = group
+        head:SetScript("OnEnter", function(self) S:Recolor(self.label, "textSecondary") end)
+        head:SetScript("OnLeave", function(self) S:Recolor(self.label, "textMuted") end)
+        head:SetScript("OnClick", function(self)
+            ns.Profile.ToggleCollapsed(self.group)
+            UI.Refresh()
+        end)
+        groupHeads[#groupHeads + 1] = head
+    end
+
+    for _, section in ipairs(SECTIONS) do
+        local button = CreateFrame("Button", nil, sidebar)
+        button:SetSize(SIDEBAR - S.space.md * 2, 28)
+        button.bg = S:Fill(button, "bgOverlay", 0)
+        button.marker = button:CreateTexture(nil, "ARTWORK")
+        button.marker:SetTexture("Interface\\Buttons\\WHITE8X8")
+        button.marker:SetPoint("LEFT")
+        button.marker:SetSize(S:Pixel(2), 18)
+        button.marker:SetVertexColor(S:Color("accent"))
+        button.marker:Hide()
+        button.label = S:Text(button, "body", "textSecondary")
+        button.label:SetPoint("LEFT", S.space.md, 0)
+        button.label:SetText(L["SECTION_" .. section.key])
+        button.section = section
+        button:SetScript("OnEnter", function(self) self.bg:SetAlpha(0.6) end)
+        button:SetScript("OnLeave", function(self) self.bg:SetAlpha(self.__active and 1 or 0) end)
+        button:SetScript("OnClick", function(self)
+            MetaCodexDB.section = self.section.key
+            UI.Refresh()
+        end)
+        navButtons[#navButtons + 1] = button
+    end
+
+    -- --- Inhalt --------------------------------------------------------
+    local content = CreateFrame("Frame", nil, frame)
+    content:SetPoint("TOPLEFT", SIDEBAR, -HEADER)
+    content:SetPoint("BOTTOMRIGHT", 0, FOOTER)
+
+    sectionTitle = S:Text(content, "title", "textPrimary")
+    sectionTitle:SetPoint("TOPLEFT", S.space.xl, -S.space.lg)
+
+    -- Der Stufenfilter gehoert in den Abschnitt, nicht in die ohnehin
+    -- volle Kopfzeile: er gilt nur fuer die Ausruestung.
+    local levelButton = makeButton(content, 175, 22, "", function(self)
+        openKeyPicker(self)
+    end)
+    levelButton:SetPoint("TOPRIGHT", -S.space.xl, -S.space.lg - 2)
+    frame.levelButton = levelButton
+
+    -- Der Dungeonwaehler steht beim Abschnitt, nicht in der Kopfzeile:
+    -- dort draengen sich schon Spec, Aktivitaet und Quelle, und ein
+    -- vierter Knopf waere der, den man nicht mehr sieht.
+    local categoryButton = makeButton(content, 170, 22, "", function(self)
+        openCategoryPicker(self, activeSection(), frame.__categories or {})
+    end)
+    frame.categoryButton = categoryButton
+
+    local slotButton = makeButton(content, 150, 22, "", function(self)
+        openSlotPicker(self, ns.Profile.SelectedSpec(),
+            ns.Profile.LookupMode(), ns.Profile.Source())
+    end)
+    frame.slotButton = slotButton
+
+    local dungeonButton = makeButton(content, 160, 22, "", function(self)
+        openDungeonPicker(self)
+    end)
+    dungeonButton:SetPoint("TOPRIGHT", -S.space.xl, -S.space.lg - 2)
+    frame.dungeonButton = dungeonButton
+
+    sectionCount = S:Text(content, "caption", "textMuted")
+    sectionCount:SetJustifyH("RIGHT")
+
+    local controls = CreateFrame("Frame", nil, content)
+    controls:SetPoint("TOPLEFT", 0, -S.space.xl - 18)
+    controls:SetPoint("TOPRIGHT", 0, -S.space.xl - 18)
+    controls:SetHeight(112)
+
+    local cy = -S.space.sm
+    cy = makeStatRow(controls, "MAIN_STAT", "main", ns.SECONDARY, cy)
+    cy = makeStatRow(controls, "SECOND_STAT", "second", ns.SECONDARY, cy)
+    cy = makeStatRow(controls, "TERTIARY", "tertiary", ns.TERTIARY, cy)
+    makeCheck(controls, "OPT_ONLY_MISSING", "onlyMissing", S.space.lg, cy)
+    makeCheck(controls, "OPT_CHEAP", "cheap", S.space.lg + 220, cy)
+    frame.controls = controls
+
+    hintText = S:Text(content, "caption", "textSecondary")
+    hintText:SetPoint("TOPLEFT", S.space.xl, -S.space.xl - 140)
+    hintText:SetWidth(contentWidth())
+    hintText:SetWordWrap(true)
+
+    local scroll = CreateFrame("ScrollFrame", "MetaCodexScroll", content, "UIPanelScrollFrameTemplate")
+    scroll:SetPoint("TOPLEFT", S.space.xl, -S.space.xl - 156)
+    scroll:SetPoint("BOTTOMRIGHT", -S.space.xl - 20, S.space.md)
+    scrollChild = CreateFrame("Frame", nil, scroll)
+    scrollChild:SetSize(contentWidth(), 1)
+    scroll:SetScrollChild(scrollChild)
+    frame.scroll = scroll
+
+    -- --- Statuszeile ---------------------------------------------------
+    local footer = CreateFrame("Frame", nil, frame)
+    footer:SetPoint("BOTTOMLEFT")
+    footer:SetPoint("BOTTOMRIGHT")
+    footer:SetHeight(FOOTER)
+    S:Fill(footer, "bgRaised")
+    S:Border(footer, "borderSubtle", 1, { top = true })
+
+    sourceText = S:Text(footer, "caption", "textMuted")
+    sourceText:SetPoint("LEFT", S.space.lg, 0)
+    sourceText:SetWidth(math.max(200, (savedW or WIDTH) - 360))
+
+    local search = makeButton(footer, 150, 28, L["BTN_SEARCH"], function() UI.Handover(true) end)
+    search:SetPoint("RIGHT", -S.space.lg, 0)
+    frame.searchButton = search
+
+    local create = makeButton(footer, 170, 28, L["BTN_CREATE_LIST"], function() UI.Handover(false) end)
+    create:SetPoint("RIGHT", search, "LEFT", -S.space.sm, 0)
+    frame.createButton = create
+
+    -- Der Griff. Ein kleines Dreieck in der Ecke, wie es jedes Fenster
+    -- hat, das man ziehen kann - ohne es sucht niemand danach.
+    local grip = CreateFrame("Button", nil, frame)
+    grip:SetSize(16, 16)
+    grip:SetPoint("BOTTOMRIGHT", -2, 2)
+    grip:SetFrameLevel(frame:GetFrameLevel() + 10)
+    grip.tex = grip:CreateTexture(nil, "OVERLAY")
+    grip.tex:SetAllPoints()
+    grip.tex:SetTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
+    grip:SetScript("OnMouseDown", function() frame:StartSizing("BOTTOMRIGHT") end)
+    grip:SetScript("OnMouseUp", function()
+        frame:StopMovingOrSizing()
+        ns.Profile.SetWindowSize(frame:GetWidth(), frame:GetHeight())
+        UI.Refresh()
+    end)
+    frame.grip = grip
+end
+
+-- ------------------------------------------------------------ Auffrischen
+
+local currentRows = {}
+
+---Warum ein Abschnitt leer ist.
+---
+---Frueher stand unter jedem leeren Abschnitt "Noch nicht gebaut" - ein
+---Satz, der zur Haelfte gelogen war, sobald die Abschnitte fertig waren.
+---Leer heisst jetzt fast immer etwas anderes: diese Plattform misst
+---diesen Modus nicht, oder sie misst ihn und kennt diese Spec nicht.
+---@param mode string
+---@param source string
+---@return string
+local function emptyReason(mode, source)
+    if not ns.Recommend.Ready() then return L["NO_CATALOG"] end
+    if not ns.Recommend.HasMode(mode) then return L["NO_MODE_DATA"] end
+    if source ~= ns.Recommend.ALL then
+        return L["NO_SOURCE_SECTION"]:format(source)
+    end
+    return L["NO_SPEC_SECTION"]
+end
+
+---Hat ein Abschnitt fuer die gewaehlte Aktivitaet ueberhaupt Daten?
+---
+---DIE Regel des Fensters: nichts anzeigen, was es nicht gibt. Ein
+---Abschnitt ohne Daten steht nicht in der Leiste, eine Aktivitaet ohne
+---Daten nicht im Waehler, eine Plattform ohne Daten nicht zur Wahl.
+---Guides und Info haengen an keiner Messung und sind immer da.
+---@param key string
+---@param mode string|nil  Vorgabe: die gewaehlte Aktivitaet
+---@return boolean
+function UI.SectionHasData(key, mode)
+    if key == "guides" or key == "info" then return true end
+    if not ns.Recommend.Ready() then return true end
+    return ns.Recommend.HasSection(ns.Profile.SelectedSpec(),
+        mode or ns.Profile.Mode(), ns.Recommend.ALL, key)
+end
+
+function activeSection()
+    -- Vorgabe ist der Abschnitt, der etwas zeigt. Auf einem leeren zu
+    -- starten waere der schlechteste erste Eindruck, den das Addon machen
+    -- kann.
+    local key = MetaCodexDB and MetaCodexDB.section or "enchants"
+    for _, section in ipairs(SECTIONS) do
+        if section.key == key then return section end
+    end
+    for _, section in ipairs(SECTIONS) do
+        if section.key == "enchants" then return section end
+    end
+    return SECTIONS[1]
+end
+
+function UI.Refresh()
+    if not frame then return end
+
+    local profile = ns.Profile.Current()
+    local section = activeSection()
+    if not UI.SectionHasData(section.key) then
+        for _, candidate in ipairs(SECTIONS) do
+            if UI.SectionHasData(candidate.key) then
+                MetaCodexDB.section = candidate.key
+                section = candidate
+                break
+            end
+        end
+    end
+
+    for key, buttons in pairs(statButtons) do
+        for value, button in pairs(buttons) do
+            setButtonActive(button, profile[key] == value)
+        end
+    end
+    for key, check in pairs(optionChecks) do
+        check:SetChecked(profile[key] and true or false)
+    end
+    -- Seitenleiste: Gruppen und ihre Eintraege werden bei jedem Auffrischen
+    -- neu gestapelt. Ihre Hoehe haengt davon ab, was darueber eingeklappt
+    -- ist - feste Positionen aus dem Aufbau waeren nach dem ersten Klick
+    -- falsch.
+    local y = -S.space.md
+    for _, head in ipairs(groupHeads) do
+        local collapsed = ns.Profile.IsCollapsed(head.group)
+        head:ClearAllPoints()
+        head:SetPoint("TOPLEFT", S.space.md, y)
+        head:Show()
+        head.chevron:SetText(collapsed and "+" or "-")
+        y = y - 24
+
+        for _, button in ipairs(navButtons) do
+            if button.section.group == head.group then
+                if collapsed or not UI.SectionHasData(button.section.key) then
+                    button:Hide()
+                else
+                    local active = button.section.key == section.key
+                    button.__active = active
+                    button.bg:SetAlpha(active and 1 or 0)
+                    button.marker:SetShown(active)
+                    S:Recolor(button.label, active and "textPrimary" or "textSecondary")
+                    button:ClearAllPoints()
+                    button:SetPoint("TOPLEFT", S.space.md, y)
+                    button:Show()
+                    y = y - 30
+                end
+            end
+        end
+        y = y - S.space.sm
+    end
+
+    local specID = ns.Profile.SelectedSpec()
+    local foreign = ns.Profile.IsForeignClass()
+    local specName = ns.Compat.SpecName(specID)
+    local _, classFile = ns.Compat.ClassOfSpec(specID)
+    frame.specButton.label:SetText(("|cff%s%s|r%s"):format(
+        ns.Compat.ClassColor(classFile),
+        specName or L["SPEC_ACTIVE"],
+        foreign and " *" or ""))
+    -- Die Akzentfarbe folgt der GEZEIGTEN Klasse, nicht der eigenen:
+    -- wer fuer den Magier einkauft, sieht das Fenster in Magierblau.
+    if classFile then ns.Style:SetAccentFromClass(classFile) end
+
+    -- Zwei Modi, und der Unterschied ist wichtig: `base` ist die
+    -- Aktivitaet, unter der die Knoepfe beschriftet werden, `mode` der
+    -- Schluessel, unter dem nachgeschlagen wird. Bei gewaehltem Dungeon
+    -- sind sie verschieden.
+    local base = ns.Profile.Mode()
+    -- Ein Modus ohne Daten bleibt nicht stehen: sonst zeigt das Fenster
+    -- eine Aktivitaet an, zu der es nichts gibt, und der Waehler bietet
+    -- sie nicht einmal mehr an.
+    if not ns.Recommend.HasMode(base) and ns.Recommend.Ready() then
+        for _, entry in ipairs(ns.MODES) do
+            if ns.Recommend.HasMode(entry.key) then
+                ns.Profile.SetMode(entry.key)
+                base = entry.key
+                break
+            end
+        end
+    end
+    local mode = ns.Profile.LookupMode()
+    for _, entry in ipairs(ns.MODES) do
+        if entry.key == base then frame.activityButton.label:SetText(entry.label) end
+    end
+
+    -- Steht die Auswahl noch, muessen die Daten auch nach einem
+    -- Neuladen wieder da sein - sonst zeigt das Fenster einen
+    -- Dungeonnamen und darunter nichts.
+    if ns.Profile.Dungeon() then ns.Data.EnsureDungeons() end
+    local dungeons = ns.Recommend.Dungeons(base)
+    -- Nur wo der Dungeon wirklich etwas aendert. Eine Verzauberung ist in
+    -- jedem Dungeon dieselbe, und "Alle Dungeons" ueber der Steinliste
+    -- beantwortet eine Frage, die dort niemand stellt.
+    local dungeonMatters = DUNGEON_SECTIONS[section.key] == true
+    frame.dungeonButton:SetShown(#dungeons > 0 and dungeonMatters)
+    local chosen = ns.Profile.Dungeon()
+    local dungeonLabel = L[(unitLabels(base))]
+    for _, dungeon in ipairs(dungeons) do
+        if dungeon.key == chosen then
+            dungeonLabel = dungeon.group and (dungeon.group .. ": " .. dungeon.name) or dungeon.name
+        end
+    end
+    frame.dungeonButton.label:SetText(dungeonLabel)
+
+    -- Eine Quelle, die diesen Modus nicht misst, darf nicht gewaehlt
+    -- bleiben - sonst steht im Kopf eine Plattform und in der Liste nichts.
+    local wanted = ns.Profile.Source()
+    local available = ns.Recommend.SourcesFor(base)
+    local valid = wanted == ns.Recommend.ALL
+    for _, name in ipairs(available) do if name == wanted then valid = true end end
+    -- Und sie muss zu DIESEM Abschnitt etwas haben. Sonst zurueck auf
+    -- "alle Plattformen": eine Quelle im Knopf, die hier nichts liefert,
+    -- ist keine Auswahl, sondern eine Irrefuehrung.
+    if valid and wanted ~= ns.Recommend.ALL then
+        valid = ns.Recommend.HasSection(specID, mode, wanted, section.key)
+    end
+    if not valid then
+        wanted = ns.Recommend.ALL
+        ns.Profile.SetSource(wanted)
+    end
+    frame.sourceButton.label:SetText(
+        wanted == ns.Recommend.ALL and L["SOURCE_ALL"] or wanted)
+    -- Guides und Info messen nichts: dort gibt es weder Aktivitaet noch
+    -- Plattform zu waehlen, also stehen die Knoepfe nicht da. Und eine
+    -- Plattformwahl mit nur einem Eintrag ist keine.
+    local dataSection = section.key ~= "guides" and section.key ~= "info"
+    local choices = 0
+    for _, name in ipairs(available) do
+        if ns.Recommend.HasSection(specID, mode, name, section.key) then choices = choices + 1 end
+    end
+    frame.activityButton:SetShown(dataSection)
+    frame.sourceButton:SetShown(dataSection and choices >= 2)
+
+    -- Die Katalogangabe stand hier klein und grau und wurde nicht
+    -- gelesen. Sie steht jetzt unter "Info", vollstaendig.
+    headerText:SetText("")
+
+    sectionTitle:SetText(L["SECTION_" .. section.key])
+
+    -- Die Schluesselstufe gilt fuer die Ausruestung, und nur wenn das
+    -- Spiel die Belohnungstabelle ueberhaupt kennt.
+    frame.levelButton:SetShown(section.key == "gear" and not viewingPlayer
+        and #ns.Compat.RewardTable() > 0)
+    local targetLabel = ns.Profile.TargetLabel()
+    if targetLabel then
+        frame.levelButton.label:SetText(targetLabel)
+    elseif ns.Profile.KeyLevel() then
+        local level = ns.Profile.TargetLevel()
+        frame.levelButton.label:SetText(level
+            and L["KEY_SHORT"]:format(ns.Profile.KeyLevel(), level) or L["KEY_BEST"])
+    else
+        frame.levelButton.label:SetText(L["KEY_BEST"])
+    end
+
+    -- Der Platzwaehler gehoert nur zur Ausruestung.
+    local slots = (section.key == "gear")
+        and slotsInGear(specID, mode, wanted) or {}
+    frame.slotButton:SetShown(#slots > 1)
+    local pickedSlot = ns.Profile.GearSlot()
+    -- Eine Auswahl, die es in diesem Modus nicht gibt, faellt weg -
+    -- sonst steht ein Platz im Knopf und darunter nichts.
+    local valid = pickedSlot == nil
+    for _, slot in ipairs(slots) do if slot == pickedSlot then valid = true end end
+    if not valid then
+        pickedSlot = nil
+        ns.Profile.SetGearSlot(nil)
+    end
+    frame.slotButton.label:SetText(pickedSlot
+        and L["GEARSLOT_" .. pickedSlot:gsub("%s", "")] or L["SLOT_ALL"])
+
+
+    -- Die Kennwertknoepfe sind nur dann eine Frage, wenn keine Daten
+    -- vorliegen. Mit Empfehlung waeren sie eine Einladung, etwas zu
+    -- aendern, das ohnehin ueberschrieben wird.
+    local rec = ns.Recommend.For(specID, mode, wanted)
+    -- Nur unter Verzauberungen: dort baut die Wahl die Einkaufsliste.
+    -- Unter Talenten oder Spielern haette sie nichts zu tun.
+    frame.controls:SetShown(section.key == "enchants" and rec == nil)
+
+    if rec then
+        local names = wanted == ns.Recommend.ALL
+            and table.concat(available, ", ") or wanted
+        sourceText:SetText(L["SOURCE_LINE"]:format(
+            names, ns.Compat.DateText(ns.Recommend.Stamp(mode, wanted))))
+    elseif ns.Recommend.Ready() then
+        sourceText:SetText("|cff" .. S:Hex("warning") .. L["NO_MODE_DATA"] .. "|r")
+    else
+        sourceText:SetText("")
+    end
+
+    -- Jeder Abschnitt hat seine eigene Quelle fuer Zeilen. Nur der
+    -- Einkaufsabschnitt geht ueber List.Build, weil nur dort die
+    -- Ausruestung des Spielers gegengerechnet wird.
+    -- Wenn die gewaehlte Plattform zu diesem Abschnitt nichts hat, wird
+    -- gefragt, wer etwas hat.
+    --
+    -- Vorher stand dort eine leere Seite mit einem Hinweis, man moege eine
+    -- andere Plattform waehlen. Das ist eine Arbeitsanweisung, keine
+    -- Antwort: raider.io fuehrt keine Verbrauchsgueter und wird es auch
+    -- nicht, und niemand soll das im Kopf behalten muessen.
+    --
+    -- Die Statuszeile nennt danach die Quelle, die tatsaechlich geantwortet
+    -- hat - sonst waere es eine stille Vertauschung.
+    -- Ob der Rueckfall gegriffen hat. Er muss sichtbar sein.
+    --
+    -- Sonst sieht ein Wechsel der Plattform aus, als passiere nichts:
+    -- man waehlt raider.io, und weil die keine Verbrauchsgueter fuehrt,
+    -- steht weiter dieselbe Liste da. Still das Richtige zu zeigen ist
+    -- gut; still etwas anderes zu zeigen, als oben im Knopf steht, ist es
+    -- nicht.
+    local fellBack = nil
+    local function withFallback(builder)
+        local rows, from = builder(wanted)
+        if (not rows or #rows == 0) and wanted ~= ns.Recommend.ALL then
+            rows, from = builder(ns.Recommend.ALL)
+            if rows and #rows > 0 then fellBack = from or true end
+        end
+        return rows or {}, from
+    end
+
+    -- Ein Abschnittswechsel schliesst das Profil.
+    if viewingPlayer and viewingPlayer.section ~= section.key then viewingPlayer = nil end
+
+    local fromSource
+    if viewingPlayer then
+        currentRows = playerViewRows(viewingPlayer)
+        sectionTitle:SetText(viewingPlayer.name)
+        hintText:SetText(L["PLAYER_VIEW_HINT"])
+    elseif section.key == "gear" then
+        currentRows, fromSource = withFallback(function(source)
+            return gearRows(specID, mode, source)
+        end)
+        hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted) or "")
+    elseif section.key == "stats" then
+        currentRows, fromSource = withFallback(function(source)
+            return statRows(specID, mode, source)
+        end)
+        hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted) or "")
+    elseif section.key == "consumables" then
+        currentRows, fromSource = withFallback(function(source)
+            return consumableRows(specID, mode, source)
+        end)
+        hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted) or "")
+    elseif section.key == "talents" then
+        currentRows, fromSource = withFallback(function(source)
+            return talentRows(specID, mode, source)
+        end)
+        hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted) or "")
+    elseif section.key == "players" then
+        currentRows, fromSource = withFallback(function(source)
+            return playerRows(specID, mode, source)
+        end)
+        hintText:SetText(#currentRows > 0 and L["PLAYER_HINT"] or L["NO_PLAYERS"])
+    elseif section.key == "remind" then
+        currentRows = remindRows(mode)
+        hintText:SetText(#currentRows > 3 and L["REMIND_HINT"] or emptyReason(mode, wanted))
+    elseif section.key == "info" then
+        currentRows = infoRows()
+        hintText:SetText("")
+    elseif section.key == "guides" then
+        currentRows = guideRows(specID)
+        hintText:SetText(#currentRows > 0 and L["GUIDE_HINT"] or L["SOON_GUIDES"])
+    elseif section.empty then
+        hintText:SetText(L[section.empty])
+        currentRows = {}
+    elseif not ns.Catalog.Ready() then
+        hintText:SetText("|cff" .. S:Hex("danger") .. L["NO_CATALOG"] .. "|r")
+        currentRows = {}
+    elseif not ns.Profile.Complete() then
+        hintText:SetText(L["PICK_HINT"])
+        currentRows = {}
+    else
+        hintText:SetText(foreign and L["FOREIGN_CLASS"] or "")
+        currentRows = ns.List.Build(ns.Gear.Scan())
+    end
+
+    -- Wo eine einzelne Quelle geantwortet hat, gehoert ihr Name in die
+    -- Statuszeile: bei "alle Plattformen" wird hier nicht gemittelt,
+    -- sondern die erste genommen, die etwas hat.
+    if fromSource then
+        sourceText:SetText(L["SOURCE_LINE"]:format(
+            fromSource, ns.Compat.DateText(ns.Recommend.Stamp(mode, fromSource))))
+    end
+
+    -- Die Kategorien kommen aus den Zeilen selbst, also erst hier. Ein
+    -- Waehler, der Plaetze anbietet, die es in dieser Spec nicht gibt,
+    -- fuehrt in leere Listen.
+    local categories = (section.key ~= "gear" and section.key ~= "remind")
+        and categoriesIn(section, currentRows) or {}
+    frame.__categories = categories
+    frame.categoryButton:SetShown(#categories > 1)
+
+    local picked = ns.Profile.Category(section.key)
+    local validCat = picked == nil
+    for _, cat in ipairs(categories) do
+        if cat.key == picked then
+            validCat = true
+            frame.categoryButton.label:SetText(cat.label)
+        end
+    end
+    if not validCat then
+        picked = nil
+        ns.Profile.SetCategory(section.key, nil)
+    end
+    if picked == nil then
+        frame.categoryButton.label:SetText(L["CATEGORY_ALL"])
+    end
+
+    if picked then
+        local kept = {}
+        for _, row in ipairs(currentRows) do
+            local key = (section.key == "consumables") and row.ckind or row.slot
+            if key == picked then kept[#kept + 1] = row end
+        end
+        currentRows = kept
+    end
+
+    -- Die Knopfreihe rechts oben, von rechts nach links.
+    --
+    -- ERST HIER, und das ist der Punkt: die Kategorien stehen erst fest,
+    -- wenn die Zeilen gebaut sind. Vorher gesetzt, war der Kategorie-
+    -- knopf noch vom vorigen Abschnitt sichtbar, verbrauchte hundert-
+    -- siebzig Pixel und schob den Dungeonknopf bis neben den Titel.
+    --
+    -- Feste Abstaende waeren ohnehin falsch, sobald ein Knopf wegfaellt -
+    -- und zwar unsichtbar falsch: Text unter Knopf.
+    local edge, gap = -S.space.xl, S.space.sm
+    local function placeRight(widget, width)
+        if not widget:IsShown() then return end
+        widget:ClearAllPoints()
+        widget:SetPoint("TOPRIGHT", edge, -S.space.lg - 2)
+        edge = edge - width - gap
+    end
+    placeRight(frame.levelButton, 175)
+    placeRight(frame.slotButton, 150)
+    placeRight(frame.categoryButton, 170)
+    placeRight(frame.dungeonButton, 160)
+    sectionCount:ClearAllPoints()
+    sectionCount:SetPoint("TOPRIGHT", edge, -S.space.lg - 3)
+
+    local shown = currentRows
+
+    local scrollTop = 156 + (frame.controls:IsShown() and 0 or -128)
+    frame.scroll:SetPoint("TOPLEFT", S.space.xl, -S.space.xl - scrollTop)
+    hintText:SetPoint("TOPLEFT", S.space.xl, -S.space.xl - (scrollTop - 16))
+
+    -- Die Breite kann sich seit dem letzten Mal geaendert haben - das
+    -- Fenster ist ziehbar. Alles, was an ihr haengt, folgt hier nach;
+    -- die Zeilen selbst gleich beim Setzen.
+    local width = contentWidth()
+    scrollChild:SetWidth(width)
+    hintText:SetWidth(width)
+    sourceText:SetWidth(math.max(200, frame:GetWidth() - 360))
+
+    local index, offset, lastSlot = 0, 0, nil
+    local function place(row, height)
+        if row:GetWidth() ~= width then
+            row:SetWidth(width)
+            row.title:SetWidth(width - 140)
+            row.detail:SetWidth(width - 140)
+        end
+        row:ClearAllPoints()
+        row:SetPoint("TOPLEFT", 0, -offset)
+        row:Show()
+        offset = offset + height
+    end
+
+    for _, data in ipairs(shown) do
+        -- Ueberschrift, wenn die Gruppe wechselt. Zielwerte tragen keine,
+        -- weil eine einzige Ueberschrift ueber vier Zeilen nur den
+        -- Abschnittstitel wiederholen wuerde.
+        local group = data.group or (data.slot and L["SLOT_" .. data.slot])
+        if group and group ~= lastSlot then
+            index = index + 1
+            local header = acquireRow(index)
+            setHeaderRow(header, group)
+            place(header, 26)
+            lastSlot = group
+        end
+        index = index + 1
+        local row = acquireRow(index)
+        setItemRow(row, data)
+        place(row, data.kind == "stat" and STAT_ROW_HEIGHT or ROW_HEIGHT)
+    end
+
+    for i = index + 1, #(rows or {}) do rows[i]:Hide() end
+    scrollChild:SetHeight(math.max(offset, 1))
+
+    -- Und sagen, wenn eine andere Quelle geantwortet hat.
+    if fellBack then
+        hintText:SetText(L["SOURCE_FELL_BACK"]:format(
+            wanted, type(fellBack) == "string" and fellBack or L["SOURCE_ALL"]))
+        S:Recolor(hintText, "warning")
+    end
+
+    local missing = ns.List.BuyCount(shown)
+    local countText = missing > 0 and L["COUNT_MISSING"]:format(missing) or ""
+    -- Deckt die Liste mehr als die gezeigte Spec ab, muss das sichtbar
+    -- sein: sonst drueckt jemand den Knopf und bekommt mehr, als er sieht.
+    local specCount = #ns.Profile.ShoppingSpecs()
+    if specCount > 1 and SHOPPING[section.key] then
+        countText = L["COUNT_SPECS"]:format(specCount)
+            .. (missing > 0 and ("  ·  " .. L["COUNT_MISSING"]:format(missing)) or "")
+    end
+    sectionCount:SetText(countText)
+
+    -- "Nichts zu kaufen" nur dort, wo es ueberhaupt etwas zu kaufen gibt.
+    --
+    -- Die Meldung stand unter JEDEM leeren Abschnitt, auch unter den
+    -- Talenten - und dort ist sie nicht nur falsch, sondern verwirrend:
+    -- sie beantwortet eine Frage, die niemand gestellt hat.
+    local shopping = SHOPPING[section.key] == true
+    if shopping and #shown == 0 and ns.Profile.Complete() and ns.Catalog.Ready() then
+        hintText:SetText("|cff" .. S:Hex("success") .. L["NOTHING_TO_BUY"] .. "|r"
+            .. (profile.onlyMissing and ("  " .. L["SHOW_ALL_HINT"]) or ""))
+    end
+
+    -- Die Knoepfe erscheinen nur, wo es etwas zu kaufen gibt.
+    frame.createButton:SetShown(shopping)
+    frame.searchButton:SetShown(shopping)
+
+    -- "Jetzt suchen" braucht ausserdem ein offenes Auktionshaus. Grau
+    -- statt eines Fehlers aus Auctionators Innerem, den der Spieler zu
+    -- Recht als unseren liest.
+    local usable = ns.Adapter.Loaded()
+    local canSearch = usable and ns.Adapter.AuctionHouseOpen()
+    frame.createButton:SetEnabled(usable)
+    frame.searchButton:SetEnabled(canSearch)
+    frame.createButton:SetAlpha(usable and 1 or 0.4)
+    frame.searchButton:SetAlpha(canSearch and 1 or 0.4)
+end
+
+---Legt eine Adresse zum Kopieren hin.
+---
+---Ein Addon darf keinen Browser oeffnen - das ist eine Grenze des Spiels,
+---keine Bequemlichkeit. Also ein Eingabefeld, in dem der Text schon
+---markiert ist: Strg+C, fertig.
+---@param url string
+function UI.ShowLink(url)
+    if not linkFrame then
+        linkFrame = CreateFrame("Frame", nil, UIParent)
+        -- Breit genug fuer eine ganze Adresse. Die laengste hier ist
+        -- ueber achtzig Zeichen lang, und ein Feld, das nur die Mitte
+        -- zeigt, ist schlimmer als keines.
+        linkFrame:SetSize(620, 128)
+        linkFrame:SetPoint("CENTER")
+        linkFrame:SetFrameStrata("FULLSCREEN_DIALOG")
+        linkFrame:SetToplevel(true)
+        linkFrame:EnableMouse(true)
+
+        -- Hintergrund und Rahmen DIREKT auf diesen Rahmen.
+        --
+        -- Hier stand S:Card(linkFrame) - und das war falsch: Card ERZEUGT
+        -- einen Rahmen und gibt ihn zurueck, es verziert keinen. Der
+        -- Aufruf hat also einen unsichtbaren Kindrahmen gebaut und
+        -- weggeworfen, und der Dialog stand durchsichtig ueber der Liste.
+        S:Fill(linkFrame, "bgBase")
+        S:Border(linkFrame, "borderStrong")
+
+        local title = S:Text(linkFrame, "title", "textPrimary")
+        title:SetPoint("TOPLEFT", S.space.lg, -S.space.lg)
+        title:SetText(L["LINK_TITLE"])
+
+        -- Ein eigener Kasten um das Feld: ohne ihn schwebt der Text im
+        -- Nichts und sieht nicht nach "hier steht etwas zum Kopieren" aus.
+        local well = CreateFrame("Frame", nil, linkFrame)
+        well:SetPoint("TOPLEFT", S.space.lg, -S.space.lg - 26)
+        well:SetPoint("TOPRIGHT", -S.space.lg, -S.space.lg - 26)
+        well:SetHeight(28)
+        S:Fill(well, "bgRaised")
+        S:Border(well, "borderSubtle")
+
+        local box = CreateFrame("EditBox", nil, well)
+        box:SetPoint("TOPLEFT", S.space.sm, -S.space.xs)
+        box:SetPoint("BOTTOMRIGHT", -S.space.sm, S.space.xs)
+        box:SetAutoFocus(true)
+        box:SetFontObject("GameFontHighlightSmall")
+        box:SetScript("OnEscapePressed", function() linkFrame:Hide() end)
+        box:SetScript("OnEnterPressed", function() linkFrame:Hide() end)
+        -- Nicht aenderbar, aber markierbar: was hier steht, soll
+        -- herauskopiert und nicht verstellt werden.
+        box:SetScript("OnTextChanged", function(self, byUser)
+            if byUser then self:SetText(self.__url or "") end
+        end)
+        linkFrame.box = box
+
+        local hint = S:Text(linkFrame, "caption", "textMuted")
+        hint:SetPoint("TOPLEFT", S.space.lg, -S.space.lg - 64)
+        hint:SetPoint("TOPRIGHT", -S.space.lg, -S.space.lg - 64)
+        hint:SetJustifyH("LEFT")
+        hint:SetText(L["LINK_HINT"])
+
+        local close = makeButton(linkFrame, 90, 22, L["LINK_CLOSE"],
+            function() linkFrame:Hide() end)
+        close:SetPoint("BOTTOMRIGHT", -S.space.lg, S.space.md)
+    end
+
+    linkFrame.box.__url = url
+    linkFrame.box:SetText(url)
+    -- Erst an den Anfang, dann markieren: sonst steht der Cursor am Ende,
+    -- das Feld ist dorthin gescrollt, und man sieht die Mitte der Adresse
+    -- statt ihres Anfangs.
+    linkFrame.box:SetCursorPosition(0)
+    linkFrame.box:HighlightText()
+    linkFrame.box:SetFocus()
+    linkFrame:Show()
+end
+
+---Zeigt mehrzeiligen Text zum Kopieren.
+---
+---Das Gegenstueck zu ShowLink: dort eine Adresse, hier ein ganzer
+---Bericht. Der Chat ist zum Lesen da, nicht zum Herausholen - lange
+---Zeilen brechen um, und wer sie kopieren will, faengt an zu markieren.
+---@param text string
+function UI.ShowText(text)
+    if not textFrame then
+        textFrame = CreateFrame("Frame", nil, UIParent)
+        textFrame:SetSize(700, 420)
+        textFrame:SetPoint("CENTER")
+        textFrame:SetFrameStrata("FULLSCREEN_DIALOG")
+        textFrame:SetToplevel(true)
+        textFrame:EnableMouse(true)
+        textFrame:SetMovable(true)
+        textFrame:RegisterForDrag("LeftButton")
+        textFrame:SetScript("OnDragStart", textFrame.StartMoving)
+        textFrame:SetScript("OnDragStop", textFrame.StopMovingOrSizing)
+        S:Fill(textFrame, "bgBase")
+        S:Border(textFrame, "borderStrong")
+
+        local title = S:Text(textFrame, "title", "textPrimary")
+        title:SetPoint("TOPLEFT", S.space.lg, -S.space.lg)
+        title:SetText(L["TEXT_TITLE"])
+
+        local hint = S:Text(textFrame, "caption", "textMuted")
+        hint:SetPoint("TOPLEFT", S.space.lg, -S.space.lg - 22)
+        hint:SetText(L["TEXT_HINT"])
+
+        local scroll = CreateFrame("ScrollFrame", nil, textFrame,
+            "UIPanelScrollFrameTemplate")
+        scroll:SetPoint("TOPLEFT", S.space.lg, -S.space.lg - 48)
+        scroll:SetPoint("BOTTOMRIGHT", -S.space.xl - 8, S.space.lg + 30)
+
+        local box = CreateFrame("EditBox", nil, scroll)
+        box:SetMultiLine(true)
+        box:SetAutoFocus(false)
+        box:SetFontObject("GameFontHighlightSmall")
+        box:SetWidth(620)
+        box:SetScript("OnEscapePressed", function() textFrame:Hide() end)
+        -- Nicht aenderbar, aber markierbar.
+        box:SetScript("OnTextChanged", function(self, byUser)
+            if byUser then self:SetText(self.__text or "") end
+        end)
+        scroll:SetScrollChild(box)
+        textFrame.box = box
+
+        local close = makeButton(textFrame, 90, 22, L["LINK_CLOSE"],
+            function() textFrame:Hide() end)
+        close:SetPoint("BOTTOMRIGHT", -S.space.lg, S.space.md)
+    end
+
+    textFrame.box.__text = text
+    textFrame.box:SetText(text)
+    textFrame.box:HighlightText()
+    textFrame.box:SetFocus()
+    textFrame:Show()
+end
+
+---Uebergibt die Liste an Auctionator.
+---@param searchNow boolean
+function UI.Handover(searchNow)
+    if not ns.Adapter.Loaded() then
+        ns.Print(L["NO_AUCTIONATOR"])
+        return
+    end
+    if not ns.Profile.Complete() then
+        ns.Print(L["PICK_HINT"])
+        return
+    end
+    -- Die Liste darf mehrere Speccs abdecken, das Fenster zeigt eine.
+    -- Ohne Zusatzauswahl ist `rows` genau das, was auf dem Schirm steht -
+    -- wer nichts eingestellt hat, bekommt also nichts Ueberraschendes.
+    local specs = ns.Profile.ShoppingSpecs()
+    local rows = currentRows
+    if #specs > 1 and SHOPPING[activeSection().key] then
+        rows = ns.List.BuildMany(ns.Gear.Scan(), specs)
+    end
+
+    local ok, message, written
+    if searchNow then
+        ok, message = ns.Adapter.Search(rows)
+    else
+        ok, message, written = ns.Adapter.CreateList(rows, activeSection().key)
+    end
+    if ok then
+        if not searchNow then ns.Print(L["LIST_CREATED"], written, message) end
+    elseif L[message] ~= message then
+        ns.Print(L[message])
+    else
+        ns.Print(L["LIST_FAILED"], message)
+    end
+end
+
+local warmed = false
+
+---Fordert die Namen aller Katalogeintraege an.
+---
+---Ohne Namen gibt es keine Suche im Auktionshaus, und der Client liefert
+---sie asynchron. Einmal beim ersten Oeffnen reicht.
+local function warmNames()
+    if warmed or not ns.Catalog.Ready() then return end
+    warmed = true
+    for _, id in ipairs(ns.Catalog.AllIDs()) do ns.Compat.RequestItem(id) end
+    -- Und den Probegegenstand: an ihm rechnet der Client aus, welcher
+    -- Aufwertungspfad welche Stufe ist. Vorher wurde er beim Login
+    -- angefordert - da war das Datenaddon noch gar nicht geladen, und
+    -- die Anfrage lief ins Leere.
+    local probe = ns.Catalog.ProbeItem and ns.Catalog.ProbeItem()
+    if probe then ns.Compat.RequestItem(probe) end
+end
+
+-- Das Auktionshaus geht auf und zu, waehrend das Fenster offen steht.
+--
+-- "Jetzt suchen" braucht ein offenes Auktionshaus und war deshalb grau -
+-- blieb es aber auch, nachdem man es geoeffnet hatte, weil niemand neu
+-- zeichnete. Ein grauer Knopf, der grau bleibt, obwohl die Bedingung
+-- erfuellt ist, sieht aus wie ein kaputter Knopf.
+local ahWatch = CreateFrame("Frame")
+ahWatch:RegisterEvent("AUCTION_HOUSE_SHOW")
+ahWatch:RegisterEvent("AUCTION_HOUSE_CLOSED")
+ahWatch:SetScript("OnEvent", function()
+    if frame and frame:IsShown() then UI.Refresh() end
+end)
+
+function UI.Toggle()
+    if not frame then build() end
+    local ok, reason = ns.Data.Ensure()
+    if not ok then ns.Print(L["NO_CATALOG"] .. " (" .. tostring(reason) .. ")") end
+    warmNames()
+    if frame:IsShown() then
+        frame:Hide()
+    else
+        UI.Refresh()
+        frame:Show()
+    end
+end
+
+function UI.IsShown()
+    return frame ~= nil and frame:IsShown()
+end
+
+---Wendet die gemerkte Groesse an - nach /mc scale sofort, nicht erst
+---beim naechsten Oeffnen.
+function UI.ApplyScale()
+    if frame then frame:SetScale(ns.Profile.WindowScale()) end
+end

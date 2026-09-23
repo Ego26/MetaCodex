@@ -1,0 +1,28 @@
+node_modules/
+.release/
+*.zip
+
+# Zugangsdaten zur Warcraft-Logs-API. Gehoeren niemals ins Repo und
+# niemals in ein Addon-Release - der Sammler laeuft ausserhalb des Spiels.
+tools/wcl-credentials.json
+
+# Vom Aufgabenplaner erzeugt: lokaler Pfad und Protokoll, nichts fuer das Repo.
+tools/run-daily.ps1
+tools/data/last-run.log
+
+# Daten liegen nicht im Git: sie aendern sich jede Nacht und wiegen 60 MB.
+# Die Action baut sie und haengt das Paket an das Release "nightly".
+tools/data/*.json
+MetaCodex_Data/*.lua
+MetaCodex_Dungeons/*.lua
+MetaCodex_Players/*.lua
+dist/
+Tests/node_modules/
+Tests/package-lock.json
+
+# Internal working notes: concept, to-do, drafts. Not part of the public repo.
+docs/
+
+# Brand tools, CurseForge drafts and release-note drafts. Local only; the
+# public images live in assets/.
+branding/

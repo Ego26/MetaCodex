@@ -1,0 +1,11 @@
+# Zeilenenden: LF im Repo, immer. Ein Shell-Skript mit CRLF stirbt auf
+# dem Linux-Runner an einem unsichtbaren Zeichen, und die Workflows auch.
+* text=auto eol=lf
+*.sh text eol=lf
+*.yml text eol=lf
+*.ps1 text eol=crlf
+*.png binary
+*.tga binary
+*.blp binary
+*.ttf binary
+*.zip binary
