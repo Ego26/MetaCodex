@@ -191,14 +191,6 @@ under PvP because no platform measures them — so there is no tab for them.
 - **Consumables for every M+ spec.** The log sample missed a few specs; the
   daily run now draws more reports.
 
-### What will not come, and why
-
-- **PvP consumables** — no platform measures them, and Warcraft Logs does
-  not log arenas. The addon would rather show nothing than something made
-  up.
-- **Guide texts inside the addon** — they belong to the sites that write
-  them. Hence links instead of copies.
-
 ---
 
 ## Requirements

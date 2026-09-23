@@ -200,13 +200,6 @@ also auch keinen Reiter dafür.
 - **Verbrauchsgüter für jede M+-Spec.** Die Stichprobe der Logs hat ein
   paar Speccs nicht erwischt; der Tageslauf zieht jetzt mehr Berichte.
 
-### Was nicht kommt, und warum
-
-- **PvP-Verbrauchsgüter** — keine Plattform misst sie, und Warcraft Logs
-  loggt keine Arenen. Das Addon zeigt lieber nichts als etwas Erfundenes.
-- **Guide-Texte im Addon** — die gehören den Seiten, die sie schreiben.
-  Deshalb Verweise statt Kopien.
-
 ---
 
 ## Voraussetzungen
