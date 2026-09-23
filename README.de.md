@@ -118,7 +118,7 @@ Der Katalog liest `ItemSparse`, `ItemBonus`, `JournalEncounterItem`,
 dieselben Tabellen, die der Client selbst benutzt. Keine ID in diesem
 Projekt ist abgeschrieben. Jede kommt aus den Spieldaten und ist nachprüfbar.
 
-Talent-Strings werden nie erzeugt: jede stammt aus dem Client eines echten
+Talent-Strings werden nie erzeugt: jeder stammt aus dem Client eines echten
 Spielers. Raid- und PvP-Strings werden gegen den geloggten Kampf bzw. die
 murlok-Heatmap geprüft, bevor sie als Build gelten.
 

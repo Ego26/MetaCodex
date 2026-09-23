@@ -145,7 +145,7 @@ als fertiges Addon-Paket an das Release **nightly** gehängt; im Spiel wird
 nichts aus dem Internet nachgeladen. Gespeichert werden nur IDs — Namen und
 Symbole holt dein Client in seiner Sprache.
 
-**Talent-Strings sind nie ausgedacht.** Jede stammt aus dem Client eines
+**Talent-Strings sind nie ausgedacht.** Jeder stammt aus dem Client eines
 echten Spielers. Für Raid und PvP wird jeder String geprüft, bevor er als
 Build gilt: die Talente im Profil müssen zu denen passen, die derselbe
 Spieler im geloggten Kampf hatte (Raid) beziehungsweise zu dem, was fast
@@ -165,7 +165,7 @@ also auch keinen Reiter dafür.
 | **10 Aktivitäten** | M+ (High Keys), M+ (+7 bis +21), Raid Normal / Heroisch / Mythisch, 2v2, 3v3, Solo Shuffle, RBG, RBG Blitz |
 | **3 Plattformen** | raider.io, murlok.io, Warcraft Logs — einzeln wählbar oder „Alle Plattformen" |
 | **Alle 40 Speccs** | Auch für Klassen, die du gar nicht spielst — zum Nachsehen oder zum Einkaufen für den Zweitcharakter |
-| **1.401 Talent-Import-Strings** | Jede von einem echten Spieler, jede mit einem Klick kopierbar |
+| **1.401 Talent-Import-Strings** | Jeder von einem echten Spieler, jeder mit einem Klick kopierbar |
 | **2.472 Spielerprofile** | Die Top-Spieler je Spec und Aktivität, mit kompletter Ausrüstung |
 | **Jede Nacht neu** | Die Daten sind höchstens einen Tag alt |
 
