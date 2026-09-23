@@ -204,9 +204,6 @@ also auch keinen Reiter dafür.
 
 - **PvP-Verbrauchsgüter** — keine Plattform misst sie, und Warcraft Logs
   loggt keine Arenen. Das Addon zeigt lieber nichts als etwas Erfundenes.
-- **Archon.gg als Quelle** — hinter einem Bot-Schutz, der nicht umgangen
-  wird. Archon hat keine eigene API; ihre Daten kommen aus Warcraft Logs,
-  und die nutzt MetaCodex selbst.
 - **Guide-Texte im Addon** — die gehören den Seiten, die sie schreiben.
   Deshalb Verweise statt Kopien.
 - **Ein eigener Talent-Kodierer** — es gab einen, er ist weg. Strings kommen

@@ -196,9 +196,6 @@ under PvP because no platform measures them — so there is no tab for them.
 - **PvP consumables** — no platform measures them, and Warcraft Logs does
   not log arenas. The addon would rather show nothing than something made
   up.
-- **Archon.gg as a source** — behind a bot check that is not circumvented.
-  Archon has no API of its own; its data come from Warcraft Logs, which
-  MetaCodex uses itself.
 - **Guide texts inside the addon** — they belong to the sites that write
   them. Hence links instead of copies.
 - **An own talent encoder** — there was one, it is gone. Strings come from
