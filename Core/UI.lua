@@ -1235,6 +1235,13 @@ local function infoRows()
         }
     end
 
+    -- Der Satz, der auf dem Banner steht - hier, wo er hingehoert. In
+    -- der Kopfzeile waere er eine vierte Sache neben Name, Spec,
+    -- Aktivitaet und Quelle, und die erste, die man nicht mehr liest.
+    rows[#rows + 1] = {
+        kind = "note", text = L["SLOGAN"], group = L["INFO_GROUP"],
+    }
+
     line(L["INFO_VERSION"], tostring(ns.version or "?"))
 
     local build, builtOn = ns.Catalog.Stamp()
@@ -2247,8 +2254,16 @@ local function build()
     S:Fill(header, "bgRaised")
     S:Border(header, "borderSubtle", 1, { bottom = true })
 
+    -- Das Logo neben dem Namen. Dieselbe Datei wie an der Minimap und
+    -- am Charakterfenster - drei Stellen, ein Bild.
+    frame.logo = header:CreateTexture(nil, "ARTWORK")
+    frame.logo:SetSize(26, 26)
+    frame.logo:SetPoint("LEFT", S.space.lg, 0)
+    frame.logo:SetTexture("Interface\\AddOns\\MetaCodex\\Media\\Textures\\logo")
+    frame.logo:SetTexCoord(0.05, 0.95, 0.05, 0.95)
+
     frame.titleText = S:Text(header, "display", "textPrimary")
-    frame.titleText:SetPoint("LEFT", S.space.lg, 0)
+    frame.titleText:SetPoint("LEFT", frame.logo, "RIGHT", S.space.sm, 0)
     frame.titleText:SetText(L["TITLE"])
 
     local specButton = makeButton(header, 180, 26, "", function(self) UI.OpenSpecPicker(self) end)
@@ -2552,6 +2567,7 @@ function UI.Refresh()
     -- Die Seitenleiste und der Inhalt folgen der Schrift. Ohne das lag
     -- bei 125 % der Titel auf dem Spec-Knopf und der Text der
     -- Seitenleiste auf ihrer Kante.
+    frame.logo:SetSize(26 * fs, 26 * fs)
     frame.sidebar:SetWidth(sidebarWidth())
     frame.content:ClearAllPoints()
     frame.content:SetPoint("TOPLEFT", sidebarWidth(), -HEADER)

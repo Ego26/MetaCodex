@@ -2,6 +2,7 @@ local _, ns = ...
 
 ns.RegisterLocale("enUS", {
     ["TITLE"]              = "MetaCodex",
+    ["SLOGAN"]             = "From real fights, not from guides.",
 
     -- Slots
     ["SLOT_helm"]          = "Head",
