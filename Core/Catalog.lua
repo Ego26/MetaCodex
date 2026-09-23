@@ -305,6 +305,39 @@ function Catalog.ConsumableKind(itemID)
     return kindByItem[itemID]
 end
 
+local nameByItem  -- einmal gebaut, dann nachgeschlagen
+
+---Der Name eines Gegenstands aus dem Katalog.
+---
+---Der Client kennt einen Gegenstand erst, wenn er ihn einmal gesehen
+---hat; bis dahin gibt GetItemInfo nichts zurueck, und im Fenster stand
+---"#271884". Der Katalog stammt aus den DB2-Tabellen desselben Spiels
+---und weiss den Namen immer - englisch zwar, aber ein Name ist besser
+---als eine Nummer.
+---@param itemID number
+---@return string|nil
+function Catalog.ItemName(itemID)
+    local c = data()
+    if not c then return nil end
+    if not nameByItem then
+        nameByItem = {}
+        for _, list in pairs(c.consumables or {}) do
+            for _, entry in ipairs(list) do
+                if entry.name then nameByItem[entry.id] = entry.name end
+            end
+        end
+        for _, entry in ipairs(c.gems or {}) do
+            if entry.name then nameByItem[entry.id] = entry.name end
+        end
+        for _, list in pairs(c.enchants or {}) do
+            for _, entry in ipairs(list) do
+                if entry.name then nameByItem[entry.id] = entry.name end
+            end
+        end
+    end
+    return nameByItem[itemID]
+end
+
 ---Die englischen Bezeichner einer Spec.
 ---
 ---Gebraucht fuer Guide-Adressen. Der Client nennt die Spec in seiner

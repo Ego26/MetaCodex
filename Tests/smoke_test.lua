@@ -1587,11 +1587,23 @@ wow.fire("PLAYER_ENTERING_WORLD")
 check("draussen bleibt sie still", #wow.printed == 0,
     table.concat(wow.printed, " | "))
 
--- Drinnen schon.
+-- Drinnen schon - aber erst, wenn die Taschen geantwortet haben.
+--
+-- Beim ersten Dungeon stand im Fenster fuenfmal "nichts in der Tasche",
+-- obwohl alles im Beutel lag: PLAYER_ENTERING_WORLD kommt, sobald der
+-- Ladebildschirm faellt, und bis der Server die Beutel schickt, zaehlt
+-- der Client ueberall null.
 wow.instance = "raid"
 wow.instanceID = 42
 wow.printed = {}
 wow.fire("PLAYER_ENTERING_WORLD")
+wow.runTimers()
+check("nach dem Ladebildschirm schweigt sie noch", #wow.printed == 0,
+    table.concat(wow.printed, " | "))
+
+-- Sobald die Beutel da sind, sagt sie es.
+wow.fire("BAG_UPDATE_DELAYED")
+wow.runTimers()
 check("im Schlachtzug warnt sie", #wow.printed > 0,
     table.concat(wow.printed, " | "))
 
@@ -1599,6 +1611,7 @@ check("im Schlachtzug warnt sie", #wow.printed > 0,
 -- Ladebildschirm, und dreimal dieselbe Warnung ist eine Warnung weniger.
 wow.printed = {}
 wow.fire("PLAYER_ENTERING_WORLD")
+wow.runTimers()
 check("kein zweites Mal in derselben Instanz", #wow.printed == 0,
     table.concat(wow.printed, " | "))
 

@@ -71,7 +71,8 @@ function Remind.Status(mode)
             if need > 0 then
                 out[#out + 1] = {
                     kind = kind, id = entry.id, own = entry.own,
-                    name = ns.Compat.ItemInfo(entry.id) or entry.name,
+                    name = ns.Compat.ItemInfo(entry.id)
+                        or ns.Catalog.ItemName(entry.id) or entry.name,
                     owned = owned, lower = lower, need = need, state = state, pct = entry.pct,
                 }
             end
@@ -194,6 +195,45 @@ end
 -- Warnung ist eine Warnung weniger.
 local lastAnnounced = nil
 
+-- Erst fragen, wenn der Client antworten kann.
+--
+-- PLAYER_ENTERING_WORLD kommt, sobald der Ladebildschirm faellt. Die
+-- Beutel schickt der Server danach, und bis dahin zaehlt GetItemCount
+-- ueberall null - ohne dazuzusagen, dass es nur noch nichts weiss. Wer
+-- in diesem Moment meldet, meldet "nichts in der Tasche", waehrend das
+-- Fläschchen im Beutel liegt. Genau das ist beim ersten Dungeon
+-- passiert.
+--
+-- Also wird gewartet: auf BAG_UPDATE_DELAYED, das nach dem Zonen kommt,
+-- und darauf, dass der Rucksack ueberhaupt Plaetze meldet. Nach acht
+-- Sekunden wird trotzdem gemeldet - lieber spaet als gar nicht, und so
+-- lange braucht kein Server.
+local waitingMode, bagsSpoke, waited = nil, false, 0
+
+local function tryAnnounce()
+    if not waitingMode then return end
+    local ready = bagsSpoke and ns.Compat.BagsKnown()
+    if not ready and waited < 8 then
+        waited = waited + 0.5
+        -- Die Namen holt der Client auf Zuruf. Nebenbei, solange
+        -- ohnehin gewartet wird.
+        for _, row in ipairs(Remind.Status(waitingMode)) do
+            if row.id and not ns.Compat.ItemInfo(row.id) then
+                ns.Compat.RequestItem(row.id)
+            end
+        end
+        C_Timer.After(0.5, tryAnnounce)
+        return
+    end
+    local mode = waitingMode
+    waitingMode = nil
+    Remind.Announce(mode)
+end
+
+local bagWatch = CreateFrame("Frame")
+bagWatch:RegisterEvent("BAG_UPDATE_DELAYED")
+bagWatch:SetScript("OnEvent", function() bagsSpoke = true end)
+
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 frame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
@@ -216,7 +256,12 @@ frame:SetScript("OnEvent", function()
     -- geoeffnet hat, hat sie noch nicht - hier ist der Moment, in dem
     -- sie gebraucht werden.
     if not ns.Data.Ensure() then return end
-    Remind.Announce(mode)
+    -- Nicht sofort: siehe oben, die Taschen sind noch stumm.
+    -- bagsSpoke beginnt bei false, auch wenn der Rucksack schon
+    -- Plaetze meldet: die Plaetze kennt der Client aus der Sitzung davor,
+    -- den Inhalt schickt der Server erst.
+    waitingMode, bagsSpoke, waited = mode, false, 0
+    C_Timer.After(0.5, tryAnnounce)
 end)
 
 -- Am Auktionshaus: einmal anbieten, nicht aufdraengen.

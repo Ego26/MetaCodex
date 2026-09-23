@@ -3430,13 +3430,25 @@ function UI.ShowReminder(text, list)
         remindFrame:RegisterEvent("AUCTION_HOUSE_SHOW")
         remindFrame:RegisterEvent("AUCTION_HOUSE_CLOSED")
         remindFrame:RegisterEvent("ADDON_LOADED")
+        -- Was drinsteht, kann sich aendern, waehrend es dasteht.
+        --
+        -- Die Beutel melden sich nach einem Ladebildschirm verspaetet,
+        -- und wer waehrend des Laufs einen Trank kauft oder trinkt,
+        -- soll nicht auf eine Zahl von vorhin sehen. Zaehlt wird neu,
+        -- nicht nachgetragen.
+        remindFrame:RegisterEvent("BAG_UPDATE_DELAYED")
         -- Escape schliesst es, wie jedes Fenster in diesem Spiel.
         tinsert(UISpecialFrames, "MetaCodexReminder")
-        remindFrame:SetScript("OnEvent", function(_, event)
+        remindFrame:SetScript("OnEvent", function(self, event)
             UI.UpdateReminderButtons()
             if event == "AUCTION_HOUSE_CLOSED" then UI.DropTemporaryList() end
+            if event == "BAG_UPDATE_DELAYED" and self:IsShown() and self.__text then
+                UI.ShowReminder(self.__text, ns.Remind.Check(ns.Profile.Mode()))
+            end
         end)
     end
+
+    remindFrame.__text = text
 
     local point, x, y = ns.Profile.RemindPoint()
     remindFrame:ClearAllPoints()

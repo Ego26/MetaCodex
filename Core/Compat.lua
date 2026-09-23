@@ -179,6 +179,28 @@ function Compat.ItemCount(itemID)
     return (ok and type(count) == "number") and count or 0
 end
 
+---Ob der Client seine Taschen schon kennt.
+---
+---Nach einem Ladebildschirm steht das Bild, bevor der Server die Beutel
+---geschickt hat. GetItemCount antwortet dann ueberall null, ohne zu
+---sagen, dass es nur noch nichts weiss - und eine Erinnerung meldet
+---"nichts in der Tasche", waehrend das Fläschchen im Beutel liegt.
+---Der Rucksack hat immer Plaetze; meldet er keine, ist noch nichts da.
+---@return boolean
+function Compat.BagsKnown()
+    local slots = C_Container and C_Container.GetContainerNumSlots
+        or GetContainerNumSlots
+    -- Gewartet wird nur auf einen klaren Befund.
+    --
+    -- Antwortet dieser Client auf die Frage nicht - weil er sie nicht
+    -- kennt oder etwas anderes zurueckgibt - dann gilt "bekannt". Auf
+    -- Unwissen zu warten hiesse, gar nicht mehr zu erinnern.
+    if type(slots) ~= "function" then return true end
+    local ok, n = pcall(slots, 0)
+    if not ok or type(n) ~= "number" then return true end
+    return n > 0
+end
+
 ---Name, Link und Symbol eines Gegenstands - oder nil, solange der Client
 ---die Daten noch nicht hat.
 ---@param itemID number
