@@ -256,6 +256,9 @@ frame:SetScript("OnEvent", function()
     -- geoeffnet hat, hat sie noch nicht - hier ist der Moment, in dem
     -- sie gebraucht werden.
     if not ns.Data.Ensure() then return end
+    -- Die Namen, solange noch gewartet wird: wer nie das Fenster
+    -- geoeffnet hat, hat noch keinen einzigen.
+    ns.Catalog.WarmNames()
     -- Nicht sofort: siehe oben, die Taschen sind noch stumm.
     -- bagsSpoke beginnt bei false, auch wenn der Rucksack schon
     -- Plaetze meldet: die Plaetze kennt der Client aus der Sitzung davor,

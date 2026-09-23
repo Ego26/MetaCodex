@@ -116,6 +116,9 @@ ns.RegisterLocale("deDE", {
     ["PROBE_NAMES"]        = "Aufgelöste Gegenstandsnamen: %d von %d",
     ["PROBE_UNRESOLVED"]   = "Nicht aufgelöste IDs: %s",
     ["PROBE_PRIMARY"]      = "Erkanntes Hauptattribut: %s",
+    ["PROBE_AGAIN"] = "Die Namen wurden gerade angefordert. Führe /mc probe gleich noch einmal aus.",
+    ["PROBE_BAGS"] = "Taschen dem Client bekannt: %s",
+    ["PROBE_STOCK"] = "Gezählt in Taschen, Bank und Kriegsmeuten-Bank:",
     ["PROBE_SOCKETS"]      = "Leere Sockel an der Ausrüstung: %d",
 })
 

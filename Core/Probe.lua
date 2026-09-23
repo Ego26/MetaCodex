@@ -34,6 +34,9 @@ end
 function Probe.Run()
     buffer = {}
     ns.Data.Ensure()
+    -- Erst anfordern, dann zaehlen: sonst misst die Sonde nur, dass
+    -- noch niemand gefragt hat.
+    ns.Catalog.WarmNames()
     local build, builtOn = ns.Catalog.Stamp()
     line(L["PROBE_HEADER"], ns.version, build .. " / " .. tostring(builtOn))
 
@@ -58,6 +61,8 @@ function Probe.Run()
     line("  " .. L["PROBE_NAMES"], resolved, #ids)
     if #unresolved > 0 then
         line("  " .. L["PROBE_UNRESOLVED"], table.concat(unresolved, ", "))
+        -- Der Client liefert sie nach, nicht sofort.
+        line("  " .. L["PROBE_AGAIN"])
     end
 
     -- Fuer eine fremde Spec kommt das Hauptattribut aus dem Client und
@@ -75,6 +80,20 @@ function Probe.Run()
     for _, entry in ipairs(scan.slots) do
         ns.Print("    %s: %s", L["SLOT_" .. entry.slot],
             entry.enchanted and L["ALREADY_DONE"] or "|cffffd100-|r")
+    end
+
+    -- Was der Client in den Taschen zaehlt, Posten fuer Posten.
+    --
+    -- Die Erinnerung meldete einmal fuenfmal "nichts in der Tasche",
+    -- waehrend alles im Beutel lag: nach dem Ladebildschirm hatte der
+    -- Server die Beutel noch nicht geschickt. Wer so etwas wieder sieht,
+    -- soll nachsehen koennen statt zu raten - hier steht, ob der Client
+    -- seine Taschen ueberhaupt kennt und was er je Posten zaehlt.
+    line("  " .. L["PROBE_BAGS"], yesno(ns.Compat.BagsKnown()))
+    line("  " .. L["PROBE_STOCK"])
+    for _, row in ipairs(ns.Remind.Status(ns.Profile.Mode())) do
+        line("    %s (%s): %d / %d", tostring(row.name or "?"),
+            tostring(row.id), row.owned or 0, row.need or 0)
     end
 
     Probe.Level()

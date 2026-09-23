@@ -305,6 +305,29 @@ function Catalog.ConsumableKind(itemID)
     return kindByItem[itemID]
 end
 
+local warmed = false
+
+---Fordert die Namen aller Katalogeintraege beim Client an.
+---
+---Der Client kennt einen Gegenstand erst, wenn er ihn einmal gesehen
+---hat, und liefert ihn auf Anfrage nach. Ohne Namen gibt es keine Suche
+---im Auktionshaus und im Fenster steht eine Nummer.
+---
+---Frueher hing das am ersten Oeffnen des Fensters. Wer nur die
+---Erinnerung vor dem Dungeon sah, hatte nie geoeffnet: /mc probe meldete
+---9 von 175 aufgeloesten Namen, und im Erinnerungsfenster stand
+---"#271884". Angefordert wird jetzt, sobald der Katalog da ist - vom
+---Fenster, von der Erinnerung und von der Sonde.
+function Catalog.WarmNames()
+    if warmed or not Catalog.Ready() then return end
+    warmed = true
+    for _, id in ipairs(Catalog.AllIDs()) do ns.Compat.RequestItem(id) end
+    -- Und den Probegegenstand: an ihm rechnet der Client aus, welcher
+    -- Aufwertungspfad welche Stufe ist.
+    local probe = Catalog.ProbeItem and Catalog.ProbeItem()
+    if probe then ns.Compat.RequestItem(probe) end
+end
+
 local nameByItem  -- einmal gebaut, dann nachgeschlagen
 
 ---Der Name eines Gegenstands aus dem Katalog.

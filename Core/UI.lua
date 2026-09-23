@@ -3712,23 +3712,7 @@ function UI.Handover(searchNow)
     end
 end
 
-local warmed = false
-
----Fordert die Namen aller Katalogeintraege an.
----
----Ohne Namen gibt es keine Suche im Auktionshaus, und der Client liefert
----sie asynchron. Einmal beim ersten Oeffnen reicht.
-local function warmNames()
-    if warmed or not ns.Catalog.Ready() then return end
-    warmed = true
-    for _, id in ipairs(ns.Catalog.AllIDs()) do ns.Compat.RequestItem(id) end
-    -- Und den Probegegenstand: an ihm rechnet der Client aus, welcher
-    -- Aufwertungspfad welche Stufe ist. Vorher wurde er beim Login
-    -- angefordert - da war das Datenaddon noch gar nicht geladen, und
-    -- die Anfrage lief ins Leere.
-    local probe = ns.Catalog.ProbeItem and ns.Catalog.ProbeItem()
-    if probe then ns.Compat.RequestItem(probe) end
-end
+local warmNames = function() ns.Catalog.WarmNames() end
 
 -- Das Auktionshaus geht auf und zu, waehrend das Fenster offen steht.
 --
