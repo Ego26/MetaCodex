@@ -95,7 +95,10 @@ function Remind.Check(mode)
     -- oder leer ist.
     for _, row in ipairs(Remind.Status(mode)) do
         if row.state ~= "ok" then
-            out[#out + 1] = { name = row.name or ("#" .. row.id), owned = row.owned, need = row.need, lower = row.lower or 0 }
+            out[#out + 1] = {
+                id = row.id, name = row.name or ("#" .. row.id),
+                owned = row.owned, need = row.need, lower = row.lower or 0,
+            }
         end
     end
     table.sort(out, function(a, b) return a.owned < b.owned end)
@@ -111,15 +114,26 @@ end
 ---laufen sonst auseinander.
 ---@param mode string
 ---@return string[] parts
-function Remind.Lines(mode)
+---@param mode string
+---@param linked boolean|nil Gegenstandslinks statt blosser Namen
+function Remind.Lines(mode, linked)
     local parts = {}
     for _, row in ipairs(Remind.Check(mode)) do
+        -- Im Chat der echte Gegenstandslink: dann haengt das Tooltip
+        -- daran, Shift-Klick setzt ihn in die Suche, und man muss den
+        -- Namen nicht abtippen. Ohne geladenen Gegenstand bleibt der
+        -- Name - ein Link, der ins Leere zeigt, waere schlimmer.
+        local label = row.name
+        if linked and row.id then
+            local _, link = ns.Compat.ItemInfo(row.id)
+            label = link or label
+        end
         if row.owned > 0 then
-            parts[#parts + 1] = L["REMIND_LOW"]:format(row.name, row.owned)
+            parts[#parts + 1] = L["REMIND_LOW"]:format(label, row.owned)
         elseif (row.lower or 0) > 0 then
-            parts[#parts + 1] = L["REMIND_LOWER"]:format(row.name, row.lower)
+            parts[#parts + 1] = L["REMIND_LOWER"]:format(label, row.lower)
         else
-            parts[#parts + 1] = L["REMIND_NONE"]:format(row.name)
+            parts[#parts + 1] = L["REMIND_NONE"]:format(label)
         end
     end
     -- Auch die offenen Verzauberungen und Steine - gezaehlt gegen
@@ -133,10 +147,23 @@ function Remind.Lines(mode)
     return parts
 end
 
----Sagt es auf den eingestellten Wegen.
+---Der Klick-Link, der das Addon oeffnet.
+---
+---Blizzard laesst eigene Linktypen unter "addon:" zu; wer darauf klickt,
+---landet in SetItemRef, und dort faengt MetaCodex ihn ab.
+---@param what string
 ---@param text string
-function Remind.Deliver(text)
-    if ns.Profile.RemindWay("chat") then ns.Print(text) end
+---@return string
+function Remind.AddonLink(what, text)
+    return "|cff" .. ns.Style:Hex("accent") .. "|Haddon:MetaCodex:" .. what
+        .. "|h[" .. text .. "]|h|r"
+end
+
+---Sagt es auf den eingestellten Wegen.
+---@param text string Fuer Fenster, Warnung und Ton
+---@param chatText string|nil Fuer den Chat, mit Links; sonst derselbe
+function Remind.Deliver(text, chatText, list)
+    if ns.Profile.RemindWay("chat") then ns.Print(chatText or text) end
     if ns.Profile.RemindWay("warning") and RaidNotice_AddMessage and RaidWarningFrame then
         RaidNotice_AddMessage(RaidWarningFrame, text, ChatTypeInfo and ChatTypeInfo.RAID_WARNING)
     end
@@ -144,14 +171,19 @@ function Remind.Deliver(text)
         pcall(PlaySound, SOUNDKIT and SOUNDKIT.RAID_WARNING or 8959, "Master")
     end
     if ns.Profile.RemindWay("window") and ns.UI and ns.UI.ShowReminder then
-        ns.UI.ShowReminder(text)
+        ns.UI.ShowReminder(text, list)
     end
 end
 
 function Remind.Announce(mode)
     local parts = Remind.Lines(mode)
     if #parts == 0 then return end
-    Remind.Deliver(L["REMIND_MISSING"]:format(table.concat(parts, ", ")))
+    local linked = Remind.Lines(mode, true)
+    Remind.Deliver(
+        L["REMIND_MISSING"]:format(table.concat(parts, ", ")),
+        L["REMIND_MISSING"]:format(table.concat(linked, ", "))
+            .. "  " .. Remind.AddonLink("list", L["REMIND_OPEN_LIST"]),
+        Remind.Check(mode))
 end
 
 -- Einmal je Instanz. PLAYER_ENTERING_WORLD feuert auch nach jedem
@@ -203,6 +235,8 @@ auctionFrame:SetScript("OnEvent", function()
     local rows = ns.List.Build(ns.Gear.Scan())
     local missing = ns.List.BuyCount(rows)
     if missing > 0 then
-        ns.Print(L["AH_OFFER"]:format(missing))
+        -- Auch hier ein Weg hinein, statt "mach mal /mc".
+        ns.Print(L["AH_OFFER"]:format(missing)
+            .. "  " .. Remind.AddonLink("list", L["REMIND_OPEN_LIST"]))
     end
 end)

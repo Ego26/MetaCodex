@@ -1915,20 +1915,40 @@ do
         ns.Print = function(text) said = text end
         preview.onClick(preview)
         ns.Print = realPrint
-        local parts = ns.Remind.Lines("raid")
+        -- Im Chat stehen Gegenstandslinks, damit man sie anklicken kann,
+        -- und ein Link, der das Addon oeffnet.
+        local parts = ns.Remind.Lines("raid", true)
         local expected = #parts > 0
             and L["REMIND_MISSING"]:format(table.concat(parts, ", "))
             or L["REMIND_PREVIEW_EMPTY"]
-        check("die Vorschau sagt dasselbe wie der Ernstfall", said == expected,
-            tostring(said))
-        -- Und das Fenster steht wirklich da, mit demselben Text.
+        check("die Vorschau sagt dasselbe wie der Ernstfall",
+            said ~= nil and said:sub(1, #expected) == expected, tostring(said))
+        check("im Chat stehen Gegenstandslinks",
+            #parts == 0 or (said:find("|Hitem:", 1, true) ~= nil), tostring(said))
+        check("und ein Weg ins Addon",
+            said:find("|Haddon:MetaCodex:list|h", 1, true) ~= nil, tostring(said))
+        -- Und das Fenster steht wirklich da, als Liste mit Symbolen.
         local window
         for _, f in ipairs(wow.frames) do
             if rawget(f, "body") and rawget(f, "title")
                 and f.title:GetText() == L["REMIND_WINDOW_TITLE"] then window = f end
         end
         check("das Erinnerungsfenster steht da", window ~= nil and window:IsShown())
-        check("und traegt denselben Text", window ~= nil and window.body:GetText() == expected)
+        if window then
+            local lines, named = 0, 0
+            for _, r in ipairs(ns.UI.ReminderRows()) do
+                if r:IsShown() then
+                    lines = lines + 1
+                    if (r.title:GetText() or "") ~= "" then named = named + 1 end
+                end
+            end
+            check("es zeigt die Gegenstaende als Zeilen", lines > 0 and named == lines,
+                lines .. " Zeilen, " .. named .. " benannt")
+            check("und hat beide Knoepfe",
+                window.create ~= nil and window.search ~= nil
+                    and window.create.label:GetText() == L["BTN_CREATE_LIST"]
+                    and window.search.label:GetText() == L["BTN_SEARCH"])
+        end
     end
 end
 
@@ -1946,6 +1966,16 @@ do
     end
     check("eine Talentzeile kennt ihren Zauber", talent ~= nil,
         talent and tostring(talent.spellID) or "keine")
+    -- Der erklaerende Satz steht IN der Gruppe, die er meint, nicht ueber
+    -- der ganzen Seite: dort stand er auch ueber den Builds.
+    local oben = ns.UI.Frame().hintText:GetText() or ""
+    check("oben steht keine Erklaerung mehr zu einer Gruppe",
+        oben:find(L["TALENT_PICKS_HINT"], 1, true) == nil, oben)
+    local drin = false
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() and row.title:GetText() == L["TALENT_PICKS_HINT"] then drin = true end
+    end
+    check("sie steht bei den einzelnen Talenten", drin)
     if talent then
         local shown = false
         local realOwner, realSpell = GameTooltip.SetOwner, GameTooltip.SetSpellByID
@@ -2039,7 +2069,9 @@ do
             if p[1] == "TOPLEFT" then return p[3] end
         end
     end
-    rowsInSection("talents")
+    -- Einstellungen: dort steht immer ein Satz unter dem Titel, an dem
+    -- sich der Abstand messen laesst.
+    rowsInSection("settings")
     local mitHinweis = listTop()
     -- Ziehen ordnet sofort neu an, ohne neu nachzuschlagen: dieselben
     -- Zeilen, andere Breite. Vorher sprang das Fenster erst beim
@@ -2063,6 +2095,7 @@ do
             table.concat(vorher, "|") == table.concat(nachher, "|"))
         f:SetWidth(960)
         ns.UI.Relayout()
+        mitHinweis = listTop()
     end
     local hint = f.hintText
     check("die Liste beginnt unter dem Hinweis",
@@ -2075,7 +2108,7 @@ do
     check("der Hinweis passt zwischen Titel und Liste",
         math.abs(listTop()) >= math.abs(hintY) + hint:GetStringHeight(),
         math.abs(listTop()) .. " >= " .. (math.abs(hintY) + hint:GetStringHeight()))
-    rowsInSection("talents")
+    rowsInSection("gear")
 end
 
 -- ------------------------------------------------- Einstellungen

@@ -99,7 +99,10 @@ still open on your character, and the settings for it. On entering a
 dungeon or raid it tells you what is missing — and once at the auction
 house how many items are open. **How** it tells you is yours to pick:
 chat line, its own movable window, a raid warning across the screen, a
-sound, any combination. A preview shows exactly what would appear.
+sound, any combination. The chat line carries real item links you can
+hover and shift-click, and a link that opens the addon on your list. The
+window lists the items with icons and carries the same two buttons as the
+big one. A preview shows exactly what would appear.
 
 ### About
 

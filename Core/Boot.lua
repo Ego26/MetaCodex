@@ -40,6 +40,23 @@ frame:SetScript("OnEvent", function(_, event)
     end
 end)
 
+-- Klick auf den Link in der Chatzeile.
+--
+-- Blizzard ruft SetItemRef fuer jeden Link im Chat; eigene Linktypen
+-- stehen unter "addon:". Gehakt statt ersetzt - andere Addons haengen
+-- an derselben Funktion.
+if hooksecurefunc then
+    hooksecurefunc("SetItemRef", function(link)
+        local what = tostring(link or ""):match("^addon:MetaCodex:(.+)$")
+        if not what then return end
+        if what == "list" then
+            ns.UI.OpenSection("consumables")
+        else
+            ns.UI.Toggle()
+        end
+    end)
+end
+
 -- Knopf in der Addon-Leiste der Minimap.
 function MetaCodex_OnCompartmentClick()
     ns.UI.Toggle()

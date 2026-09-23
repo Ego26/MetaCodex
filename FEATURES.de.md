@@ -103,7 +103,11 @@ Steine, die an deinem Charakter noch fehlen, und die Einstellungen dazu.
 Beim Betreten von Dungeon oder Raid sagt es dir, was fehlt — und am
 Auktionshaus einmal, wie viele Posten offen sind. **Wie** es sich meldet,
 wählst du: Chatzeile, eigenes ziehbares Fenster, Schlachtzugswarnung über
-dem Bild, Ton, beliebig kombiniert. Eine Vorschau zeigt genau das, was käme.
+dem Bild, Ton, beliebig kombiniert. Die Chatzeile trägt echte
+Gegenstandslinks zum Draufzeigen und Shift-Klicken und einen Link, der
+das Addon auf deiner Liste öffnet. Das Fenster listet die Gegenstände mit
+Symbol und hat dieselben zwei Knöpfe wie das große. Eine Vorschau zeigt
+genau das, was käme.
 
 ### Über
 

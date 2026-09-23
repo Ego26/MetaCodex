@@ -1055,7 +1055,10 @@ local function remindRows(mode)
             end
         end
         if open == 0 then
-            rows[#rows + 1] = { kind = "note", text = L["REMIND_ENCHANTS_OK"], group = L["REMIND_GROUP_ENCHANTS"] }
+            rows[#rows + 1] = {
+                kind = "note", tone = "ok", text = L["REMIND_ENCHANTS_OK"],
+                group = L["REMIND_GROUP_ENCHANTS"],
+            }
         end
     end
     local on = ns.Profile.RemindersOn()
@@ -1090,10 +1093,16 @@ local function remindRows(mode)
         kind = "option", label = L["REMIND_PREVIEW"], value = L["REMIND_PREVIEW_DO"],
         toggle = function()
             local parts = ns.Remind.Lines(ns.Profile.Mode())
+            local linked = ns.Remind.Lines(ns.Profile.Mode(), true)
             local text = #parts > 0
                 and L["REMIND_MISSING"]:format(table.concat(parts, ", "))
                 or L["REMIND_PREVIEW_EMPTY"]
-            ns.Remind.Deliver(text)
+            local chat = #linked > 0
+                and L["REMIND_MISSING"]:format(table.concat(linked, ", "))
+                or L["REMIND_PREVIEW_EMPTY"]
+            ns.Remind.Deliver(text,
+                chat .. "  " .. ns.Remind.AddonLink("list", L["REMIND_OPEN_LIST"]),
+                ns.Remind.Check(ns.Profile.Mode()))
         end,
         group = L["REMIND_GROUP_WAYS"],
     }
@@ -1137,7 +1146,11 @@ local function settingsRows()
         UI.UpdateCharacterButton()
     end)
 
-    -- Fenstergroesse: dieselben Stufen wie /mc scale, zum Auswaehlen.
+    -- Schriftgroesse: dieselben Stufen wie /mc scale, zum Auswaehlen.
+    --
+    -- Sie heisst nicht "Fenstergroesse": die stellt man am Rand ein, und
+    -- zwar frei. Was hier skaliert, ist alles IM Fenster - Schrift,
+    -- Symbole, Zeilenhoehe.
     local scale = ns.Profile.WindowScale()
     local sizes = {}
     for _, step in ipairs({ 0.8, 0.9, 1, 1.1, 1.25, 1.4 }) do
@@ -1455,8 +1468,18 @@ local function talentRows(specID, mode, source)
     -- Darunter nur, wo es wirklich etwas zu entscheiden gibt.
     -- PvP-Talente in eigener Gruppe: sie sitzen in einem anderen
     -- Fenster und sind eine andere Entscheidung.
+    -- Der Satz erklaert DIESE Gruppe und steht darum in ihr. Ueber der
+    -- ganzen Seite stand er auch ueber den Builds, die er nicht meint.
+    local firstPick = true
     for _, pick in ipairs(picks) do
         if not pick.pvp then
+            if firstPick then
+                rows[#rows + 1] = {
+                    kind = "note", text = L["TALENT_PICKS_HINT"],
+                    group = L["TALENT_PICKS"],
+                }
+                firstPick = false
+            end
             rows[#rows + 1] = {
                 kind = "talent", spell = pick.spell, rank = pick.rank,
                 pct = pick.pct, group = L["TALENT_PICKS"],
@@ -1873,8 +1896,13 @@ local function setItemRow(row, data)
 
     if data.kind == "note" then
         row.link = nil
-        row.icon:SetTexture(nil)
+        -- Eine erledigte Meldung bekommt den gruenen Haken. Ohne ihn sah
+        -- "Alles verzaubert und gesockelt" aus wie eine Zeile, der das
+        -- Symbol fehlt.
+        row.icon:SetTexture(data.tone == "ok"
+            and "Interface\\RaidFrame\\ReadyCheck-Ready" or nil)
         row.title:SetText(data.text or "")
+        S:Recolor(row.title, data.tone == "ok" and "success" or "textSecondary")
         row.detail:SetText("")
         row.share:SetText("")
         row.onClick = nil
@@ -2750,10 +2778,7 @@ function UI.Refresh()
         currentRows, fromSource = withFallback(function(source)
             return talentRows(specID, mode, source)
         end)
-        -- Was die Prozente bedeuten, steht ueber der Liste. Ohne das
-        -- war "82 %" eine Zahl, zu der die Frage fehlte.
-        hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted)
-            or L["TALENT_PICKS_HINT"])
+        hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted) or "")
     elseif section.key == "folio" then
         currentRows, fromSource = withFallback(function(source)
             return folioRows(specID, mode, source)
@@ -2947,8 +2972,11 @@ function UI.Refresh()
     local function place(row, height)
         if row:GetWidth() ~= width then
             row:SetWidth(width)
-            row.title:SetWidth(width - 140)
-            row.detail:SetWidth(width - 140)
+            -- Platz fuer das Symbol links und den Anteil rechts. Bei
+            -- einem schmalen Fenster ist das der Unterschied zwischen
+            -- Umbruch und Text unter dem Prozentwert.
+            row.title:SetWidth(math.max(80, width - 140))
+            row.detail:SetWidth(math.max(80, width - 140))
         end
         row:ClearAllPoints()
         row:SetPoint("TOPLEFT", 0, -offset)
@@ -2985,6 +3013,16 @@ function UI.Refresh()
             row.title:SetPoint("LEFT", S.space.sm + 58, 0)
             S:ApplyFont(row.title, "caption", "textSecondary")
             place(row, SUB_ROW_HEIGHT)
+        elseif data.kind == "note" then
+            -- Eine Notiz ist eine Zeile Text, kein Gegenstand: Symbol
+            -- klein, Text daneben auf halber Hoehe.
+            row.icon:SetSize(data.tone == "ok" and 18 or 0, data.tone == "ok" and 18 or 0)
+            row.icon:ClearAllPoints()
+            row.icon:SetPoint("LEFT", S.space.md, 0)
+            row.title:ClearAllPoints()
+            row.title:SetPoint("LEFT", data.tone == "ok" and (S.space.md + 24) or S.space.md, 0)
+            S:ApplyFont(row.title, "body", data.tone == "ok" and "success" or "textSecondary")
+            place(row, 30)
         else
             row.icon:SetSize(30, 30)
             row.icon:ClearAllPoints()
@@ -2992,7 +3030,23 @@ function UI.Refresh()
             row.title:ClearAllPoints()
             row.title:SetPoint("TOPLEFT", S.space.sm + 38, -S.space.sm)
             S:ApplyFont(row.title, "body", "textPrimary")
-            place(row, data.kind == "stat" and STAT_ROW_HEIGHT or ROW_HEIGHT)
+            -- Die zweite Zeile haengt unter der ersten, nicht auf fester
+            -- Hoehe.
+            --
+            -- Ein langer Buildname bricht um, sobald das Fenster schmal
+            -- ist - und lag dann auf der Zeile darunter. Was sich
+            -- ueberlappt, ist nicht mehr lesbar, und unlesbar ist
+            -- schlimmer als abgeschnitten.
+            local height = data.kind == "stat" and STAT_ROW_HEIGHT or ROW_HEIGHT
+            if data.kind ~= "stat" and (row.detail:GetText() or "") ~= "" then
+                row.detail:ClearAllPoints()
+                row.detail:SetPoint("TOPLEFT", row.title, "BOTTOMLEFT", 0, -2)
+                row.detail:SetPoint("RIGHT", row, "RIGHT", -60, 0)
+                local titleH = row.title:GetStringHeight() or 14
+                local detailH = row.detail:GetStringHeight() or 12
+                height = math.max(height, S.space.sm + titleH + 2 + detailH + S.space.sm)
+            end
+            place(row, height)
         end
     end
 
@@ -3132,10 +3186,65 @@ end
 ---sich nach zwoelf Sekunden von selbst - eine Erinnerung, die stehen
 ---bleibt, wird zur Tapete.
 ---@param text string
-function UI.ShowReminder(text)
+local REMIND_ROW = 30
+-- Der Zeilenvorrat des Erinnerungsfensters liegt HIER und nicht am
+-- Rahmen. Ein Feld am Rahmen waere bequemer, aber der Rahmen gehoert
+-- Blizzard, und was man dort ablegt, kann jederzeit jemand anders
+-- heissen.
+local remindRows = {}
+
+---Eine Zeile des Erinnerungsfensters: Symbol, Name, was fehlt.
+local function remindWindowRow(parent, index)
+    if remindRows[index] then return remindRows[index] end
+    local row = CreateFrame("Button", nil, parent)
+    row:SetHeight(REMIND_ROW)
+    row:SetPoint("LEFT", S.space.lg, 0)
+    row:SetPoint("RIGHT", -S.space.lg, 0)
+    row:RegisterForClicks("LeftButtonUp")
+    row.icon = row:CreateTexture(nil, "ARTWORK")
+    row.icon:SetSize(22, 22)
+    row.icon:SetPoint("LEFT")
+    row.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    row.title = S:Text(row, "body", "textPrimary")
+    row.title:SetPoint("LEFT", 28, 0)
+    row.state = S:Text(row, "caption", "warning")
+    row.state:SetPoint("RIGHT")
+    row.state:SetJustifyH("RIGHT")
+    -- Dasselbe wie ueberall: Tooltip beim Zeigen, Shift-Klick verlinkt.
+    row:SetScript("OnEnter", function(self)
+        if not self.link then return end
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetHyperlink(self.link)
+        GameTooltip:Show()
+    end)
+    row:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    row:SetScript("OnClick", function(self)
+        if self.link and IsModifiedClick and IsModifiedClick("CHATLINK") then
+            if HandleModifiedItemClick then HandleModifiedItemClick(self.link) end
+        end
+    end)
+    remindRows[index] = row
+    return row
+end
+
+---Der Zeilenvorrat - nur fuer Tests und /mc probe.
+function UI.ReminderRows()
+    return remindRows
+end
+
+---Das Erinnerungsfenster: was fehlt, als Liste mit Symbolen, und die
+---beiden Knoepfe, die etwas dagegen tun.
+---
+---Ein Textblock mitten im Bild sagte zwar dasselbe, aber man konnte
+---nichts damit anfangen: kein Tooltip, kein Shift-Klick, kein Weg zur
+---Einkaufsliste. Jetzt ist es ein kleines Fenster mit denselben
+---Handgriffen wie das grosse.
+---@param text string Fuer den Fall, dass es keine Zeilen gibt
+---@param list table[]|nil Zeilen aus Remind.Check
+function UI.ShowReminder(text, list)
     if not remindFrame then
         remindFrame = CreateFrame("Frame", "MetaCodexReminder", UIParent)
-        remindFrame:SetSize(460, 76)
+        remindFrame:SetSize(420, 120)
         remindFrame:SetFrameStrata("HIGH")
         remindFrame:SetToplevel(true)
         remindFrame:EnableMouse(true)
@@ -3151,24 +3260,48 @@ function UI.ShowReminder(text)
         S:Fill(remindFrame, "bgBase")
         S:Border(remindFrame, "borderStrong")
 
-        remindFrame.title = S:Text(remindFrame, "title", "warning")
-        remindFrame.title:SetPoint("TOPLEFT", S.space.lg, -S.space.md)
+        local head = CreateFrame("Frame", nil, remindFrame)
+        head:SetPoint("TOPLEFT")
+        head:SetPoint("TOPRIGHT")
+        head:SetHeight(34)
+        S:Fill(head, "bgRaised")
+        S:Border(head, "borderSubtle", 1, { bottom = true })
+        remindFrame.title = S:Text(head, "title", "warning")
+        remindFrame.title:SetPoint("LEFT", S.space.lg, 0)
         remindFrame.title:SetText(L["REMIND_WINDOW_TITLE"])
+        remindFrame.close = makeButton(head, 22, 22, "X", function() remindFrame:Hide() end)
+        remindFrame.close:SetPoint("RIGHT", -S.space.sm, 0)
 
         remindFrame.body = S:Text(remindFrame, "body", "textPrimary")
-        remindFrame.body:SetPoint("TOPLEFT", S.space.lg, -S.space.md - 24)
-        remindFrame.body:SetPoint("TOPRIGHT", -S.space.lg - 20, -S.space.md - 24)
+        remindFrame.body:SetPoint("TOPLEFT", S.space.lg, -42)
+        remindFrame.body:SetPoint("TOPRIGHT", -S.space.lg, -42)
         remindFrame.body:SetJustifyH("LEFT")
         remindFrame.body:SetWordWrap(true)
 
-        remindFrame.close = makeButton(remindFrame, 20, 20, "X", function()
-            remindFrame:Hide()
+        local foot = CreateFrame("Frame", nil, remindFrame)
+        foot:SetPoint("BOTTOMLEFT")
+        foot:SetPoint("BOTTOMRIGHT")
+        foot:SetHeight(40)
+        S:Fill(foot, "bgRaised")
+        S:Border(foot, "borderSubtle", 1, { top = true })
+        remindFrame.search = makeButton(foot, 130, 24, L["BTN_SEARCH"], function()
+            UI.Handover(true)
         end)
-        remindFrame.close:SetPoint("TOPRIGHT", -S.space.sm, -S.space.sm)
-        remindFrame.hint = S:Text(remindFrame, "caption", "textMuted")
-        remindFrame.hint:SetPoint("BOTTOMLEFT", S.space.lg, S.space.sm)
+        remindFrame.search:SetPoint("RIGHT", -S.space.md, 0)
+        remindFrame.create = makeButton(foot, 150, 24, L["BTN_CREATE_LIST"], function()
+            UI.Handover(false)
+        end)
+        remindFrame.create:SetPoint("RIGHT", remindFrame.search, "LEFT", -S.space.sm, 0)
+        remindFrame.hint = S:Text(foot, "caption", "textMuted")
+        remindFrame.hint:SetPoint("LEFT", S.space.lg, 0)
         remindFrame.hint:SetText(L["REMIND_WINDOW_DRAG"])
+        -- Solange der Zeiger darauf liegt, laeuft die Uhr nicht: ein
+        -- Fenster, das unter der Hand verschwindet, ist aergerlich.
+        remindFrame:SetScript("OnEnter", function(self)
+            if self.timer then self.timer:Cancel() self.timer = nil end
+        end)
     end
+
     local point, x, y = ns.Profile.RemindPoint()
     remindFrame:ClearAllPoints()
     if point then
@@ -3176,13 +3309,56 @@ function UI.ShowReminder(text)
     else
         remindFrame:SetPoint("TOP", UIParent, "TOP", 0, -180)
     end
-    remindFrame.body:SetText(text)
-    -- So hoch, wie der Text braucht: zwei Zeilen Fehlendes sind haeufig.
-    remindFrame:SetHeight(math.max(76, 52 + (remindFrame.body:GetStringHeight() or 20)))
+
+    -- Die Zeilen. Ohne Liste bleibt der Satz - die Vorschau ohne
+    -- Fehlendes sagt genau das.
+    local shown = 0
+    local y0 = -42
+    for i, entry in ipairs(list or {}) do
+        local row = remindWindowRow(remindFrame, i)
+        local name, link, icon = ns.Compat.ItemInfo(entry.id)
+        if not name and entry.id then ns.Compat.RequestItem(entry.id) end
+        row.link = link
+        row.icon:SetTexture(icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+        row.title:SetText(name or entry.name or ("#" .. tostring(entry.id)))
+        if entry.owned > 0 then
+            row.state:SetText(L["REMIND_STATE_LOW"]:format(entry.owned, entry.need))
+        elseif (entry.lower or 0) > 0 then
+            row.state:SetText(L["REMIND_STATE_LOWER"]:format(entry.lower))
+        else
+            row.state:SetText(L["REMIND_STATE_NONE"])
+        end
+        row:ClearAllPoints()
+        row:SetPoint("TOPLEFT", S.space.lg, y0)
+        row:SetPoint("TOPRIGHT", -S.space.lg, y0)
+        row:Show()
+        y0 = y0 - REMIND_ROW
+        shown = i
+    end
+    for i = shown + 1, #remindRows do remindRows[i]:Hide() end
+
+    if shown > 0 then
+        remindFrame.body:SetText("")
+        remindFrame:SetHeight(42 + shown * REMIND_ROW + 48)
+    else
+        remindFrame.body:SetText(text)
+        remindFrame:SetHeight(42 + math.max(20, remindFrame.body:GetStringHeight() or 20) + 48)
+    end
+
+    -- "Jetzt suchen" braucht Auctionator und ein offenes Auktionshaus,
+    -- "Einkaufsliste" nur Auctionator. Grau statt eines Fehlers aus
+    -- fremdem Code.
+    local usable = ns.Adapter and ns.Adapter.Loaded()
+    local canSearch = usable and ns.Adapter.AuctionHouseOpen()
+    remindFrame.create:SetEnabled(usable and true or false)
+    remindFrame.create:SetAlpha(usable and 1 or 0.4)
+    remindFrame.search:SetEnabled(canSearch and true or false)
+    remindFrame.search:SetAlpha(canSearch and 1 or 0.4)
+
     remindFrame:Show()
     if remindFrame.timer then remindFrame.timer:Cancel() end
     if C_Timer and C_Timer.NewTimer then
-        remindFrame.timer = C_Timer.NewTimer(12, function() remindFrame:Hide() end)
+        remindFrame.timer = C_Timer.NewTimer(20, function() remindFrame:Hide() end)
     end
     return remindFrame
 end

@@ -579,7 +579,10 @@ end
 function M.rows()
     local found = {}
     for _, frame in ipairs(M.frames) do
-        if rawget(frame, "icon") and rawget(frame, "title") then
+        -- Symbol, Titel UND Anteil: das ist eine Zeile der grossen Liste.
+        -- Die Zeilen des Erinnerungsfensters haben keinen Anteil und
+        -- gehoeren nicht dazu - sie folgen auch nicht seiner Breite.
+        if rawget(frame, "icon") and rawget(frame, "title") and rawget(frame, "share") then
             found[#found + 1] = frame
         end
     end
