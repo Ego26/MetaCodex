@@ -38,7 +38,18 @@ find "$STAGE" -name '*.toc' -exec sed -i "s/@project-version@/$VERSION/g" {} +
 mkdir -p "$ROOT/$OUT"
 ZIP="$ROOT/$OUT/MetaCodex-$VERSION.zip"
 rm -f "$ZIP"
-( cd "$STAGE" && zip -qr "$ZIP" MetaCodex MetaCodex_Data MetaCodex_Dungeons MetaCodex_Players )
+if command -v zip >/dev/null 2>&1; then
+  ( cd "$STAGE" && zip -qr "$ZIP" MetaCodex MetaCodex_Data MetaCodex_Dungeons MetaCodex_Players )
+elif command -v powershell >/dev/null 2>&1; then
+  # Windows ohne zip: PowerShell kann es seit Jahren.
+  # Windows-Pfade: PowerShell versteht die Bash-Schreibweise nicht.
+  WSTAGE=$(cygpath -w "$STAGE" 2>/dev/null || echo "$STAGE")
+  WZIP=$(cygpath -w "$ZIP" 2>/dev/null || echo "$ZIP")
+  powershell -NoProfile -Command "Compress-Archive -Path (Get-ChildItem -LiteralPath '$WSTAGE' | Select-Object -ExpandProperty FullName) -DestinationPath '$WZIP' -Force"
+else
+  echo "neither zip nor powershell found - cannot pack." >&2
+  exit 1
+fi
 rm -rf "$STAGE"
 
 echo "packed: $ZIP ($(du -h "$ZIP" | cut -f1))"
