@@ -117,6 +117,9 @@ function request(options, body) {
 // zuordnen konnte. So wurde sichtbar, unter welchem Zauber Speisen
 // tatsaechlich auftauchen.
 const SHOW_AURAS = !!process.env.MC_AURAS;
+// Zaehlt nebenher mit, was die alte Regel ergeben haette. Nur fuer den
+// Probelauf: im Ernstfall zaehlt eine Regel, nicht zwei.
+const COMPARE = !!process.env.MC_COMPARE;
 // Mit MC_DRYRUN=1 wird nichts geschrieben. Ein kurzer Diagnoselauf soll
 // einen vollstaendigen Datensatz nicht durch dreissig Spieler ersetzen -
 // genau das ist einmal passiert.
@@ -1131,11 +1134,22 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
           } }
         }`, { code, expr: consumables.castFilter });
       const seenPerPlayer = new Map();
+      // Fuer den Gegenbeweis: was die alte Regel gezaehlt haette.
+      //
+      // Beide Zaehlweisen auf DERSELBEN Stichprobe, sonst vergleicht
+      // man zwei Abfragen statt zweier Regeln. Kostet keine einzige
+      // zusaetzliche Anfrage - die Wirkungen liegen ohnehin hier.
+      const everySeen = new Map();
       for (const cast of (used.reportData.report.events.data || [])) {
         const specID = specBySource.get(Number(cast.sourceID));
         if (!specID) continue;
         const itemID = consumables.bySpell.get(Number(cast.abilityGameID));
         if (!itemID) continue;
+        const key = cast.sourceID + ':' + itemID;
+        // Und nicht noch einmal, was schon als Aura gezaehlt wurde.
+        const already = fromAura.get(Number(cast.sourceID));
+        if (already && already.has(itemID)) continue;
+        if (COMPARE && !everySeen.has(key)) everySeen.set(key, { specID, itemID });
         // Getrunken wird im Lauf - alles andere davor. Siehe oben.
         if (perFight.has(consumables.kindOf.get(Number(itemID))) && fightFrom !== null) {
           const when = Number(cast.timestamp);
@@ -1144,13 +1158,21 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
           // Trank mehr zaehlt.
           if (Number.isFinite(when) && !(when >= fightFrom && when <= fightTo)) continue;
         }
-        const key = cast.sourceID + ':' + itemID;
         if (seenPerPlayer.has(key)) continue;
-        // Und nicht noch einmal, was schon als Aura gezaehlt wurde.
-        const already = fromAura.get(Number(cast.sourceID));
-        if (already && already.has(itemID)) continue;
         seenPerPlayer.set(key, true);
         bump(specID, 'consumables', itemID);
+      }
+      // Wer ueberhaupt getrunken hat, aber nicht in diesem Lauf: das
+      // ist genau der Unterschied zwischen alter und neuer Regel.
+      if (COMPARE) {
+        for (const [key, what] of everySeen) {
+          if (seenPerPlayer.has(key)) continue;
+          for (const mode of active) {
+            const spec = entryFor(mode, what.specID);
+            spec.conOld = spec.conOld || {};
+            spec.conOld[what.itemID] = (spec.conOld[what.itemID] || 0) + 1;
+          }
+        }
       }
     } catch (err) {
       process.stdout.write('?');
@@ -1408,6 +1430,32 @@ Haeufigste nicht zugeordnete Auren (${missedAuras.size} verschiedene):`);
 Probelauf ${mode}, ${Object.keys(specs).length} Speccs, Spec ${id}:`);
       for (const c of (one || {}).consumables || []) {
         console.log(`  ${String(c.pct).padStart(3)}%  ${c.kind.padEnd(7)} ${c.name || '(ohne Gegenstand)'}`);
+      }
+      if (COMPARE) {
+        // Alle Speccs, beide Regeln, dieselbe Stichprobe. Nur wo sich
+        // etwas aendert - eine Liste ohne Unterschiede sagt nichts.
+        console.log('');
+        console.log('Alte Regel gegen neue, je Spec (nur wo es abweicht):');
+        let changed = 0;
+        for (const [specID, entry] of Object.entries(tally)) {
+          if (!entry.conOld) continue;
+          const base = Math.max(1, entry.players);
+          const lines = [];
+          for (const [itemID, extra] of Object.entries(entry.conOld)) {
+            const now = entry.consumables[itemID] || 0;
+            const before = now + extra;
+            const pNow = Math.round((now / base) * 100);
+            const pBefore = Math.round((before / base) * 100);
+            if (pNow === pBefore) continue;
+            const info = consumables.names.get(Number(itemID)) || {};
+            lines.push(`      ${String(pBefore).padStart(3)}% -> ${String(pNow).padStart(3)}%  ${info.name || itemID}`);
+          }
+          if (!lines.length) continue;
+          changed += 1;
+          console.log(`  ${specNames.get(Number(specID)) || specID} (${entry.players} Messungen):`);
+          for (const line of lines) console.log(line);
+        }
+        console.log(`  ${changed} Speccs betroffen.`);
       }
       const st = (one || {}).stats;
       if (st) {
