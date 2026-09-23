@@ -30,6 +30,12 @@ jobs:
         with:
           node-version: "22"
 
+      # Die Zaehlregel fuer Verbrauchsgueter braucht keine Daten und
+      # keinen Lua-Stapel. Sie laeuft zuerst, weil sie in Sekunden sagt,
+      # ob die Prozente im Fenster noch bedeuten, was sie behaupten.
+      - name: Counting rules
+        run: node tools/tests/consumable-window.test.js
+
       - name: Fetch the data from the latest nightly
         id: data
         continue-on-error: true

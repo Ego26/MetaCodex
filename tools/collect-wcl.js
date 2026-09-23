@@ -24,6 +24,8 @@
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
+// Die Zaehlregel fuer Verbrauchsgueter - eigene Datei, eigener Test.
+const { countsForThisFight } = require('./lib/consumable-window');
 
 const BASE = process.argv[2];
 if (!BASE) {
@@ -1122,20 +1124,10 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
     //   und einmal fuer den ganzen Abend. Sie zaehlen aus dem ganzen
     //   Bericht - sonst waere jeder zweite Lauf "ohne Speise", obwohl
     //   die Wirkung noch steht.
-    // Eine halbe Minute Vorlauf, denn der Praetrank gehoert dazu.
-    //
-    // Getrunken wird er Sekunden VOR dem Pull - das ist der Sinn der
-    // Sache. Ein Fenster, das exakt beim Start beginnt, wuerfe genau
-    // die Traenke weg, die am sichersten zu diesem Kampf gehoeren, und
-    // der Anteil der Kampftraenke fiele auf die paar Nachschuebe
-    // mittendrin zusammen. Im Raid waere das der groesste Teil.
-    //
-    // Dreissig Sekunden sind lang genug fuer das Vorglaesschen und kurz
-    // genug, um nicht den Kampf davor einzusammeln.
-    const PRE_PULL = 30000;
-    const fightFrom = thisFight ? Number(thisFight.startTime) - PRE_PULL : null;
+    // Wann dieser Lauf lief. Die Regel dazu steht in
+    // tools/lib/consumable-window.js und wird dort nachgerechnet.
+    const fightFrom = thisFight ? Number(thisFight.startTime) : null;
     const fightTo = thisFight ? Number(thisFight.endTime) : null;
-    const perFight = new Set(['potion', 'heal']);
     try {
       const used = await gql(`
         query ($code: String!, $expr: String!) {
@@ -1161,14 +1153,9 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
         const already = fromAura.get(Number(cast.sourceID));
         if (already && already.has(itemID)) continue;
         if (COMPARE && !everySeen.has(key)) everySeen.set(key, { specID, itemID });
-        // Getrunken wird im Lauf - alles andere davor. Siehe oben.
-        if (perFight.has(consumables.kindOf.get(Number(itemID))) && fightFrom !== null) {
-          const when = Number(cast.timestamp);
-          // Ohne brauchbaren Zeitstempel wird nicht gefiltert. Ein
-          // fehlendes Feld duerfte nicht dazu fuehren, dass gar kein
-          // Trank mehr zaehlt.
-          if (Number.isFinite(when) && !(when >= fightFrom && when <= fightTo)) continue;
-        }
+        // Getrunken wird im Lauf - alles andere davor. Siehe die Regel.
+        if (!countsForThisFight(consumables.kindOf.get(Number(itemID)),
+            cast.timestamp, fightFrom, fightTo)) continue;
         if (seenPerPlayer.has(key)) continue;
         seenPerPlayer.set(key, true);
         bump(specID, 'consumables', itemID);
