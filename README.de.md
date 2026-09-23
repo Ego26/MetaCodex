@@ -126,7 +126,12 @@ Spielers. Raid- und PvP-Strings werden gegen den geloggten Kampf bzw. die
 murlok-Heatmap geprüft, bevor sie als Build gelten.
 
 Releases: ein Tag `v1.2.3` genügt, der Workflow `Release` packt den Code
-dieses Tags mit den neuesten Nightly-Daten.
+dieses Tags mit den neuesten Nightly-Daten, lädt ihn zu CurseForge hoch und
+legt das GitHub-Release an. Jede Nacht geht dasselbe Paket noch einmal hoch,
+mit den Tabellen dieser Nacht - der Code des neuesten Tags, nie der aktuelle
+Stand von `main`. Beides über den [BigWigs-Packager](https://github.com/BigWigsMods/packager),
+`.pkgmeta` und das Repository-Secret `CF_API_KEY`; die Änderungsnotizen
+stehen in `RELEASE-NOTES.md`.
 
 ## Tests
 

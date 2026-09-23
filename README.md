@@ -122,7 +122,13 @@ player's client. Raid and PvP strings are verified against the logged
 fight or the murlok heatmap before they count as a build.
 
 Releases: push a tag `v1.2.3` and the `Release` workflow packs the code of
-that tag with the latest nightly data.
+that tag with the latest nightly data, then uploads it to CurseForge and
+creates the GitHub release. Every night the same package goes up again
+with that night's tables - the code of the newest tag, never the current
+state of `main`. Both use the [BigWigs
+packager](https://github.com/BigWigsMods/packager), `.pkgmeta` and the
+repository secret `CF_API_KEY`; the change notes come from
+`RELEASE-NOTES.md`.
 
 ## Tests
 
