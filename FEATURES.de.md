@@ -186,8 +186,8 @@ also auch keinen Reiter dafür.
 | **10 Aktivitäten** | M+ (High Keys), M+ (+7 bis +21), Raid Normal / Heroisch / Mythisch, 2v2, 3v3, Solo Shuffle, RBG, RBG Blitz |
 | **4 Plattformen** | raider.io, murlok.io, Warcraft Logs, Battle.net — einzeln wählbar oder „Alle Plattformen" |
 | **Alle 40 Speccs** | Auch für Klassen, die du gar nicht spielst — zum Nachsehen oder zum Einkaufen für den Zweitcharakter |
-| **3.139 Talent-Import-Strings** | Jeder von einem echten Spieler, jeder mit einem Klick kopierbar |
-| **3.115 Spielerprofile** | Die Top-Spieler je Spec und Aktivität, mit kompletter Ausrüstung |
+| **3.122 Talent-Import-Strings** | Jeder von einem echten Spieler, jeder mit einem Klick kopierbar |
+| **3.058 Spielerprofile** | Die Top-Spieler je Spec und Aktivität, mit kompletter Ausrüstung |
 | **Jede Nacht neu** | Die Daten sind höchstens einen Tag alt |
 
 ---

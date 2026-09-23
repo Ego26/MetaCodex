@@ -257,8 +257,13 @@ local single = ns.Recommend.For(105, "mplus", "murlok.io")
 local merged = ns.Recommend.For(105, "mplus", ns.Recommend.ALL)
 check("einzelne Quelle liefert", single ~= nil and single.enchants ~= nil)
 check("gemittelt liefert", merged ~= nil and merged.enchants ~= nil)
-check("falsche Quelle liefert nichts",
-    ns.Recommend.For(105, "mplus", "warcraftlogs.com") == nil)
+-- Eine Quelle, die diesen Modus nicht misst, liefert nichts - und zwar
+-- nichts statt irgendetwas. Battle.net fuehrt nur PvP-Ranglisten; frueher
+-- stand hier Warcraft Logs, das M+ inzwischen vollstaendig misst.
+check("Quelle ohne diesen Modus liefert nichts",
+    ns.Recommend.For(105, "mplus", "Battle.net") == nil)
+check("erfundene Quelle liefert nichts",
+    ns.Recommend.For(105, "mplus", "example.invalid") == nil)
 
 -- Mit Daten entfaellt die Rueckfrage nach Waffe und Beinen - genau das ist
 -- der Zweck der zweiten Datenschicht.
