@@ -20,7 +20,7 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
   values as a second bar.
 - **Top players** per spec and activity, clickable: profile with talent
   string, address and full gear in a third load-on-demand addon.
-- **Consumables** in Archon's groups — flask, food, combat potion, healing
+- **Consumables**, grouped by kind — flask, food, combat potion, healing
   potion, weapon buffs, runes — with share, highest key, stock and target.
 - **Reminder** tab: stand per consumable kind, open enchants and gems, the
   settings (on entering, at the auction house, threshold). The chat line on

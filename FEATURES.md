@@ -24,7 +24,7 @@ Open it: **`/mc`** or the button in the minimap's addon compartment.
   and tooltips at the level *your* keystone would give.
 - **Enchants & gems against your own gear** — what is still open, what
   you already have, what to buy.
-- **Consumables** in Archon's groups, with your stock and a target.
+- **Consumables**, grouped by kind, with your stock and a target.
 - **Stat targets** measured from the best, with your values next to them.
 - **Top players**, clickable — their string, their gear, their profile.
 - **Reminder** before you go in and at the auction house — and a tab that
@@ -78,7 +78,7 @@ alternatives per slot and the special socket kept separate. Compared with
 your gear: enchanted slots are skipped, empty sockets counted, your bags
 and bank subtracted. On the right stands what you still need.
 
-**Consumables** — In the same groups Archon uses: flask, food, combat
+**Consumables** — Grouped by kind: flask, food, combat
 potion, healing potion, weapon buffs (oils, stones), runes. Per group the
 share of players and the highest key it was still used at. Plus your stock
 and a target quantity you set with a click.

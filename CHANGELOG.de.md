@@ -21,7 +21,7 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
   Werten als zweitem Balken.
 - **Top-Spieler** je Spec und Aktivität, klickbar: Profil mit Talentkette,
   Adresse und kompletter Ausrüstung in einem dritten nachladbaren Addon.
-- **Verbrauchsgüter** in Archons Gruppen — Fläschchen, Speise, Kampftrank,
+- **Verbrauchsgüter**, gruppiert nach Art — Fläschchen, Speise, Kampftrank,
   Heiltrank, Waffenbuffs, Runen — mit Anteil, höchstem Schlüssel, Bestand
   und Ziel.
 - **Erinnerung** als Reiter: Stand je Verbrauchsart, offene Verzauberungen

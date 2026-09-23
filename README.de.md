@@ -37,7 +37,7 @@ fällt weg.
 | **Top-Spieler** | Wer oben steht, klickbar: Profil mit Kette und kompletter Ausrüstung |
 | **Ausrüstung** | Fünf je Platz mit Fundort; Tooltips auf der Schlüsselstufe, die du wählst |
 | **Verzauberungen & Steine** | Gegen deine angelegte Ausrüstung: was noch offen ist |
-| **Verbrauchsgüter** | Archons Gruppen mit Anteil, höchstem Schlüssel, Bestand und Ziel |
+| **Verbrauchsgüter** | Nach Art gruppiert, mit Anteil, höchstem Schlüssel, Bestand und Ziel |
 | **Erinnerung** | Was vor dem Start geprüft wird, und die Einstellungen dazu |
 
 Zehn Aktivitäten, drei Plattformen, alle vierzig Speccs. Nichts wird

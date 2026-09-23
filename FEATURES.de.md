@@ -23,7 +23,7 @@ trägst und im Beutel hast, damit du weißt, was noch fehlt.
   und Tooltips auf der Stufe, die *dein* Schlüsselstein gibt.
 - **Verzauberungen & Steine gegen deine Ausrüstung** — was noch offen ist,
   was du schon hast, was du kaufen musst.
-- **Verbrauchsgüter** in Archons Gruppen, mit Bestand und Ziel.
+- **Verbrauchsgüter**, gruppiert nach Art, mit Bestand und Ziel.
 - **Zielwerte**, gemessen an den Besten, deine Werte daneben.
 - **Top-Spieler**, klickbar — ihre Kette, ihre Ausrüstung, ihr Profil.
 - **Erinnerung** vor dem Start und am Auktionshaus — und ein Reiter, der
@@ -80,7 +80,7 @@ mit deiner Ausrüstung: verzauberte Plätze werden übersprungen, leere Sockel
 gezählt, dein Beutel und deine Bank abgezogen. Rechts steht, was du noch
 brauchst.
 
-**Verbrauchsgüter** — In denselben Gruppen wie bei Archon: Fläschchen,
+**Verbrauchsgüter** — Gruppiert nach Art: Fläschchen,
 Speise, Kampftrank, Heiltrank, Waffenbuffs (Öle, Wetzsteine), Runen. Je
 Gruppe der Anteil der Spieler und die höchste Schlüsselstufe, bei der es
 noch benutzt wurde. Dazu dein Bestand und eine Zielmenge, die du per Klick

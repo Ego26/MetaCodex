@@ -35,7 +35,7 @@ optional — without it the lists still show, only the handover is missing.
 | **Top players** | Who is at the top, clickable: profile with string and full gear |
 | **Gear** | Five per slot with drop source; tooltips on the keystone level you pick |
 | **Enchants & Gems** | Against your equipped gear: what is still open |
-| **Consumables** | Archon's groups with share, highest key, stock and target |
+| **Consumables** | Grouped by kind, with share, highest key, stock and target |
 | **Reminder** | What is checked before you go in, and the settings for it |
 
 Ten activities, three platforms, all forty specs. Nothing is shown that no
