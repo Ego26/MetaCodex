@@ -318,6 +318,10 @@ for (const [mode, bySource] of Object.entries(byMode)) {
       if (entry.hero && Object.keys(entry.hero).length) {
         out.push("            hero = {");
         for (const [subTree, h] of Object.entries(entry.hero)) {
+          // Ein Baum, den einer von siebenhundert traegt, rundet auf 0 % -
+          // und "0 %" ist eine Aussage, die niemand gemessen hat. Er
+          // bleibt draussen, statt als Wahl im Knopf zu stehen.
+          if (!(h.pct > 0)) continue;
           out.push(`              [${subTree}] = { players = ${h.players || 0}, pct = ${h.pct || 0},`);
           emitTalents(out, h, "                ");
           out.push("              },");
