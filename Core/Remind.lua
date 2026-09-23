@@ -212,16 +212,23 @@ local waitingMode, bagsSpoke, waited = nil, false, 0
 
 local function tryAnnounce()
     if not waitingMode then return end
-    local ready = bagsSpoke and ns.Compat.BagsKnown()
+    -- Auch auf die Namen wird gewartet.
+    --
+    -- Auf einem frischen Charakter kennt der Client keinen Gegenstand,
+    -- und dann stand "Liquid Luster" neben einem Fragezeichen, wo
+    -- "Flüssiger Glanz" hingehoert. Eine Chatzeile laesst sich spaeter
+    -- nicht mehr aendern, also wird sie erst geschrieben, wenn die
+    -- Namen da sind.
+    local unnamed = 0
+    for _, row in ipairs(Remind.Status(waitingMode)) do
+        if row.id and not ns.Compat.ItemInfo(row.id) then
+            unnamed = unnamed + 1
+            ns.Compat.RequestItem(row.id)
+        end
+    end
+    local ready = bagsSpoke and ns.Compat.BagsKnown() and unnamed == 0
     if not ready and waited < 8 then
         waited = waited + 0.5
-        -- Die Namen holt der Client auf Zuruf. Nebenbei, solange
-        -- ohnehin gewartet wird.
-        for _, row in ipairs(Remind.Status(waitingMode)) do
-            if row.id and not ns.Compat.ItemInfo(row.id) then
-                ns.Compat.RequestItem(row.id)
-            end
-        end
         C_Timer.After(0.5, tryAnnounce)
         return
     end

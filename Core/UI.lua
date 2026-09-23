@@ -3306,6 +3306,14 @@ local function remindWindowRow(parent, index)
     row.state = S:Text(row, "caption", "warning")
     row.state:SetPoint("RIGHT")
     row.state:SetJustifyH("RIGHT")
+    -- Und der Titel hoert dort auf, wo der Zustand anfaengt.
+    --
+    -- "Concentrated Silvermoon Health Potion" lief quer durch die Zahl
+    -- daneben: der Titel war nur links verankert und nahm sich die
+    -- ganze Zeile. Jetzt hat er eine rechte Kante und kuerzt sich
+    -- selbst, statt fremden Text zu ueberschreiben.
+    row.title:SetPoint("RIGHT", row.state, "LEFT", -S.space.md, 0)
+    row.title:SetWordWrap(false)
     -- Dasselbe wie ueberall: Tooltip beim Zeigen, Shift-Klick verlinkt.
     row:SetScript("OnEnter", function(self)
         if not self.link then return end
@@ -3326,6 +3334,27 @@ end
 ---Der Zeilenvorrat - nur fuer Tests und /mc probe.
 function UI.ReminderRows()
     return remindRows
+end
+
+---Traegt Namen und Symbol nach, sobald der Client sie schickt.
+---
+---Auf einem frischen Charakter kennt er keinen einzigen Gegenstand.
+---Das Fenster stand dann mit dem englischen Katalognamen und einem
+---Fragezeichen da - richtig in der Sache, falsch im Bild. Der Client
+---meldet jeden nachgelieferten Gegenstand einzeln; hier wird genau die
+---Zeile nachgezogen, die darauf gewartet hat.
+function UI.RefreshReminderNames()
+    for _, row in ipairs(remindRows) do
+        if row:IsShown() and row.itemID and not row.named then
+            local name, link, icon = ns.Compat.ItemInfo(row.itemID)
+            if name then
+                row.named = true
+                row.link = link
+                row.title:SetText(name)
+                if icon then row.icon:SetTexture(icon) end
+            end
+        end
+    end
 end
 
 ---Das Erinnerungsfenster: was fehlt, als Liste mit Symbolen, und die
@@ -3437,6 +3466,8 @@ function UI.ShowReminder(text, list)
         -- soll nicht auf eine Zahl von vorhin sehen. Zaehlt wird neu,
         -- nicht nachgetragen.
         remindFrame:RegisterEvent("BAG_UPDATE_DELAYED")
+        -- Und die Namen, die der Client nachreicht.
+        remindFrame:RegisterEvent("GET_ITEM_INFO_RECEIVED")
         -- Escape schliesst es, wie jedes Fenster in diesem Spiel.
         tinsert(UISpecialFrames, "MetaCodexReminder")
         remindFrame:SetScript("OnEvent", function(self, event)
@@ -3444,6 +3475,11 @@ function UI.ShowReminder(text, list)
             if event == "AUCTION_HOUSE_CLOSED" then UI.DropTemporaryList() end
             if event == "BAG_UPDATE_DELAYED" and self:IsShown() and self.__text then
                 UI.ShowReminder(self.__text, ns.Remind.Check(ns.Profile.Mode()))
+            end
+            -- Nur die eine Zeile, nicht das ganze Fenster: dieses
+            -- Ereignis kommt nach dem Vorladen hundertfach.
+            if event == "GET_ITEM_INFO_RECEIVED" and self:IsShown() then
+                UI.RefreshReminderNames()
             end
         end)
     end
@@ -3468,6 +3504,10 @@ function UI.ShowReminder(text, list)
         if not name and entry.id then ns.Compat.RequestItem(entry.id) end
         row.link = link
         row.icon:SetTexture(icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+        row.itemID = entry.id
+        -- Was der Client noch nicht kennt, traegt
+        -- UI.RefreshReminderNames nach, sobald er es schickt.
+        row.named = name ~= nil
         row.title:SetText(name or entry.name or ("#" .. tostring(entry.id)))
         -- Eigene Schluessel fuer das Fenster. Sie hiessen einmal wie die
         -- des Reiters, und weil Lua bei doppelten Schluesseln den letzten
@@ -3487,6 +3527,25 @@ function UI.ShowReminder(text, list)
         shown = i
     end
     for i = shown + 1, #remindRows do remindRows[i]:Hide() end
+
+    -- Das Fenster richtet sich nach seiner laengsten Zeile.
+    --
+    -- Bei 420 Punkten Breite lief "Konzentrierter Silbermondheiltrank"
+    -- in die Zahl daneben. Kuerzen waere die schlechtere Antwort: der
+    -- Name ist die Auskunft. Also waechst das Fenster mit, bis 640 -
+    -- darueber steht es im Bild und nicht mehr daneben.
+    local function stringWidth(text)
+        local ok, w = pcall(text.GetStringWidth, text)
+        return (ok and type(w) == "number") and w or 0
+    end
+    local needed = 420
+    for i = 1, shown do
+        local row = remindRows[i]
+        local w = 28 + stringWidth(row.title) + S.space.md
+            + stringWidth(row.state) + S.space.lg * 2 + S.space.md
+        if w > needed then needed = w end
+    end
+    remindFrame:SetWidth(math.min(needed, 640))
 
     if shown > 0 then
         remindFrame.body:SetText("")

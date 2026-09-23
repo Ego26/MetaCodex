@@ -2296,6 +2296,22 @@ do
             end
             check("es zeigt die Gegenstaende als Zeilen", lines > 0 and named == lines,
                 lines .. " Zeilen, " .. named .. " benannt")
+            -- Der Titel braucht eine rechte Kante.
+            --
+            -- Ohne sie nimmt er sich die ganze Zeile, und
+            -- "Konzentrierter Silbermondheiltrank" lief quer durch das
+            -- "39 in niedrigerer Qualität" daneben. Im Bild sah das aus
+            -- wie ein kaputtes Fenster.
+            local bounded = 0
+            for _, r in ipairs(ns.UI.ReminderRows()) do
+                if r:IsShown() then
+                    for _, point in ipairs(r.title.__points or {}) do
+                        if point[1] == "RIGHT" then bounded = bounded + 1 break end
+                    end
+                end
+            end
+            check("der Titel endet vor dem Zustand", bounded == lines,
+                bounded .. " von " .. lines .. " begrenzt")
             -- Der Suchknopf folgt dem Auktionshaus, auch wenn es erst
             -- aufgeht, waehrend das Fenster schon steht.
             local realOpen = ns.Adapter.AuctionHouseOpen
