@@ -4,10 +4,14 @@
 #
 #     tools/package.sh <version> [output dir]
 #
-# Why an own script and not the BigWigs packager: that packs the git repo,
-# and the data are deliberately NOT in git - 13 MB of Lua that change every
-# night. This packs what is in the folder, and after the data run that is
-# code AND data.
+# Who uses which: the release to CurseForge is built by the BigWigs packager
+# in the Action, from .pkgmeta. This script is for the zip that hangs on the
+# GitHub release "nightly" and for building one by hand - it packs what is in
+# the FOLDER, and after the data run that is code and data. The packager
+# packs what git knows, and the data are deliberately not in git.
+#
+# Both produce the same four folders with the same contents. Whoever tests a
+# nightly is testing what the release will be.
 set -euo pipefail
 
 VERSION="${1:?version missing, e.g. v1.2.0 or nightly-20260923}"
@@ -22,7 +26,9 @@ for addon in MetaCodex MetaCodex_Data MetaCodex_Dungeons MetaCodex_Players; do
 done
 
 # The main addon: only what the game needs.
-for entry in Core Locales Media MetaCodex.toc LICENSE README.md README.de.md CHANGELOG.md CHANGELOG.de.md; do
+# The same list as in .pkgmeta: the licence and the change notes travel with
+# the addon, the READMEs and the history stay in the repository.
+for entry in Core Locales Media MetaCodex.toc LICENSE RELEASE-NOTES.md; do
   [ -e "$ROOT/$entry" ] && cp -r "$ROOT/$entry" "$STAGE/MetaCodex/"
 done
 for addon in MetaCodex_Data MetaCodex_Dungeons MetaCodex_Players; do
