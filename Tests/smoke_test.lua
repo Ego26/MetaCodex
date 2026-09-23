@@ -1360,10 +1360,20 @@ end
 -- wird abgelehnt statt uebernommen.
 check("Faktor wird gemerkt", ns.Profile.SetWindowScale("1.2") and ns.Profile.WindowScale() == 1.2)
 check("Unsinn wird abgelehnt", not ns.Profile.SetWindowScale("5") and ns.Profile.WindowScale() == 1.2)
-ns.UI.ApplyScale()
-check("Fenster traegt den Faktor", _G.MetaCodexFrame:GetScale() == 1.2, tostring(_G.MetaCodexFrame:GetScale()))
-ns.Profile.SetWindowScale(1)
-ns.UI.ApplyScale()
+do
+    local vorher = ns.UI.Frame().hintText.__fontSize
+    ns.UI.ApplyScale()
+    -- Die SCHRIFT traegt den Faktor, nicht das Fenster: dessen Groesse
+    -- zieht man am Rand, und eine Einstellung soll eine Wirkung haben.
+    check("das Fenster behaelt seine Groesse", _G.MetaCodexFrame:GetScale() == 1,
+        tostring(_G.MetaCodexFrame:GetScale()))
+    local nachher = ns.UI.Frame().hintText.__fontSize
+    check("die Schrift waechst mit", nachher > vorher, vorher .. " -> " .. nachher)
+    ns.Profile.SetWindowScale(1)
+    ns.UI.ApplyScale()
+    check("und wieder zurueck", ns.UI.Frame().hintText.__fontSize == vorher,
+        tostring(ns.UI.Frame().hintText.__fontSize))
+end
 
 -- ---------------------------------------------------------- Shift-Klick
 

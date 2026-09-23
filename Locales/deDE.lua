@@ -346,7 +346,7 @@ ns.RegisterLocale("deDE", {
     ["GUIDE_METHOD"]      = "Method-Guide",
     ["GUIDE_ARCHON_GEMS"]   = "Archon: Verzauberungen und Steine",
     ["GUIDE_ARCHON_CONSUM"] = "Archon: Verbrauchsgüter",
-    ["GUIDE_MURLOK"]      = "murlok.io-Seite der Spec",
+    ["GUIDE_MURLOK"]      = "Murlok.io: Seite von deiner Spezialisierung",
     ["GUIDE_HINT"]        = "MetaCodex misst; diese Seiten erklären. Klick auf eine Zeile kopiert ihre Adresse.",
     ["LINK_TITLE"]        = "Diese Adresse kopieren",
     ["LINK_HINT"]         = "Strg+C zum Kopieren. Ein AddOn kann selbst keinen Browser öffnen.",

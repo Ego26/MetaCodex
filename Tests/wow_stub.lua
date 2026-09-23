@@ -53,6 +53,12 @@ end
 Mock.methods.ClearAllPoints = function(self)
     for i = #self.__points, 1, -1 do self.__points[i] = nil end
 end
+-- Welche Schriftgroesse wirklich gesetzt wurde: daran haengt, ob die
+-- Einstellung "Schriftgroesse" etwas tut.
+Mock.methods.SetFont = function(self, path, size, flags)
+    self.__fontPath, self.__fontSize, self.__fontFlags = path, size, flags
+end
+Mock.methods.GetFont = function(self) return self.__fontPath, self.__fontSize, self.__fontFlags end
 Mock.methods.SetText = function(self, text) self.__text = text end
 Mock.methods.GetText = function(self) return self.__text end
 Mock.methods.Show = function(self) self.__shown = true end

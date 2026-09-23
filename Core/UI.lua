@@ -2215,7 +2215,8 @@ local function build()
             ns.Profile.SetWindowPoint(anchor, math.floor(x + 0.5), math.floor(y + 0.5))
         end
     end)
-    frame:SetScale(ns.Profile.WindowScale())
+    S:SetFontScale(ns.Profile.WindowScale())
+    frame:SetScale(1)
     -- Ziehbar, in Grenzen. Der Griff sitzt unten rechts; waehrend des
     -- Ziehens zeichnet nichts neu - erst beim Loslassen, einmal.
     frame:SetResizable(true)
@@ -2997,7 +2998,7 @@ function UI.Refresh()
             index = index + 1
             local header = acquireRow(index)
             setHeaderRow(header, group)
-            place(header, 26)
+            place(header, 26 * (S.fontScale or 1))
             lastSlot = group
         end
         index = index + 1
@@ -3012,7 +3013,7 @@ function UI.Refresh()
             row.title:ClearAllPoints()
             row.title:SetPoint("LEFT", S.space.sm + 58, 0)
             S:ApplyFont(row.title, "caption", "textSecondary")
-            place(row, SUB_ROW_HEIGHT)
+            place(row, SUB_ROW_HEIGHT * (S.fontScale or 1))
         elseif data.kind == "note" then
             -- Eine Notiz ist eine Zeile Text, kein Gegenstand: Symbol
             -- klein, Text daneben auf halber Hoehe.
@@ -3027,9 +3028,12 @@ function UI.Refresh()
             row.icon:SetSize(30, 30)
             row.icon:ClearAllPoints()
             row.icon:SetPoint("LEFT", S.space.sm, 0)
-            row.title:ClearAllPoints()
-            row.title:SetPoint("TOPLEFT", S.space.sm + 38, -S.space.sm)
-            S:ApplyFont(row.title, "body", "textPrimary")
+            -- Schrift und Einrueckung stehen schon: setItemRow setzt sie
+            -- am Anfang zurueck, und die Zeile selbst hat danach
+            -- entschieden, was sie braucht. Sie hier ein zweites Mal zu
+            -- setzen hiess, jede Absicht zu ueberschreiben - graue
+            -- Hinweise wurden weiss, und eine Zeile ohne Symbol rueckte
+            -- ein, als fehlte eines.
             -- Die zweite Zeile haengt unter der ersten, nicht auf fester
             -- Hoehe.
             --
@@ -3037,7 +3041,8 @@ function UI.Refresh()
             -- ist - und lag dann auf der Zeile darunter. Was sich
             -- ueberlappt, ist nicht mehr lesbar, und unlesbar ist
             -- schlimmer als abgeschnitten.
-            local height = data.kind == "stat" and STAT_ROW_HEIGHT or ROW_HEIGHT
+            local fs = S.fontScale or 1
+            local height = (data.kind == "stat" and STAT_ROW_HEIGHT or ROW_HEIGHT) * fs
             if data.kind ~= "stat" and (row.detail:GetText() or "") ~= "" then
                 row.detail:ClearAllPoints()
                 row.detail:SetPoint("TOPLEFT", row.title, "BOTTOMLEFT", 0, -2)
@@ -3654,5 +3659,12 @@ end
 ---Wendet die gemerkte Groesse an - nach /mc scale sofort, nicht erst
 ---beim naechsten Oeffnen.
 function UI.ApplyScale()
-    if frame then frame:SetScale(ns.Profile.WindowScale()) end
+    -- Nur die Schrift. Das Fenster behaelt die Groesse, die jemand ihm
+    -- am Rand gegeben hat - sonst haette eine Einstellung zwei
+    -- Wirkungen, und die zweite hat niemand bestellt.
+    S:SetFontScale(ns.Profile.WindowScale())
+    if frame then
+        frame:SetScale(1)
+        UI.Refresh()
+    end
 end

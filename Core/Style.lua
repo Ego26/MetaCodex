@@ -185,6 +185,25 @@ end
 ---@param fontString table
 ---@param size number|string Punktzahl oder Rolle aus Style.font
 ---@param token string|nil
+-- Alle Texte, die durch diese Datei entstanden sind.
+--
+-- Gebraucht fuer die Schriftgroesse: sie aendert die SCHRIFT, nicht das
+-- Fenster. SetScale waere eine Zeile gewesen, haette aber das ganze
+-- Fenster mitgezogen - und die Fenstergroesse stellt man am Rand ein,
+-- frei. Also merkt sich Style seine Texte und setzt sie neu.
+Style.fontScale = 1
+local texts = setmetatable({}, { __mode = "k" })
+
+---@param scale number
+function Style:SetFontScale(scale)
+    Style.fontScale = tonumber(scale) or 1
+    for fontString in pairs(texts) do
+        if fontString.SetFont then
+            Style:ApplyFont(fontString, fontString.__fontPoints or fontString.__size, fontString.__token)
+        end
+    end
+end
+
 function Style:ApplyFont(fontString, size, token)
     local points = type(size) == "string" and Style.font[size] or size or Style.font.body
     local r, g, b = Style:Color(token or "textPrimary")
@@ -192,10 +211,16 @@ function Style:ApplyFont(fontString, size, token)
     local path = STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
     local outline = (0.2126 * r + 0.7152 * g + 0.0722 * b) > 0.5
 
+    -- __fontPoints ist die GEWUENSCHTE Groesse, __size die gesetzte. Ohne
+    -- die Trennung waere jede Aenderung der Schriftgroesse auf der
+    -- vorigen aufgebaut und das Fenster nach dreimal Waehlen unlesbar.
+    fontString.__fontPoints = points
     fontString.__size = points
     fontString.__token = token or "textPrimary"
+    texts[fontString] = true
 
-    fontString:SetFont(path, Style:Pixel(points), outline and "OUTLINE" or "")
+    fontString:SetFont(path, Style:Pixel(points * (Style.fontScale or 1)),
+        outline and "OUTLINE" or "")
     fontString:SetTextColor(r, g, b)
     fontString:SetShadowOffset(0, 0)
     if not outline then fontString:SetShadowColor(0, 0, 0, 0) end
