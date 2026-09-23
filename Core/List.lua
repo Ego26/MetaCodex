@@ -283,19 +283,26 @@ function List.Build(scan)
     end
 
     for _, def in ipairs({ { slot = "legs", key = "legs" }, { slot = "weapon", key = "weapon" } }) do
-        if runeforger and def.slot == "weapon" then goto continue end
-        local chosen = p[def.key]
-        local fallback = chosen and byID(Catalog.EnchantsFor(def.slot), chosen) or nil
-        local id, entry, pct = resolve(def.slot, fallback)
-        local count, open, other = counts(def.slot, id)
-        if count > 0 then
-            if id then
-                add(def.slot, id, entry, pct, count, open, other)
-            else
-                rows[#rows + 1] = { kind = "enchant", slot = def.slot, need = count, pending = def.key }
+        -- Die Waffe des Todesritters hat ihre Zeile schon (die Rune).
+        --
+        -- Hier stand ein "goto continue". Das gibt es in Lua 5.2 und in
+        -- der Testumgebung, aber NICHT im Spiel, das auf 5.1 laeuft -
+        -- die Datei liess sich dort nicht einmal laden, und das ganze
+        -- Addon war still tot.
+        local skip = runeforger and def.slot == "weapon"
+        if not skip then
+            local chosen = p[def.key]
+            local fallback = chosen and byID(Catalog.EnchantsFor(def.slot), chosen) or nil
+            local id, entry, pct = resolve(def.slot, fallback)
+            local count, open, other = counts(def.slot, id)
+            if count > 0 then
+                if id then
+                    add(def.slot, id, entry, pct, count, open, other)
+                else
+                    rows[#rows + 1] = { kind = "enchant", slot = def.slot, need = count, pending = def.key }
+                end
             end
         end
-        ::continue::
     end
 
     return rows

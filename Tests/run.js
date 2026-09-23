@@ -95,6 +95,50 @@ if (dupes.length) {
 }
 console.log("  ok   kein Sprachschluessel doppelt");
 
+// Sprachstand pruefen: das Spiel laeuft auf Lua 5.1.
+//
+// Fengari kann 5.3, und genau daran ist es gescheitert: ein "goto
+// continue" lief hier gruen durch und liess im Spiel die ganze Datei
+// nicht laden - das Addon war still tot, ohne eine Fehlermeldung, die
+// jemand gesucht haette. Was 5.1 nicht kennt, faellt hier auf.
+const VERBOTEN = [
+  // Nur das, was wirklich bricht und sich nicht mit Zeichenketten
+  // verwechseln laesst. Eine Adresse enthaelt zwei Schraegstriche, und
+  // ein Pruefer, der darueber klagt, wird nach dem dritten Mal
+  // abgeschaltet - dann prueft er gar nichts mehr.
+  { name: "goto", re: /(^|[^\w])goto\s+[A-Za-z_]/, hinweis: "gibt es erst ab Lua 5.2" },
+  { name: "Sprungmarke", re: /::[A-Za-z_][A-Za-z0-9_]*::/, hinweis: "gibt es erst ab Lua 5.2" },
+];
+{
+  const dirs = ['Core', 'Locales', 'MetaCodex_Data', 'MetaCodex_Dungeons', 'MetaCodex_Players'];
+  const klagen = [];
+  for (const dir of dirs) {
+    const voll = path.join(base, dir);
+    if (!fs.existsSync(voll)) continue;
+    for (const name of fs.readdirSync(voll)) {
+      if (!name.endsWith('.lua')) continue;
+      const text = fs.readFileSync(path.join(voll, name), 'utf8');
+      const zeilen = text.split(String.fromCharCode(10));
+      for (let i = 0; i < zeilen.length; i += 1) {
+        const zeile = zeilen[i];
+        // Kommentare zaehlen nicht: dort darf stehen, warum etwas fehlt.
+        const ohneKommentar = zeile.replace(/--.*$/, '');
+        for (const v of VERBOTEN) {
+          if (v.re.test(ohneKommentar)) {
+            klagen.push(dir + '/' + name + ':' + (i + 1) + ' ' + v.name + ' - ' + v.hinweis);
+          }
+        }
+      }
+    }
+  }
+  if (klagen.length) {
+    console.error('  FAIL nur Lua 5.1, wie im Spiel');
+    for (const k of klagen.slice(0, 10)) console.error('       ' + k);
+    process.exit(1);
+  }
+  console.log('  ok   nur Lua 5.1, wie im Spiel');
+}
+
 const code = fs.readFileSync(file, 'utf8');
 if (lauxlib.luaL_dostring(L, to_luastring(code)) !== lua.LUA_OK) {
   console.error('LUA-FEHLER: ' + lua.lua_tojsstring(L, -1));
