@@ -145,7 +145,7 @@ ns.RegisterLocale("deDE", {
 
 ns.RegisterLocale("deDE", {
     ["SOCKETS"] = "%d Sockel, davon %d leer",
-    ["IN_BAGS"] = "liegt schon im Gepäck",
+    ["IN_BAGS"] = "liegt schon in der Tasche",
 })
 
 ns.RegisterLocale("deDE", {
@@ -242,8 +242,8 @@ ns.RegisterLocale("deDE", {
     ["CONSUM_TARGET"]  = "Ziel %d",
     ["REMIND_TITLE"]   = "MetaCodex erinnert",
     ["REMIND_MISSING"] = "Fehlt vor dem Start: %s",
-    ["REMIND_OK"]      = "Fläschchen, Speise und Runen sind im Beutel.",
-    ["REMIND_NONE"]    = "%s: nichts im Beutel",
+    ["REMIND_OK"]      = "Fläschchen, Speise und Runen sind in der Tasche.",
+    ["REMIND_NONE"]    = "%s: nichts in der Tasche",
     ["REMIND_LOW"]     = "%s: nur noch %d",
     ["LBL_REMINDERS"]  = "Erinnern",
     ["REMIND_HINT"]    = "Was die Erinnerung prüft, bevor es losgeht. Klick auf eine Zeile ändert die Zielmenge; unten kaufst du, was fehlt.",
@@ -264,9 +264,9 @@ ns.RegisterLocale("deDE", {
     ["REMIND_PREVIEW"] = "Zeig mir, wie es aussieht",
     ["REMIND_PREVIEW_DO"] = "Vorschau",
     ["REMIND_PREVIEW_EMPTY"] = "Nichts fehlt - so sähe eine Erinnerung aus.",
-    ["REMIND_STATE_NONE"] = "nichts im Beutel",
-    ["REMIND_STATE_LOW"] = "%d von %d",
-    ["REMIND_STATE_LOWER"] = "%d in niedrigerer Qualität",
+    ["REMIND_WIN_NONE"] = "nichts in der Tasche",
+    ["REMIND_WIN_LOW"] = "%d von %d",
+    ["REMIND_WIN_LOWER"] = "%d in niedrigerer Qualität",
     ["REMIND_WINDOW_TITLE"] = "Bevor du reingehst",
     ["REMIND_OPT_AH"]  = "Am Auktionshaus an Fehlendes erinnern",
     ["REMIND_OPT_BELOW"] = "Als knapp gilt, was unter diesem Anteil des Ziels liegt",

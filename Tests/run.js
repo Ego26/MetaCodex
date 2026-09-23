@@ -69,6 +69,32 @@ lua.lua_pushstring(L, to_luastring(
   fs.existsSync(playersToc) ? fs.readFileSync(playersToc, 'utf8') : ''));
 lua.lua_setglobal(L, to_luastring('PLAYERS_TOC'));
 
+// Doppelte Sprachschluessel finden, bevor der Lua-Teil laeuft.
+//
+// Lua nimmt bei zwei gleichen Schluesseln in einer Tabelle den letzten.
+// Ein zweites Mal vergebener Text ueberschreibt darum still einen
+// anderen, und geladen ist davon nichts mehr zu sehen - der Reiter
+// zeigte "%d von %d", wo "knapp" stehen sollte. Hier, an der Datei, ist
+// es noch zu sehen.
+const dupes = [];
+for (const name of ["enUS", "deDE"]) {
+  const localeFile = path.join(base, "Locales", name + ".lua");
+  if (!fs.existsSync(localeFile)) continue;
+  const seen = new Set();
+  const text = fs.readFileSync(localeFile, "utf8");
+  for (const line of text.split(String.fromCharCode(10))) {
+    const key = /^\s*\["([A-Z0-9_]+)"\]\s*=/.exec(line);
+    if (!key) continue;
+    if (seen.has(key[1])) dupes.push(name + ": " + key[1]);
+    seen.add(key[1]);
+  }
+}
+if (dupes.length) {
+  console.error("  FAIL kein Sprachschluessel doppelt  -> " + dupes.join(", "));
+  process.exit(1);
+}
+console.log("  ok   kein Sprachschluessel doppelt");
+
 const code = fs.readFileSync(file, 'utf8');
 if (lauxlib.luaL_dostring(L, to_luastring(code)) !== lua.LUA_OK) {
   console.error('LUA-FEHLER: ' + lua.lua_tojsstring(L, -1));

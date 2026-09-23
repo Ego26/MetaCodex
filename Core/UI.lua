@@ -3403,6 +3403,8 @@ function UI.ShowReminder(text, list)
         remindFrame:RegisterEvent("AUCTION_HOUSE_SHOW")
         remindFrame:RegisterEvent("AUCTION_HOUSE_CLOSED")
         remindFrame:RegisterEvent("ADDON_LOADED")
+        -- Escape schliesst es, wie jedes Fenster in diesem Spiel.
+        tinsert(UISpecialFrames, "MetaCodexReminder")
         remindFrame:SetScript("OnEvent", function(_, event)
             UI.UpdateReminderButtons()
             if event == "AUCTION_HOUSE_CLOSED" then UI.DropTemporaryList() end
@@ -3428,12 +3430,15 @@ function UI.ShowReminder(text, list)
         row.link = link
         row.icon:SetTexture(icon or "Interface\\Icons\\INV_Misc_QuestionMark")
         row.title:SetText(name or entry.name or ("#" .. tostring(entry.id)))
+        -- Eigene Schluessel fuer das Fenster. Sie hiessen einmal wie die
+        -- des Reiters, und weil Lua bei doppelten Schluesseln den letzten
+        -- nimmt, stand im Reiter "%d von %d" statt "knapp".
         if entry.owned > 0 then
-            row.state:SetText(L["REMIND_STATE_LOW"]:format(entry.owned, entry.need))
+            row.state:SetText(L["REMIND_WIN_LOW"]:format(entry.owned, entry.need))
         elseif (entry.lower or 0) > 0 then
-            row.state:SetText(L["REMIND_STATE_LOWER"]:format(entry.lower))
+            row.state:SetText(L["REMIND_WIN_LOWER"]:format(entry.lower))
         else
-            row.state:SetText(L["REMIND_STATE_NONE"])
+            row.state:SetText(L["REMIND_WIN_NONE"])
         end
         row:ClearAllPoints()
         row:SetPoint("TOPLEFT", S.space.lg, y0)

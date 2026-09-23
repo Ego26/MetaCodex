@@ -1895,6 +1895,28 @@ do
     end
 end
 
+-- Und die Suche traegt die Stueckzahl: vierzig fehlende Heiltraenke sind
+-- keine Suche nach einem.
+do
+    ns.Profile.SetMode("raid")
+    ns.Profile.SetConsumableTarget("heal", 40)
+    local gesucht
+    local realSearch = ns.Adapter.Search
+    ns.Adapter.Search = function(rows)
+        gesucht = rows
+        return true, ""
+    end
+    ns.UI.HandoverMissing(true)
+    ns.Adapter.Search = realSearch
+    local mitMenge = 0
+    for _, r in ipairs(gesucht or {}) do
+        if (r.buy or 0) > 1 then mitMenge = mitMenge + 1 end
+    end
+    check("die Suche bekommt die Fehlmengen mit", mitMenge > 0,
+        mitMenge .. " von " .. #(gesucht or {}))
+    ns.Profile.SetConsumableTarget("heal", 5)
+end
+
 -- ------------------------------------------ Eigene Zielmenge
 
 -- Die Stufen im Menue decken den Normalfall. Wer zwoelf Flaeschchen will,

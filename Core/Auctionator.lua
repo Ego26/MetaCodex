@@ -183,18 +183,21 @@ function Adapter.Search(rows)
     if missing > 0 then return false, "NAMES_PENDING" end
     if #searchTerms == 0 then return false, "NOTHING_TO_BUY" end
 
-    -- MultiSearchExact setzt die Anfuehrungszeichen selbst und will deshalb
-    -- die blossen Namen - NICHT die fertigen Suchzeichenketten von oben.
-    if Adapter.Has("MultiSearchExact") then
-        local ok, err = pcall(v1.MultiSearchExact, ns.addonName, searchTerms)
+    -- Mit Menge suchen, wo es geht.
+    --
+    -- MultiSearchExact nimmt blosse Namen und kennt keine Stueckzahl -
+    -- die Suche stand dann auf 1, obwohl vierzig fehlten. MultiSearch
+    -- nimmt fertige Suchzeichenketten, und in die gehoert die Menge.
+    -- Deshalb zuerst der Weg, der mehr kann.
+    if Adapter.Has("MultiSearch") then
+        local withCounts = terms(rows)
+        local ok, err = pcall(v1.MultiSearch, ns.addonName, withCounts)
         if ok then return true, "" end
         return false, tostring(err)
     end
 
-    if Adapter.Has("MultiSearch") then
-        local quoted = {}
-        for i, name in ipairs(searchTerms) do quoted[i] = '"' .. name .. '"' end
-        local ok, err = pcall(v1.MultiSearch, ns.addonName, quoted)
+    if Adapter.Has("MultiSearchExact") then
+        local ok, err = pcall(v1.MultiSearchExact, ns.addonName, searchTerms)
         if ok then return true, "" end
         return false, tostring(err)
     end
