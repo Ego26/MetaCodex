@@ -82,6 +82,8 @@ ns.RegisterLocale("deDE", {
 
     -- Meldungen
     ["NO_AUCTIONATOR"]     = "Auctionator ist nicht geladen – die Liste steht da, lässt sich aber nicht übergeben.",
+    ["LIST_TEMPORARY"] = "Nur für diesen Einkauf - beim Schließen des Auktionshauses geht sie wieder weg.",
+    ["LIST_DROPPED"] = "Einkaufsliste entfernt: %s",
     ["LIST_CREATED"]       = "%d Einträge in die Liste \"%s\" geschrieben.",
     ["LIST_FAILED"]        = "Auctionator hat die Liste abgelehnt: %s",
     ["NOTHING_TO_BUY"]     = "Nichts zu kaufen – alles verzaubert und gesockelt.",

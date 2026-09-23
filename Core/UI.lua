@@ -3296,6 +3296,17 @@ end
 ---nichts damit anfangen: kein Tooltip, kein Shift-Klick, kein Weg zur
 ---Einkaufsliste. Jetzt ist es ein kleines Fenster mit denselben
 ---Handgriffen wie das grosse.
+-- Die Liste, die die Erinnerung fuer einen Einkauf angelegt hat.
+local remindListName
+
+---Raeumt die Liste der Erinnerung weg, wenn es eine gibt.
+function UI.DropTemporaryList()
+    if not remindListName then return end
+    local name = remindListName
+    remindListName = nil
+    if ns.Adapter.DeleteList(name) then ns.Print(L["LIST_DROPPED"], name) end
+end
+
 ---Die beiden Knoepfe des Erinnerungsfensters, nach dem aktuellen Stand.
 ---
 ---"Jetzt suchen" braucht Auctionator UND ein offenes Auktionshaus. Beides
@@ -3380,7 +3391,10 @@ function UI.ShowReminder(text, list)
         remindFrame:RegisterEvent("AUCTION_HOUSE_SHOW")
         remindFrame:RegisterEvent("AUCTION_HOUSE_CLOSED")
         remindFrame:RegisterEvent("ADDON_LOADED")
-        remindFrame:SetScript("OnEvent", function() UI.UpdateReminderButtons() end)
+        remindFrame:SetScript("OnEvent", function(_, event)
+            UI.UpdateReminderButtons()
+            if event == "AUCTION_HOUSE_CLOSED" then UI.DropTemporaryList() end
+        end)
     end
 
     local point, x, y = ns.Profile.RemindPoint()
@@ -3530,7 +3544,14 @@ function UI.HandoverMissing(searchNow)
         ok, message, written = ns.Adapter.CreateList(rows, "remind")
     end
     if ok then
-        if not searchNow then ns.Print(L["LIST_CREATED"], written, message) end
+        if not searchNow then
+            -- Sie ist fuer diesen einen Einkauf. Beim Schliessen des
+            -- Auktionshauses raeumt sie sich wieder weg - eine Liste, die
+            -- nach dem Einkauf noch da ist, ist beim naechsten Mal falsch.
+            remindListName = message
+            ns.Print(L["LIST_CREATED"], written, message)
+            ns.Print(L["LIST_TEMPORARY"])
+        end
     elseif L[message] ~= message then
         ns.Print(L[message])
     else

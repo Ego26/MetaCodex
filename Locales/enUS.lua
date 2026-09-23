@@ -82,6 +82,8 @@ ns.RegisterLocale("enUS", {
 
     -- Meldungen
     ["NO_AUCTIONATOR"]     = "Auctionator is not loaded - the list is shown, but cannot be handed over.",
+    ["LIST_TEMPORARY"] = "For this trip - it is removed when you close the auction house.",
+    ["LIST_DROPPED"] = "Shopping list removed: %s",
     ["LIST_CREATED"]       = "%d entries written to the list \"%s\".",
     ["LIST_FAILED"]        = "Auctionator refused the list: %s",
     ["NOTHING_TO_BUY"]     = "Nothing to buy - everything is enchanted and socketed.",

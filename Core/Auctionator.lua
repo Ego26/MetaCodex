@@ -31,6 +31,21 @@ function Adapter.Has(name)
     return v1 ~= nil and type(v1[name]) == "function"
 end
 
+---Eine Liste wieder loeschen.
+---
+---Gebraucht fuer die Liste der Erinnerung: die ist fuer EINEN Einkauf
+---gedacht und soll danach nicht in Auctionator stehenbleiben. Kann die
+---eingebaute Fassung es nicht, bleibt sie liegen - sie traegt denselben
+---Namen wie beim naechsten Mal und wird dann ersetzt, waechst also nicht.
+---@param name string
+---@return boolean
+function Adapter.DeleteList(name)
+    local v1 = api()
+    if not v1 or not Adapter.Has("DeleteShoppingList") then return false end
+    local ok = pcall(v1.DeleteShoppingList, ns.addonName, name)
+    return ok == true
+end
+
 ---Der Name der Liste, in die geschrieben wird. Immer mit Praefix.
 ---@param section string|nil Abschnitt, dessen Liste es ist
 ---@return string

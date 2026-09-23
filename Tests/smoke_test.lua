@@ -2077,6 +2077,19 @@ do
                 check("und enthaelt nur, was fehlt",
                     sent ~= nil and #sent.rows > 0 and fehlt == #sent.rows,
                     fehlt .. " von " .. #(sent and sent.rows or {}))
+                -- Sie ist fuer diesen einen Einkauf: schliesst das
+                -- Auktionshaus, raeumt sie sich weg.
+                local geloescht
+                local realDelete = ns.Adapter.DeleteList
+                ns.Adapter.DeleteList = function(name) geloescht = name return true end
+                wow.fire("AUCTION_HOUSE_CLOSED")
+                check("die Liste der Erinnerung ist temporaer",
+                    geloescht == "Liste", tostring(geloescht))
+                -- Und nur einmal: ein zweites Schliessen loescht nichts.
+                geloescht = nil
+                wow.fire("AUCTION_HOUSE_CLOSED")
+                check("ohne Liste wird nichts geloescht", geloescht == nil)
+                ns.Adapter.DeleteList = realDelete
             end
             check("und hat beide Knoepfe",
                 window.create ~= nil and window.search ~= nil

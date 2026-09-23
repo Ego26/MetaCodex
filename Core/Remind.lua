@@ -226,8 +226,14 @@ end)
 -- Eine Zeile im Chat sagt dasselbe und laesst die Entscheidung dort, wo
 -- sie hingehoert.
 local auctionFrame = CreateFrame("Frame")
+auctionFrame:RegisterEvent("AUCTION_HOUSE_CLOSED")
 auctionFrame:RegisterEvent("AUCTION_HOUSE_SHOW")
-auctionFrame:SetScript("OnEvent", function()
+auctionFrame:SetScript("OnEvent", function(_, event)
+    -- Zu, also weg mit der Liste fuer diesen einen Einkauf.
+    if event == "AUCTION_HOUSE_CLOSED" then
+        if ns.UI and ns.UI.DropTemporaryList then ns.UI.DropTemporaryList() end
+        return
+    end
     if not ns.Profile.RemindersOn() then return end
     if not ns.Profile.RemindAtAuctionHouse() then return end
     if ns.UI.IsShown() then return end
