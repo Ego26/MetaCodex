@@ -1600,16 +1600,6 @@ local function acquireRow(index)
     row.share:SetPoint("RIGHT", -S.space.md, 0)
     row.share:SetJustifyH("RIGHT")
 
-    -- Ein Knopf, den die meisten Zeilen nicht brauchen.
-    --
-    -- Die Talentzeile braucht ihn: "Klick auf die Zeile" ist eine
-    -- Anweisung, die man lesen muss, ein Knopf ist eine, die man sieht.
-    -- Mehr als das Feld oeffnen kann er nicht - ein Addon darf nichts in
-    -- die Zwischenablage schreiben, das laesst WoW nicht zu. Was er
-    -- abnimmt, ist das Suchen: Feld auf, Text markiert, Strg+C.
-    row.action = makeButton(row, 120, 22, "", nil)
-    row.action:SetPoint("RIGHT", row.share, "LEFT", -S.space.md, 0)
-    row.action:Hide()
 
     -- EIN Klickhaken je Zeile. Was die Zeile beim Klick tut, steht in
     -- row.onClick; davor kommt, was jede Zeile mit Gegenstand kann:
@@ -1688,7 +1678,6 @@ local function resetRow(row)
     -- wiederverwendet, und eine vergessene Gegenstands-ID zeigte sonst
     -- das Tooltip des Vorgaengers.
     row.itemID, row.wantLevel, row.wantBonus = nil, nil, nil
-    row.action:Hide()
     -- Und den Zauber: eine Talentzeile zeigt sein Tooltip, und eine
     -- wiederverwendete Zeile zeigte sonst den Zauber des Vorgaengers.
     row.spellID = nil
@@ -1978,12 +1967,6 @@ local function setItemRow(row, data)
         row.onClick = usable and function(self)
             UI.ShowLink(data.text)
         end or nil
-        -- Und derselbe Weg als Knopf, sichtbar statt erklaert.
-        if usable then
-            row.action.label:SetText(L["LOADOUT_COPY"])
-            row.action:SetScript("OnClick", function() UI.ShowLink(data.text) end)
-            row.action:Show()
-        end
         return
     end
 
