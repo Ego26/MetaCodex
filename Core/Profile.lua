@@ -648,16 +648,44 @@ function Profile.TargetLevel()
 end
 
 ---@return string|nil Beschriftung des Knopfs
+---Holt Pfad und Rang aus der Bonus-ID zurueck.
+---
+---Eine Wahl aus einer aelteren Fassung trug ihren fertigen TEXT mit sich,
+---und der blieb deutsch, als das Fenster englisch wurde. Die Bonus-ID
+---steht aber noch da, und sie sagt alles: in welchem Pfad sie liegt und
+---an welcher Stelle. Also wird die alte Wahl einmal umgerechnet und neu
+---abgelegt, statt ihren Text weiterzuschleppen.
+---@param target table
+---@return boolean ob es gelungen ist
+local function recover(target)
+    if not target.bonus then return false end
+    local tracks = ns.Catalog.Tracks and ns.Catalog.Tracks()
+    if not tracks then return false end
+    for i, row in ipairs(tracks) do
+        for rank, bonus in ipairs(row.lists or {}) do
+            if bonus == target.bonus then
+                target.track, target.rank = i, rank
+                target.label = nil
+                return true
+            end
+        end
+    end
+    return false
+end
+
 function Profile.TargetLabel()
     local target = Profile.Target()
     if not target then return nil end
+    if not (target.track and target.rank) then recover(target) end
     -- Aus dem, was gewaehlt wurde, in der Sprache von JETZT.
     if target.track and target.rank and target.level then
         return ns.L["KEY_LABEL"]:format(
             ns.Compat.TrackName(target.track), target.rank, target.level)
     end
-    -- Eine Wahl aus einer aelteren Fassung trug ihren Text mit sich.
-    return target.label
+    -- Laesst sich die Wahl nicht zuordnen, steht lieber die Stufe da als
+    -- ein Wort in der falschen Sprache.
+    if target.level then return ns.L["KEY_LEVEL_ONLY"]:format(target.level) end
+    return nil
 end
 
 ---Der gewaehlte Held-Baum der GEZEIGTEN Spec. Nil heisst: alle.

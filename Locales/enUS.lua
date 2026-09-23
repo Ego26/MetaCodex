@@ -333,6 +333,7 @@ ns.RegisterLocale("enUS", {
     ["SOURCE_ANY"]        = "Any source",
     ["KEY_STEP_UPGRADE"]  = "%d  (upgrade)",
     ["KEY_STEP_VAULT"]    = "%d  (vault %s)",
+    ["KEY_LEVEL_ONLY"]     = "Item level %d",
     ["KEY_LABEL"]         = "%s %d · %d",
     ["PLAYER_ENCHANT"] = "Enchant on this piece",
     ["PLAYER_GEM"] = "Gem in this piece",

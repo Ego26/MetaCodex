@@ -2100,6 +2100,16 @@ do
     check("und nennt dieselbe Stufe",
         tostring(de):find("311", 1, true) ~= nil and tostring(en):find("311", 1, true) ~= nil,
         tostring(en))
+    -- Und eine Wahl aus einer aelteren Fassung, die nur ihren deutschen
+    -- Text und die Bonus-ID trug: sie wird zurueckgerechnet.
+    local pfad = ns.Catalog.Tracks()[held or 5]
+    ns.Profile.SetTarget({ level = 311, bonus = pfad.lists[3], label = "Held 3 - 311" })
+    ns.SetLanguage("enUS")
+    local alt = ns.Profile.TargetLabel()
+    check("eine alte Wahl spricht wieder mit",
+        type(alt) == "string" and alt:find("Held", 1, true) == nil, tostring(alt))
+    check("und der Text ist aus den Variablen verschwunden",
+        ns.Profile.Target().label == nil, tostring(ns.Profile.Target().label))
     ns.SetLanguage("deDE")
     ns.Profile.SetTarget(nil)
 end

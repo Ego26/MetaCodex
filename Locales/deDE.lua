@@ -325,6 +325,7 @@ ns.RegisterLocale("deDE", {
     ["SOURCE_ANY"]        = "Alle Fundorte",
     ["KEY_STEP_UPGRADE"]  = "%d  (Aufwertung)",
     ["KEY_STEP_VAULT"]    = "%d  (Tresor %s)",
+    ["KEY_LEVEL_ONLY"]     = "Gegenstandsstufe %d",
     ["KEY_LABEL"]         = "%s %d · %d",
     ["PLAYER_ENCHANT"] = "Verzauberung auf diesem Stück",
     ["PLAYER_GEM"] = "Stein in diesem Stück",
