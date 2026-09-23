@@ -2864,7 +2864,13 @@ function UI.Refresh()
         currentRows, fromSource = withFallback(function(source)
             return gearRows(specID, mode, source)
         end)
-        hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted) or "")
+        -- Prozente bedeuten nicht ueberall dasselbe, und das gehoert
+        -- dazugesagt: hier der Anteil der gemessenen Spieler, bei den
+        -- Verzauberungen der Anteil am Platz, bei den Steinen der an
+        -- allen Steinen. Ohne diesen Satz vergleicht man Zahlen, die
+        -- verschiedene Fragen beantworten.
+        hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted)
+            or L["SHARE_GEAR"])
     elseif section.key == "stats" then
         currentRows, fromSource = withFallback(function(source)
             return statRows(specID, mode, source)
@@ -2875,7 +2881,7 @@ function UI.Refresh()
             return consumableRows(specID, mode, source)
         end)
         hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted)
-            or L["CONSUM_HINT"])
+            or (L["CONSUM_HINT"] .. "  " .. L["SHARE_CONSUM"]))
     elseif section.key == "talents" then
         currentRows, fromSource = withFallback(function(source)
             return talentRows(specID, mode, source)
@@ -2908,7 +2914,8 @@ function UI.Refresh()
         hintText:SetText(L["PICK_HINT"])
         currentRows = {}
     else
-        hintText:SetText(foreign and L["FOREIGN_CLASS"] or "")
+        hintText:SetText(foreign and L["FOREIGN_CLASS"]
+            or (section.key == "enchants" and L["SHARE_ENCHANTS"] or ""))
         currentRows = ns.List.Build(ns.Gear.Scan())
     end
     frame.__fromSource = fromSource

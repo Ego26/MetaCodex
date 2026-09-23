@@ -2145,9 +2145,14 @@ do
     ns.Profile.SetConsumableTarget("flask", 2)
     -- Und ueber der Liste steht, was ein Klick tut.
     rowsInSection("consumables")
+    -- Und dazu, was die Prozentzahl daneben ueberhaupt zaehlt. Zwei
+    -- Abschnitte, zwei Bezugsgroessen: genau daran ist heute ein
+    -- falscher Vergleich entstanden.
+    local hint = ns.UI.Frame().hintText:GetText() or ""
     check("der Hinweis erklaert den Klick",
-        (ns.UI.Frame().hintText:GetText() or "") == L["CONSUM_HINT"],
-        tostring(ns.UI.Frame().hintText:GetText()))
+        hint:find(L["CONSUM_HINT"], 1, true) ~= nil, hint)
+    check("und sagt, worauf die Prozente sich beziehen",
+        hint:find(L["SHARE_CONSUM"], 1, true) ~= nil, hint)
 end
 
 -- ------------------------------------ Sprache und gemerkte Wahl

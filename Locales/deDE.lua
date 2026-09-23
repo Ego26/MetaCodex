@@ -159,6 +159,9 @@ ns.RegisterLocale("deDE", {
     ["CREDIT"] = "Created by Ego26",
     ["SOURCE_LINE"]  = "Empfehlungen: %s, %s",
     ["SOURCE_SAMPLE"] = "· %d Messungen",
+    ["SHARE_GEAR"]   = "Prozent = Anteil der gemessenen Spieler, die es tragen.",
+    ["SHARE_CONSUM"] = "Prozent = Anteil der gemessenen Spieler.",
+    ["SHARE_ENCHANTS"] = "Prozent: bei Verzauberungen der Anteil an denen auf diesem Platz, bei Steinen der an allen getragenen Steinen.",
     ["SOURCE_KEYS"]  = "aus Läufen +%d bis +%d",
     ["NO_MODE_DATA"] = "Für diesen Spielmodus gibt es noch keine Daten – Werte unten selbst wählen.",
 })

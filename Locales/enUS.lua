@@ -159,6 +159,9 @@ ns.RegisterLocale("enUS", {
     ["CREDIT"] = "Created by Ego26",
     ["SOURCE_LINE"]  = "Recommendations: %s, %s",
     ["SOURCE_SAMPLE"] = "· %d measurements",
+    ["SHARE_GEAR"]   = "Percent = share of the measured players wearing it.",
+    ["SHARE_CONSUM"] = "Percent = share of the measured players.",
+    ["SHARE_ENCHANTS"] = "Percent: for enchants, share of those seen on that slot; for gems, share of all gems worn.",
     ["SOURCE_KEYS"]  = "from runs +%d to +%d",
     ["NO_MODE_DATA"] = "No data for this game mode yet - pick the stats yourself below.",
 })
