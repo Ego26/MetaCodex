@@ -1868,6 +1868,99 @@ do
     check("wieder breit: Knoepfe stehen wieder oben", buttonY() == wide, tostring(buttonY()))
 end
 
+-- ------------------------------------------------- Einstellungen
+
+-- Der Reiter "Einstellungen" steht immer zur Verfuegung, auch wenn zur
+-- Aktivitaet sonst nichts vorliegt: er haengt an keiner Messung.
+do
+    check("Einstellungen sind immer da", ns.UI.SectionHasData("settings") == true)
+    local shown = rowsInSection("settings")
+    check("Einstellungen zeigen Zeilen", shown >= 4, shown .. " Zeilen")
+    local labels = {}
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() then labels[row.title:GetText() or ""] = row end
+    end
+    check("Schalter fuer den Minimap-Knopf", labels[L["SET_MINIMAP"]] ~= nil)
+    check("Schalter fuer den Charakterknopf", labels[L["SET_CHARBTN"]] ~= nil)
+    check("Fenstergroesse steht dabei", labels[L["SET_SCALE"]] ~= nil)
+    check("Sprache steht dabei", labels[L["SET_LANG"]] ~= nil)
+    -- Ab Werk an, und der Klick schaltet wirklich um.
+    check("Minimap-Knopf ist ab Werk an", ns.Profile.MinimapOn() == true)
+    local row = labels[L["SET_MINIMAP"]]
+    if row and row.onClick then
+        row.onClick(row)
+        check("Klick schaltet den Minimap-Knopf ab", ns.Profile.MinimapOn() == false)
+        -- Die Zeile sagt danach "Aus" - ein Schalter ohne sichtbaren Stand
+        -- ist keiner.
+        rowsInSection("settings")
+        local again
+        for _, r in ipairs(wow.rows()) do
+            if r:IsShown() and r.title:GetText() == L["SET_MINIMAP"] then again = r end
+        end
+        check("die Zeile zeigt den neuen Stand",
+            again ~= nil and again.share:GetText() == L["OPTION_OFF"],
+            again and tostring(again.share:GetText()) or "Zeile fehlt")
+        again.onClick(again)
+        check("und wieder an", ns.Profile.MinimapOn() == true)
+    end
+    -- Die Fenstergroesse laeuft in Stufen im erlaubten Bereich.
+    local sizeRow = labels[L["SET_SCALE"]]
+    if sizeRow and sizeRow.onClick then
+        local before = ns.Profile.WindowScale()
+        sizeRow.onClick(sizeRow)
+        local after = ns.Profile.WindowScale()
+        check("Fenstergroesse geht eine Stufe weiter",
+            after ~= before and after >= 0.6 and after <= 1.6, tostring(after))
+        for _ = 1, 8 do sizeRow.onClick(sizeRow) end
+        check("und bleibt im erlaubten Bereich",
+            ns.Profile.WindowScale() >= 0.6 and ns.Profile.WindowScale() <= 1.6,
+            tostring(ns.Profile.WindowScale()))
+    end
+end
+
+-- Der Knopf an der Minimap. Im Stub gibt es keine Minimap, also stellen
+-- wir eine hin - gebaut wird er nur, wenn es eine gibt.
+do
+    check("ohne Minimap kein Knopf", ns.Minimap.Button() == nil)
+    Minimap = CreateFrame("Frame", "Minimap")
+    Minimap.GetCenter = function() return 100, 100 end
+    Minimap.GetEffectiveScale = function() return 1 end
+    ns.Profile.SetMinimap(true)
+    local button = ns.Minimap.Update()
+    check("Minimap-Knopf gebaut", button ~= nil and button:IsShown())
+    check("er traegt das Logo",
+        button ~= nil and tostring(button.icon.__texture or ""):find("logo", 1, true) ~= nil,
+        button and tostring(button.icon.__texture) or "kein Knopf")
+    -- Er sitzt auf dem Ring: der gemerkte Winkel wird zu einem Punkt um
+    -- den Mittelpunkt, nicht zu einer Bildschirmkoordinate.
+    local p = button.__points[#button.__points]
+    check("er haengt an der Minimap", p ~= nil and p[2] == Minimap and p[3] == "CENTER",
+        p and tostring(p[3]) or "kein Anker")
+    local dist = p and math.floor(math.sqrt(p[4] * p[4] + p[5] * p[5]) + 0.5)
+    check("er sitzt auf dem Ring", dist == 80, tostring(dist))
+    -- Ein anderer Winkel verschiebt ihn, der Abstand bleibt.
+    ns.Profile.SetMinimapAngle(0)
+    ns.Minimap.Update()
+    local q = button.__points[#button.__points]
+    check("ein anderer Winkel, derselbe Ring",
+        math.floor(q[4] + 0.5) == 80 and math.floor(q[5] + 0.5) == 0,
+        math.floor(q[4] + 0.5) .. "/" .. math.floor(q[5] + 0.5))
+    -- Linksklick oeffnet, Rechtsklick fuehrt zu den Einstellungen.
+    local before = ns.UI.IsShown()
+    button.__scripts.OnClick(button, "LeftButton")
+    check("Klick an der Minimap schaltet das Fenster um", ns.UI.IsShown() ~= before)
+    button.__scripts.OnClick(button, "LeftButton")
+    button.__scripts.OnClick(button, "RightButton")
+    check("Rechtsklick zeigt die Einstellungen", MetaCodexDB.section == "settings")
+    -- Abgeschaltet verschwindet er, ohne zerstoert zu werden.
+    ns.Profile.SetMinimap(false)
+    ns.Minimap.Update()
+    check("abgeschaltet ist er weg", not button:IsShown())
+    ns.Profile.SetMinimap(true)
+    ns.Minimap.Update()
+    check("wieder an ist er da", button:IsShown())
+end
+
 -- ---------------------------------------------- Charakterfenster
 
 -- Der Knopf im Charakterfenster oeffnet und schliesst das Fenster. Das
@@ -1909,6 +2002,13 @@ do
         check("Tooltip erklaert den Knopf", #GameTooltip.__lines == 3 and GameTooltip.__lines[3] == L["CHARBTN_MOVE"],
             table.concat(GameTooltip.__lines, " / "))
         if not ns.UI.IsShown() then ns.UI.Toggle() end
+        -- Und er folgt seinem Schalter in den Einstellungen.
+        ns.Profile.SetCharButton(false)
+        ns.UI.UpdateCharacterButton()
+        check("abgeschaltet ist der Charakterknopf weg", not button:IsShown())
+        ns.Profile.SetCharButton(true)
+        ns.UI.UpdateCharacterButton()
+        check("wieder an ist er da", button:IsShown())
     end
 end
 

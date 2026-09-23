@@ -346,6 +346,45 @@ end
 ---Konstante ab, und ein Faktor skaliert sie alle zusammen - das ist
 ---das, was auf einem 4K-Schirm fehlt, und es kostet eine Zeile.
 ---@return number
+---Der Knopf an der Minimap. An, solange niemand ihn abschaltet: wer ein
+---Addon installiert, will es finden, ohne einen Befehl zu kennen.
+---@return boolean
+function Profile.MinimapOn()
+    local db = MetaCodexDB or {}
+    if db.minimap == nil then return true end
+    return db.minimap and true or false
+end
+
+---@param on boolean
+function Profile.SetMinimap(on)
+    MetaCodexDB.minimap = on and true or false
+end
+
+---Wo auf dem Ring der Knopf sitzt, in Grad.
+---@return number
+function Profile.MinimapAngle()
+    local db = MetaCodexDB or {}
+    return tonumber(db.minimapAngle) or 202
+end
+
+---@param angle number
+function Profile.SetMinimapAngle(angle)
+    MetaCodexDB.minimapAngle = tonumber(angle) or 202
+end
+
+---Der Knopf im Charakterfenster. Ebenfalls an.
+---@return boolean
+function Profile.CharButtonOn()
+    local db = MetaCodexDB or {}
+    if db.charButtonOn == nil then return true end
+    return db.charButtonOn and true or false
+end
+
+---@param on boolean
+function Profile.SetCharButton(on)
+    MetaCodexDB.charButtonOn = on and true or false
+end
+
 function Profile.WindowScale()
     local db = MetaCodexDB or {}
     return db.scale or 1

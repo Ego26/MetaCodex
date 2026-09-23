@@ -10,9 +10,10 @@ aus einem Guide abgeschrieben, sondern täglich aus raider.io, murlok.io und
 Warcraft Logs gemessen. Und es vergleicht das mit dem, was *du* gerade
 trägst und im Beutel hast, damit du weißt, was noch fehlt.
 
-Öffnen: **`/mc`**, der Knopf in der Addon-Leiste der Minimap oder das
-runde **MetaCodex**-Symbol am rechten Rand des Charakterfensters
-(Umschalt-Ziehen verschiebt es, Umschalt-Rechtsklick setzt es zurück).
+Vier Wege hinein: der **Minimap-Knopf**, das runde **MetaCodex**-Symbol am
+Charakterfenster, **`/mc`** oder die Addon-Leiste der Minimap. Beide
+Knöpfe sind ab Werk an, beide lassen sich ziehen, und beide lassen sich
+unter Einstellungen abschalten.
 
 ---
 
@@ -99,6 +100,10 @@ Beim Betreten von Dungeon oder Raid sagt dir eine Chatzeile, was fehlt — und
 am Auktionshaus einmal, wie viele Posten offen sind.
 
 ### Über
+
+**Einstellungen** — Minimap-Knopf und Charakterfenster-Knopf an oder aus,
+Fenstergröße in Stufen, Sprache. Die Erinnerung behält ihre eigenen
+Einstellungen, direkt neben dem, was sie steuern.
 
 **Info** — Version, Stand des Katalogs, wann jede Plattform zuletzt
 gemessen hat, und ob Auctionator da ist.

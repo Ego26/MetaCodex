@@ -100,6 +100,7 @@ local SECTIONS = {
     { key = "enchants",    group = "GROUP_GEAR" },
     { key = "consumables", group = "GROUP_GEAR" },
     { key = "remind",      group = "GROUP_GEAR" },
+    { key = "settings",    group = "GROUP_ABOUT" },
     { key = "info",        group = "GROUP_ABOUT" },
 }
 
@@ -979,6 +980,68 @@ local function remindRows(mode)
             ns.Profile.SetWarnBelow(next)
         end,
         group = L["REMIND_GROUP_SETTINGS"],
+    }
+    return rows
+end
+
+---Die Einstellungen, die nicht zu einem einzelnen Abschnitt gehoeren.
+---
+---Was den Reiter "Erinnerung" angeht, steht dort und nicht hier: eine
+---Einstellung gehoert neben das, was sie steuert. Hier stehen die drei
+---Dinge, die das ganze Addon betreffen - wo man es aufmacht, wie gross
+---es ist, in welcher Sprache es spricht.
+---@return table[] rows
+local function settingsRows()
+    local rows = {}
+    rows[#rows + 1] = {
+        kind = "option", label = L["SET_MINIMAP"], on = ns.Profile.MinimapOn(),
+        toggle = function()
+            ns.Profile.SetMinimap(not ns.Profile.MinimapOn())
+            if ns.Minimap then ns.Minimap.Update() end
+        end,
+        group = L["SET_GROUP_OPEN"],
+    }
+    rows[#rows + 1] = {
+        kind = "option", label = L["SET_CHARBTN"], on = ns.Profile.CharButtonOn(),
+        toggle = function()
+            ns.Profile.SetCharButton(not ns.Profile.CharButtonOn())
+            UI.UpdateCharacterButton()
+        end,
+        group = L["SET_GROUP_OPEN"],
+    }
+    -- Fenstergroesse: dieselben Stufen wie /mc scale, nur zum Klicken.
+    local scale = ns.Profile.WindowScale()
+    rows[#rows + 1] = {
+        kind = "option", label = L["SET_SCALE"],
+        value = ("%d %%"):format(math.floor(scale * 100 + 0.5)),
+        toggle = function()
+            local steps = { 0.8, 0.9, 1, 1.1, 1.25, 1.4 }
+            local next = steps[1]
+            for i, step in ipairs(steps) do
+                if math.abs(step - ns.Profile.WindowScale()) < 0.01 then next = steps[i % #steps + 1] end
+            end
+            ns.Profile.SetWindowScale(next)
+            UI.ApplyScale()
+        end,
+        group = L["SET_GROUP_WINDOW"],
+    }
+    -- Sprache. Die Beschriftungen, die schon stehen, wechseln erst nach
+    -- /reload - das sagt die Zeile, statt es den Spieler merken zu lassen.
+    local langs = { "auto", "en", "de" }
+    local current = (MetaCodexDB and MetaCodexDB.lang) or "auto"
+    local shown = current == "deDE" and "de" or current == "enUS" and "en" or "auto"
+    rows[#rows + 1] = {
+        kind = "option", label = L["SET_LANG"], value = L["SET_LANG_" .. shown:upper()],
+        toggle = function()
+            local at = 1
+            for i, key in ipairs(langs) do if key == shown then at = i end end
+            ns.Profile.SetLanguage(langs[at % #langs + 1])
+            ns.Print(L["SET_LANG_RELOAD"])
+        end,
+        group = L["SET_GROUP_WINDOW"],
+    }
+    rows[#rows + 1] = {
+        kind = "note", text = L["SET_LANG_RELOAD"], group = L["SET_GROUP_WINDOW"],
     }
     return rows
 end
@@ -2137,7 +2200,7 @@ end
 ---@param mode string|nil  Vorgabe: die gewaehlte Aktivitaet
 ---@return boolean
 function UI.SectionHasData(key, mode)
-    if key == "guides" or key == "info" then return true end
+    if key == "guides" or key == "info" or key == "settings" then return true end
     if not ns.Recommend.Ready() then return true end
     return ns.Recommend.HasSection(ns.Profile.SelectedSpec(),
         mode or ns.Profile.Mode(), ns.Recommend.ALL, key)
@@ -2437,6 +2500,9 @@ function UI.Refresh()
     elseif section.key == "remind" then
         currentRows = remindRows(mode)
         hintText:SetText(#currentRows > 3 and L["REMIND_HINT"] or emptyReason(mode, wanted))
+    elseif section.key == "settings" then
+        currentRows = settingsRows()
+        hintText:SetText(L["SET_HINT"])
     elseif section.key == "info" then
         currentRows = infoRows()
         hintText:SetText("")
@@ -2917,6 +2983,23 @@ local function placeCharacterButton(button, host)
     end
 end
 
+---Zeigt einen Abschnitt - gebraucht vom Minimap-Knopf, der auf den
+---Schalter fuer sich selbst zeigt.
+---@param key string
+function UI.OpenSection(key)
+    if MetaCodexDB then MetaCodexDB.section = key end
+    if not frame then UI.Toggle() return end
+    UI.Refresh()
+    if not frame:IsShown() then frame:Show() end
+end
+
+---Zeigt oder versteckt den Knopf im Charakterfenster, wie eingestellt.
+function UI.UpdateCharacterButton()
+    local button = UI.AttachCharacterButton()
+    if button then button:SetShown(ns.Profile.CharButtonOn()) end
+    return button
+end
+
 function UI.AttachCharacterButton()
     local host = CharacterFrame
     -- rawget: das Feld soll fehlen duerfen, ohne dass ein Stellvertreter
@@ -2997,6 +3080,7 @@ function UI.AttachCharacterButton()
     button:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
     placeCharacterButton(button, host)
+    button:SetShown(ns.Profile.CharButtonOn())
     host.MetaCodexButton = button
     return button
 end

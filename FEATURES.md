@@ -11,9 +11,10 @@ measured daily from raider.io, murlok.io and Warcraft Logs. And it
 compares that with what *you* wear and carry, so you know what is still
 missing.
 
-Open it: **`/mc`**, the button in the minimap's addon compartment, or the
-round **MetaCodex** icon on the character frame's right edge (Shift-drag
-moves it, Shift-right-click puts it back).
+Open it four ways: the **minimap button**, the round **MetaCodex** icon on
+the character frame, **`/mc`**, or the minimap's addon compartment. Both
+buttons are on out of the box, both can be dragged, and both can be
+switched off under Settings.
 
 ---
 
@@ -96,6 +97,10 @@ dungeon or raid a chat line tells you what is missing — and once at the
 auction house how many items are open.
 
 ### About
+
+**Settings** — Minimap button and character frame button on or off, window
+size in steps, language. The reminder keeps its own settings, next to what
+they control.
 
 **Info** — Version, catalog build, when each platform last measured, and
 whether Auctionator is present.
