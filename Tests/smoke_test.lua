@@ -1828,6 +1828,88 @@ do
     end
 end
 
+-- ------------------------------------------ Wie die Erinnerung meldet
+
+-- Vier Wege, einzeln schaltbar, und eine Vorschau, die genau das zeigt,
+-- was im Ernstfall kaeme. Zwei Texte, die dasselbe sagen sollen, laufen
+-- sonst auseinander.
+do
+    ns.Profile.SetMode("raid")
+    check("ab Werk: Chatzeile und Fenster",
+        ns.Profile.RemindWay("chat") and ns.Profile.RemindWay("window")
+            and not ns.Profile.RemindWay("warning") and not ns.Profile.RemindWay("sound"))
+    rowsInSection("remind")
+    local ways, preview = {}, nil
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() then
+            for _, way in ipairs({ "chat", "window", "warning", "sound" }) do
+                if row.title:GetText() == L["REMIND_WAY_" .. way:upper()] then ways[way] = row end
+            end
+            if row.title:GetText() == L["REMIND_PREVIEW"] then preview = row end
+        end
+    end
+    check("alle vier Wege stehen im Reiter",
+        ways.chat and ways.window and ways.warning and ways.sound ~= nil)
+    check("die Vorschau steht dabei", preview ~= nil)
+    if ways.window then
+        ways.window.onClick(ways.window)
+        check("das Fenster laesst sich abschalten",
+            wow.pick(L["OPTION_OFF"]) and ns.Profile.RemindWay("window") == false)
+        ways.window.onClick(ways.window)
+        check("und wieder an",
+            wow.pick(L["OPTION_ON"]) and ns.Profile.RemindWay("window") == true)
+    end
+    -- Die Vorschau zeigt WAS ANLIEGT, nicht einen erfundenen Text.
+    if preview then
+        local said = nil
+        local realPrint = ns.Print
+        ns.Print = function(text) said = text end
+        preview.onClick(preview)
+        ns.Print = realPrint
+        local parts = ns.Remind.Lines("raid")
+        local expected = #parts > 0
+            and L["REMIND_MISSING"]:format(table.concat(parts, ", "))
+            or L["REMIND_PREVIEW_EMPTY"]
+        check("die Vorschau sagt dasselbe wie der Ernstfall", said == expected,
+            tostring(said))
+        -- Und das Fenster steht wirklich da, mit demselben Text.
+        local window
+        for _, f in ipairs(wow.frames) do
+            if rawget(f, "body") and rawget(f, "title")
+                and f.title:GetText() == L["REMIND_WINDOW_TITLE"] then window = f end
+        end
+        check("das Erinnerungsfenster steht da", window ~= nil and window:IsShown())
+        check("und traegt denselben Text", window ~= nil and window.body:GetText() == expected)
+    end
+end
+
+-- --------------------------------------------- Talente erklaeren
+
+-- Eine Talentzeile zeigt das Tooltip ihres Zaubers, und der Anteil sagt,
+-- was er bedeutet. Vorher stand dort eine Zahl ohne Frage und ein Name
+-- ohne Erklaerung.
+do
+    ns.Profile.SetMode("mplus")
+    rowsInSection("talents")
+    local talent
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() and rawget(row, "spellID") then talent = row break end
+    end
+    check("eine Talentzeile kennt ihren Zauber", talent ~= nil,
+        talent and tostring(talent.spellID) or "keine")
+    if talent then
+        local shown = false
+        local realOwner, realSpell = GameTooltip.SetOwner, GameTooltip.SetSpellByID
+        GameTooltip.SetSpellByID = function(_, id) shown = (id == talent.spellID) end
+        talent.__scripts.OnEnter(talent)
+        GameTooltip.SetSpellByID, GameTooltip.SetOwner = realSpell, realOwner
+        check("der Zeiger zeigt das Tooltip des Zaubers", shown)
+        check("der Anteil sagt, was er bedeutet",
+            (talent.detail:GetText() or ""):find("%%") ~= nil,
+            tostring(talent.detail:GetText()))
+    end
+end
+
 -- ------------------------------------ Rangliste nach dem Neuladen
 
 -- Stand beim Abmelden noch ein Dungeon in der Auswahl, suchte der
@@ -1842,6 +1924,13 @@ do
     local withDungeon = rowsInSection("players")
     check("Rangliste auch mit gewaehltem Dungeon", withDungeon == withoutDungeon,
         withDungeon .. " statt " .. withoutDungeon)
+    -- Dasselbe bei den Verbrauchsguetern: auch dort stand nach einem
+    -- Neuladen nichts, solange ein Dungeon in der Auswahl hing.
+    local ohne = rowsInSection("consumables")
+    MetaCodexDB.dungeon = "mplus/kings-rest"
+    local mit = rowsInSection("consumables")
+    check("Verbrauchsgueter auch mit gewaehltem Dungeon", mit > 0,
+        mit .. " statt " .. ohne)
     MetaCodexDB.dungeon = nil
 end
 

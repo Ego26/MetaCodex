@@ -75,6 +75,13 @@ Mock.methods.SetWidth = function(self, w) self.__w = w end
 Mock.methods.SetHeight = function(self, h) self.__h = h end
 Mock.methods.GetWidth = function(self) return self.__w or 0 end
 Mock.methods.GetHeight = function(self) return self.__h or 0 end
+-- Wie hoch ein Text gesetzt waere: das Erinnerungsfenster waechst mit
+-- ihm, und ein Mock, der hier ein Kind zurueckgibt, liesse die Rechnung
+-- mit einem Laufzeitfehler sterben.
+Mock.methods.GetStringHeight = function(self)
+    local text = tostring(self.__text or "")
+    return 14 * math.max(1, math.ceil(#text / 60))
+end
 Mock.methods.GetScale = function(self) return self.__scale or 1 end
 Mock.methods.HookScript = function(self, name, fn) self.__scripts[name] = fn end
 -- Texturen werden am Elternrahmen vermerkt.

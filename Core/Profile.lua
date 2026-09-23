@@ -74,6 +74,7 @@ function Profile.SetMode(mode)
     -- Der Dungeon gehoert zum Modus. Bleibt er beim Wechsel stehen, zeigt
     -- das Fenster gleich Raiddaten unter einem Dungeonnamen.
     MetaCodexDB.dungeon = nil
+    MetaCodexDB.dungeons = nil
 end
 
 ---@return number|nil classID
@@ -279,22 +280,38 @@ end
 ---einzelnen: die Gesamtauswertung stammt aus allen Laeufen, nicht aus
 ---acht zusammengerechneten Teilen.
 ---@return string|nil
-function Profile.Dungeon()
+---Der gewaehlte Dungeon - je Abschnitt einer.
+---
+---Vorgabe ist ueberall ALLE Dungeons. Ein Dungeon beantwortet eine
+---engere Frage ("was nehmen sie HIER"), und wer sie unter Talenten
+---stellt, hat sie unter Verbrauchsguetern nicht gestellt. Ein einziger
+---gemerkter Dungeon stellte still beide Reiter um.
+---@param section string|nil Abschnitt, sonst der laufende
+---@return string|nil
+function Profile.Dungeon(section)
     local db = MetaCodexDB or {}
-    return db.dungeon
+    local key = section or db.section
+    if not key then return nil end
+    return db.dungeons and db.dungeons[key] or nil
 end
 
 ---@param key string|nil
-function Profile.SetDungeon(key)
-    MetaCodexDB.dungeon = key
+---@param section string|nil
+function Profile.SetDungeon(key, section)
+    local db = MetaCodexDB
+    local where = section or db.section
+    if not where then return end
+    db.dungeons = db.dungeons or {}
+    db.dungeons[where] = key
 end
 
 ---Der Modus, unter dem nachgeschlagen wird: der Dungeon, wenn einer
 ---gewaehlt ist, sonst der Modus selbst.
 ---@return string
-function Profile.LookupMode()
+---@param section string|nil
+function Profile.LookupMode(section)
     local mode = Profile.Mode()
-    local dungeon = Profile.Dungeon()
+    local dungeon = Profile.Dungeon(section)
     if not dungeon then return mode end
     -- Ein Dungeon aus einem anderen Modus waere eine stille Falsch-
     -- auskunft: die Auswahl steht noch, die Daten passen nicht mehr.
@@ -352,6 +369,47 @@ end
 function Profile.ResetWindow()
     MetaCodexDB.window = nil
     MetaCodexDB.scale = nil
+end
+
+---Wo das Erinnerungsfenster steht. Wie beim Hauptfenster der Anker und
+---nicht die Bildschirmkoordinate.
+---@return string|nil point, number x, number y
+function Profile.RemindPoint()
+    local db = MetaCodexDB or {}
+    local w = db.remindWindow
+    if not w or not w.point then return nil end
+    return w.point, w.x or 0, w.y or 0
+end
+
+---@param point string
+---@param x number
+---@param y number
+function Profile.SetRemindPoint(point, x, y)
+    MetaCodexDB.remindWindow = { point = point, x = x, y = y }
+end
+
+---Auf welchem Weg erinnert wird. Mehrere gleichzeitig sind erlaubt:
+---die Chatzeile geht im Pull-Countdown unter, ein Fenster mitten im
+---Bild ist manchen zu viel - das soll jeder selbst entscheiden.
+---@param way string "chat" | "window" | "warning" | "sound"
+---@return boolean
+function Profile.RemindWay(way)
+    local db = MetaCodexDB or {}
+    local ways = db.remindWays
+    if not ways or ways[way] == nil then
+        -- Ab Werk: Chatzeile und eigenes Fenster. Die Bildschirmmitte
+        -- und der Ton bleiben aus, bis jemand sie will.
+        return way == "chat" or way == "window"
+    end
+    return ways[way] and true or false
+end
+
+---@param way string
+---@param on boolean
+function Profile.SetRemindWay(way, on)
+    local db = MetaCodexDB
+    db.remindWays = db.remindWays or {}
+    db.remindWays[way] = on and true or false
 end
 
 ---Die Chatzeile beim Betreten einer Instanz. Getrennt von der am

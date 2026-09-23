@@ -96,8 +96,10 @@ Zielmenge, die du per Klick einstellst.
 **Erinnerung** — Was das Addon prüft, bevor es losgeht: je Verbrauchsart
 der Stand gegen dein Ziel (reicht / knapp / leer), die Verzauberungen und
 Steine, die an deinem Charakter noch fehlen, und die Einstellungen dazu.
-Beim Betreten von Dungeon oder Raid sagt dir eine Chatzeile, was fehlt — und
-am Auktionshaus einmal, wie viele Posten offen sind.
+Beim Betreten von Dungeon oder Raid sagt es dir, was fehlt — und am
+Auktionshaus einmal, wie viele Posten offen sind. **Wie** es sich meldet,
+wählst du: Chatzeile, eigenes ziehbares Fenster, Schlachtzugswarnung über
+dem Bild, Ton, beliebig kombiniert. Eine Vorschau zeigt genau das, was käme.
 
 ### Über
 

@@ -97,10 +97,16 @@ end
 
 ---Prueft und meldet. Still, wenn alles da ist.
 ---@param mode string
-function Remind.Announce(mode)
-    local missing = Remind.Check(mode)
+---Die Zeilen, die eine Ansage ausmachen wuerde - ohne sie zu machen.
+---
+---Getrennt von Announce, weil die Vorschau in den Einstellungen dasselbe
+---zeigen muss wie der Ernstfall. Zwei Texte, die dasselbe sagen sollen,
+---laufen sonst auseinander.
+---@param mode string
+---@return string[] parts
+function Remind.Lines(mode)
     local parts = {}
-    for _, row in ipairs(missing) do
+    for _, row in ipairs(Remind.Check(mode)) do
         if row.owned > 0 then
             parts[#parts + 1] = L["REMIND_LOW"]:format(row.name, row.owned)
         elseif (row.lower or 0) > 0 then
@@ -117,8 +123,28 @@ function Remind.Announce(mode)
         open = ns.List.BuyCount(ns.List.Build(ns.Gear.Scan()))
     end
     if open > 0 then parts[#parts + 1] = L["REMIND_ENCHANTS"]:format(open) end
+    return parts
+end
+
+---Sagt es auf den eingestellten Wegen.
+---@param text string
+function Remind.Deliver(text)
+    if ns.Profile.RemindWay("chat") then ns.Print(text) end
+    if ns.Profile.RemindWay("warning") and RaidNotice_AddMessage and RaidWarningFrame then
+        RaidNotice_AddMessage(RaidWarningFrame, text, ChatTypeInfo and ChatTypeInfo.RAID_WARNING)
+    end
+    if ns.Profile.RemindWay("sound") and PlaySound then
+        pcall(PlaySound, SOUNDKIT and SOUNDKIT.RAID_WARNING or 8959, "Master")
+    end
+    if ns.Profile.RemindWay("window") and ns.UI and ns.UI.ShowReminder then
+        ns.UI.ShowReminder(text)
+    end
+end
+
+function Remind.Announce(mode)
+    local parts = Remind.Lines(mode)
     if #parts == 0 then return end
-    ns.Print(L["REMIND_MISSING"]:format(table.concat(parts, ", ")))
+    Remind.Deliver(L["REMIND_MISSING"]:format(table.concat(parts, ", ")))
 end
 
 -- Einmal je Instanz. PLAYER_ENTERING_WORLD feuert auch nach jedem

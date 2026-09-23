@@ -84,12 +84,22 @@ local SHOPPING = { enchants = true, consumables = true, remind = true }
 -- Bei der Ausruestung war er auch, und dort unnoetig: welcher Gegenstand
 -- oben steht, entscheidet die Spec und nicht der Dungeon - und wo er
 -- FAELLT, steht in jeder Zeile.
-local DUNGEON_SECTIONS = { talents = true }
+-- Welche Abschnitte ein Dungeon wirklich veraendert.
+--
+-- Talente und Verbrauchsgueter: beide misst Warcraft Logs je Dungeon UND
+-- ueber alle - wie Archon es auch zeigt. Eine Verzauberung dagegen ist
+-- ueberall dieselbe, und "Alle Dungeons" ueber der Steinliste beant-
+-- wortet eine Frage, die dort niemand stellt.
+local DUNGEON_SECTIONS = { talents = true, consumables = true }
 
 -- Wessen Profil gerade offen ist, statt eines Abschnitts. Gesetzt vom
 -- Klick auf eine Zeile der Rangliste, geloescht vom Zurueck-Knopf oder
 -- vom Wechsel des Abschnitts.
 local viewingPlayer
+
+-- Das Fenster der Erinnerung. Eines fuer alle Ansagen, nicht eines je
+-- Ansage: zwei uebereinander waeren schlimmer als keines.
+local remindFrame
 
 local SECTIONS = {
     { key = "guides",      group = "GROUP_KNOW" },
@@ -982,6 +992,30 @@ local function remindRows(mode)
         choices = boolChoices(), pick = function(value) ns.Profile.SetRemindAtAuctionHouse(value) end,
         group = L["REMIND_GROUP_SETTINGS"],
     }
+    -- Auf welchem Weg erinnert wird. Mehrere gleichzeitig sind erlaubt.
+    for _, way in ipairs({ "chat", "window", "warning", "sound" }) do
+        rows[#rows + 1] = {
+            kind = "option", label = L["REMIND_WAY_" .. way:upper()],
+            on = on and ns.Profile.RemindWay(way),
+            choices = boolChoices(),
+            pick = function(value) ns.Profile.SetRemindWay(way, value) end,
+            group = L["REMIND_GROUP_WAYS"],
+        }
+    end
+    -- Und einmal ansehen, wie es aussieht. Eine Einstellung, deren
+    -- Wirkung man erst im Ernstfall sieht, stellt niemand bewusst ein.
+    rows[#rows + 1] = {
+        kind = "option", label = L["REMIND_PREVIEW"], value = L["REMIND_PREVIEW_DO"],
+        toggle = function()
+            local parts = ns.Remind.Lines(ns.Profile.Mode())
+            local text = #parts > 0
+                and L["REMIND_MISSING"]:format(table.concat(parts, ", "))
+                or L["REMIND_PREVIEW_EMPTY"]
+            ns.Remind.Deliver(text)
+        end,
+        group = L["REMIND_GROUP_WAYS"],
+    }
+
     local below = ns.Profile.WarnBelow()
     local shares = {}
     for _, step in ipairs({ 0.25, 0.5, 0.75, 1 }) do
@@ -1489,6 +1523,19 @@ local function acquireRow(index)
         -- Zu dem Zeitpunkt kennt der Client die Grundstufe meist noch
         -- nicht, und ohne Grundstufe gibt es keine Differenz und keine
         -- Bonus-ID. Beim Hovern kennt er sie.
+        -- Ein Talent hat keinen Gegenstand, aber ein Tooltip: das des
+        -- Zaubers. Vorher stand man ueber "Winde von Al'Akir" und erfuhr
+        -- nichts darueber, was es tut.
+        if self.spellID then
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            if GameTooltip.SetSpellByID then
+                GameTooltip:SetSpellByID(self.spellID)
+            else
+                GameTooltip:SetHyperlink("spell:" .. self.spellID)
+            end
+            GameTooltip:Show()
+            return
+        end
         local link = self.link
         if self.itemID and self.wantBonus then
             link = ("item:%d::::::::::::1:%d"):format(self.itemID, self.wantBonus)
@@ -1525,6 +1572,9 @@ local function resetRow(row)
     -- wiederverwendet, und eine vergessene Gegenstands-ID zeigte sonst
     -- das Tooltip des Vorgaengers.
     row.itemID, row.wantLevel, row.wantBonus = nil, nil, nil
+    -- Und den Zauber: eine Talentzeile zeigt sein Tooltip, und eine
+    -- wiederverwendete Zeile zeigte sonst den Zauber des Vorgaengers.
+    row.spellID = nil
     row.barTrack:Hide()
     row.barTarget:Hide()
     row.barMine:Hide()
@@ -1818,11 +1868,16 @@ local function setItemRow(row, data)
         local name = info and info.name
         row.icon:SetTexture((info and info.iconID)
             or "Interface\\Icons\\INV_Misc_QuestionMark")
+        row.spellID = data.spell
         row.title:SetText(name or ("#" .. tostring(data.spell)))
         row.detail:ClearAllPoints()
         row.detail:SetPoint("TOPLEFT", S.space.sm + 38, -S.space.sm - 16)
-        row.detail:SetText((data.rank or 1) > 1
-            and L["TALENT_RANK"]:format(data.rank) or "")
+        -- Was der Anteil bedeutet, steht in der Zeile und nicht nur in
+        -- der Ueberschrift: "82 % der Besten nehmen es".
+        local parts = {}
+        if (data.rank or 1) > 1 then parts[#parts + 1] = L["TALENT_RANK"]:format(data.rank) end
+        if data.pct then parts[#parts + 1] = L["TALENT_SHARE"]:format(data.pct) end
+        row.detail:SetText(table.concat(parts, "  \194\183  "))
         row.share:SetText(data.pct and (data.pct .. "%") or "")
         S:Recolor(row.share, (data.pct or 0) >= 50 and "accent" or "textMuted")
         row.onClick = nil
@@ -2407,7 +2462,10 @@ function UI.Refresh()
             end
         end
     end
-    local mode = ns.Profile.LookupMode()
+    -- Nachgeschlagen wird unter dem Dungeon DIESES Abschnitts, und nur
+    -- wo ein Dungeon ueberhaupt etwas aendert.
+    local mode = DUNGEON_SECTIONS[section.key] and ns.Profile.LookupMode(section.key)
+        or ns.Profile.Mode()
     for _, entry in ipairs(ns.MODES) do
         if entry.key == base then frame.activityButton.label:SetText(entry.label) end
     end
@@ -2415,14 +2473,14 @@ function UI.Refresh()
     -- Steht die Auswahl noch, muessen die Daten auch nach einem
     -- Neuladen wieder da sein - sonst zeigt das Fenster einen
     -- Dungeonnamen und darunter nichts.
-    if ns.Profile.Dungeon() then ns.Data.EnsureDungeons() end
+    if ns.Profile.Dungeon(section.key) then ns.Data.EnsureDungeons() end
     local dungeons = ns.Recommend.Dungeons(base)
     -- Nur wo der Dungeon wirklich etwas aendert. Eine Verzauberung ist in
     -- jedem Dungeon dieselbe, und "Alle Dungeons" ueber der Steinliste
     -- beantwortet eine Frage, die dort niemand stellt.
     local dungeonMatters = DUNGEON_SECTIONS[section.key] == true
     frame.dungeonButton:SetShown(#dungeons > 0 and dungeonMatters)
-    local chosen = ns.Profile.Dungeon()
+    local chosen = ns.Profile.Dungeon(section.key)
     local dungeonLabel = L[(unitLabels(base))]
     for _, dungeon in ipairs(dungeons) do
         if dungeon.key == chosen then
@@ -2588,7 +2646,10 @@ function UI.Refresh()
         currentRows, fromSource = withFallback(function(source)
             return talentRows(specID, mode, source)
         end)
-        hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted) or "")
+        -- Was die Prozente bedeuten, steht ueber der Liste. Ohne das
+        -- war "82 %" eine Zahl, zu der die Frage fehlte.
+        hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted)
+            or L["TALENT_PICKS_HINT"])
     elseif section.key == "folio" then
         currentRows, fromSource = withFallback(function(source)
             return folioRows(specID, mode, source)
@@ -2945,6 +3006,68 @@ end
 ---Bericht. Der Chat ist zum Lesen da, nicht zum Herausholen - lange
 ---Zeilen brechen um, und wer sie kopieren will, faengt an zu markieren.
 ---@param text string
+---Das Erinnerungsfenster: eine Zeile, gross genug, dass man sie im
+---Pull-Countdown sieht, und klein genug, dass sie nicht das Bild nimmt.
+---
+---Es ist ziehbar und merkt sich, wohin es geschoben wurde. Es schliesst
+---sich nach zwoelf Sekunden von selbst - eine Erinnerung, die stehen
+---bleibt, wird zur Tapete.
+---@param text string
+function UI.ShowReminder(text)
+    if not remindFrame then
+        remindFrame = CreateFrame("Frame", "MetaCodexReminder", UIParent)
+        remindFrame:SetSize(460, 76)
+        remindFrame:SetFrameStrata("HIGH")
+        remindFrame:SetToplevel(true)
+        remindFrame:EnableMouse(true)
+        remindFrame:SetMovable(true)
+        remindFrame:SetClampedToScreen(true)
+        remindFrame:RegisterForDrag("LeftButton")
+        remindFrame:SetScript("OnDragStart", remindFrame.StartMoving)
+        remindFrame:SetScript("OnDragStop", function(self)
+            self:StopMovingOrSizing()
+            local anchor, _, _, x, y = self:GetPoint(1)
+            if anchor then ns.Profile.SetRemindPoint(anchor, math.floor(x + 0.5), math.floor(y + 0.5)) end
+        end)
+        S:Fill(remindFrame, "bgBase")
+        S:Border(remindFrame, "borderStrong")
+
+        remindFrame.title = S:Text(remindFrame, "title", "warning")
+        remindFrame.title:SetPoint("TOPLEFT", S.space.lg, -S.space.md)
+        remindFrame.title:SetText(L["REMIND_WINDOW_TITLE"])
+
+        remindFrame.body = S:Text(remindFrame, "body", "textPrimary")
+        remindFrame.body:SetPoint("TOPLEFT", S.space.lg, -S.space.md - 24)
+        remindFrame.body:SetPoint("TOPRIGHT", -S.space.lg - 20, -S.space.md - 24)
+        remindFrame.body:SetJustifyH("LEFT")
+        remindFrame.body:SetWordWrap(true)
+
+        remindFrame.close = makeButton(remindFrame, 20, 20, "X", function()
+            remindFrame:Hide()
+        end)
+        remindFrame.close:SetPoint("TOPRIGHT", -S.space.sm, -S.space.sm)
+        remindFrame.hint = S:Text(remindFrame, "caption", "textMuted")
+        remindFrame.hint:SetPoint("BOTTOMLEFT", S.space.lg, S.space.sm)
+        remindFrame.hint:SetText(L["REMIND_WINDOW_DRAG"])
+    end
+    local point, x, y = ns.Profile.RemindPoint()
+    remindFrame:ClearAllPoints()
+    if point then
+        remindFrame:SetPoint(point, UIParent, point, x, y)
+    else
+        remindFrame:SetPoint("TOP", UIParent, "TOP", 0, -180)
+    end
+    remindFrame.body:SetText(text)
+    -- So hoch, wie der Text braucht: zwei Zeilen Fehlendes sind haeufig.
+    remindFrame:SetHeight(math.max(76, 52 + (remindFrame.body:GetStringHeight() or 20)))
+    remindFrame:Show()
+    if remindFrame.timer then remindFrame.timer:Cancel() end
+    if C_Timer and C_Timer.NewTimer then
+        remindFrame.timer = C_Timer.NewTimer(12, function() remindFrame:Hide() end)
+    end
+    return remindFrame
+end
+
 function UI.ShowText(text)
     if not textFrame then
         textFrame = CreateFrame("Frame", nil, UIParent)

@@ -93,8 +93,10 @@ share of players and the highest key it was still used at. Plus your stock
 **Reminder** — What the addon checks before you go in: per consumable kind
 the stand against your target (enough / low / none), the enchants and gems
 still open on your character, and the settings for it. On entering a
-dungeon or raid a chat line tells you what is missing — and once at the
-auction house how many items are open.
+dungeon or raid it tells you what is missing — and once at the auction
+house how many items are open. **How** it tells you is yours to pick:
+chat line, its own movable window, a raid warning across the screen, a
+sound, any combination. A preview shows exactly what would appear.
 
 ### About
 

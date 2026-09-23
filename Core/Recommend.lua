@@ -153,21 +153,25 @@ end
 function Recommend.For(specID, mode, source)
     local d = data()
     if not d or not d.modes or not specID then return nil end
-    local byMode = d.modes[mode]
-    if not byMode then return nil end
 
-    if source and source ~= Recommend.ALL then
-        local part = byMode[source]
-        return part and part.specs and part.specs[specID] or nil
+    for _, which in ipairs(Recommend.ModeChain(mode)) do
+        local byMode = d.modes[which]
+        if byMode then
+            if source and source ~= Recommend.ALL then
+                local part = byMode[source]
+                local entry = part and part.specs and part.specs[specID]
+                if entry then return entry end
+            else
+                local entries = {}
+                for _, name in ipairs(Recommend.SourcesFor(which)) do
+                    local entry = byMode[name].specs and byMode[name].specs[specID]
+                    if entry then entries[#entries + 1] = entry end
+                end
+                if #entries > 0 then return mergeEntries(entries) end
+            end
+        end
     end
-
-    local entries = {}
-    for _, name in ipairs(Recommend.SourcesFor(mode)) do
-        local entry = byMode[name].specs and byMode[name].specs[specID]
-        if entry then entries[#entries + 1] = entry end
-    end
-    if #entries == 0 then return nil end
-    return mergeEntries(entries)
+    return nil
 end
 
 -- ------------------------------------------------------------ Auswahl
@@ -299,16 +303,20 @@ end
 ---@return string|nil fromSource
 function Recommend.Consumables(specID, mode, source)
     local d = data()
-    local byMode = d and d.modes and d.modes[mode]
-    if not byMode or not specID then return nil end
+    if not d or not d.modes or not specID then return nil end
 
-    local names = (source and source ~= Recommend.ALL) and { source }
-        or Recommend.SourcesFor(mode)
-    for _, name in ipairs(names) do
-        local part = byMode[name]
-        local entry = part and part.specs and part.specs[specID]
-        if entry and entry.consumables and #entry.consumables > 0 then
-            return entry.consumables, name
+    for _, which in ipairs(Recommend.ModeChain(mode)) do
+        local byMode = d.modes[which]
+        if byMode then
+            local names = (source and source ~= Recommend.ALL) and { source }
+                or Recommend.SourcesFor(which)
+            for _, name in ipairs(names) do
+                local part = byMode[name]
+                local entry = part and part.specs and part.specs[specID]
+                if entry and entry.consumables and #entry.consumables > 0 then
+                    return entry.consumables, name
+                end
+            end
         end
     end
     return nil
@@ -559,6 +567,30 @@ function Recommend.BaseMode(mode)
     return mode
 end
 
+---Die Modi, in denen eine Auskunft gesucht wird - vom genauesten zum
+---allgemeinsten: der gewaehlte, seine Klammer, dann dasselbe ohne
+---Dungeon.
+---
+---Warum es die Kette braucht: die Auswahl eines Dungeons bleibt ueber
+---das Abmelden stehen. Wo die Stichprobe dieses Dungeons einen Spec
+---nicht erwischt hat, stand danach ein leerer Reiter - und er blieb leer,
+---bis man die Aktivitaet wechselte, was den Dungeon loescht. Ein Dungeon
+---praezisiert eine Auskunft; fehlt sie dort, ist die des Modus immer noch
+---richtig.
+---@param mode string
+---@return string[]
+function Recommend.ModeChain(mode)
+    local plain = mode:match("^([^/]+)") or mode
+    local out, seen = {}, {}
+    for _, which in ipairs({ mode, Recommend.BaseMode(mode), plain, Recommend.BaseMode(plain) }) do
+        if which and not seen[which] then
+            seen[which] = true
+            out[#out + 1] = which
+        end
+    end
+    return out
+end
+
 function Recommend.Players(specID, mode, source)
     local d = data()
     if not d or not d.modes or not specID then return nil end
@@ -574,12 +606,7 @@ function Recommend.Players(specID, mode, source)
     -- M+-Spieler, nicht die besten von Kings Rest. Stand nach einem
     -- Neuladen noch ein Dungeon in der Auswahl, suchte der Abschnitt
     -- nur dort und fand nichts: leer, bis man die Aktivitaet wechselte.
-    local plain = mode:match("^([^/]+)") or mode
-    local tries, seen = {}, {}
-    for _, which in ipairs({ mode, Recommend.BaseMode(mode), plain, Recommend.BaseMode(plain) }) do
-        if not seen[which] then seen[which] = true tries[#tries + 1] = which end
-    end
-    for _, which in ipairs(tries) do
+    for _, which in ipairs(Recommend.ModeChain(mode)) do
         local byMode = d.modes[which]
         if byMode then
             for _, name in ipairs(names or Recommend.SourcesFor(which)) do
