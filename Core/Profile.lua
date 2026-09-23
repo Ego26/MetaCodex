@@ -650,7 +650,14 @@ end
 ---@return string|nil Beschriftung des Knopfs
 function Profile.TargetLabel()
     local target = Profile.Target()
-    return target and target.label or nil
+    if not target then return nil end
+    -- Aus dem, was gewaehlt wurde, in der Sprache von JETZT.
+    if target.track and target.rank and target.level then
+        return ns.L["KEY_LABEL"]:format(
+            ns.Compat.TrackName(target.track), target.rank, target.level)
+    end
+    -- Eine Wahl aus einer aelteren Fassung trug ihren Text mit sich.
+    return target.label
 end
 
 ---Der gewaehlte Held-Baum der GEZEIGTEN Spec. Nil heisst: alle.

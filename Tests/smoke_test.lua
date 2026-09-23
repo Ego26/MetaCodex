@@ -2079,6 +2079,31 @@ do
         tostring(ns.UI.Frame().hintText:GetText()))
 end
 
+-- ------------------------------------ Sprache und gemerkte Wahl
+
+-- Eine gespeicherte Auswahl darf ihren TEXT nicht mitbringen: nach einem
+-- Sprachwechsel stand "Held 3 - 311" in einem englischen Fenster.
+do
+    -- Ein Pfad, der in beiden Sprachen anders heisst: "Held" und "Hero".
+    local held
+    for i, row in ipairs(ns.Catalog.Tracks() or {}) do
+        if row.name == 974 and not held then held = i end
+    end
+    check("der Held-Pfad steht im Katalog", held ~= nil, tostring(held))
+    ns.Profile.SetTarget({ level = 311, bonus = 12345, track = held or 5, rank = 3 })
+    ns.SetLanguage("deDE")
+    local de = ns.Profile.TargetLabel()
+    ns.SetLanguage("enUS")
+    local en = ns.Profile.TargetLabel()
+    check("die Wahl spricht die Sprache des Fensters", de ~= en,
+        tostring(de) .. " / " .. tostring(en))
+    check("und nennt dieselbe Stufe",
+        tostring(de):find("311", 1, true) ~= nil and tostring(en):find("311", 1, true) ~= nil,
+        tostring(en))
+    ns.SetLanguage("deDE")
+    ns.Profile.SetTarget(nil)
+end
+
 -- ------------------------------------------------- Die Fusszeile
 
 -- Unten stand, woher die Daten kommen und von wann - eine Auskunft ueber

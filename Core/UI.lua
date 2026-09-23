@@ -832,10 +832,13 @@ local function openKeyPicker(anchor)
                         else
                             label = L["KEY_STEP_UPGRADE"]:format(r.level)
                         end
-                        local target = {
-                            level = r.level, bonus = r.bonus,
-                            label = L["KEY_LABEL"]:format(ns.Compat.TrackName(t), r.rank, r.level),
-                        }
+                        -- Gemerkt wird der Pfad, nicht seine Beschriftung.
+                        --
+                        -- Vorher stand der fertige Text in den
+                        -- SavedVariables, und nach einem Sprachwechsel
+                        -- las man "Held 3 - 311" in einem englischen
+                        -- Fenster: gespeicherte Uebersetzungen altern.
+                        local target = { level = r.level, bonus = r.bonus, track = t, rank = r.rank }
                         sub:CreateRadio(label, function()
                             local cur = ns.Profile.Target()
                             return cur ~= nil and cur.bonus == r.bonus
