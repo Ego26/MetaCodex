@@ -1375,6 +1375,51 @@ do
         tostring(ns.UI.Frame().hintText.__fontSize))
 end
 
+-- Mit groesserer Schrift darf sich nichts ueberlappen: die Abstaende in
+-- der Seitenleiste und die Zeilenhoehen muessen mitwachsen.
+do
+    local function navGaps()
+        local ys = {}
+        for _, fr in ipairs(wow.frames) do
+            if rawget(fr, "label") and rawget(fr, "section") and fr:IsShown() then
+                local p = fr.__points[#fr.__points]
+                -- Gemessen wird die SCHRIFT, nicht der Knopf: waechst nur
+                -- sie, liegt der Text im Nachbarn, obwohl die Kaesten
+                -- noch Abstand haetten.
+                if p then
+                    ys[#ys + 1] = { y = p[3], h = fr.label:GetStringHeight() or 12 }
+                end
+            end
+        end
+        table.sort(ys, function(a, b) return a.y > b.y end)
+        return ys
+    end
+    local function overlaps(list)
+        local bad = 0
+        for i = 2, #list do
+            -- Der naechste Eintrag muss UNTER der Unterkante des vorigen
+            -- beginnen.
+            if list[i].y > list[i - 1].y - list[i - 1].h then bad = bad + 1 end
+        end
+        return bad
+    end
+    rowsInSection("gear")
+    check("Seitenleiste ohne Ueberlappung", overlaps(navGaps()) == 0)
+    ns.Profile.SetWindowScale(1.4)
+    ns.UI.ApplyScale()
+    rowsInSection("gear")
+    check("auch bei 140 Prozent Schrift", overlaps(navGaps()) == 0,
+        overlaps(navGaps()) .. " ueberlappen")
+    -- Und die Listenzeilen wachsen mit, statt sich zu ueberdecken.
+    local tall = 0
+    for _, r in ipairs(wow.rows()) do
+        if r:IsShown() and r:GetHeight() > 46 then tall = tall + 1 end
+    end
+    check("Zeilen wachsen mit der Schrift", tall > 0, tall .. " hoehere Zeilen")
+    ns.Profile.SetWindowScale(1)
+    ns.UI.ApplyScale()
+end
+
 -- ---------------------------------------------------------- Shift-Klick
 
 -- Shift-Klick auf eine Zeile mit Gegenstand verlinkt ihn - in den Chat,

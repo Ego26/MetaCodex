@@ -2,7 +2,7 @@
 
 # MetaCodex
 
-**Was die Besten wirklich spielen.** Talentbuilds mit Import-String,
+**Aus echten Kämpfen, nicht aus Guides.** Talentbuilds mit Import-String,
 Ausrüstung mit Fundort, Verzauberungen, Steine, Verbrauchsgüter, Zielwerte
 und die Top-Spieler je Spec — für Mythic+, Raid und jede PvP-Klammer.
 Täglich gemessen aus raider.io, murlok.io und Warcraft Logs, nie aus einem

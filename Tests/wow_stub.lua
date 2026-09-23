@@ -86,7 +86,9 @@ Mock.methods.GetHeight = function(self) return self.__h or 0 end
 -- mit einem Laufzeitfehler sterben.
 Mock.methods.GetStringHeight = function(self)
     local text = tostring(self.__text or "")
-    return 14 * math.max(1, math.ceil(#text / 60))
+    -- Zeilen mal Zeilenhoehe, und die haengt an der gesetzten Schrift.
+    local size = tonumber(self.__fontSize) or 12
+    return size * 1.2 * math.max(1, math.ceil(#text / 60))
 end
 Mock.methods.GetScale = function(self) return self.__scale or 1 end
 Mock.methods.HookScript = function(self, name, fn) self.__scripts[name] = fn end

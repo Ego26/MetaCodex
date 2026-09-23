@@ -1,8 +1,8 @@
 ## Interface: 120100
 ## Title: MetaCodex
 ## Title-deDE: MetaCodex
-## Notes: What the best players actually run - talent builds with import strings, gear with drop sources, enchants, gems, consumables, stat targets and the top players per spec, for M+, raid and every PvP bracket. Measured from raider.io, murlok.io and Warcraft Logs, never copied from a guide. Reads your gear and hands the missing pieces to Auctionator. Type /mc.
-## Notes-deDE: Was die Besten wirklich spielen - Talentbuilds mit Importkette, Ausruestung mit Fundort, Verzauberungen, Steine, Verbrauchsgueter, Zielwerte und die Top-Spieler je Spec, fuer M+, Raid und jede PvP-Klammer. Gemessen aus raider.io, murlok.io und Warcraft Logs, nie aus einem Guide abgeschrieben. Liest deine Ausruestung und uebergibt das Fehlende an Auctionator. Tippe /mc.
+## Notes: From real fights, not from guides - talent builds with import strings, gear with drop sources, enchants, gems, consumables, stat targets and the top players per spec, for M+, raid and every PvP bracket. Measured from raider.io, murlok.io and Warcraft Logs, never copied from a guide. Reads your gear and hands the missing pieces to Auctionator. Type /mc.
+## Notes-deDE: Aus echten Kaempfen, nicht aus Guides - Talentbuilds mit Importkette, Ausruestung mit Fundort, Verzauberungen, Steine, Verbrauchsgueter, Zielwerte und die Top-Spieler je Spec, fuer M+, Raid und jede PvP-Klammer. Gemessen aus raider.io, murlok.io und Warcraft Logs, nie aus einem Guide abgeschrieben. Liest deine Ausruestung und uebergibt das Fehlende an Auctionator. Tippe /mc.
 ## Author: Ego26
 ## Version: @project-version@
 ## SavedVariables: MetaCodexDB

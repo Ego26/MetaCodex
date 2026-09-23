@@ -2,7 +2,7 @@
 
 # MetaCodex
 
-**What the best players actually run.** Talent builds with import strings,
+**From real fights, not from guides.** Talent builds with import strings,
 gear with drop sources, enchants, gems, consumables, stat targets and the
 top players per spec — for Mythic+, raid and every PvP bracket. Measured
 daily from raider.io, murlok.io and Warcraft Logs, never copied from a

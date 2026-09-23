@@ -352,7 +352,7 @@ ns.RegisterLocale("enUS", {
     ["GUIDE_METHOD"]      = "Method guide",
     ["GUIDE_ARCHON_GEMS"]   = "Archon: enchants and gems",
     ["GUIDE_ARCHON_CONSUM"] = "Archon: consumables",
-    ["GUIDE_MURLOK"]      = "murlok.io spec page",
+    ["GUIDE_MURLOK"]      = "Murlok.io: your spec’s page",
     ["GUIDE_HINT"]        = "MetaCodex measures; these sites explain. Click a line to copy its address.",
     ["LINK_TITLE"]        = "Copy this address",
     ["LINK_HINT"]         = "Ctrl+C to copy. An addon cannot open a browser itself.",
@@ -408,6 +408,7 @@ ns.RegisterLocale("enUS", {
     -- A build is not a list of names — nobody types one in. What is
     -- wanted is the import string: one click, paste, done.
     ["LOADOUT_TITLE"]      = "Copy this build",
+    ["LOADOUT_COPY"] = "Copy import string",
     ["LOADOUT_HINT"]       = "%d talents · paste into the talent window's import box",
     ["LOADOUT_DIFF_HINT"]  = "%d talents differ · paste into the talent window's import box",
 })
