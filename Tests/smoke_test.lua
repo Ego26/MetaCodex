@@ -2041,6 +2041,29 @@ do
     end
     rowsInSection("talents")
     local mitHinweis = listTop()
+    -- Ziehen ordnet sofort neu an, ohne neu nachzuschlagen: dieselben
+    -- Zeilen, andere Breite. Vorher sprang das Fenster erst beim
+    -- Loslassen in Form.
+    do
+        local vorher = {}
+        for _, r in ipairs(wow.rows()) do
+            if r:IsShown() then vorher[#vorher + 1] = r.title:GetText() end
+        end
+        f:SetWidth(1200)
+        ns.UI.Relayout()
+        local breite, nachher = 0, {}
+        for _, r in ipairs(wow.rows()) do
+            if r:IsShown() then
+                nachher[#nachher + 1] = r.title:GetText()
+                breite = math.max(breite, r:GetWidth())
+            end
+        end
+        check("Ziehen ordnet die Zeilen sofort neu an", breite > 800, breite .. " breit")
+        check("und sagt dabei dasselbe wie vorher",
+            table.concat(vorher, "|") == table.concat(nachher, "|"))
+        f:SetWidth(960)
+        ns.UI.Relayout()
+    end
     local hint = f.hintText
     check("die Liste beginnt unter dem Hinweis",
         mitHinweis ~= nil and math.abs(mitHinweis) > math.abs(hint.__points[#hint.__points][3]),

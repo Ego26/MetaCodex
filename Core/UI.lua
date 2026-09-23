@@ -2399,8 +2399,22 @@ local function build()
     grip.tex = grip:CreateTexture(nil, "OVERLAY")
     grip.tex:SetAllPoints()
     grip.tex:SetTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
-    grip:SetScript("OnMouseDown", function() frame:StartSizing("BOTTOMRIGHT") end)
+    grip:SetScript("OnMouseDown", function()
+        frame:StartSizing("BOTTOMRIGHT")
+        -- Waehrend des Ziehens laeuft die Anordnung mit. Vorher sprang
+        -- das Fenster erst beim Loslassen in Form, und bis dahin zog man
+        -- einen leeren Rahmen ueber die Liste.
+        frame:SetScript("OnUpdate", function(self)
+            local now = GetTime and GetTime() or 0
+            -- Nicht jeden Bildwechsel: zwanzigmal die Sekunde sieht
+            -- fluessig aus und rechnet ein Drittel.
+            if self.__lastLayout and now - self.__lastLayout < 0.05 then return end
+            self.__lastLayout = now
+            UI.Relayout()
+        end)
+    end)
     grip:SetScript("OnMouseUp", function()
+        frame:SetScript("OnUpdate", nil)
         frame:StopMovingOrSizing()
         ns.Profile.SetWindowSize(frame:GetWidth(), frame:GetHeight())
         UI.Refresh()
@@ -2411,6 +2425,10 @@ end
 -- ------------------------------------------------------------ Auffrischen
 
 local currentRows = {}
+-- Waehrend am Rand gezogen wird, wird nur neu ANGEORDNET, nicht neu
+-- nachgeschlagen: dieselben Zeilen, andere Breite. Was sie sagen, haengt
+-- nicht an der Fenstergroesse.
+local layoutOnly = false
 
 ---Warum ein Abschnitt leer ist.
 ---
@@ -2706,7 +2724,10 @@ function UI.Refresh()
     frame.backButton:SetShown(viewingPlayer ~= nil)
 
     local fromSource
-    if viewingPlayer then
+    if layoutOnly then
+        -- Die Zeilen von eben, nur neu gesetzt.
+        fromSource = frame.__fromSource
+    elseif viewingPlayer then
         currentRows = playerViewRows(viewingPlayer)
         sectionTitle:SetText(viewingPlayer.name)
         hintText:SetText(L["PLAYER_VIEW_HINT"])
@@ -2768,6 +2789,7 @@ function UI.Refresh()
         hintText:SetText(foreign and L["FOREIGN_CLASS"] or "")
         currentRows = ns.List.Build(ns.Gear.Scan())
     end
+    frame.__fromSource = fromSource
 
     -- Wo eine einzelne Quelle geantwortet hat, gehoert ihr Name in die
     -- Statuszeile: bei "alle Plattformen" wird hier nicht gemittelt,
@@ -3302,6 +3324,15 @@ function UI.Toggle()
         UI.Refresh()
         frame:Show()
     end
+end
+
+---Dieselben Zeilen, neue Breite. Fuer das Ziehen am Rand.
+function UI.Relayout()
+    if not frame or layoutOnly then return end
+    layoutOnly = true
+    local ok, err = pcall(UI.Refresh)
+    layoutOnly = false
+    if not ok then error(err) end
 end
 
 function UI.IsShown()
