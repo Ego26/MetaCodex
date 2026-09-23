@@ -25,7 +25,8 @@ trägst und im Beutel hast, damit du weißt, was noch fehlt.
   was du schon hast, was du kaufen musst.
 - **Verbrauchsgüter**, gruppiert nach Art, mit Bestand und Ziel.
 - **Zielwerte**, gemessen an den Besten, deine Werte daneben.
-- **Top-Spieler**, klickbar — ihr String, ihre Ausrüstung, ihr Profil.
+- **Top-Spieler**, klickbar — ihr Talentbuild mit Import-String, ihre
+  komplette Ausrüstung, ihr Profil.
 - **Erinnerung** vor dem Start und am Auktionshaus — und ein Reiter, der
   zeigt, was sie prüft.
 - **Guides** verlinkt, nie kopiert.

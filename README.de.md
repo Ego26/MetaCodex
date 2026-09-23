@@ -34,7 +34,7 @@ fällt weg.
 | **Guides & Rotation** | Verweise auf die geschriebenen Guides zur Spec |
 | **Zielwerte** | Gemessene Mediane der Besten, deine Werte als zweiter Balken |
 | **Talente** | Der häufigste Build mit Import-String, Alternativen als *X statt Y*, umstrittene Talente — je Dungeon in M+, je Boss im Raid |
-| **Top-Spieler** | Wer oben steht, klickbar: Profil mit String und kompletter Ausrüstung |
+| **Top-Spieler** | Wer oben steht, klickbar: Talentbuild mit Import-String und komplette Ausrüstung |
 | **Ausrüstung** | Fünf je Platz mit Fundort; Tooltips auf der Schlüsselstufe, die du wählst |
 | **Verzauberungen & Steine** | Gegen deine angelegte Ausrüstung: was noch offen ist |
 | **Verbrauchsgüter** | Nach Art gruppiert, mit Anteil, höchstem Schlüssel, Bestand und Ziel |

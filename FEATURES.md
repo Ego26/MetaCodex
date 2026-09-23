@@ -26,7 +26,8 @@ Open it: **`/mc`** or the button in the minimap's addon compartment.
   you already have, what to buy.
 - **Consumables**, grouped by kind, with your stock and a target.
 - **Stat targets** measured from the best, with your values next to them.
-- **Top players**, clickable — their string, their gear, their profile.
+- **Top players**, clickable — their talent build with import string, their
+  full gear, their profile.
 - **Reminder** before you go in and at the auction house — and a tab that
   shows what it checks.
 - **Guides** linked, never copied.
