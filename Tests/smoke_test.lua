@@ -1895,6 +1895,33 @@ do
     end
 end
 
+-- --------------------------------------------------- Info-Reiter
+
+-- Fehlt Auctionator, sagt die Zeile nicht nur "fehlt", sondern gibt die
+-- Adresse her - ein Klick, ein Feld, Strg+C. Von selbst laedt nichts.
+do
+    rowsInSection("info")
+    local row
+    for _, r in ipairs(wow.rows()) do
+        if r:IsShown() and r.title:GetText() == "Auctionator" then row = r end
+    end
+    check("die Auctionator-Zeile steht im Info-Reiter", row ~= nil)
+    if row then
+        local installed = ns.Adapter.Loaded()
+        if installed then
+            -- rawget: ein unbekanntes Feld liefert im Stub ein Kind.
+            check("installiert: kein Link noetig", rawget(row, "onClick") == nil)
+        else
+            check("nicht installiert: rot", (row.share:GetText() or "") ~= "")
+            check("und ein Weg zum Addon", rawget(row, "onClick") ~= nil,
+                tostring(row.detail:GetText()))
+            check("der Hinweis sagt, was der Klick tut",
+                (row.detail:GetText() or "") == L["INFO_AUCTIONATOR_GET"],
+                tostring(row.detail:GetText()))
+        end
+    end
+end
+
 -- ------------------------------------------- Eigenes Verbrauchsgut
 
 -- Wer seine Speise selbst waehlt - weil sie ein Zehntel kostet -, soll
@@ -2001,6 +2028,12 @@ do
                 and f.title:GetText() == L["REMIND_WINDOW_TITLE"] then window = f end
         end
         check("das Erinnerungsfenster steht da", window ~= nil and window:IsShown())
+        -- Und zwar VOR dem grossen Fenster: die Vorschau ging vorher
+        -- dahinter auf, angefordert aus eben diesem Fenster.
+        check("es steht vor dem grossen Fenster",
+            window ~= nil and window.__strata == "DIALOG"
+                and ns.UI.Frame().__strata ~= "DIALOG",
+            tostring(window and window.__strata))
         if window then
             local lines, named = 0, 0
             for _, r in ipairs(ns.UI.ReminderRows()) do

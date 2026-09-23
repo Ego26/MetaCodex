@@ -452,6 +452,7 @@ ns.RegisterLocale("enUS", {
     ["INFO_AUCTIONATOR_OK"]      = "installed",
     ["INFO_AUCTIONATOR_MISSING"] = "not installed",
     -- The one line that was nowhere before: the handover needs it.
+    ["INFO_AUCTIONATOR_GET"] = "Click to get the link to the addon",
     ["INFO_AUCTIONATOR_WHY"]     = "Needed only to hand the list to the auction house. Everything else works without it.",
 })
 

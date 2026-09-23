@@ -1257,12 +1257,18 @@ local function infoRows()
     end
 
     -- Die Auskunft, die gefehlt hat.
+    --
+    -- Fehlt Auctionator, hilft der Satz "wird gebraucht" wenig - die
+    -- naechste Frage ist "wo bekomme ich es". Die Zeile gibt dann die
+    -- Adresse her, wie jede andere Adresse in diesem Addon auch: ein
+    -- Klick, ein Feld, Strg+C. Von selbst laedt hier nichts.
     local has = ns.Adapter.Loaded()
     rows[#rows + 1] = {
         kind = "info", label = "Auctionator",
         value = has and L["INFO_AUCTIONATOR_OK"] or L["INFO_AUCTIONATOR_MISSING"],
-        token = has and "success" or "warning",
-        note = L["INFO_AUCTIONATOR_WHY"],
+        token = has and "success" or "danger",
+        note = has and L["INFO_AUCTIONATOR_WHY"] or L["INFO_AUCTIONATOR_GET"],
+        url = (not has) and "https://www.curseforge.com/wow/addons/auctionator" or nil,
         group = L["INFO_NEEDS"],
     }
     return rows
@@ -1803,6 +1809,8 @@ local function setItemRow(row, data)
         row.detail:SetText(data.note or "")
         row.share:SetText(data.value or "")
         S:Recolor(row.share, data.token or "textSecondary")
+        -- Eine Auskunft mit Adresse ist anklickbar; eine ohne nicht.
+        row.onClick = data.url and function() UI.ShowLink(data.url) end or nil
         return
     end
 
@@ -3294,7 +3302,12 @@ function UI.ShowReminder(text, list)
     if not remindFrame then
         remindFrame = CreateFrame("Frame", "MetaCodexReminder", UIParent)
         remindFrame:SetSize(420, 120)
-        remindFrame:SetFrameStrata("HIGH")
+        -- Ueber dem grossen Fenster, nicht darunter.
+        --
+        -- Beide standen auf HIGH, und wer zuletzt gezeigt wird, gewinnt -
+        -- die Vorschau ging also hinter dem Fenster auf, aus dem man sie
+        -- angefordert hat.
+        remindFrame:SetFrameStrata("DIALOG")
         remindFrame:SetToplevel(true)
         remindFrame:EnableMouse(true)
         remindFrame:SetMovable(true)
@@ -3402,6 +3415,7 @@ function UI.ShowReminder(text, list)
     remindFrame.search:SetAlpha(canSearch and 1 or 0.4)
 
     remindFrame:Show()
+    if remindFrame.Raise then remindFrame:Raise() end
     if remindFrame.timer then remindFrame.timer:Cancel() end
     if C_Timer and C_Timer.NewTimer then
         remindFrame.timer = C_Timer.NewTimer(20, function() remindFrame:Hide() end)

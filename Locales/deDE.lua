@@ -422,6 +422,7 @@ ns.RegisterLocale("deDE", {
     ["INFO_CATALOG"]  = "Katalog aus den Spieldateien",
     ["INFO_AUCTIONATOR_OK"]      = "installiert",
     ["INFO_AUCTIONATOR_MISSING"] = "nicht installiert",
+    ["INFO_AUCTIONATOR_GET"] = "Klick, um den Link zum Addon zu bekommen",
     ["INFO_AUCTIONATOR_WHY"]     = "Nur für die Übergabe ans Auktionshaus nötig. Alles andere läuft ohne.",
 })
 

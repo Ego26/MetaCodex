@@ -71,6 +71,9 @@ Mock.methods.SetScale = function(self, scale) self.__scale = scale end
 Mock.methods.SetResizable = function() end
 Mock.methods.SetResizeBounds = function() end
 Mock.methods.StartSizing = function() end
+Mock.methods.SetFrameStrata = function(self, strata) self.__strata = strata end
+Mock.methods.GetFrameStrata = function(self) return self.__strata or "MEDIUM" end
+Mock.methods.Raise = function() end
 Mock.methods.SetFrameLevel = function() end
 Mock.methods.GetFrameLevel = function() return 1 end
 -- Echte Masse: das Fenster ist ziehbar, und alles, was daran haengt,
