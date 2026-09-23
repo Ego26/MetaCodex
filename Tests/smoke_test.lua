@@ -2056,6 +2056,28 @@ do
             wow.fire("AUCTION_HOUSE_SHOW")
             check("mit offenem Auktionshaus ist Suchen da", window.search:IsEnabled() == true)
             ns.Adapter.AuctionHouseOpen = realOpen
+            -- Der Knopf uebergibt, was JETZT fehlt - nicht das, was im
+            -- grossen Fenster gerade offen ist.
+            do
+                MetaCodexDB.section = "talents"
+                local sent
+                local realCreate = ns.Adapter.CreateList
+                ns.Adapter.CreateList = function(rows, section)
+                    sent = { rows = rows, section = section }
+                    return true, "Liste", #rows
+                end
+                window.create.__scripts.OnClick(window.create)
+                ns.Adapter.CreateList = realCreate
+                check("die Liste kommt aus der Erinnerung",
+                    sent ~= nil and sent.section == "remind", sent and sent.section or "nichts")
+                local fehlt = 0
+                for _, r in ipairs(sent and sent.rows or {}) do
+                    if (r.buy or 0) > 0 then fehlt = fehlt + 1 end
+                end
+                check("und enthaelt nur, was fehlt",
+                    sent ~= nil and #sent.rows > 0 and fehlt == #sent.rows,
+                    fehlt .. " von " .. #(sent and sent.rows or {}))
+            end
             check("und hat beide Knoepfe",
                 window.create ~= nil and window.search ~= nil
                     and window.create.label:GetText() == L["BTN_CREATE_LIST"]

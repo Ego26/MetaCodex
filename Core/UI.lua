@@ -3363,11 +3363,11 @@ function UI.ShowReminder(text, list)
         S:Fill(foot, "bgRaised")
         S:Border(foot, "borderSubtle", 1, { top = true })
         remindFrame.search = makeButton(foot, 130, 24, L["BTN_SEARCH"], function()
-            UI.Handover(true)
+            UI.HandoverMissing(true)
         end)
         remindFrame.search:SetPoint("RIGHT", -S.space.md, 0)
         remindFrame.create = makeButton(foot, 150, 24, L["BTN_CREATE_LIST"], function()
-            UI.Handover(false)
+            UI.HandoverMissing(false)
         end)
         remindFrame.create:SetPoint("RIGHT", remindFrame.search, "LEFT", -S.space.sm, 0)
         -- Solange der Zeiger darauf liegt, laeuft die Uhr nicht: ein
@@ -3492,6 +3492,52 @@ end
 
 ---Uebergibt die Liste an Auctionator.
 ---@param searchNow boolean
+---Was JETZT fehlt, ans Auktionshaus - aus dem Erinnerungsfenster.
+---
+---Nicht dasselbe wie der Knopf im grossen Fenster: der uebergibt, was
+---auf dem Schirm steht, also den offenen Abschnitt. Vom Erinnerungs-
+---fenster aus waere das die falsche Liste - dort steht die Frage "was
+---fehlt mir vor dem Pull", und die Antwort sind die knappen
+---Verbrauchsgueter UND die offenen Verzauberungen und Steine.
+---@param searchNow boolean
+function UI.HandoverMissing(searchNow)
+    if not ns.Adapter.Loaded() then
+        ns.Print(L["NO_AUCTIONATOR"])
+        return
+    end
+    local rows = {}
+    for _, row in ipairs(ns.Remind.Status(ns.Profile.Mode())) do
+        local buy = math.max(0, (row.need or 0) - (row.owned or 0))
+        if buy > 0 then
+            rows[#rows + 1] = {
+                kind = "consumable", id = row.id, name = row.name,
+                buy = buy, need = row.need, owned = row.owned,
+            }
+        end
+    end
+    if ns.Profile.Complete() and not ns.Profile.IsForeignClass() then
+        for _, row in ipairs(ns.List.Build(ns.Gear.Scan())) do
+            if not row.pending and not row.alt and (row.buy or 0) > 0 then
+                rows[#rows + 1] = row
+            end
+        end
+    end
+
+    local ok, message, written
+    if searchNow then
+        ok, message = ns.Adapter.Search(rows)
+    else
+        ok, message, written = ns.Adapter.CreateList(rows, "remind")
+    end
+    if ok then
+        if not searchNow then ns.Print(L["LIST_CREATED"], written, message) end
+    elseif L[message] ~= message then
+        ns.Print(L[message])
+    else
+        ns.Print(L["LIST_FAILED"], message)
+    end
+end
+
 function UI.Handover(searchNow)
     if not ns.Adapter.Loaded() then
         ns.Print(L["NO_AUCTIONATOR"])
