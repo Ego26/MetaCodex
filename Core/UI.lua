@@ -2871,13 +2871,20 @@ function UI.Frame() return frame end
 local CHAR_ICON = "Interface\\AddOns\\MetaCodex\\Media\\Textures\\logo"
 -- Wo der Knopf ohne eigene Wahl sitzt: am linken Rand, im unteren Drittel,
 -- halb ueber der Kante - wie die runden Knoepfe an der Minimap.
-local CHAR_DEFAULT_X, CHAR_DEFAULT_Y = 2, 70
+-- Ohne eigene Wahl: am RECHTEN Rand, unter dem Zahnrad, halb ueber der
+-- Kante. Links lag er hinter dem Rahmenrand und war praktisch unsichtbar.
+local CHAR_DEFAULT_X, CHAR_DEFAULT_Y = -4, -232
 
 local function placeCharacterButton(button, host)
     local saved = MetaCodexDB and MetaCodexDB.charButton
     button:ClearAllPoints()
-    button:SetPoint("CENTER", host, "BOTTOMLEFT",
-        saved and saved.x or CHAR_DEFAULT_X, saved and saved.y or CHAR_DEFAULT_Y)
+    if saved and saved.x and saved.y then
+        -- Selbst geschoben: die Lage ist am linken unteren Eck gemerkt,
+        -- weil sie von dort aus in beide Richtungen zaehlt.
+        button:SetPoint("CENTER", host, "BOTTOMLEFT", saved.x, saved.y)
+    else
+        button:SetPoint("CENTER", host, "TOPRIGHT", CHAR_DEFAULT_X, CHAR_DEFAULT_Y)
+    end
 end
 
 function UI.AttachCharacterButton()
@@ -2892,7 +2899,10 @@ function UI.AttachCharacterButton()
     -- unter; das Logo erkennt man aus dem Augenwinkel.
     local button = CreateFrame("Button", "MetaCodexCharacterButton", host)
     button:SetSize(40, 40)
-    button:SetFrameLevel((host.GetFrameLevel and host:GetFrameLevel() or 0) + 5)
+    -- Ueber die Rahmenkunst: das Charakterfenster zeichnet seinen Rand
+    -- zuletzt, und darunter war vom Knopf nur ein Rand zu sehen.
+    button:SetFrameStrata(host.GetFrameStrata and host:GetFrameStrata() or "MEDIUM")
+    button:SetFrameLevel((host.GetFrameLevel and host:GetFrameLevel() or 0) + 20)
     button:SetMovable(true)
     button:SetClampedToScreen(true)
     button:RegisterForDrag("LeftButton")

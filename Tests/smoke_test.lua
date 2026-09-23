@@ -1851,6 +1851,11 @@ do
         IsShiftKeyDown = function() return true end
         button.__scripts.OnClick(button, "RightButton")
         check("Umschalt-Rechtsklick setzt die Lage zurueck", MetaCodexDB.charButton == nil)
+        -- Ohne eigene Wahl haengt er am rechten Rand, nicht am linken:
+        -- links lag er hinter der Rahmenkante.
+        local anchor = button.__points[#button.__points]
+        check("Vorgabeplatz ist rechts", anchor ~= nil and anchor[3] == "TOPRIGHT",
+            anchor and tostring(anchor[3]) or "kein Anker")
         IsShiftKeyDown = nil
         -- Tooltip nennt beides: oeffnen und verschieben.
         GameTooltip.__lines = {}
