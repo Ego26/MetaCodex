@@ -247,6 +247,27 @@ function Catalog.LevelDeltaBonus(delta)
     return c and c.levelDelta and c.levelDelta[delta] or nil
 end
 
+---Der Name eines Held-Baums, in der Sprache des Fensters.
+---
+---Aus dem Katalog, nicht vom Client: der kann einen Held-Baum einer
+---fremden Spec nicht benennen, und die eigene ist nicht die einzige.
+---@param subTreeID number
+---@return string
+function Catalog.SubTreeName(subTreeID)
+    local c = data()
+    local row = c and c.subtrees and c.subtrees[subTreeID]
+    if not row then return "#" .. tostring(subTreeID) end
+    if ns.CurrentLocale() == "deDE" then return row.de or row.en end
+    return row.en
+end
+
+---Die Runen des Omnium Folio, Zeile fuer Zeile.
+---@return table[]|nil rows  je Zeile { { spell, auras }, ... }
+function Catalog.Folio()
+    local c = data()
+    return c and c.folio or nil
+end
+
 ---Die Aufwertungspfade der laufenden Saison.
 ---
 ---Je Pfad die Bonus-IDs in Rangfolge. Was sie an Stufe bringen, steht

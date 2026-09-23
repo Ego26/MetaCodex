@@ -91,6 +91,7 @@ local SECTIONS = {
     { key = "stats",       group = "GROUP_KNOW" },
     { key = "talents",     group = "GROUP_KNOW" },
     { key = "players",     group = "GROUP_KNOW" },
+    { key = "folio",       group = "GROUP_KNOW" },
 
     { key = "gear",        group = "GROUP_GEAR" },
     { key = "enchants",    group = "GROUP_GEAR" },
@@ -623,6 +624,20 @@ local function openSourcePickerGear(anchor, sources)
     end)
 end
 
+---Held-Baum waehlen: alle, oder einer - mit seinem Anteil.
+local function openHeroPicker(anchor, trees)
+    local entries = { { key = false, label = L["HERO_ALL"] } }
+    for _, t in ipairs(trees) do
+        entries[#entries + 1] = {
+            key = t.id,
+            label = L["HERO_ENTRY"]:format(ns.Catalog.SubTreeName(t.id), t.pct),
+        }
+    end
+    contextMenu(anchor, L["LBL_HERO"], entries, function(entry)
+        ns.Profile.SetHeroTree(entry.key or nil)
+    end)
+end
+
 ---Ausruestungsplatz waehlen.
 local function openSlotPicker(anchor, specID, mode, source)
     local entries = { { slot = false, label = L["SLOT_ALL"] } }
@@ -1064,6 +1079,32 @@ local function playerViewRows(who)
     return rows
 end
 
+---Der Omnium Folio: die Runen des Baums, Zeile fuer Zeile, mit dem
+---Anteil der Besten, die sie beim Pull trugen.
+---
+---Die Zeilen kommen aus dem Katalog (dem Baum in den Spieldaten), die
+---Anteile aus den Logs. Eine Rune ohne Anteil steht trotzdem da - mit
+---null - damit die Zeile vollstaendig ist und man sieht, was es gibt.
+---@return table[] rows
+---@return string|nil fromSource
+local function folioRows(specID, mode, source)
+    local shares, from = ns.Recommend.Folio(specID, mode, source)
+    if not shares then return {}, nil end
+    local pctOf = {}
+    for _, r in ipairs(shares) do pctOf[r.spell] = r.pct end
+    local rows = {}
+    for i, line in ipairs(ns.Catalog.Folio() or {}) do
+        for _, rune in ipairs(line) do
+            rows[#rows + 1] = {
+                kind = "talent", spell = rune.spell, rank = 1,
+                pct = pctOf[rune.spell] or 0,
+                group = L["FOLIO_ROW"]:format(i),
+            }
+        end
+    end
+    return rows, from
+end
+
 ---Die Spieler, die eine Quelle gerade oben fuehrt.
 ---
 ---Der einzige Abschnitt, der keine Empfehlung ist. Er beantwortet die
@@ -1098,7 +1139,8 @@ end
 ---@return table[] rows
 ---@return string|nil fromSource
 local function talentRows(specID, mode, source)
-    local picks, build, from = ns.Recommend.Talents(specID, mode, source)
+    local hero = ns.Profile.HeroTree()
+    local picks, build, from = ns.Recommend.Talents(specID, mode, source, hero)
     if not picks then return {}, nil end
 
     local rows = {}
@@ -1120,7 +1162,7 @@ local function talentRows(specID, mode, source)
     end
 
     -- Und die naechsthaeufigsten, je mit dem Unterschied.
-    for _, other in ipairs(ns.Recommend.OtherBuilds(specID, mode, source) or {}) do
+    for _, other in ipairs(ns.Recommend.OtherBuilds(specID, mode, source, hero) or {}) do
         rows[#rows + 1] = {
             kind = "loadout", specID = specID, text = other.text,
             nodes = build and build.nodes or {},
@@ -1945,6 +1987,11 @@ local function build()
     end)
     frame.originButton = originButton
 
+    local heroButton = makeButton(content, 170, 22, "", function(self)
+        openHeroPicker(self, frame.__heroTrees or {})
+    end)
+    frame.heroButton = heroButton
+
     local dungeonButton = makeButton(content, 160, 22, "", function(self)
         openDungeonPicker(self)
     end)
@@ -2179,6 +2226,19 @@ function UI.Refresh()
     end
     frame.dungeonButton.label:SetText(dungeonLabel)
 
+    -- Der Held-Baum: nur bei den Talenten, und nur, wo die Daten mehr
+    -- als einen kennen. Eine Wahl, die es fuer diese Spec nicht gibt,
+    -- faellt weg statt stehenzubleiben.
+    local heroTrees = (section.key == "talents" and not viewingPlayer)
+        and ns.Recommend.HeroTrees(specID, mode, ns.Profile.Source()) or {}
+    frame.__heroTrees = heroTrees
+    frame.heroButton:SetShown(#heroTrees > 1)
+    local chosenHero = ns.Profile.HeroTree()
+    local heroValid = chosenHero == nil
+    for _, t in ipairs(heroTrees) do if t.id == chosenHero then heroValid = true end end
+    if not heroValid then chosenHero = nil; ns.Profile.SetHeroTree(nil) end
+    frame.heroButton.label:SetText(chosenHero and ns.Catalog.SubTreeName(chosenHero) or L["HERO_ALL"])
+
     -- Eine Quelle, die diesen Modus nicht misst, darf nicht gewaehlt
     -- bleiben - sonst steht im Kopf eine Plattform und in der Liste nichts.
     local wanted = ns.Profile.Source()
@@ -2323,6 +2383,11 @@ function UI.Refresh()
             return talentRows(specID, mode, source)
         end)
         hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted) or "")
+    elseif section.key == "folio" then
+        currentRows, fromSource = withFallback(function(source)
+            return folioRows(specID, mode, source)
+        end)
+        hintText:SetText(#currentRows > 0 and L["FOLIO_HINT"] or emptyReason(mode, wanted))
     elseif section.key == "players" then
         currentRows, fromSource = withFallback(function(source)
             return playerRows(specID, mode, source)
@@ -2437,6 +2502,7 @@ function UI.Refresh()
     placeRight(frame.levelButton, 175)
     placeRight(frame.slotButton, 150)
     placeRight(frame.originButton, 170)
+    placeRight(frame.heroButton, 170)
     placeRight(frame.categoryButton, 170)
     placeRight(frame.dungeonButton, 160)
     sectionCount:ClearAllPoints()

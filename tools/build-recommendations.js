@@ -128,6 +128,38 @@ for (const part of profileParts) {
   console.log(`  + prof-${part.mode}.json: ${builds} Builds ergaenzt, ${players} Ranglisten, ${Object.keys(part.specs).length} Speccs Profile`);
 }
 
+// Talente, Build und Alternativen eines Eintrags - einmal geschrieben,
+// fuer die Spec und fuer jeden ihrer Held-Baeume benutzt.
+function emitTalents(out, entry, indent) {
+  if (entry.talents && entry.talents.length) {
+    // Nur die UMSTRITTENEN Talente: was 98 % nehmen, steht im Build; was
+    // 4 % nehmen, sagt nichts. PvP-Talente ausserhalb des Deckels, es
+    // sind hoechstens elf.
+    const contested = entry.talents.filter((t) => t.pct >= 15 && t.pct <= 85);
+    const worth = contested.filter((t) => !t.pvp).slice(0, 24)
+      .concat(contested.filter((t) => t.pvp));
+    if (worth.length) {
+      out.push(indent + 'talents = { ' + worth
+        .map((t) => `{ spell = ${t.spell}, rank = ${t.rank}, pct = ${t.pct}${t.pvp ? ', pvp = true' : ''} }`)
+        .join(', ') + ' },');
+    }
+  }
+  if (entry.build && entry.build.nodes && entry.build.nodes.length) {
+    const text = entry.build.text ? `text = ${luaString(entry.build.text)}, ` : '';
+    out.push(indent + `build = { pct = ${entry.build.pct}, ${text}nodes = { `
+      + entry.build.nodes.map((n) => `{ spell = ${n.spell}, rank = ${n.rank} }`).join(', ') + ' } },');
+  }
+  if (entry.builds && entry.builds.length) {
+    out.push(indent + 'builds = { ' + entry.builds.map((v) => {
+      const parts = ['pct = ' + v.pct];
+      if (v.text) parts.push('text = ' + luaString(v.text));
+      if (v.added && v.added.length) parts.push('added = { ' + v.added.join(', ') + ' }');
+      if (v.removed && v.removed.length) parts.push('removed = { ' + v.removed.join(', ') + ' }');
+      return '{ ' + parts.join(', ') + ' }';
+    }).join(', ') + ' },');
+  }
+}
+
 const baseOut = [];
 const out = baseOut;
 out.push('-- ERZEUGT von tools/build-recommendations.js. Nicht von Hand aendern.');
@@ -256,46 +288,25 @@ for (const [mode, bySource] of Object.entries(byMode)) {
           })
           .join(', ') + ' },');
       }
-      // Talente. Der Zauber steht als ID da, nicht als Name - der
-      // Client setzt ihn ein und trifft damit jede Clientsprache.
+      // Talente, Build, Alternativen - und dasselbe je Held-Baum.
       //
-      // Nur die UMSTRITTENEN Talente.
-      //
-      // Ein Talent, das 98 % nehmen, sagt nichts - es steht im Build und
-      // damit ist die Sache erledigt. Eines, das 4 % nehmen, sagt auch
-      // nichts. Interessant ist der Bereich dazwischen: dort gibt es
-      // wirklich etwas zu entscheiden, und genau dort hilft zu wissen,
-      // wie die Besten sich entscheiden.
-      //
-      // Das halbiert nebenbei die Datenmenge: von neunzig Zeilen je Spec
-      // bleiben ein bis zwei Dutzend, und die sind die, die zaehlen.
-      if (entry.talents && entry.talents.length) {
-        // PvP-Talente ausserhalb des Deckels: es sind hoechstens elf,
-        // sie sitzen in einem anderen Fenster, und hinter vierundzwanzig
-        // Klassentalenten fielen sie sonst komplett heraus - bei Resto
-        // Schamane 2v2 standen null in der Tabelle.
-        const contested = entry.talents.filter((t) => t.pct >= 15 && t.pct <= 85);
-        const worth = contested.filter((t) => !t.pvp).slice(0, 24)
-          .concat(contested.filter((t) => t.pvp));
-        if (worth.length) {
-          out.push('            talents = { ' + worth
-            .map((t) => `{ spell = ${t.spell}, rank = ${t.rank}, pct = ${t.pct}${t.pvp ? ', pvp = true' : ''} }`)
-            .join(', ') + ' },');
+      // Ein Build ist nicht "Verstaerkung", er ist "Verstaerkung mit
+      // Sturmbringer". Gemischt stand er als 22 % da, wo es zwei Builds
+      // zu je 45 % waren.
+      emitTalents(out, entry, "            ");
+      if (entry.hero && Object.keys(entry.hero).length) {
+        out.push("            hero = {");
+        for (const [subTree, h] of Object.entries(entry.hero)) {
+          out.push(`              [${subTree}] = { players = ${h.players || 0}, pct = ${h.pct || 0},`);
+          emitTalents(out, h, "                ");
+          out.push("              },");
         }
+        out.push("            },");
       }
-      // Der haeufigste vollstaendige Build - die Antwort auf "was stelle
-      // ich ein", die aus den Einzelanteilen NICHT hervorgeht.
-      if (entry.build && entry.build.nodes && entry.build.nodes.length) {
-        // Die fertige Importkette, wenn die Quelle eine liefert.
-        //
-        // raider.io tut es: vom Spiel erzeugt, nicht nachgebaut. Der
-        // eigene Kodierer bleibt als Rueckfall fuer Quellen ohne sie.
-        const text = entry.build.text
-          ? `text = ${luaString(entry.build.text)}, ` : '';
-        out.push(`            build = { pct = ${entry.build.pct}, ${text}nodes = { `
-          + entry.build.nodes
-            .map((n) => `{ spell = ${n.spell}, rank = ${n.rank} }`)
-            .join(', ') + ' } },');
+      // Der Omnium Folio: je Rune der Anteil, in den Zeilen des Baums.
+      if (entry.folio && entry.folio.length) {
+        out.push("            folio = { " + entry.folio
+          .map((r) => `{ spell = ${r.spell}, pct = ${r.pct} }`).join(", ") + " },");
       }
       // Die Spieler, die die Quelle oben fuehrt.
       //
@@ -310,16 +321,6 @@ for (const [mode, bySource] of Object.entries(byMode)) {
             + ', url = ' + luaString('https://murlok.io/character/'
               + p.region + '/' + p.slug + '/' + p.character) + ' }')
           .join(', ') + ' },');
-      }
-      // Die naechsthaeufigsten Builds, je als Unterschied zum ersten.
-      if (entry.builds && entry.builds.length) {
-        out.push('            builds = { ' + entry.builds.map((v) => {
-          const parts = ['pct = ' + v.pct];
-          if (v.text) parts.push('text = ' + luaString(v.text));
-          if (v.added && v.added.length) parts.push('added = { ' + v.added.join(', ') + ' }');
-          if (v.removed && v.removed.length) parts.push('removed = { ' + v.removed.join(', ') + ' }');
-          return '{ ' + parts.join(', ') + ' }';
-        }).join(', ') + ' },');
       }
       if (entry.gear && Object.keys(entry.gear).length) {
         out.push('            gear = {');

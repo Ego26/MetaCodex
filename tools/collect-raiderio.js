@@ -20,6 +20,7 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const zlib = require('zlib');
+const Loadout = require('./loadout');
 
 const BASE = process.argv[2];
 if (!BASE) {
@@ -123,12 +124,22 @@ const slug = (text) => String(text).toLowerCase()
   //
   // Das ist der Unterschied zwischen "elf von siebenundzwanzig Speccs
   // haben einen Dungeon-Build" und einer brauchbaren Stichprobe.
+  //
+  // Jeder String wird ENTSCHLUESSELT (tools/loadout.js, geprueft gegen
+  // 60 Profile mit String und Knoten nebeneinander). Damit liefert die
+  // Laufliste nicht nur die Kette, sondern die Talente selbst - und den
+  // Held-Baum, der aus einem Build zwei macht.
   const runBuilds = {};   // mode -> specID -> text -> Anzahl
+  const decodedRuns = [];  // { mode, specID, text, decoded }
   const noteBuild = (mode, specID, text) => {
     if (!text) return;
     const byMode = runBuilds[mode] || (runBuilds[mode] = {});
     const bySpec = byMode[specID] || (byMode[specID] = {});
     bySpec[text] = (bySpec[text] || 0) + 1;
+    const treeId = Loadout.treeOfSpec(BASE, specID);
+    let decoded = null;
+    try { decoded = treeId && Loadout.decode(BASE, text, treeId); } catch (e) { decoded = null; }
+    if (decoded && decoded.spec === Number(specID)) decodedRuns.push({ mode, specID, text, decoded });
   };
   for (let page = 0; page < PAGES; page++) {
     const url = 'https://raider.io/api/v1/mythic-plus/runs?season=' + season
@@ -227,8 +238,44 @@ const slug = (text) => String(text).toLowerCase()
       // darin falsch; diese Zeichenkette hat das Problem nie.
       buildText: {},
       maxKey: {}, players: 0,
+      // Talente zaehlen eigene Spieler: die Laufliste, nicht die Profile.
+      talentPlayers: 0,
+      // Je Held-Baum dasselbe Zaehlwerk noch einmal.
+      hero: {},
     });
   };
+
+  // Die entschluesselten Strings der Laufliste - in beide Zaehlwerke,
+  // das der Spec und das ihres Held-Baums.
+  const tallyLoadout = (target, decoded, text) => {
+    target.talentPlayers = (target.talentPlayers || 0) + 1;
+    const picked = [];
+    for (const n of decoded.nodes) {
+      if (!n.spell) continue;
+      picked.push(n.spell + ':' + n.rank);
+      const key = n.spell + '|' + n.rank;
+      target.talents[key] = (target.talents[key] || 0) + 1;
+    }
+    if (!picked.length) return;
+    picked.sort();
+    const signature = picked.join(',');
+    target.builds[signature] = (target.builds[signature] || 0) + 1;
+    if (text && !target.buildText[signature]) target.buildText[signature] = text;
+  };
+  let decodedCount = 0, heroSplit = 0;
+  for (const run of decodedRuns) {
+    const e = entryFor(run.mode, run.specID);
+    tallyLoadout(e, run.decoded, run.text);
+    decodedCount += 1;
+    if (run.decoded.subTree) {
+      const h = e.hero[run.decoded.subTree] || (e.hero[run.decoded.subTree] = {
+        talents: {}, builds: {}, buildText: {}, talentPlayers: 0,
+      });
+      tallyLoadout(h, run.decoded, run.text);
+      heroSplit += 1;
+    }
+  }
+  console.log('  Strings entschluesselt: ' + decodedCount + ', davon mit Held-Baum: ' + heroSplit);
 
   let read = 0;
   let failed = 0;
@@ -300,33 +347,8 @@ const slug = (text) => String(text).toLowerCase()
       }
     }
 
-    // Talente liegen fertig vor: Zauber, Rang und - der Punkt, an dem
-    // mein eigener Kodierer gestolpert ist - ob der Knoten geschenkt war.
-    const picked = [];
-    for (const node of (prof.talentLoadout && prof.talentLoadout.loadout) || []) {
-      const entry = node.node && node.node.entries
-        && node.node.entries[node.entryIndex || 0];
-      const spellID = entry && entry.spell && entry.spell.id;
-      if (!spellID) continue;
-      const rank = Number(node.rank) || 1;
-      picked.push(spellID + ':' + rank);
-      for (const spec of specs) {
-        const key = spellID + '|' + rank;
-        spec.talents[key] = (spec.talents[key] || 0) + 1;
-      }
-    }
-    if (picked.length) {
-      picked.sort();
-      const signature = picked.join(',');
-      const text = (prof.talentLoadout && prof.talentLoadout.loadout_text) || null;
-      for (const spec of specs) {
-        spec.builds[signature] = (spec.builds[signature] || 0) + 1;
-        // Die Kette eines Spielers, der GENAU diesen Build hat. Eine
-        // aus einem anderen waere ein anderer Build.
-        if (text && !spec.buildText[signature]) spec.buildText[signature] = text;
-      }
-    }
-
+    // Talente kommen aus der Laufliste (siehe oben), nicht aus dem Profil:
+    // derselbe Spieler steht dort schon, und zweimal zaehlen verzerrt.
     read++;
     if (read % 25 === 0) process.stdout.write('.');
     await sleep(120);
@@ -378,65 +400,54 @@ const slug = (text) => String(text).toLowerCase()
         if (rows.length) out.gear[slotKey] = rows;
       }
 
-      const talentRows = Object.entries(entry.talents)
-        .map(([key, n]) => {
-          const parts = key.split('|');
-          return {
-            spell: Number(parts[0]), rank: Number(parts[1]),
-            pct: Math.round((n / players) * 100),
+      // Talente, Build, Alternativen - fuer die Spec, und dann je Held-Baum.
+      // Der Nenner sind die entschluesselten Strings, nicht die Profile.
+      const talentOut = (src) => {
+        const denom = Math.max(1, src.talentPlayers || 0);
+        const res = {};
+        const rows = Object.entries(src.talents || {})
+          .map(([key, n]) => {
+            const parts = key.split('|');
+            return { spell: Number(parts[0]), rank: Number(parts[1]), pct: Math.round((n / denom) * 100) };
+          })
+          .filter((r) => r.pct > 0)
+          .sort((a, b) => b.pct - a.pct);
+        if (rows.length) res.talents = rows;
+        const builds = Object.entries(src.builds || {}).sort((a, b) => b[1] - a[1]);
+        const asNodes = (signature) => signature.split(',').map((part) => {
+          const bits = part.split(':');
+          return { spell: Number(bits[0]), rank: Number(bits[1]) };
+        });
+        if (builds.length) {
+          const topNodes = asNodes(builds[0][0]);
+          res.build = {
+            pct: Math.round((builds[0][1] / denom) * 100),
+            text: src.buildText[builds[0][0]] || null,
+            nodes: topNodes,
           };
-        })
-        .filter((r) => r.pct > 0)
-        .sort((a, b) => b.pct - a.pct);
-      if (talentRows.length) out.talents = talentRows;
-
-      // Die drei haeufigsten Builds, nicht nur einer.
-      //
-      // "Zwanzig Prozent spielen genau diesen" heisst: achtzig Prozent
-      // nicht. Die naechsten beiden sagen, WORIN sie abweichen - und das
-      // ist die Frage, die hinter jedem Talentvergleich steht.
-      //
-      // Gespeichert wird je Alternative nur der Unterschied zum ersten,
-      // nicht der ganze Build: sechsundsiebzig Knoten dreimal waeren
-      // dreimal so viel Datei fuer dieselbe Auskunft.
-      const builds = Object.entries(entry.builds).sort((a, b) => b[1] - a[1]);
-      const asNodes = (signature) => signature.split(',').map((part) => {
-        const bits = part.split(':');
-        return { spell: Number(bits[0]), rank: Number(bits[1]) };
-      });
-
-      if (builds.length) {
-        const topNodes = asNodes(builds[0][0]);
-        out.build = {
-          pct: Math.round((builds[0][1] / players) * 100),
-          text: entry.buildText[builds[0][0]] || null,
-          nodes: topNodes,
-        };
-
-        const topSet = new Set(topNodes.map((n) => n.spell));
-        const others = [];
-        // Sechs statt drei. Drei war die Zahl, bei der die Liste noch
-        // aufgeraeumt aussah, und genau darum zu wenig: bei einer Spec mit
-        // breiter Meinung stehen die interessanten Abweichungen auf Platz
-        // vier und fuenf. Wer weniger sehen will, klappt sie zu.
-        for (const [signature, count] of builds.slice(1, 8)) {
-          const nodes = asNodes(signature);
-          const set = new Set(nodes.map((n) => n.spell));
-          const added = nodes.filter((n) => !topSet.has(n.spell)).map((n) => n.spell);
-          const removed = topNodes.filter((n) => !set.has(n.spell)).map((n) => n.spell);
-          // Ein Build, der sich in nichts unterscheidet, ist derselbe -
-          // das kann bei verschiedenen Raengen vorkommen.
-          if (!added.length && !removed.length) continue;
-          if (others.length >= 6) break;
-          others.push({
-            pct: Math.round((count / players) * 100),
-            text: entry.buildText[signature] || null,
-            added, removed,
-          });
+          const topSet = new Set(topNodes.map((n) => n.spell));
+          const others = [];
+          for (const [signature, count] of builds.slice(1, 12)) {
+            const nodes = asNodes(signature);
+            const set = new Set(nodes.map((n) => n.spell));
+            const added = nodes.filter((n) => !topSet.has(n.spell)).map((n) => n.spell);
+            const removed = topNodes.filter((n) => !set.has(n.spell)).map((n) => n.spell);
+            if (!added.length && !removed.length) continue;
+            if (others.length >= 6) break;
+            others.push({ pct: Math.round((count / denom) * 100), text: src.buildText[signature] || null, added, removed });
+          }
+          if (others.length) res.builds = others;
         }
-        if (others.length) out.builds = others;
+        return res;
+      };
+      Object.assign(out, talentOut(entry));
+      if (entry.hero && Object.keys(entry.hero).length) {
+        const total = Math.max(1, entry.talentPlayers || 0);
+        out.hero = {};
+        for (const [sub, h] of Object.entries(entry.hero)) {
+          out.hero[sub] = { players: h.talentPlayers || 0, pct: Math.round(((h.talentPlayers || 0) / total) * 100), ...talentOut(h) };
+        }
       }
-
       specs[specID] = out;
     }
 

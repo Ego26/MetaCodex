@@ -112,10 +112,13 @@ async function profile(region, realm, name) {
   if (data && data.talentLoadout) {
     const lo = data.talentLoadout;
     const spells = [];
+    // Der Held-Baum: raider.io schreibt ihn an jeden Knoten, der dazugehoert.
+    let subTree = 0;
     for (const node of lo.loadout || []) {
       const entry = node.node && node.node.entries && node.node.entries[node.entryIndex || 0];
       const spell = entry && entry.spell && entry.spell.id;
       if (spell) spells.push({ spell, rank: Number(node.rank) || 1 });
+      if (node.node && node.node.subTreeId && !subTree) subTree = Number(node.node.subTreeId);
     }
     const gear = {};
     for (const [slot, item] of Object.entries((data.gear && data.gear.items) || {})) {
@@ -130,7 +133,7 @@ async function profile(region, realm, name) {
     out = {
       spec: Number(lo.loadout_spec_id) || 0,
       text: lo.loadout_text || null,
-      spells, gear,
+      spells, gear, subTree,
       ilvl: (data.gear && data.gear.item_level_equipped) || 0,
       url: data.profile_url || null,
     };
@@ -238,6 +241,7 @@ function buildsFrom(players) {
             spells: prof ? prof.spells : [],
             gear: prof ? prof.gear : {},
             ilvl: prof ? prof.ilvl : 0,
+            subTree: prof ? prof.subTree : 0,
           });
         }
       } else {
@@ -257,6 +261,7 @@ function buildsFrom(players) {
             spells: prof ? prof.spells : [],
             gear: prof ? prof.gear : {},
             ilvl: prof ? prof.ilvl : 0,
+            subTree: prof ? prof.subTree : 0,
           });
           if (players.filter((x) => x.verified).length >= MAX) break;
         }
@@ -264,7 +269,15 @@ function buildsFrom(players) {
       if (!players.length) continue;
       const derived = buildsFrom(players);
       if (derived.build) withBuild += 1;
-      out[specID] = { players: players.slice(0, MAX_RAID), ...derived };
+      // Dasselbe je Held-Baum: nur die verifizierten Spieler dieses Baums.
+      const hero = {};
+      const verifiedAll = players.filter((x) => x.verified && x.text);
+      for (const sub of new Set(verifiedAll.map((x) => x.subTree).filter(Boolean))) {
+        const mine = verifiedAll.filter((x) => x.subTree === sub);
+        const d = buildsFrom(mine);
+        if (d.build) hero[sub] = { players: mine.length, pct: Math.round((mine.length / verifiedAll.length) * 100), ...d };
+      }
+      out[specID] = { players: players.slice(0, MAX_RAID), ...derived, hero: Object.keys(hero).length ? hero : undefined };
       process.stdout.write(derived.build ? '+' : '.');
     }
     console.log('\n  ' + Object.keys(out).length + ' Speccs, ' + withBuild + ' mit verifiziertem Build');

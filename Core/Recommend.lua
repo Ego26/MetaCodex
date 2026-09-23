@@ -337,10 +337,18 @@ end
 ---@return table[]|nil picks  { spell, rank, pct }
 ---@return table|nil build    { pct, nodes }
 ---@return string|nil fromSource
-function Recommend.Talents(specID, mode, source)
+function Recommend.Talents(specID, mode, source, hero)
     local d = data()
     local byMode = d and d.modes and d.modes[mode]
     if not byMode or not specID then return nil end
+
+    -- Mit Held-Baum zaehlt nur, was die Quelle fuer DIESEN Baum hat.
+    -- "Verstaerkung" und "Verstaerkung mit Sturmbringer" sind zwei
+    -- Builds; gemischt stand einer als 22 % da, wo es zwei zu 45 % waren.
+    local function view(entry)
+        if not hero then return entry end
+        return entry and entry.hero and entry.hero[hero] or nil
+    end
 
     local function has(entry, what)
         if not entry then return false end
@@ -364,7 +372,7 @@ function Recommend.Talents(specID, mode, source)
     local names = (source and source ~= Recommend.ALL) and { source } or Recommend.SourcesFor(mode)
     for _, name in ipairs(names) do
         local part = byMode[name]
-        local entry = part and part.specs and part.specs[specID]
+        local entry = view(part and part.specs and part.specs[specID])
         if not picks and has(entry, "picks") then picks, picksFrom = entry.talents, name end
         if has(entry, "build") then
             if entry.build.text and not (build and build.text) then
@@ -379,7 +387,7 @@ function Recommend.Talents(specID, mode, source)
     -- Plattformen", und die Zeile sagt, von wem. Das ist die Regel
     -- fuer alles - was eine Plattform nicht hat, holt sie sich dort.
     if source and source ~= Recommend.ALL and (picks or build) and not (build and build.text) then
-        local _, allBuild, _, allFrom = Recommend.Talents(specID, mode, Recommend.ALL)
+        local _, allBuild, _, allFrom = Recommend.Talents(specID, mode, Recommend.ALL, hero)
         if allBuild and allBuild.text and allFrom ~= source then
             build, buildFrom = copyWith(allBuild, { fromSource = allFrom }), allFrom
         end
@@ -390,7 +398,7 @@ function Recommend.Talents(specID, mode, source)
     if (picks or build) and not (build and build.text) then
         local base = Recommend.BaseMode(mode)
         if base ~= mode then
-            local _, baseBuild, _, baseFrom = Recommend.Talents(specID, base, Recommend.ALL)
+            local _, baseBuild, _, baseFrom = Recommend.Talents(specID, base, Recommend.ALL, hero)
             if baseBuild and baseBuild.text then
                 build, buildFrom = copyWith(baseBuild, { fromBase = true }), baseFrom
             end
@@ -506,6 +514,8 @@ function Recommend.HasSection(specID, mode, source, section)
         return Recommend.Gear(specID, mode, source) ~= nil
     elseif section == "players" then
         return Recommend.Players(specID, mode, source) ~= nil
+    elseif section == "folio" then
+        return Recommend.Folio(specID, mode, source) ~= nil
     elseif section == "enchants" then
         local entry = Recommend.For(specID, mode, source)
         return entry ~= nil and (entry.enchants ~= nil or entry.gems ~= nil)
@@ -613,7 +623,7 @@ end
 ---@param mode string
 ---@param source string|nil
 ---@return table[]|nil
-function Recommend.OtherBuilds(specID, mode, source)
+function Recommend.OtherBuilds(specID, mode, source, hero)
     local d = data()
     local byMode = d and d.modes and d.modes[mode]
     if not byMode or not specID then return nil end
@@ -622,7 +632,58 @@ function Recommend.OtherBuilds(specID, mode, source)
     for _, name in ipairs(names) do
         local part = byMode[name]
         local entry = part and part.specs and part.specs[specID]
+        if hero then entry = entry and entry.hero and entry.hero[hero] or nil end
         if entry and entry.builds and #entry.builds > 0 then return entry.builds end
+    end
+    return nil
+end
+
+---Die Held-Baeume, die fuer diese Spec und Aktivitaet gespielt werden.
+---
+---Aus den Daten, nicht aus einer Liste: welcher Baum vorkommt und wie
+---oft, sagt die Messung. Die Anteile der ersten Quelle, die sie hat.
+---@param specID number
+---@param mode string
+---@param source string|nil
+---@return table[] { id, pct, players }  haeufigster zuerst
+function Recommend.HeroTrees(specID, mode, source)
+    local d = data()
+    local byMode = d and d.modes and d.modes[mode]
+    if not byMode or not specID then return {} end
+    local names = (source and source ~= Recommend.ALL) and { source }
+        or Recommend.SourcesFor(mode)
+    local out = {}
+    for _, name in ipairs(names) do
+        local part = byMode[name]
+        local entry = part and part.specs and part.specs[specID]
+        if entry and entry.hero and next(entry.hero) then
+            for id, h in pairs(entry.hero) do
+                out[#out + 1] = { id = id, pct = h.pct or 0, players = h.players or 0 }
+            end
+            break
+        end
+    end
+    table.sort(out, function(a, b) return a.pct > b.pct end)
+    return out
+end
+
+---Die Folio-Runen einer Spec: je Rune der Anteil. Erste Quelle, die
+---sie misst - das ist Warcraft Logs, denn nur dort sind sie sichtbar.
+---@param specID number
+---@param mode string
+---@param source string|nil
+---@return table[]|nil { spell, pct }
+---@return string|nil fromSource
+function Recommend.Folio(specID, mode, source)
+    local d = data()
+    local byMode = d and d.modes and d.modes[mode]
+    if not byMode or not specID then return nil end
+    local names = (source and source ~= Recommend.ALL) and { source }
+        or Recommend.SourcesFor(mode)
+    for _, name in ipairs(names) do
+        local part = byMode[name]
+        local entry = part and part.specs and part.specs[specID]
+        if entry and entry.folio and #entry.folio > 0 then return entry.folio, name end
     end
     return nil
 end

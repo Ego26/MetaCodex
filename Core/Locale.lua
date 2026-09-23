@@ -42,6 +42,13 @@ function ns.RegisterLocale(localeName, entries)
     end
 end
 
+---Die Sprache, die gerade gilt - fuer Texte, die nicht in L stehen,
+---sondern aus den Spieldaten kommen (Namen der Held-Baeume).
+---@return string "deDE" | "enUS" | ...
+function ns.CurrentLocale()
+    return override or locale
+end
+
 ---Schaltet die Sprache der Oberflaeche um, unabhaengig vom Client.
 ---Wer auf einem englischen Client deutsch spielt, soll das koennen.
 ---@param localeName string "deDE", "enUS" oder "auto"

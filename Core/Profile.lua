@@ -500,6 +500,23 @@ function Profile.TargetLabel()
     return target and target.label or nil
 end
 
+---Der gewaehlte Held-Baum der GEZEIGTEN Spec. Nil heisst: alle.
+---
+---Je Spec gemerkt: Sturmbringer ist eine Wahl des Verstaerkungs-
+---Schamanen und sagt ueber den Wiederherstellungs-Druiden nichts.
+---@return number|nil subTreeID
+function Profile.HeroTree()
+    local db = MetaCodexDB or {}
+    local by = db.hero
+    return by and by[Profile.SelectedSpec()] or nil
+end
+
+---@param subTreeID number|nil
+function Profile.SetHeroTree(subTreeID)
+    MetaCodexDB.hero = MetaCodexDB.hero or {}
+    MetaCodexDB.hero[Profile.SelectedSpec()] = subTreeID
+end
+
 ---@return string "endOfRun" oder "vault"
 function Profile.KeySource()
     local db = MetaCodexDB or {}

@@ -126,13 +126,14 @@ function emitEnchants(groups) {
   }
   console.log('Build:', build);
 
-  const db2 = async (table, filter) => {
+  const db2 = async (table, filter, extra) => {
     let url = `https://wago.tools/db2/${table}/csv?build=${build}`;
     if (filter) {
       for (const [k, v] of Object.entries(filter)) {
         url += `&filter%5B${encodeURIComponent(k)}%5D=${encodeURIComponent(v)}`;
       }
     }
+    if (extra) url += '&' + extra;
     return parseCSV(await get(url));
   };
 
@@ -144,7 +145,8 @@ function emitEnchants(groups) {
 
   const [items, gemProps, sieRows, itemEffects, itemLinks, spellEffects, itemClasses,
     chrSpecs, chrClasses, journalItems, journalEncounters, itemSets, levelDeltas,
-    trackRows, traitDefs, pvpTalents, spellNames]
+    trackRows, traitDefs, pvpTalents, spellNames,
+    traitNodes, traitNodeXEntry, traitEntries, traitLoadouts, subTreesEN, subTreesDE]
     = await Promise.all([
       db2('ItemSparse', { ExpansionID: String(expansion) }),
       db2('GemProperties'),
@@ -169,6 +171,15 @@ function emitEnchants(groups) {
       db2('TraitDefinition'),
       db2('PvpTalent'),
       db2('SpellName'),
+      // Die Talentbaeume selbst: fuer den Decoder der Importstrings und
+      // fuer die Held-Baeume. Einmal englisch, einmal deutsch - der
+      // Client kann einen fremden Held-Baum nicht benennen.
+      db2('TraitNode'),
+      db2('TraitNodeXTraitNodeEntry'),
+      db2('TraitNodeEntry'),
+      db2('TraitTreeLoadout'),
+      db2('TraitSubTree'),
+      db2('TraitSubTree', null, 'locale=deDE'),
     ]);
   console.log('Gegenstaende:', items.length);
 
@@ -416,6 +427,103 @@ function emitEnchants(groups) {
   console.log('Aufwertungspfade:', tracks.length, 'Pfade,',
     new Set(tracks.map((t) => t.name)).size, 'Namen');
 
+  // --- Die Talentbaeume, fuer den Decoder --------------------------------
+  //
+  // Je Baum die Knoten in aufsteigender ID - so laeuft Blizzards Export
+  // durch den Baum -, je Knoten seine Eintraege in ihrer Reihenfolge, je
+  // Eintrag Rangzahl, Held-Baum und Zauber. Dazu, welcher Baum zu welcher
+  // Spec gehoert. Geprueft gegen 60 raider.io-Profile: jeder Knoten stimmt.
+  const defSpell = new Map();
+  for (const row of traitDefs) {
+    const id = Number(row.SpellID) || Number(row.VisibleSpellID) || 0;
+    if (id) defSpell.set(Number(row.ID), id);
+  }
+  const entryInfo = new Map();
+  for (const row of traitEntries) {
+    entryInfo.set(Number(row.ID), {
+      id: Number(row.ID), maxRanks: Number(row.MaxRanks) || 1,
+      subTree: Number(row.TraitSubTreeID) || 0, spell: defSpell.get(Number(row.TraitDefinitionID)) || 0,
+    });
+  }
+  const entriesOfNode = new Map();
+  for (const row of traitNodeXEntry) {
+    const list = entriesOfNode.get(Number(row.TraitNodeID)) || [];
+    list.push({ index: Number(row._Index) || 0, entry: Number(row.TraitNodeEntryID) });
+    entriesOfNode.set(Number(row.TraitNodeID), list);
+  }
+  const treesOut = {};
+  for (const row of traitNodes) {
+    const treeID = Number(row.TraitTreeID);
+    if (!treeID) continue;
+    const tree = treesOut[treeID] || (treesOut[treeID] = { nodes: [] });
+    const entries = (entriesOfNode.get(Number(row.ID)) || []).sort((a, b) => a.index - b.index)
+      .map((e) => entryInfo.get(e.entry)).filter(Boolean)
+      .map((e) => ({ id: e.id, maxRanks: e.maxRanks, subTree: e.subTree, spell: e.spell }));
+    tree.nodes.push({ id: Number(row.ID), type: Number(row.Type) || 0, subTree: Number(row.TraitSubTreeID) || 0, entries });
+  }
+  for (const tree of Object.values(treesOut)) tree.nodes.sort((a, b) => a.id - b.id);
+  const treeBySpec = {};
+  for (const row of traitLoadouts) {
+    const spec = Number(row.ChrSpecializationID), tree = Number(row.TraitTreeID);
+    if (spec && tree && treesOut[tree]) treeBySpec[spec] = tree;
+  }
+  const subTrees = {};
+  const deName = new Map(subTreesDE.map((r) => [Number(r.ID), r.Name_lang]));
+  for (const row of subTreesEN) {
+    const id = Number(row.ID);
+    if (!id || /DNT/.test(row.Name_lang || '')) continue;
+    subTrees[id] = { en: row.Name_lang, de: deName.get(id) || row.Name_lang, tree: Number(row.TraitTreeID) || 0 };
+  }
+  // Nur Baeume, die eine Spec spielt - die Tabelle kennt auch Testbaeume.
+  const used = new Set(Object.values(treeBySpec));
+  for (const id of Object.keys(treesOut)) if (!used.has(Number(id))) delete treesOut[id];
+
+  // --- Der Omnium Folio -----------------------------------------------
+  //
+  // Ein Talentbaum wie jeder andere, nur ohne Spec. Seine Definitionen
+  // sind die Runen; die Zeile ist die Position im Baum. Der Baum wird
+  // nicht per Nummer gesucht, sondern ueber seine Runen - die Nummer
+  // kann sich aendern, der Name 'Rune of' nicht.
+  const nameOfSpell = new Map(spellNames.map((r) => [Number(r.ID), r.Name_lang]));
+  const runeTrees = new Map();
+  for (const row of traitNodes) {
+    for (const e of entriesOfNode.get(Number(row.ID)) || []) {
+      const info = entryInfo.get(e.entry);
+      const name = info && nameOfSpell.get(info.spell);
+      if (name && /^Rune of /.test(name) && info.spell > 1270000) {
+        const list = runeTrees.get(Number(row.TraitTreeID)) || [];
+        list.push({ y: Number(row.PosY) || 0, x: Number(row.PosX) || 0, spell: info.spell, name });
+        runeTrees.set(Number(row.TraitTreeID), list);
+      }
+    }
+  }
+  let folio = null;
+  for (const [treeID, list] of runeTrees) {
+    if (!folio || list.length > folio.runes.length) folio = { tree: treeID, runes: list };
+  }
+  const folioRows = [];
+  if (folio) {
+    // Die Aura, die im Kampf sichtbar ist, heisst wie die Rune, hat aber
+    // eine andere Nummer. Gesucht wird sie beim Namen - INNERHALB der
+    // Runen des Baums, nicht ueber alle Zauber: so faengt sich kein
+    // Todesritter-Runenschmied mehr darin.
+    const byName = new Map();
+    for (const [id, name] of nameOfSpell) if (id > 1270000) { const l = byName.get(name) || []; l.push(id); byName.set(name, l); }
+    const rows = new Map();
+    for (const r of folio.runes) {
+      const auras = (byName.get(r.name) || []).filter((id) => id !== r.spell);
+      const short = r.name.replace(/^Rune of (the )?/, '');
+      const auras2 = (byName.get(short) || []).filter((id) => id !== r.spell);
+      const row = rows.get(r.y) || []; rows.set(r.y, row);
+      row.push({ spell: r.spell, auras: [...new Set([...auras, ...auras2])], x: r.x });
+    }
+    for (const y of [...rows.keys()].sort((a, b) => a - b)) folioRows.push(rows.get(y).sort((a, b) => a.x - b.x).map((r) => ({ spell: r.spell, auras: r.auras })));
+    console.log('Omnium Folio: Baum', folio.tree, '|', folio.runes.length, 'Runen in', folioRows.length, 'Zeilen');
+  } else {
+    console.log('Omnium Folio: kein Runenbaum gefunden');
+  }
+
+
   // --- Set-Teil oder Handwerksstueck ------------------------------------
   //
   // Das ist eine Eigenschaft des GEGENSTANDS, nicht der Beobachtung -
@@ -658,6 +766,22 @@ function emitEnchants(groups) {
   }
   out.push('  },');
   out.push('');
+  out.push('  -- Die Held-Baeume, in beiden Sprachen: der Client kann einen fremden');
+  out.push('  -- Held-Baum nicht benennen, und der eigene ist nicht der einzige.');
+  out.push('  subtrees = {');
+  for (const [id, st] of Object.entries(subTrees).sort((a, b) => a[0] - b[0])) {
+    out.push(`    [${id}] = { en = ${luaString(st.en)}, de = ${luaString(st.de)} },`);
+  }
+  out.push('  },');
+  out.push('');
+  out.push('  -- Der Omnium Folio: Runen je Zeile, als Zauber-IDs. Die Aura, an der');
+  out.push('  -- man sie im Kampf erkennt, steht daneben.');
+  out.push('  folio = {');
+  for (const row of folioRows) {
+    out.push('    { ' + row.map((r) => `{ spell = ${r.spell}, auras = { ${r.auras.join(', ')} } }`).join(', ') + ' },');
+  }
+  out.push('  },');
+  out.push('');
   out.push('  tracks = {');
   for (const t of tracks) {
     out.push(`    { path = ${t.path}, name = ${t.name}, lists = { ${t.lists.join(', ')} } },`);
@@ -742,6 +866,10 @@ function emitEnchants(groups) {
     if (name) talentNames[id] = name;
     (pvpBySpec[spec] = pvpBySpec[spec] || []).push(id);
   }
+  fs.writeFileSync(path.join(mapDir, 'trait-map.json'), JSON.stringify({
+    build, trees: treesOut, treeBySpec, subTrees, folio: folioRows,
+  }), 'utf8');
+  console.log('Talentbaeume:', Object.keys(treesOut).length, '| Speccs mit Baum:', Object.keys(treeBySpec).length, '| Held-Baeume:', Object.keys(subTrees).length);
   fs.writeFileSync(path.join(mapDir, 'journal-drops.json'), JSON.stringify(journalAll), 'utf8');
   console.log('Journal gesamt:', Object.keys(journalAll).length, 'Gegenstaende');
   fs.writeFileSync(path.join(mapDir, 'talent-map.json'), JSON.stringify({

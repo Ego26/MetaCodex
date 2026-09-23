@@ -752,6 +752,18 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
     path.join(BASE, 'tools', 'data', 'enchant-map.json'), 'utf8'));
   const consumables = await readConsumableItems(gameBuild, catalog.expansion);
   const talentSpells = await readTalentSpells(gameBuild);
+  // Held-Baum je Talenteintrag und die Folio-Runen - aus der Baumkarte,
+  // die build-catalog.js aus den Spieldaten schreibt.
+  const entrySubTree = new Map();
+  const folioAura = new Map();   // Auren-ID -> Runen-Zauber
+  try {
+    const tm = JSON.parse(fs.readFileSync(path.join(BASE, 'tools', 'data', 'trait-map.json'), 'utf8'));
+    for (const tree of Object.values(tm.trees || {})) {
+      for (const node of tree.nodes) for (const e of node.entries) if (e.subTree) entrySubTree.set(e.id, e.subTree);
+    }
+    for (const row of tm.folio || []) for (const r of row) for (const a of r.auras || []) folioAura.set(a, r.spell);
+    console.log('Baumkarte: ' + entrySubTree.size + ' Held-Eintraege, ' + folioAura.size + ' Folio-Auren');
+  } catch (e) { console.log('  ! keine trait-map.json - ohne Held-Baeume und Folio'); }
 
   console.log(`Katalog: ${catalog.enchantByName.size} Verzauberungen, ${catalog.gemIDs.size} Steine`);
   console.log(`Verzauberungs-IDs: ${Object.keys(enchantMap).length}, `
@@ -776,6 +788,7 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
       enchants: {}, gems: {}, consumables: {}, gear: {},
       talents: {}, builds: {}, ratings: [], maxKey: {}, players: 0,
       names: [],
+      hero: {}, folio: {},
     });
   };
   // Welche Zaehlwerke der gerade gelesene Kampf fuettert.
@@ -951,6 +964,17 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
       // Einzeltalente ergeben zusammen oft einen Build, den so niemand
       // spielt, weil sie einander ausschliessen.
       const picked = [];
+      // Der Held-Baum dieses Spielers: der Baum, dem seine Eintraege
+      // angehoeren. Ein Spieler hat genau einen.
+      let heroTree = 0;
+      for (const node of event.talentTree || []) {
+        const sub = entrySubTree.get(Number(node.id));
+        if (sub) { heroTree = sub; break; }
+      }
+      const heroTallies = heroTree ? seenAll.map((spec) => spec.hero[heroTree] || (spec.hero[heroTree] = {
+        talents: {}, builds: {}, players: 0,
+      })) : [];
+      for (const h of heroTallies) h.players += 1;
       for (const node of event.talentTree || []) {
         const spellID = talentSpells.get(Number(node.id));
         if (!spellID) continue;
@@ -960,6 +984,7 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
         for (const spec of seenAll) {
           spec.talents[key] = (spec.talents[key] || 0) + 1;
         }
+        for (const h of heroTallies) h.talents[key] = (h.talents[key] || 0) + 1;
       }
       if (picked.length) {
         picked.sort();
@@ -967,6 +992,7 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
         for (const spec of seenAll) {
           spec.builds[signature] = (spec.builds[signature] || 0) + 1;
         }
+        for (const h of heroTallies) h.builds[signature] = (h.builds[signature] || 0) + 1;
         // Name, Realm und die Talente DIESES Kampfes. Damit laesst sich
         // spaeter pruefen, ob die Kette aus dem Profil wirklich der
         // Build ist, der hier gespielt wurde - und nicht der M+-Build
@@ -983,6 +1009,10 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
       // einen Einkaufszettel.
       for (const aura of event.auras || []) {
         const spellID = Number(aura.ability);
+        // Eine Folio-Rune? Dann zaehlt sie hier - und sonst nirgends: sie
+        // ist kein Gegenstand und kein Talent, nur eine Aura beim Pull.
+        const rune = folioAura.get(spellID);
+        if (rune) { for (const spec of seenAll) spec.folio[rune] = (spec.folio[rune] || 0) + 1; }
         const itemID = consumables.bySpell.get(spellID);
         if (itemID) {
           bump(specID, 'consumables', itemID);
@@ -1147,6 +1177,35 @@ Haeufigste nicht zugeordnete Auren (${missedAuras.size} verschiedene):`);
       if (talentRows.length) out.talents = talentRows;
       // Nur fuer den Profil-Sammler; das Addon bekommt das nie zu sehen.
       if (entry.names && entry.names.length) out.lookup = entry.names;
+
+      // Je Held-Baum: Anteil der Spieler, Talente, haeufigster Build.
+      if (entry.hero && Object.keys(entry.hero).length) {
+        out.hero = {};
+        for (const [sub, h] of Object.entries(entry.hero)) {
+          const denom = Math.max(1, h.players);
+          const ho = { players: h.players, pct: Math.round((h.players / Math.max(1, entry.players)) * 100) };
+          const rows = Object.entries(h.talents).map(([key, n]) => {
+            const parts = key.split('|');
+            return { spell: Number(parts[0]), rank: Number(parts[1]), pct: Math.round((n / denom) * 100) };
+          }).filter((r) => r.pct > 0).sort((a, b) => b.pct - a.pct);
+          if (rows.length) ho.talents = rows;
+          const hb = Object.entries(h.builds).sort((a, b) => b[1] - a[1]);
+          if (hb.length) {
+            ho.build = {
+              pct: Math.round((hb[0][1] / denom) * 100),
+              nodes: hb[0][0].split(',').map((part) => { const b = part.split(':'); return { spell: Number(b[0]), rank: Number(b[1]) }; }),
+            };
+          }
+          out.hero[sub] = ho;
+        }
+      }
+      // Der Omnium Folio: je Rune der Anteil der Spieler, die sie trugen.
+      if (entry.folio && Object.keys(entry.folio).length) {
+        out.folio = Object.entries(entry.folio)
+          .map(([spell, n]) => ({ spell: Number(spell), pct: Math.round((n / Math.max(1, entry.players)) * 100) }))
+          .filter((r) => r.pct > 0)
+          .sort((a, b) => b.pct - a.pct);
+      }
 
       const builds = Object.entries(entry.builds || {}).sort((a, b) => b[1] - a[1]);
       if (builds.length) {
