@@ -63,6 +63,9 @@ end
 -- Zielwerte brauchen mehr Hoehe als eine Einkaufszeile: Bahn UND Zahl.
 local STAT_ROW_HEIGHT = 46
 local HEADER, FOOTER = 56, 48
+-- Hoehe der zweiten Kopfzeile, in die die Knoepfe rutschen, wenn sie neben
+-- dem Titel nicht mehr passen.
+local HEADER_ROW = 28
 local ROW_HEIGHT = 46
 
 
@@ -2531,25 +2534,51 @@ function UI.Refresh()
     -- Feste Abstaende waeren ohnehin falsch, sobald ein Knopf wegfaellt -
     -- und zwar unsichtbar falsch: Text unter Knopf.
     local edge, gap = -S.space.xl, S.space.sm
+    local ROW = {
+        { frame.backButton, 175 }, { frame.levelButton, 175 },
+        { frame.slotButton, 150 }, { frame.originButton, 170 },
+        { frame.heroButton, 170 }, { frame.categoryButton, 170 },
+        { frame.dungeonButton, 160 },
+    }
+
+    -- Erst messen, dann setzen.
+    --
+    -- Neben dem Titel ist nur Platz, solange das Fenster breit genug ist.
+    -- Wer es schmal zieht, sah vorher "Ausruestung" halb unter dem ersten
+    -- Knopf verschwinden. Passt die Reihe nicht, rueckt sie in eine eigene
+    -- Zeile darunter - und alles darunter folgt.
+    local strip = 0
+    for _, pair in ipairs(ROW) do
+        if pair[1]:IsShown() then strip = strip + pair[2] + gap end
+    end
+    local titleRoom = (sectionTitle:GetStringWidth() or 0) + S.space.xl + S.space.lg
+    local avail = contentWidth() - S.space.xl
+    -- Zeile 0 teilt sich der Titel mit den Knoepfen; ab Zeile 1 gehoert
+    -- die Breite ihnen allein. Passen sie auch dann nicht, geht es eine
+    -- Zeile tiefer weiter - bei 760 Pixeln Fensterbreite stehen drei
+    -- Waehler eben nicht nebeneinander.
+    local headerRows = (strip > 0 and (titleRoom + strip + S.space.xl) > contentWidth()) and 1 or 0
+    local function rowOffset() return -S.space.lg - 2 - headerRows * HEADER_ROW end
+
     local function placeRight(widget, width)
         if not widget:IsShown() then return end
+        if (-edge) + width > avail then
+            headerRows = headerRows + 1
+            edge = -S.space.xl
+        end
         widget:ClearAllPoints()
-        widget:SetPoint("TOPRIGHT", edge, -S.space.lg - 2)
+        widget:SetPoint("TOPRIGHT", edge, rowOffset())
         edge = edge - width - gap
     end
-    placeRight(frame.backButton, 175)
-    placeRight(frame.levelButton, 175)
-    placeRight(frame.slotButton, 150)
-    placeRight(frame.originButton, 170)
-    placeRight(frame.heroButton, 170)
-    placeRight(frame.categoryButton, 170)
-    placeRight(frame.dungeonButton, 160)
+    for _, pair in ipairs(ROW) do placeRight(pair[1], pair[2]) end
+    local wrapped = headerRows > 0
     sectionCount:ClearAllPoints()
-    sectionCount:SetPoint("TOPRIGHT", edge, -S.space.lg - 3)
+    sectionCount:SetPoint("TOPRIGHT", edge, rowOffset() - 1)
 
     local shown = currentRows
 
     local scrollTop = 156 + (frame.controls:IsShown() and 0 or -128)
+        + headerRows * HEADER_ROW
     frame.scroll:SetPoint("TOPLEFT", S.space.xl, -S.space.xl - scrollTop)
     hintText:SetPoint("TOPLEFT", S.space.xl, -S.space.xl - (scrollTop - 16))
 
@@ -2561,7 +2590,8 @@ function UI.Refresh()
     -- Ohne die Kennwert-Zeilen steht der Hinweis direkt unter dem Titel,
     -- auf der Hoehe der Knopfreihe. Dann endet er, wo die Knoepfe
     -- beginnen - sonst liegt "Zurueck zu Top-Spieler" auf dem Satz.
-    local reserved = frame.controls:IsShown() and 0 or (-S.space.xl - edge)
+    local reserved = (frame.controls:IsShown() or wrapped) and 0
+        or (-S.space.xl - edge)
     hintText:SetWidth(math.max(120, width - reserved))
     sourceText:SetWidth(math.max(200, frame:GetWidth() - 360))
 

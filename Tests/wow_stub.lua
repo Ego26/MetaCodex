@@ -92,6 +92,10 @@ Mock.methods.CreateFontString = function() return Mock.new("fontstring") end
 -- Welche Textur gesetzt wurde - damit ein Test fragen kann, ob das
 -- Logo dran ist und nicht ein Fragezeichen.
 Mock.methods.SetTexture = function(self, texture) self.__texture = texture end
+-- Breite eines Textes: die Oberflaeche entscheidet an ihr, ob eine
+-- Knopfreihe neben den Titel passt. Sieben Pixel je Zeichen ist grob,
+-- aber es waechst mit dem Text, und darauf kommt es an.
+Mock.methods.GetStringWidth = function(self) return #tostring(self.__text or "") * 7 end
 Mock.methods.GetTexture = function(self) return self.__texture end
 Mock.methods.GetChecked = function(self) return self.__checked == true end
 Mock.methods.SetChecked = function(self, v) self.__checked = v and true or false end

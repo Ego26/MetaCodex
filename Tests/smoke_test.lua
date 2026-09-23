@@ -1823,6 +1823,51 @@ do
     end
 end
 
+-- ------------------------------------------- Schmales Fenster
+
+-- Das Fenster ist ziehbar. Wird es schmal, passt die Knopfreihe nicht
+-- mehr neben den Abschnittstitel - dann gehoert sie darunter, nicht
+-- darauf.
+do
+    local f = ns.UI.Frame()
+    local wasWidth = f:GetWidth()
+    local function buttonY()
+        local p = f.levelButton.__points[#f.levelButton.__points]
+        return p and p[3] or 0
+    end
+    f:SetWidth(960)
+    rowsInSection("gear")
+    local wide = buttonY()
+    check("breit: Knoepfe stehen neben dem Titel", wide > -30, tostring(wide))
+    f:SetWidth(520)
+    rowsInSection("gear")
+    local narrow = buttonY()
+    check("schmal: Knoepfe rutschen unter den Titel", narrow <= wide - 20,
+        narrow .. " statt " .. wide)
+    check("schmal: die Liste folgt nach unten",
+        (function()
+            local p = f.scroll.__points[#f.scroll.__points]
+            return p ~= nil and p[3] < 0
+        end)())
+    -- Kein Knopf darf ueber den linken Rand hinausragen, auch nicht bei
+    -- der kleinsten erlaubten Breite.
+    f:SetWidth(760)
+    rowsInSection("gear")
+    local over = 0
+    for _, pair in ipairs({ { f.levelButton, 175 }, { f.slotButton, 150 },
+        { f.originButton, 170 }, { f.heroButton, 170 },
+        { f.categoryButton, 170 }, { f.dungeonButton, 160 } }) do
+        if pair[1]:IsShown() then
+            local p = pair[1].__points[#pair[1].__points]
+            if p and -p[2] + pair[2] > f:GetWidth() - 196 - 24 - 20 then over = over + 1 end
+        end
+    end
+    check("kleinste Breite: kein Knopf ragt hinaus", over == 0, over .. " zu weit")
+    f:SetWidth(wasWidth)
+    rowsInSection("gear")
+    check("wieder breit: Knoepfe stehen wieder oben", buttonY() == wide, tostring(buttonY()))
+end
+
 -- ---------------------------------------------- Charakterfenster
 
 -- Der Knopf im Charakterfenster oeffnet und schliesst das Fenster. Das
