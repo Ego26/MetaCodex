@@ -522,7 +522,7 @@ function Recommend.HasSection(specID, mode, source, section)
         return Recommend.Gear(specID, mode, source) ~= nil
     elseif section == "players" then
         return Recommend.Players(specID, mode, source) ~= nil
-    elseif section == "folio" then
+    elseif section == "folio" then  -- noch gefragt von HasSection("enchants")
         return Recommend.Folio(specID, mode, source) ~= nil
     elseif section == "enchants" then
         local entry = Recommend.For(specID, mode, source)

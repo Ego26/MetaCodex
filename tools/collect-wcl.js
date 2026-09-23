@@ -772,6 +772,12 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
   // dieselbe Regel wie ueberall in diesem Projekt.
   const enchantMap = JSON.parse(fs.readFileSync(
     path.join(BASE, 'tools', 'data', 'enchant-map.json'), 'utf8'));
+  // Und die Runen, die keinen Gegenstand haben.
+  let runeforgeMap = {};
+  try {
+    runeforgeMap = JSON.parse(fs.readFileSync(
+      path.join(BASE, 'tools', 'data', 'runeforge-map.json'), 'utf8'));
+  } catch (e) { /* ohne Karte zaehlt nur, was gekauft wird */ }
   const consumables = await readConsumableItems(gameBuild, catalog.expansion);
   const talentSpells = await readTalentSpells(gameBuild);
   // Held-Baum je Talenteintrag und die Folio-Runen - aus der Baumkarte,
@@ -931,7 +937,12 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
         if (slot && piece.permanentEnchant) {
           const itemID = enchantMap[piece.permanentEnchant];
           if (itemID) bump(specID, slot, itemID);
-          else missedEnchants.add(String(piece.permanentEnchant));
+          else if (runeforgeMap[piece.permanentEnchant]) {
+            // Eine Runenschmiede. Kein Gegenstand, aber sehr wohl das,
+            // was auf der Waffe sitzt - und fuer den Todesritter die
+            // einzige Antwort auf "was gehoert auf die Waffe".
+            bump(specID, 'runeforge', Number(piece.permanentEnchant));
+          } else missedEnchants.add(String(piece.permanentEnchant));
         }
         for (const gem of piece.gems || []) {
           if (gem && gem.id && catalog.gemIDs.has(gem.id)) bump(specID, 'gems', gem.id);

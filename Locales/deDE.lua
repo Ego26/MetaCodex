@@ -43,6 +43,8 @@ ns.RegisterLocale("deDE", {
     -- Zeilen
     ["ALREADY_DONE"]       = "bereits drauf",
     ["OTHER_ENCHANT"]      = "etwas anderes ist drauf: %s",
+    ["RUNEFORGE_NOTE"]     = "wird geschmiedet, nicht gekauft",
+    ["RUNEFORGE_PICK"]     = "Rune auf deiner Waffe",
     ["OWNED"]              = "%d vorhanden",
     ["OWNED_HIGHER"] = "%d in höherer Qualität vorhanden",
     ["OWNED_LOWER"] = "%d in niedrigerer Qualität vorhanden",

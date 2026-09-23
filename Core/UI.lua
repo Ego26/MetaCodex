@@ -114,7 +114,6 @@ local SECTIONS = {
     { key = "stats",       group = "GROUP_KNOW" },
     { key = "talents",     group = "GROUP_KNOW" },
     { key = "players",     group = "GROUP_KNOW" },
-    { key = "folio",       group = "GROUP_KNOW" },
 
     { key = "gear",        group = "GROUP_GEAR" },
     { key = "enchants",    group = "GROUP_GEAR" },
@@ -2004,6 +2003,26 @@ local function setItemRow(row, data)
         return
     end
 
+    if data.kind == "runeforge" then
+        row.link = nil
+        local info = data.spell and C_Spell and C_Spell.GetSpellInfo
+            and C_Spell.GetSpellInfo(data.spell)
+        row.spellID = data.spell
+        row.icon:SetTexture((info and info.iconID) or "Interface\\Icons\\Spell_DeathKnight_RuneTap")
+        row.title:SetText((info and info.name) or L["RUNEFORGE_PICK"])
+        row.detail:ClearAllPoints()
+        row.detail:SetPoint("TOPLEFT", S.space.sm + 38, -S.space.sm - 16)
+        local parts = { L["SLOT_weapon"], L["RUNEFORGE_NOTE"] }
+        if data.worn then
+            parts[#parts + 1] = "|cff" .. S:Hex("success") .. L["ALREADY_DONE"] .. "|r"
+        end
+        row.detail:SetText(table.concat(parts, "  \194\183  "))
+        row.share:SetText(data.pct and (data.pct .. "%") or "")
+        S:Recolor(row.share, (data.pct or 0) >= 50 and "accent" or "textMuted")
+        row.onClick = nil
+        return
+    end
+
     if data.kind == "talent" then
         row.link = nil
         -- Name und Symbol holt der Client aus der Zauber-ID. Gespeichert
@@ -2851,11 +2870,6 @@ function UI.Refresh()
             return talentRows(specID, mode, source)
         end)
         hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted) or "")
-    elseif section.key == "folio" then
-        currentRows, fromSource = withFallback(function(source)
-            return folioRows(specID, mode, source)
-        end)
-        hintText:SetText(#currentRows > 0 and L["FOLIO_HINT"] or emptyReason(mode, wanted))
     elseif section.key == "players" then
         currentRows, fromSource = withFallback(function(source)
             return playerRows(specID, mode, source)
@@ -2885,6 +2899,13 @@ function UI.Refresh()
     else
         hintText:SetText(foreign and L["FOREIGN_CLASS"] or "")
         currentRows = ns.List.Build(ns.Gear.Scan())
+        -- Der Omnium Folio gehoert hierher und nicht in einen eigenen
+        -- Reiter: er ist eine Verzauberung des Charakters, keine eigene
+        -- Gattung. Archon zeigt ihn an derselben Stelle.
+        if section.key == "enchants" then
+            local folio = folioRows(specID, mode, wanted)
+            for _, row in ipairs(folio) do currentRows[#currentRows + 1] = row end
+        end
     end
     frame.__fromSource = fromSource
 

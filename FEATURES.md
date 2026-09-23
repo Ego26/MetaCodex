@@ -80,10 +80,14 @@ you already wear or carry says so — **equipped** or **already in your bags**.
 
 **Enchants & Gems** — What the best wear on which slot, with two
 alternatives per slot and the special socket kept separate. Compared with
-your gear: enchanted slots are skipped, empty sockets counted — the special
-socket by the gem that sits in it — your bags and bank subtracted. Quality
-tiers count: a higher tier in your bags covers the need, a lower one is
-shown but does not. On the right stands what you still need.
+your gear, and compared properly: a slot counts as done when **the
+recommended enchant** is on it, not when any enchant is. A different one
+says so by name and stays on the list. Empty sockets are counted, the
+special socket by the gem that sits in it, and your bags and bank are
+subtracted. Quality tiers count: a higher tier in your bags covers the
+need, a lower one is shown but does not. On the right stands what you
+still need. A dungeon picker narrows all of it to one dungeon; the default
+is all of them.
 
 **Consumables** — Click a row to say **which one you use**: your pick from
 your own bags moves to the top, its stock is counted, and the shopping list

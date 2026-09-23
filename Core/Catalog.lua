@@ -207,6 +207,19 @@ function Catalog.Consumables(kind)
 end
 
 
+---Der Zauber zu einer Runenschmiede.
+---
+---Eine Rune ist eine Verzauberung ohne Gegenstand: der Todesritter
+---schmiedet sie an die Waffe, gekauft wird nichts. Gespeichert ist die
+---Zauber-ID, den Namen holt der Client.
+---@param enchantID number|nil
+---@return number|nil spellID
+function Catalog.RuneforgeSpell(enchantID)
+    if not enchantID then return nil end
+    local c = data()
+    return c and c.runeforge and c.runeforge[enchantID] or nil
+end
+
 ---Der Gegenstand zu einer Verzauberung.
 ---
 ---Im Link eines getragenen Stuecks steht die Zauberkennung, im Katalog

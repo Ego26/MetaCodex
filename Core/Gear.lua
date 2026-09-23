@@ -72,6 +72,19 @@ local function offhandEnchantable(link)
 end
 
 ---Liest die Ausruestung.
+---Die Rune, die auf der Waffe sitzt, wenn eine sitzt.
+---@param scan table
+---@return number|nil spellID
+function Gear.Runeforge(scan)
+    for _, entry in ipairs(scan.slots or {}) do
+        if entry.slot == "weapon" then
+            local spell = ns.Catalog.RuneforgeSpell(entry.enchantID)
+            if spell then return spell end
+        end
+    end
+    return nil
+end
+
 ---@return table scan
 function Gear.Scan()
     local slots, seen = {}, {}
@@ -136,10 +149,14 @@ function Gear.Missing(scan, slot, wanted)
             total = total + 1
             if not entry.enchanted then
                 missing = missing + 1
-            elseif wanted then
+            elseif wanted and not ns.Catalog.RuneforgeSpell(entry.enchantID) then
                 -- Eine Verzauberung ist drauf - aber ist es die richtige?
                 -- Verglichen wird ueber den Gegenstand, denn der steht im
                 -- Katalog; im Link steht nur die Zauberkennung.
+                --
+                -- Eine Runenschmiede ist ausgenommen: sie IST die
+                -- Waffenverzauberung des Todesritters, nur gibt es zu ihr
+                -- keinen Gegenstand, mit dem man sie vergleichen koennte.
                 local onIt = ns.Catalog.EnchantItemOf(entry.enchantID)
                 if onIt and onIt ~= wanted then
                     missing = missing + 1

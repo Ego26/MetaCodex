@@ -263,7 +263,27 @@ function List.Build(scan)
     -- Beinverstaerkung haengt an der Ruestungsklasse, die
     -- Waffenverzauberung an der Spec. Liegt eine Empfehlung vor, entfaellt
     -- die Frage.
+    -- Der Todesritter schmiedet, er kauft nicht.
+    --
+    -- Seine Waffenverzauberung ist eine Rune, und zu einer Rune gibt es
+    -- keinen Gegenstand. Die Frage "welche Verzauberung haettest du
+    -- gern" war fuer ihn unbeantwortbar - sie steht jetzt nicht mehr da.
+    local _, classFile = Compat.ClassOfSpec(specID)
+    local runeforger = classFile == "DEATHKNIGHT"
+    if runeforger then
+        local pick = ns.Recommend.Enchant(rec, "runeforge")
+        local wornSpell = not foreign and Gear.Runeforge(scan) or nil
+        local wantSpell = pick and Catalog.RuneforgeSpell(pick.id) or nil
+        rows[#rows + 1] = {
+            kind = "runeforge", slot = "weapon",
+            spell = wantSpell or wornSpell, worn = wornSpell,
+            pct = pick and pick.pct or nil,
+            need = 1, missing = (wornSpell and 0) or 1, buy = 0,
+        }
+    end
+
     for _, def in ipairs({ { slot = "legs", key = "legs" }, { slot = "weapon", key = "weapon" } }) do
+        if runeforger and def.slot == "weapon" then goto continue end
         local chosen = p[def.key]
         local fallback = chosen and byID(Catalog.EnchantsFor(def.slot), chosen) or nil
         local id, entry, pct = resolve(def.slot, fallback)
@@ -275,6 +295,7 @@ function List.Build(scan)
                 rows[#rows + 1] = { kind = "enchant", slot = def.slot, need = count, pending = def.key }
             end
         end
+        ::continue::
     end
 
     return rows

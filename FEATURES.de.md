@@ -81,11 +81,14 @@ sagt es — **angelegt** oder **liegt schon im Gepäck**.
 
 **Verzauberungen & Steine** — Was die Besten auf welchem Platz tragen, mit
 zwei Alternativen je Platz und dem besonderen Sockel getrennt. Verglichen
-mit deiner Ausrüstung: verzauberte Plätze werden übersprungen, leere Sockel
-gezählt — der besondere Sockel am Stein, der drinsteckt —, dein Beutel und
-deine Bank abgezogen. Qualitätsstufen zählen mit: eine höhere Stufe im
-Beutel deckt den Bedarf, eine niedrigere steht dabei, deckt aber nicht.
-Rechts steht, was du noch brauchst.
+mit deiner Ausrüstung, und zwar richtig: Ein Platz gilt als erledigt, wenn
+**die empfohlene Verzauberung** drauf ist, nicht wenn irgendeine drauf ist.
+Eine andere sagt es mit Namen und bleibt auf der Liste. Leere Sockel werden
+gezählt, der besondere Sockel am Stein, der drinsteckt, und deine Taschen
+und deine Bank werden abgezogen. Qualitätsstufen zählen mit: eine höhere
+Stufe in der Tasche deckt den Bedarf, eine niedrigere steht dabei, deckt
+aber nicht. Rechts steht, was du noch brauchst. Ein Dungeon-Wähler engt
+alles auf einen Dungeon ein; die Vorgabe sind alle.
 
 **Verbrauchsgüter** — Ein Klick auf eine Zeile sagt, **was du selbst
 nimmst**: deine Wahl aus deinen eigenen Taschen rückt nach oben, ihr

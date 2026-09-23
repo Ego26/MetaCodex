@@ -43,6 +43,8 @@ ns.RegisterLocale("enUS", {
     -- Zeilen
     ["ALREADY_DONE"]       = "already applied",
     ["OTHER_ENCHANT"]      = "a different one is on it: %s",
+    ["RUNEFORGE_NOTE"]     = "runeforged, not bought",
+    ["RUNEFORGE_PICK"]     = "Runeforge on your weapon",
     ["OWNED"]              = "%d in bags",
     ["OWNED_HIGHER"] = "%d owned in higher quality",
     ["OWNED_LOWER"] = "%d owned in lower quality",

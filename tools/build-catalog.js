@@ -259,14 +259,38 @@ function emitEnchants(groups) {
     byKey.set(key, entry);
   }
 
+  // Die Runenschmiede des Todesritters.
+  //
+  // Sie sind Verzauberungen wie jede andere - nur kauft man sie nicht,
+  // man schmiedet sie an die Waffe. Es gibt also keinen Gegenstand, und
+  // genau deshalb fielen sie bisher aus jeder Karte heraus: der Blut-DK
+  // bekam unter "Waffe" die Frage, welche Verzauberung er wolle, und
+  // keine Antwort, die er haette geben koennen.
+  //
+  // Gespeichert wird die Zauber-ID, nicht der Name: den Namen holt der
+  // Client, und damit steht er auf jedem Client in seiner Sprache.
+  const runeforges = {};
+  for (const e of sieRows) {
+    if (!/^Rune of /.test(String(e.Name_lang || ''))) continue;
+    const spell = Number(e.EffectArg_0) || 0;
+    if (spell > 0) runeforges[Number(e.ID)] = spell;
+  }
+  console.log('Runenschmiede:', Object.keys(runeforges).length);
+
   // Verzauberungs-ID -> kaufbare Rolle. Nicht fuer das Addon, sondern
   // fuer die Sammler: die Logs melden IDs, gekauft wird ein Gegenstand.
   const enchantMap = {};
   const enchants = {};
   for (const entry of byKey.values()) {
     entry.ranks.sort((a, b) => b.ilvl - a.ilvl);
-    const { stat, power } = describe(enchByName.get(entry.full));
-    for (const enchID of tiersByName.get(entry.full) || []) {
+    // Nachgeschlagen wird mit dem NAMEN DER VERZAUBERUNG, nicht mit dem
+    // des Gegenstands: die Tabelle ist nach "Rite of the Hash'ey"
+    // geschluesselt, der Gegenstand heisst "Enchant Weapon - Rite of the
+    // Hash'ey". Mit dem langen Namen traf der Griff nie, und die Stufen
+    // kamen nur ueber den zweiten Weg herein - wo der schweigt, fehlten
+    // sie ganz.
+    const { stat, power } = describe(enchByName.get(entry.name) || enchByName.get(entry.full));
+    for (const enchID of tiersByName.get(entry.name) || tiersByName.get(entry.full) || []) {
       enchantMap[enchID] = entry.ranks[0].id;
     }
     // Zweiter Weg als Ergaenzung: was der Name nicht hergibt, gibt
@@ -813,6 +837,13 @@ function emitEnchants(groups) {
   // etwas drauf ist - nicht, ob es das Richtige ist. Genau das hat
   // gefehlt: auf der Hose sass eine andere Verzauberung, und die Zeile
   // sagte "bereits drauf".
+  out.push('  runeforge = {');
+  for (const [enchID, spellID] of Object.entries(runeforges)) {
+    out.push(`    [${enchID}] = ${spellID},`);
+  }
+  out.push('  },');
+  out.push('');
+
   out.push('  enchantItem = {');
   for (const [enchID, itemID] of Object.entries(enchantMap)) {
     out.push(`    [${enchID}] = ${itemID},`);
@@ -894,6 +925,10 @@ function emitEnchants(groups) {
 
   const mapFile = path.join(mapDir, 'enchant-map.json');
   fs.writeFileSync(mapFile, JSON.stringify(enchantMap, null, 1), 'utf8');
+  // Auch fuer die Sammler: was keine Rolle ist, aber trotzdem auf der
+  // Waffe sitzt.
+  fs.writeFileSync(path.join(mapDir, 'runeforge-map.json'),
+    JSON.stringify(runeforges, null, 1), 'utf8');
   console.log('geschrieben: ' + mapFile + ' (' + Object.keys(enchantMap).length + ' IDs)');
 
   const count = Object.values(enchants).reduce((n, l) => n + l.length, 0);
