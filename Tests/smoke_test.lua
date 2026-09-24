@@ -320,9 +320,16 @@ local stat, source = ns.Compat.SpecPrimaryStat(71)
 -- her, und im Fenster stand "Hauptattribut" statt "Staerke" - mit
 -- Folgen fuer die Steine, die daran haengen. ChrSpecialization fuehrt
 -- es, der Katalog traegt es mit.
-check("Hauptattribut fremder Spec", stat == "str" and source == "catalog",
-    stat .. " / " .. source)
-do
+check("Hauptattribut fremder Spec", stat == "str", stat .. " / " .. source)
+-- Woher es kommt, haengt am Datenstand: ein Katalog, der noch vor
+-- dieser Aenderung gebaut wurde, traegt das Attribut nicht. Dann darf
+-- der Client einspringen. Nur wenn der Katalog es hat, MUSS es von dort
+-- kommen - sonst faellt der Rueckgriff still wieder auf einen Aufruf
+-- zurueck, der seit 12.1 nichts mehr liefert.
+if ns.Catalog.SpecStat and ns.Catalog.SpecStat(71) then
+    check("und zwar aus den Spieldaten", source == "catalog", source)
+end
+if ns.Catalog.SpecStat and ns.Catalog.SpecStat(62) then
     local all = { [62] = "int", [105] = "int", [250] = "str", [259] = "agi",
                   [262] = "int", [268] = "agi", [577] = "agi", [1473] = "int" }
     local wrong = {}
