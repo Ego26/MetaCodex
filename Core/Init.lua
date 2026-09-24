@@ -1,3 +1,20 @@
+-- MetaCodex - was die Besten wirklich spielen, gemessen
+-- Copyright (C) 2026 Ego26
+--
+-- Dieses Programm ist freie Software: Sie koennen es weitergeben und
+-- veraendern unter den Bedingungen der GNU General Public License,
+-- Version 3 oder (nach Ihrer Wahl) jeder spaeteren Version, wie von der
+-- Free Software Foundation veroeffentlicht.
+--
+-- Weitergegeben wird es in der Hoffnung, nuetzlich zu sein, aber OHNE
+-- JEDE GEWAEHRLEISTUNG. Einzelheiten stehen in der GNU General Public
+-- License, die als LICENSE beiliegt und unter
+-- <https://www.gnu.org/licenses/> steht.
+--
+-- Die Tabellen, die dieses Addon mitbringt, sind Messungen von
+-- oeffentlichen Plattformen und aus den Spieldaten selbst. Der Code,
+-- der sie sammelt, prueft und zusammenbaut, gehoert zu diesem Programm.
+
 -- Namensraum und Konstanten.
 -- Laeuft als erste Datei; alles Weitere haengt sich hier ein.
 
