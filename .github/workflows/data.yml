@@ -17,9 +17,18 @@ on:
     # evening.
     - cron: "30 4 * * *"
   workflow_dispatch:
+    inputs:
+      reuse:
+        description: "Run-ID eines frueheren Laufs, dessen gesammelte Daten
+          wiederverwendet werden sollen (die lange Zahl in seiner Adresse).
+          Leer lassen, um frisch zu sammeln."
+        required: false
+        default: ""
 
 permissions:
   contents: write
+  # Zum Holen der Daten aus einem anderen Lauf.
+  actions: read
 
 concurrency:
   group: daily-data
@@ -44,6 +53,7 @@ jobs:
           node-version: "22"
 
       - name: Collect every source and build the tables
+        if: inputs.reuse == ''
         env:
           # The account behind these credentials has 9,000 points an hour
           # (Gold). A whole run costs just under 5,000, so it fits into one
@@ -55,6 +65,35 @@ jobs:
           BNET_CLIENT_SECRET: ${{ secrets.BNET_CLIENT_SECRET }}
         run: node tools/collect-all.js .
 
+      # Die Ernte eines frueheren Laufs statt einer neuen.
+      #
+      # Drei Stunden Sammeln, und dann scheitert das Packen an einem
+      # fehlenden Ausfuehrungsrecht - so geschehen in der Nacht auf den
+      # 24.09. Danach noch einmal drei Stunden zu sammeln, um dieselben
+      # Zahlen zu bekommen, waere die falsche Antwort gewesen: die Daten
+      # lagen ja vor. Mit der Run-ID jenes Laufs holt dieser sie sich und
+      # macht in zwei Minuten dort weiter, wo es schiefging.
+      - name: Take what an earlier run collected
+        if: inputs.reuse != ''
+        uses: actions/download-artifact@v4
+        with:
+          # Nach Muster statt nach Namen: ein Lauf legt genau eine solche
+          # Sicherung ab, und so passt es auch auf die aelteren, die noch
+          # nach der laufenden Nummer benannt sind.
+          pattern: collected-*
+          merge-multiple: true
+          run-id: ${{ inputs.reuse }}
+          github-token: ${{ github.token }}
+          path: .
+
+      - name: Say what came back
+        if: inputs.reuse != ''
+        run: |
+          echo "Aus Lauf ${{ inputs.reuse }}:"
+          ls -l MetaCodex_Data MetaCodex_Dungeons MetaCodex_Players
+          test -s MetaCodex_Data/Catalog.lua
+          test -s MetaCodex_Data/Recommendations.lua
+
       # Erst sichern, dann weitermachen.
       #
       # Der Lauf vom 24.09. sammelte 199 Minuten lang, bestand die Tests
@@ -65,10 +104,10 @@ jobs:
       # Tabellen fest, bevor etwas anderes sie mitreissen kann, und zwar
       # auch dann, wenn der Schritt davor gescheitert ist.
       - name: Keep what was collected
-        if: always()
+        if: always() && inputs.reuse == ''
         uses: actions/upload-artifact@v4
         with:
-          name: collected-${{ github.run_number }}
+          name: collected-${{ github.run_id }}
           path: |
             tools/data/*.json
             MetaCodex_Data/*.lua
