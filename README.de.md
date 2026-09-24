@@ -164,4 +164,14 @@ Siehe [Tests/README.md](Tests/README.md).
 
 ## Lizenz
 
-MIT, siehe [LICENSE](LICENSE).
+GPL-3.0-or-later, siehe [LICENSE](LICENSE).
+
+Benutzen, ändern, weitergeben: alles erlaubt. Was die Lizenz dafür
+verlangt, ist, dass eine geänderte Fassung, die du weitergibst, ihren
+Quelltext mitbringt, unter derselben Lizenz. Damit bleibt das Addon
+offen - niemand kann diese Arbeit nehmen, schließen und weiterreichen.
+
+Die Tabellen, die das Addon mitbringt, sind Messungen von öffentlichen
+Plattformen und aus den Spieldaten selbst. Der Code, der sie sammelt,
+prüft und zusammenbaut, gehört zu diesem Programm und steht unter
+derselben Lizenz.

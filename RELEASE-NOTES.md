@@ -1,3 +1,13 @@
+## v1.0.1 — the licence
+
+MetaCodex is now under the **GNU General Public License v3 or later**,
+where it was MIT before. Use it, change it, share it: all of that stays
+allowed. What the licence asks in return is that a changed version you
+pass on brings its source with it, under the same licence. Nobody can
+take this work, close it and hand it on.
+
+Nothing else changed in this file. What the addon does is below.
+
 ## v1.0.0 — the first release
 
 MetaCodex shows what the best players of your specialisation actually

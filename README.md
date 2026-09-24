@@ -160,4 +160,13 @@ See [Tests/README.md](Tests/README.md).
 
 ## Licence
 
-MIT, see [LICENSE](LICENSE).
+GPL-3.0-or-later, see [LICENSE](LICENSE).
+
+Use it, change it, share it. What the licence asks in return is that a
+changed version you pass on comes with its source, under the same
+licence. That keeps the addon in the open: nobody can take this work,
+close it and hand it on.
+
+The tables the addon ships are measurements from public platforms and
+from the game's own data files. The code that collects, checks and
+builds them is part of this program and falls under the same licence.

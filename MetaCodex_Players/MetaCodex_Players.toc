@@ -2,7 +2,7 @@
 ## Title: MetaCodex Players
 ## Author: Ego26
 ## Version: @project-version@
-## X-License: MIT
+## X-License: GPL-3.0-or-later
 
 # Die Profile der Top-Spieler: Ausruestung mit allen Bonus-IDs und die
 # Talentkette, je Spec und Aktivitaet.

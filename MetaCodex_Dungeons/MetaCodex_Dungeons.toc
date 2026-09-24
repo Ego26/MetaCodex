@@ -2,7 +2,7 @@
 ## Title: MetaCodex Dungeons
 ## Author: Ego26
 ## Version: @project-version@
-## X-License: MIT
+## X-License: GPL-3.0-or-later
 
 # Die Auswertung je Dungeon, getrennt vom Rest.
 #

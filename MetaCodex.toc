@@ -8,7 +8,7 @@
 ## SavedVariables: MetaCodexDB
 ## IconTexture: Interface\AddOns\MetaCodex\Media\Textures\logo
 ## AddonCompartmentFunc: MetaCodex_OnCompartmentClick
-## X-License: MIT
+## X-License: GPL-3.0-or-later
 ## X-Category: Class
 ## X-Website: https://github.com/Ego26/MetaCodex
 

@@ -2,7 +2,7 @@
 ## Title: MetaCodex Data
 ## Author: Ego26
 ## Version: @project-version@
-## X-License: MIT
+## X-License: GPL-3.0-or-later
 
 # Nachladbar, und das ist der ganze Zweck dieses Ordners.
 #
