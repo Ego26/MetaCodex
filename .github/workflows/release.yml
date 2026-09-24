@@ -49,7 +49,12 @@ jobs:
       - name: Let git know about the data
         run: |
           git add -f MetaCodex_Data MetaCodex_Dungeons MetaCodex_Players
-          git -c core.fileMode=false status --short | head -n 5
+          # Ohne "| head": GitHub faehrt diese Zeilen mit "set -eo pipefail",
+          # und wenn head die Leitung nach fuenf Zeilen schliesst, stirbt
+          # git an SIGPIPE und der Schritt gilt als gescheitert. Genau so
+          # eine Kleinigkeit hat in der Nacht auf den 24.09. drei Stunden
+          # Sammelarbeit gekostet.
+          git -c core.fileMode=false status --short
           test -s MetaCodex_Data/Recommendations.lua
 
       - name: Build and upload
