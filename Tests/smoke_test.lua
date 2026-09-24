@@ -1388,6 +1388,29 @@ do
             build and (build.text and ("geliehen aus " .. tostring(build.fromMode))
                 or "keine Kette") or "kein Build")
     end
+    -- Ein Knopf muss tragen, was auf ihm steht.
+    --
+    -- Die Breiten der Kopfzeile waren feste Zahlen, geschaetzt an
+    -- englischen Woertern. Sobald die Bossnamen aus dem Client kamen,
+    -- stand "Nek'zali die Seelenwinderin" ueber dem Rand hinaus.
+    if bosses[1] then
+        -- Der Client nennt den Boss, und zwar auf Deutsch. Genau daran
+        -- ist der Knopf zu kurz geworden.
+        local realEJ = _G.EJ_GetEncounterInfo
+        _G.EJ_GetEncounterInfo = function() return "Nek'zali die Seelenwinderin" end
+        ns.Profile.SetDungeon(bosses[1].key)
+        rowsInSection("talents")
+        local button = _G.MetaCodexFrame.dungeonButton
+        check("der Boss heisst, wie der Client ihn nennt",
+            button.label:GetText() == "Nek'zali die Seelenwinderin",
+            tostring(button.label:GetText()))
+        local need = button.label:GetStringWidth()
+        check("der Knopf traegt seine Beschriftung", button:GetWidth() >= need,
+            math.floor(button:GetWidth()) .. " breit, Text " .. math.floor(need))
+        _G.EJ_GetEncounterInfo = realEJ
+        ns.Profile.SetDungeon(nil)
+    end
+
     ns.Profile.SetMode("mplus")
     rowsInSection("talents")
     check("und in M+ 'Alle Dungeons'",

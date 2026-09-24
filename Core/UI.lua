@@ -2740,8 +2740,10 @@ function UI.Refresh()
     local dungeonLabel = L[(unitLabels(base))]
     for _, dungeon in ipairs(dungeons) do
         if dungeon.key == chosen then
-            local place = unitGroup(dungeon)
-            dungeonLabel = place and (place .. ": " .. unitName(dungeon)) or unitName(dungeon)
+            -- Nur der Boss. Der Raid steht im Menue darueber, und zweimal
+            -- dasselbe passt in keinen Knopf: "Der Giftige Abgrund:
+            -- Nek'zali die Seelenwinderin" ragte rechts heraus.
+            dungeonLabel = unitName(dungeon)
         end
     end
     frame.dungeonButton.label:SetText(dungeonLabel)
@@ -3037,6 +3039,27 @@ function UI.Refresh()
         { frame.heroButton, 170 }, { frame.categoryButton, 170 },
         { frame.dungeonButton, 160 },
     }
+
+    -- Ein Knopf ist so breit wie das, was darauf steht.
+    --
+    -- Die Zahlen oben waren Schaetzungen in Pixeln, und sie stimmten fuer
+    -- englische Beschriftungen. "Nek'zali die Seelenwinderin" ist
+    -- laenger, und der Text stand ueber dem Rand. Gemessen wird jetzt,
+    -- und die Zahl oben ist nur noch die Untergrenze: schmaler wird kein
+    -- Knopf, breiter darf er werden, bis 340 - danach bricht die Reihe
+    -- ohnehin um.
+    local function fitted(button, least)
+        if not button or not button:IsShown() then return least end
+        local text = 0
+        if button.label then
+            local ok, w = pcall(button.label.GetStringWidth, button.label)
+            if ok and type(w) == "number" then text = w end
+        end
+        local want = math.max(least, math.min(340, math.ceil(text + S.space.lg * 2)))
+        button:SetWidth(want)
+        return want
+    end
+    for _, pair in ipairs(ROW) do pair[2] = fitted(pair[1], pair[2]) end
 
     -- Erst messen, dann setzen.
     --
