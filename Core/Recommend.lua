@@ -430,14 +430,26 @@ function Recommend.Talents(specID, mode, source, hero)
         end
     end
 
-    -- Keine Kette in dieser Klammer? Dann die des Grundmodus - gleicher
-    -- Dungeon, alle Stufen. Die Einzelanteile bleiben die der Klammer.
+    -- Keine Kette in dieser Ansicht? Dann die naechstgroessere.
+    --
+    -- Gefragt wird die ganze Leiter, nicht nur eine Sprosse: erst die
+    -- Klammer ohne Dungeon, dann die Aktivitaet selbst. Vorher stand
+    -- hier nur BaseMode, und das half beim Raid nicht - "Raid (HC)" IST
+    -- schon die Grundschwierigkeit, also zeigte die Bossansicht
+    -- "keine Quelle liefert einen fertigen String", obwohl raider.io
+    -- fuer die Aktivitaet fuer jede Spec einen hat. Die Einzelanteile
+    -- bleiben dabei die der engeren Ansicht: geliehen wird die Kette,
+    -- nicht die Messung.
     if (picks or build) and not (build and build.text) then
-        local base = Recommend.BaseMode(mode)
-        if base ~= mode then
-            local _, baseBuild, _, baseFrom = Recommend.Talents(specID, base, Recommend.ALL, hero)
-            if baseBuild and baseBuild.text then
-                build, buildFrom = copyWith(baseBuild, { fromBase = true }), baseFrom
+        for _, other in ipairs(Recommend.ModeChain(mode)) do
+            if other ~= mode then
+                local _, otherBuild, _, otherFrom =
+                    Recommend.Talents(specID, other, Recommend.ALL, hero)
+                if otherBuild and otherBuild.text then
+                    build, buildFrom =
+                        copyWith(otherBuild, { fromBase = true, fromMode = other }), otherFrom
+                    break
+                end
             end
         end
     end

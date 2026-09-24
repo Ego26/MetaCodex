@@ -307,7 +307,7 @@ ns.RegisterLocale("deDE", {
 
 ns.RegisterLocale("deDE", {
     ["TALENT_BUILD"] = "Häufigster Build  ·  %d%% spielen genau diesen",
-    ["LOADOUT_FROM_BASE"] = "String aus M+ gesamt",
+    ["LOADOUT_FROM_BASE"] = "String aus %s",
     ["LOADOUT_FROM_SOURCE"] = "String von %s",
     ["TALENT_PICKS"] = "Einzelne Talente und wie viele sie nehmen",
     ["TALENT_PICKS_HINT"] = "Anteil der Top-Spieler, die dieses Talent haben. Zeiger drauf zeigt, was es tut.",

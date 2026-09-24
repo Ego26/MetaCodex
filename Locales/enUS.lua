@@ -312,7 +312,7 @@ ns.RegisterLocale("enUS", {
 ns.RegisterLocale("enUS", {
     -- Two groups, because they answer two different questions.
     ["TALENT_BUILD"] = "Most common build  ·  %d%% run exactly this",
-    ["LOADOUT_FROM_BASE"] = "string from all of M+",
+    ["LOADOUT_FROM_BASE"] = "string from %s",
     ["LOADOUT_FROM_SOURCE"] = "string from %s",
     ["TALENT_PICKS"] = "Single talents and how many take them",
     ["TALENT_PICKS_HINT"] = "Share of the top players who have this talent. Hover for what it does.",

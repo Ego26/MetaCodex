@@ -1375,6 +1375,18 @@ do
         local picks, build = ns.Recommend.Talents(105, bosses[1].key, ns.Recommend.ALL)
         check("Talente je Boss mit Build", picks ~= nil and build ~= nil and #build.nodes > 10,
             bosses[1].name .. ": " .. (build and #build.nodes or 0) .. " Knoten")
+        -- Und eine Kette zum Kopieren.
+        --
+        -- Die Logs liefern Knoten, keine Kette; die Kette hat raider.io
+        -- fuer die AKTIVITAET. In der Bossansicht stand deshalb "keine
+        -- Quelle liefert einen fertigen String", obwohl eine danebenlag:
+        -- der Rueckgriff fragte nur die Grundschwierigkeit, und "Raid
+        -- (HC)" IST die Grundschwierigkeit. Jetzt geht er die ganze
+        -- Leiter bis zur Aktivitaet ohne Boss.
+        check("auch die Bossansicht hat eine Kette",
+            build ~= nil and type(build.text) == "string" and #build.text > 20,
+            build and (build.text and ("geliehen aus " .. tostring(build.fromMode))
+                or "keine Kette") or "kein Build")
     end
     ns.Profile.SetMode("mplus")
     rowsInSection("talents")

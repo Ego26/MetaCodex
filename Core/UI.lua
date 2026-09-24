@@ -1464,7 +1464,8 @@ local function talentRows(specID, mode, source)
             -- Die fertige Kette der Quelle, wenn es eine gibt.
             text = build.text,
             pct = build.pct, count = #build.nodes,
-            fromBase = build.fromBase, fromSource = build.fromSource,
+            fromBase = build.fromBase, fromMode = build.fromMode,
+            fromSource = build.fromSource,
             group = L["TALENT_BUILD"]:format(build.pct or 0),
         }
     end
@@ -1977,7 +1978,17 @@ local function setItemRow(row, data)
         if data.playerRow then
             hint = L[data.verified and "PLAYER_VERIFIED" or "PLAYER_UNVERIFIED"]
         end
-        if data.fromBase then hint = hint .. "  \194\183  " .. L["LOADOUT_FROM_BASE"] end
+        if data.fromBase then
+            -- Aus welcher Ansicht geliehen wurde. Hier stand fest
+            -- "M+ gesamt", und das war falsch, sobald eine
+            -- Bossansicht im Raid sich die Kette der Aktivitaet holte.
+            local whence
+            for _, entry in ipairs(ns.MODES) do
+                if entry.key == data.fromMode then whence = entry.label break end
+            end
+            hint = hint .. "  \194\183  "
+                .. L["LOADOUT_FROM_BASE"]:format(whence or "?")
+        end
         if data.fromSource then hint = hint .. "  \194\183  " .. L["LOADOUT_FROM_SOURCE"]:format(data.fromSource) end
         row.detail:SetText(hint)
         S:Recolor(row.detail, usable and "textSecondary" or "warning")
