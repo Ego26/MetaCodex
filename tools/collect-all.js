@@ -67,8 +67,8 @@ const STEPS = [
     why: 'Kein Aggregator veroeffentlicht Raiddaten in dieser Tiefe.',
     script: 'collect-wcl.js',
     args: ['raid', '4'],
-    // Alle Bosse aller laufenden Raids; 200 Berichte reihum verteilt.
-    env: { MC_DUNGEONS: '1', MC_REPORTS: '200' },
+    // Alle Bosse aller laufenden Raids; 300 Berichte reihum verteilt.
+    env: { MC_DUNGEONS: '1', MC_REPORTS: '300' },
   },
   {
     key: 'raid-mythic',
@@ -76,7 +76,7 @@ const STEPS = [
     why: 'Andere Schwierigkeit, andere Ausruestung.',
     script: 'collect-wcl.js',
     args: ['raid', '5'],
-    env: { MC_DUNGEONS: '1', MC_REPORTS: '160' },
+    env: { MC_DUNGEONS: '1', MC_REPORTS: '240' },
   },
   {
     key: 'raid-normal',
@@ -94,9 +94,15 @@ const STEPS = [
     why: 'Speisen, Traenke und Oele fuehrt kein Aggregator - nur die Logs.',
     script: 'collect-wcl.js',
     args: ['mplus'],
-    // 400 statt 250: mit 250 fehlten zwoelf Speccs ganz - ein Wiederherstellungs-
-    // Druide war in keinem einzigen Bericht, und sein Abschnitt blieb leer.
-    env: { MC_ENCOUNTERS: '8', MC_REPORTS: '400' },
+    // Alles, was die Rangliste hergibt, statt einer Auswahl daraus.
+    //
+    // Die Rangliste der hohen Schluessel umfasst rund tausend Laeufe.
+    // Vierhundert davon ergaben fuer Daemonologie 61 Messungen, und auf
+    // 61 Messungen eine Meta zu behaupten ist duenn - bei einer Spec,
+    // die oben selten ist, entscheidet dann eine Handvoll Gruppen. Die
+    // Grenze liegt jetzt ueber dem, was die Liste ueberhaupt enthaelt:
+    // gezaehlt wird die ganze Spitze, nicht eine Stichprobe daraus.
+    env: { MC_ENCOUNTERS: '8', MC_REPORTS: '1000' },
   },
   {
     key: 'keys',
@@ -104,7 +110,10 @@ const STEPS = [
     why: 'Die Aktivitaet "M+ (+7 bis +21)" hat ihre eigenen Zahlen - andere Stufen, andere Mischung. Sie lief bisher nur von Hand, und ihre Daten wurden still alt.',
     script: 'collect-wcl.js',
     args: ['mplus-keys'],
-    env: { MC_DUNGEONS: '1', MC_REPORTS: '200' },
+    // Doppelt so viele wie bisher. Hier gibt die Rangliste ueber
+    // fuenftausend Laeufe her, eine Stichprobe bleibt es also - aber
+    // eine, die je Spec ueber hundert Messungen traegt.
+    env: { MC_DUNGEONS: '1', MC_REPORTS: '400' },
   },
   {
     key: 'bnet',

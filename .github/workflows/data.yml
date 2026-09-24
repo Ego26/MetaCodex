@@ -39,7 +39,10 @@ jobs:
     runs-on: ubuntu-latest
     # Warcraft Logs waits for its hourly quota; a full run can take two
     # hours.
-    timeout-minutes: 300
+    # Mehr Berichte, mehr Zeit. Der Lauf vom 24.09. brauchte mit 880
+    # Berichten gut drei Stunden; mit rund zweitausend wird es knapp
+    # vier, und Wartezeiten am Stundenlimit koennen dazukommen.
+    timeout-minutes: 350
     steps:
       - uses: actions/checkout@v4
         with:
