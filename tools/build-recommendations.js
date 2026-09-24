@@ -195,12 +195,51 @@ const orderedSources = [...sources].sort((a, b) => {
 out.push('  sources = { ' + orderedSources.map(luaString).join(', ') + ' },');
 if (Object.keys(dungeons).length) {
   out.push('  -- Welche Dungeons zu einem Modus einzeln vorliegen.');
+  // Boss und Instanz beim Journal nachschlagen.
+  //
+  // Warcraft Logs liefert englische Namen, und genau die standen im
+  // deutschen Fenster. Mit der Journal-ID holt das Addon den Namen beim
+  // Client. Nebenbei faellt dabei ab, zu welchem Raid ein Boss gehoert:
+  // der Sammler haengt den Raidnamen nur an, wenn mehrere Zonen laufen,
+  // und deshalb hatte von neun Bossen genau einer eine Gruppe. Das
+  // Journal weiss es immer.
+  let journalNames = { encounters: {}, instances: {} };
+  try {
+    journalNames = JSON.parse(fs.readFileSync(path.join(dir, 'journal-names.json'), 'utf8'));
+  } catch (e) { console.log('  ? journal-names.json fehlt - Namen bleiben englisch'); }
+  const instName = new Map();
+  for (const [name, id] of Object.entries(journalNames.instances || {})) {
+    if (!instName.has(id)) instName.set(id, name);
+  }
+  let named = 0, grouped = 0;
+  for (const list of Object.values(dungeons)) {
+    for (const d of list) {
+      const enc = (journalNames.encounters || {})[d.name];
+      if (enc) {
+        d.enc = enc.enc;
+        d.inst = enc.inst || undefined;
+        named += 1;
+        if (!d.group && enc.inst && instName.get(enc.inst)) {
+          d.group = instName.get(enc.inst);
+          grouped += 1;
+        }
+      } else {
+        const inst = (journalNames.instances || {})[d.name];
+        if (inst) { d.inst = inst; named += 1; }
+      }
+    }
+  }
+  console.log(`  Journal: ${named} Bosse/Instanzen erkannt, ${grouped} Bosse ihrem Raid zugeordnet`);
+
   out.push('  dungeons = {');
   for (const [mode, list] of Object.entries(dungeons)) {
     list.sort((a, b) => a.name.localeCompare(b.name));
     out.push(`    [${luaString(mode)}] = {`);
     for (const d of list) {
-      out.push(`      { key = ${luaString(d.key)}, name = ${luaString(d.name)}${d.group ? `, group = ${luaString(d.group)}` : ''} },`);
+      const extra = (d.group ? `, group = ${luaString(d.group)}` : '')
+        + (d.enc ? `, enc = ${d.enc}` : '')
+        + (d.inst ? `, inst = ${d.inst}` : '');
+      out.push(`      { key = ${luaString(d.key)}, name = ${luaString(d.name)}${extra} },`);
     }
     out.push('    },');
   }

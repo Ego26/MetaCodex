@@ -144,7 +144,7 @@ function emitEnchants(groups) {
   console.log('Erweiterung:', expansion);
 
   const [items, gemProps, sieRows, itemEffects, itemLinks, spellEffects, itemClasses,
-    chrSpecs, chrClasses, journalItems, journalEncounters, itemSets, levelDeltas,
+    chrSpecs, chrClasses, journalItems, journalEncounters, journalInstances, itemSets, levelDeltas,
     trackRows, traitDefs, pvpTalents, spellNames,
     traitNodes, traitNodeXEntry, traitEntries, traitLoadouts, subTreesEN, subTreesDE]
     = await Promise.all([
@@ -159,6 +159,7 @@ function emitEnchants(groups) {
       db2('ChrClasses'),
       db2('JournalEncounterItem'),
       db2('JournalEncounter'),
+      db2('JournalInstance'),
       db2('ItemSet'),
       db2('ItemBonusListLevelDelta'),
       // Typ 34 ist der Aufwertungspfad: Value_0 der Pfad, Value_1 sein
@@ -864,6 +865,34 @@ function emitEnchants(groups) {
   }), 'utf8');
   console.log('Talentbaeume:', Object.keys(treesOut).length, '| Speccs mit Baum:', Object.keys(treeBySpec).length, '| Held-Baeume:', Object.keys(subTrees).length);
   fs.writeFileSync(path.join(mapDir, 'journal-drops.json'), JSON.stringify(journalAll), 'utf8');
+
+  // Bosse und Instanzen unter ihrem englischen Namen.
+  //
+  // Warcraft Logs nennt Zone und Begegnung englisch, und so standen sie
+  // auch im deutschen Fenster: "Nek'zali the Soulcoiler" statt des
+  // Namens, den der Spieler im Spiel liest. Mit der Journal-ID holt das
+  // Addon den Namen beim Client - dieselbe Regel wie ueberall hier:
+  // IDs wandern, Namen kommen von dort, wo sie hingehoeren.
+  //
+  // Die Karte traegt nebenbei die Instanz je Boss, und damit weiss der
+  // Zusammenbau auch ohne den Sammler, welcher Boss zu welchem Raid
+  // gehoert.
+  const journalNames = { encounters: {}, instances: {} };
+  for (const row of journalInstances) {
+    const name = row.Name_lang;
+    if (name) journalNames.instances[name] = Number(row.ID);
+  }
+  for (const row of journalEncounters) {
+    const name = row.Name_lang;
+    if (!name) continue;
+    journalNames.encounters[name] = {
+      enc: Number(row.ID), inst: Number(row.JournalInstanceID) || 0,
+    };
+  }
+  fs.writeFileSync(path.join(mapDir, 'journal-names.json'),
+    JSON.stringify(journalNames), 'utf8');
+  console.log(`  Journalnamen: ${Object.keys(journalNames.encounters).length} Begegnungen, `
+    + `${Object.keys(journalNames.instances).length} Instanzen`);
   console.log('Journal gesamt:', Object.keys(journalAll).length, 'Gegenstaende');
   fs.writeFileSync(path.join(mapDir, 'talent-map.json'), JSON.stringify({
     build, names: talentNames, pvp: pvpBySpec,

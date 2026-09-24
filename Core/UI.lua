@@ -370,6 +370,28 @@ local function unitLabels(mode)
     return "DUNGEON_ALL", "LBL_DUNGEON"
 end
 
+---Wie ein Dungeon oder Boss im Fenster heisst.
+---
+---Aus dem Journal des Clients, wenn die Daten seine Nummer tragen -
+---sonst der englische Name aus der Quelle. Vorher stand im deutschen
+---Fenster "Nek'zali the Soulcoiler", weil Warcraft Logs so heisst und
+---niemand nachgefragt hatte.
+---@param entry table
+---@return string
+local function unitName(entry)
+    return (entry.enc and ns.Compat.EncounterName(entry.enc))
+        or (not entry.enc and entry.inst and ns.Compat.InstanceName(entry.inst))
+        or entry.name
+end
+
+---Und wie der Raid heisst, zu dem er gehoert.
+---@param entry table
+---@return string|nil
+local function unitGroup(entry)
+    if not entry.group then return nil end
+    return (entry.inst and ns.Compat.InstanceName(entry.inst)) or entry.group
+end
+
 local function openDungeonPicker(anchor)
     local mode = ns.Profile.Mode()
     local allKey, titleKey = unitLabels(mode)
@@ -399,16 +421,16 @@ local function openDungeonPicker(anchor)
             root:CreateRadio(L[allKey], function() return ns.Profile.Dungeon() == nil end,
                 function() pick(nil); UI.Refresh() end)
             for _, name in ipairs(order) do
-                local sub = root:CreateButton(name)
+                local sub = root:CreateButton(unitGroup(groups[name][1]) or name)
                 for _, entry in ipairs(groups[name]) do
-                    sub:CreateRadio(entry.name, function() return ns.Profile.Dungeon() == entry.key end,
+                    sub:CreateRadio(unitName(entry), function() return ns.Profile.Dungeon() == entry.key end,
                         function() pick(entry.key); UI.Refresh() end)
                 end
             end
             -- Was keinem Raid zugeordnet ist, steht darunter.
             for _, entry in ipairs(list) do
                 if not entry.group then
-                    root:CreateRadio(entry.name, function() return ns.Profile.Dungeon() == entry.key end,
+                    root:CreateRadio(unitName(entry), function() return ns.Profile.Dungeon() == entry.key end,
                         function() pick(entry.key); UI.Refresh() end)
                 end
             end
@@ -420,7 +442,8 @@ local function openDungeonPicker(anchor)
     for _, dungeon in ipairs(list) do
         entries[#entries + 1] = {
             key = dungeon.key,
-            label = dungeon.group and (dungeon.group .. ": " .. dungeon.name) or dungeon.name,
+            label = unitGroup(dungeon)
+                and (unitGroup(dungeon) .. ": " .. unitName(dungeon)) or unitName(dungeon),
         }
     end
     contextMenu(anchor, L[titleKey], entries, function(entry) pick(entry.key) end)
@@ -2717,7 +2740,8 @@ function UI.Refresh()
     local dungeonLabel = L[(unitLabels(base))]
     for _, dungeon in ipairs(dungeons) do
         if dungeon.key == chosen then
-            dungeonLabel = dungeon.group and (dungeon.group .. ": " .. dungeon.name) or dungeon.name
+            local place = unitGroup(dungeon)
+            dungeonLabel = place and (place .. ": " .. unitName(dungeon)) or unitName(dungeon)
         end
     end
     frame.dungeonButton.label:SetText(dungeonLabel)

@@ -454,6 +454,29 @@ function Recommend.Talents(specID, mode, source, hero)
         end
     end
 
+    -- Gar nichts in dieser Ansicht? Dann die naechstgroessere, ganz.
+    --
+    -- Eine Spec, die in einem bestimmten Dungeon nie unter den besten
+    -- Laeufen auftauchte, hatte dort gar keine Talente - der Abschnitt
+    -- blieb leer, obwohl fuer M+ als Ganzes alles vorliegt. Die
+    -- Deckungspruefung fand das 156 Mal. Jetzt gilt dieselbe Leiter wie
+    -- bei Verbrauchsguetern und Spielern, und die Zeile sagt, aus
+    -- welcher Ansicht die Zahlen stammen.
+    if not picks and not build then
+        for _, other in ipairs(Recommend.ModeChain(mode)) do
+            if other ~= mode then
+                local otherPicks, otherBuild, otherFrom =
+                    Recommend.Talents(specID, other, source, hero)
+                if otherPicks or otherBuild then
+                    if otherBuild then
+                        otherBuild = copyWith(otherBuild, { fromBase = true, fromMode = other })
+                    end
+                    return otherPicks or {}, otherBuild, otherFrom, otherFrom
+                end
+            end
+        end
+    end
+
     if not picks and not build then return nil end
     if build and buildFrom and picksFrom and buildFrom ~= picksFrom and not build.fromSource and not build.fromBase then
         build = copyWith(build, { fromSource = buildFrom })

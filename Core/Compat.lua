@@ -292,6 +292,30 @@ end
 ---@param encounterID number|nil
 ---@param instanceID number|nil
 ---@return string|nil
+---Der Name einer Begegnung, wie der Client sie nennt.
+---
+---Warcraft Logs liefert "Nek'zali the Soulcoiler"; im deutschen Spiel
+---heisst er anders, und im franzoesischen wieder anders. Die Nummer
+---wandert mit den Daten, der Name kommt von hier.
+---@param encounterID number|nil
+---@return string|nil
+function Compat.EncounterName(encounterID)
+    if not encounterID or not EJ_GetEncounterInfo then return nil end
+    local ok, name = pcall(EJ_GetEncounterInfo, encounterID)
+    if ok and type(name) == "string" and name ~= "" then return name end
+    return nil
+end
+
+---Der Name einer Instanz, wie der Client sie nennt.
+---@param instanceID number|nil
+---@return string|nil
+function Compat.InstanceName(instanceID)
+    if not instanceID or not EJ_GetInstanceInfo then return nil end
+    local ok, name = pcall(EJ_GetInstanceInfo, instanceID)
+    if ok and type(name) == "string" and name ~= "" then return name end
+    return nil
+end
+
 function Compat.DropText(encounterID, instanceID)
     local boss, place
     if encounterID and EJ_GetEncounterInfo then

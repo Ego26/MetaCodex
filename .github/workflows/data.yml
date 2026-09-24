@@ -97,6 +97,21 @@ jobs:
           test -s MetaCodex_Data/Catalog.lua
           test -s MetaCodex_Data/Recommendations.lua
 
+      # Aus den Rohdaten neu bauen, nicht die alten Tabellen nehmen.
+      #
+      # Die Sicherung traegt beides: die fertigen Tabellen und das, woraus
+      # sie gebaut wurden. Wird am Zusammenbau etwas verbessert - ein
+      # Name, der aus dem Journal kommen soll, eine Gruppierung, ein
+      # Feld mehr -, dann muss dafuer niemand vier Stunden neu sammeln.
+      # Der Katalog wird mitgebaut, weil der Zusammenbau seine
+      # Journalnamen braucht; beides zusammen dauert Minuten und fragt
+      # Warcraft Logs kein einziges Mal.
+      - name: Rebuild the tables from what came back
+        if: inputs.reuse != ''
+        run: |
+          node tools/build-catalog.js .
+          node tools/build-recommendations.js .
+
       # Erst sichern, dann weitermachen.
       #
       # Der Lauf vom 24.09. sammelte 199 Minuten lang, bestand die Tests
