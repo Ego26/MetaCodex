@@ -147,6 +147,7 @@ ns.RegisterLocale("deDE", {
     ["SHOW_ALL_HINT"]   = "Haken bei „Nur was fehlt“ entfernen, um alles zu sehen.",
     ["PROBE_SPEC"]      = "Gezeigte Spezialisierung: %s (%s)",
     ["PROBE_STAT_API"]  = "vom Client",
+    ["PROBE_STAT_CATALOG"] = "aus den Spieldaten",
     ["PROBE_STAT_CHAR"] = "vom Charakter",
 })
 

@@ -63,6 +63,16 @@ function Compat.SpecPrimaryStat(specID)
     local wanted = specID or Compat.CurrentSpec()
     if not wanted then return "primary", "fallback" end
 
+    -- Erst die Spieldaten, dann der Client.
+    --
+    -- Seit 12.1 kommt aus GetSpecializationInfoByID an dieser Stelle
+    -- nichts Brauchbares mehr zurueck, und im Fenster stand
+    -- "Hauptattribut" statt "Intelligenz" - mit Folgen fuer die Steine,
+    -- die am Hauptattribut haengen. Der Katalog traegt es aus
+    -- ChrSpecialization mit, fuer alle vierzig Speccs.
+    local fromCatalog = ns.Catalog and ns.Catalog.SpecStat and ns.Catalog.SpecStat(wanted)
+    if fromCatalog then return fromCatalog, "catalog" end
+
     local byID = (C_SpecializationInfo and C_SpecializationInfo.GetSpecializationInfoByID)
         or GetSpecializationInfoByID
     if byID then

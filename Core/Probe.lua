@@ -72,7 +72,9 @@ function Probe.Run()
     local primary, source = ns.Compat.SpecPrimaryStat(specID)
     line("  " .. L["PROBE_SPEC"], ns.Compat.SpecName(specID) or "?", tostring(specID))
     line("  " .. L["PROBE_PRIMARY"] .. " (%s)", L["STAT_" .. primary],
-        source == "api" and L["PROBE_STAT_API"] or L["PROBE_STAT_FALLBACK"])
+        source == "api" and L["PROBE_STAT_API"]
+            or source == "catalog" and L["PROBE_STAT_CATALOG"]
+            or L["PROBE_STAT_FALLBACK"])
 
     local scan = ns.Gear.Scan()
     line("  " .. L["PROBE_SOCKETS"], scan.emptySockets)

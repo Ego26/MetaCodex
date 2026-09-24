@@ -367,6 +367,18 @@ end
 ---Sprache; "gleichgewicht" ergaebe eine Adresse, die es nicht gibt.
 ---@param specID number
 ---@return string|nil class, string|nil spec
+---Das Hauptattribut einer Spec, aus den Spieldaten.
+---
+---Der Client beantwortet die Frage seit 12.1 nicht mehr verlaesslich.
+---Die Spieltabellen tun es, und sie aendern sich nur mit dem Spiel.
+---@param specID number
+---@return string|nil "str" | "agi" | "int"
+function Catalog.SpecStat(specID)
+    local c = data()
+    local entry = c and c.specs and c.specs[specID]
+    return entry and entry.stat or nil
+end
+
 function Catalog.SpecSlug(specID)
     local c = data()
     local entry = c and c.specs and c.specs[specID]

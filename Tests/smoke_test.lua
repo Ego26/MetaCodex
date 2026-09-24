@@ -314,8 +314,25 @@ check("jede Spec hat eigene Auswahl", ns.Profile.Current().main == nil)
 ns.Profile.Select(1, 71)                   -- Krieger, Waffen
 check("fremde Klasse erkannt", ns.Profile.IsForeignClass() == true)
 local stat, source = ns.Compat.SpecPrimaryStat(71)
-check("Hauptattribut fremder Spec", stat == "str" and source == "api",
+-- Aus den Spieldaten, nicht vom Client.
+--
+-- Seit 12.1 gibt GetSpecializationInfoByID an dieser Stelle nichts mehr
+-- her, und im Fenster stand "Hauptattribut" statt "Staerke" - mit
+-- Folgen fuer die Steine, die daran haengen. ChrSpecialization fuehrt
+-- es, der Katalog traegt es mit.
+check("Hauptattribut fremder Spec", stat == "str" and source == "catalog",
     stat .. " / " .. source)
+do
+    local all = { [62] = "int", [105] = "int", [250] = "str", [259] = "agi",
+                  [262] = "int", [268] = "agi", [577] = "agi", [1473] = "int" }
+    local wrong = {}
+    for id, want in pairs(all) do
+        local got = ns.Compat.SpecPrimaryStat(id)
+        if got ~= want then wrong[#wrong + 1] = id .. ": " .. tostring(got) end
+    end
+    check("und fuer jede Art von Spec richtig", #wrong == 0,
+        #wrong == 0 and "acht geprueft" or table.concat(wrong, ", "))
+end
 ns.Profile.Set("main", "crit")
 local foreignRows = bySlot(ns.List.Build(scan))
 check("fremde Klasse ohne Steine", foreignRows.gems == nil)

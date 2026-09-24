@@ -397,11 +397,24 @@ function emitEnchants(groups) {
     const cls = classByID.get(String(spec.ClassID));
     // OrderIndex ueber 3 ist die Anfaengerspec - die fuehrt niemand.
     if (!cls || !spec.Name_lang || Number(spec.OrderIndex) > 3) continue;
+    // Das Hauptattribut steht in PrimaryStatPriority.
+    //
+    // Die Zahl ist keine Stat-ID, sondern der Index einer Rangfolge der
+    // drei Attribute: 0 und 1 fuehren mit Intelligenz, 2 und 3 mit
+    // Beweglichkeit, 4 und 5 mit Staerke. Gegengerechnet an allen
+    // vierzig Speccs - neunzehn Intelligenz, dreizehn Beweglichkeit,
+    // acht Staerke, und jede einzelne stimmt.
+    //
+    // Gebraucht wird das, weil der Client es seit 12.1 nicht mehr
+    // herausgibt: GetSpecializationInfoByID liefert die Stelle leer, und
+    // im Fenster stand "Hauptattribut" statt "Intelligenz".
+    const PRIMARY = ['int', 'int', 'agi', 'agi', 'str', 'str'];
     specs.push({
       id: Number(spec.ID),
       slug: `${SLUG(cls)}/${SLUG(spec.Name_lang)}`,
       cls: SLUG(cls),
       spec: SLUG(spec.Name_lang),
+      stat: PRIMARY[Number(spec.PrimaryStatPriority)] || null,
     });
   }
   specs.sort((a, b) => a.id - b.id);
@@ -775,7 +788,8 @@ function emitEnchants(groups) {
   out.push('');
   out.push('  specs = {');
   for (const sp of specs) {
-    out.push(`    [${sp.id}] = { cls = ${luaString(sp.cls)}, spec = ${luaString(sp.spec)} },`);
+    const stat = sp.stat ? `, stat = ${luaString(sp.stat)}` : '';
+    out.push(`    [${sp.id}] = { cls = ${luaString(sp.cls)}, spec = ${luaString(sp.spec)}${stat} },`);
   }
   out.push('  },');
   out.push('');

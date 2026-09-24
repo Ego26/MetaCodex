@@ -35,6 +35,13 @@ local PALETTE = {
     textSecondary = "A3AEBD",
     textMuted     = "6B7786",
 
+    -- Ueberschriften: hellblau, aber nicht der Akzent.
+    --
+    -- Der Akzent traegt die Klassenfarbe und wandert damit von Spec zu
+    -- Spec. Eine Ueberschrift soll stehen bleiben, wo sie steht, und
+    -- sich vom gedaempften Grau der Nebentexte abheben - sonst sieht
+    -- eine Liste aus wie ein einziger Block.
+    heading     = "7FB3E8",
     accent      = "4C8DFF",
     accentHover = "6BA1FF",
     success     = "3FB950",

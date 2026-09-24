@@ -147,6 +147,7 @@ ns.RegisterLocale("enUS", {
     ["SHOW_ALL_HINT"]   = "Untick \"only what is missing\" to see the full set.",
     ["PROBE_SPEC"]      = "Specialisation shown: %s (%s)",
     ["PROBE_STAT_API"]  = "from the client",
+    ["PROBE_STAT_CATALOG"] = "from the game tables",
     ["PROBE_STAT_CHAR"] = "from your character",
 })
 
