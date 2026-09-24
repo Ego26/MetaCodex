@@ -55,6 +55,27 @@ jobs:
           BNET_CLIENT_SECRET: ${{ secrets.BNET_CLIENT_SECRET }}
         run: node tools/collect-all.js .
 
+      # Erst sichern, dann weitermachen.
+      #
+      # Der Lauf vom 24.09. sammelte 199 Minuten lang, bestand die Tests
+      # und scheiterte danach am Packen - weil dem Skript im Git das
+      # Ausfuehrungsrecht fehlte. Weil die Sicherung damals hinter dem
+      # Packen stand, war die ganze Nacht Arbeit weg, samt der Punkte
+      # bei Warcraft Logs. Jetzt liegen die Rohdaten UND die fertigen
+      # Tabellen fest, bevor etwas anderes sie mitreissen kann, und zwar
+      # auch dann, wenn der Schritt davor gescheitert ist.
+      - name: Keep what was collected
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: collected-${{ github.run_number }}
+          path: |
+            tools/data/*.json
+            MetaCodex_Data/*.lua
+            MetaCodex_Dungeons/*.lua
+            MetaCodex_Players/*.lua
+          retention-days: 7
+
       - name: Tests against the fresh data
         working-directory: Tests
         run: |
@@ -67,19 +88,10 @@ jobs:
         run: |
           YMD="$(date -u +%Y%m%d)"
           STAMP="nightly-$YMD"
-          tools/package.sh "$STAMP" dist
+          bash tools/package.sh "$STAMP" dist
           echo "stamp=$STAMP" >> "$GITHUB_OUTPUT"
           echo "ymd=$YMD" >> "$GITHUB_OUTPUT"
           echo "date=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
-
-      # Keep the intermediate files (tools/data) for seven days: when a
-      # run builds something odd, one can look at what it was built from.
-      - name: Keep the intermediate files
-        uses: actions/upload-artifact@v4
-        with:
-          name: tools-data-${{ steps.pack.outputs.stamp }}
-          path: tools/data/*.json
-          retention-days: 7
 
       - name: Update the "nightly" release
         uses: softprops/action-gh-release@v2

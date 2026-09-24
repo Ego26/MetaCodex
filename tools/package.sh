@@ -29,7 +29,14 @@ done
 # The same list as in .pkgmeta: the licence and the change notes travel with
 # the addon, the READMEs and the history stay in the repository.
 for entry in Core Locales Media MetaCodex.toc LICENSE RELEASE-NOTES.md; do
-  [ -e "$ROOT/$entry" ] && cp -r "$ROOT/$entry" "$STAGE/MetaCodex/"
+  # Kein "[ -e ] && cp": unter "set -e" beendet die fehlgeschlagene
+  # Pruefung der LETZTEN Runde das ganze Skript, und das Paket faellt
+  # wegen einer Datei aus, die gar nicht mitmuss.
+  if [ -e "$ROOT/$entry" ]; then
+    cp -r "$ROOT/$entry" "$STAGE/MetaCodex/"
+  else
+    echo "  (nicht da, bleibt draussen: $entry)"
+  fi
 done
 for addon in MetaCodex_Data MetaCodex_Dungeons MetaCodex_Players; do
   cp -r "$ROOT/$addon/." "$STAGE/$addon/"
