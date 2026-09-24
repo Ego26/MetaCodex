@@ -253,6 +253,8 @@ ns.RegisterLocale("deDE", {
     ["CONSUM_TARGET"]  = "Ziel %d",
     ["REMIND_TITLE"]   = "MetaCodex erinnert",
     ["REMIND_MISSING"] = "Fehlt vor dem Start: %s",
+    ["REMIND_MISSING_HEAD"] = "Fehlt vor dem Start:",
+    ["REMIND_BULLET"]  = "    • %s",
     ["REMIND_OK"]      = "Fläschchen, Speise und Runen sind in der Tasche.",
     ["REMIND_NONE"]    = "%s: nichts in der Tasche",
     ["REMIND_LOW"]     = "%s: nur noch %d",

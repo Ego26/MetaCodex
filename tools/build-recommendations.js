@@ -218,6 +218,7 @@ if (Object.keys(dungeons).length) {
       if (enc) {
         d.enc = enc.enc;
         d.inst = enc.inst || undefined;
+        d.order = enc.order || 0;
         named += 1;
         if (!d.group && enc.inst && instName.get(enc.inst)) {
           d.group = instName.get(enc.inst);
@@ -233,7 +234,15 @@ if (Object.keys(dungeons).length) {
 
   out.push('  dungeons = {');
   for (const [mode, list] of Object.entries(dungeons)) {
-    list.sort((a, b) => a.name.localeCompare(b.name));
+    // Bosse in der Reihenfolge, in der man sie trifft; Raids nach ihrer
+    // Instanz-ID, also in der Reihenfolge, in der sie erschienen sind.
+    // Alles Uebrige alphabetisch - bei Dungeons gibt es keine Ordnung,
+    // die mehr Sinn ergaebe.
+    list.sort((a, b) => {
+      if ((a.inst || 0) !== (b.inst || 0)) return (a.inst || 0) - (b.inst || 0);
+      if ((a.order || 0) !== (b.order || 0)) return (a.order || 0) - (b.order || 0);
+      return a.name.localeCompare(b.name);
+    });
     out.push(`    [${luaString(mode)}] = {`);
     for (const d of list) {
       const extra = (d.group ? `, group = ${luaString(d.group)}` : '')

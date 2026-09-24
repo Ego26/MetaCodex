@@ -255,6 +255,8 @@ ns.RegisterLocale("enUS", {
     ["CONSUM_TARGET"]  = "target %d",
     ["REMIND_TITLE"]   = "MetaCodex reminder",
     ["REMIND_MISSING"] = "Missing before you start: %s",
+    ["REMIND_MISSING_HEAD"] = "Missing before you start:",
+    ["REMIND_BULLET"]  = "    • %s",
     ["REMIND_OK"]      = "Flask, food and runes are in your bags.",
     ["REMIND_NONE"]    = "%s: none in bags",
     ["REMIND_LOW"]     = "%s: only %d left",

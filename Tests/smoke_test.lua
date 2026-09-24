@@ -1699,6 +1699,20 @@ wow.fire("BAG_UPDATE_DELAYED")
 wow.runTimers()
 check("im Schlachtzug warnt sie", #wow.printed > 0,
     table.concat(wow.printed, " | "))
+-- Und zwar untereinander, nicht als Wurst.
+--
+-- Ueberschrift, je Posten eine Zeile, zum Schluss der Weg hinein. In
+-- einer einzigen Zeile hintereinander war es im Chat nicht zu lesen.
+do
+    local head, bullets = 0, 0
+    for _, line in ipairs(wow.printed) do
+        if line:find(ns.L["REMIND_MISSING_HEAD"], 1, true) then head = head + 1 end
+        if line:find("•", 1, true) then bullets = bullets + 1 end
+    end
+    check("eine Ueberschrift und je Posten eine Zeile",
+        head == 1 and bullets >= 3 and #wow.printed == bullets + 1,
+        #wow.printed .. " Zeilen, " .. bullets .. " Posten")
+end
 
 -- Aber nur einmal. PLAYER_ENTERING_WORLD feuert nach jedem
 -- Ladebildschirm, und dreimal dieselbe Warnung ist eine Warnung weniger.

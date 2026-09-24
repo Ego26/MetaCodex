@@ -887,6 +887,10 @@ function emitEnchants(groups) {
     if (!name) continue;
     journalNames.encounters[name] = {
       enc: Number(row.ID), inst: Number(row.JournalInstanceID) || 0,
+      // Die Reihenfolge im Raid. Alphabetisch waere sie sonst, und zwar
+      // alphabetisch nach dem ENGLISCHEN Namen - eine Liste, die weder
+      // der Reihenfolge im Spiel noch dem deutschen Alphabet folgt.
+      order: Number(row.OrderIndex) || 0,
     };
   }
   fs.writeFileSync(path.join(mapDir, 'journal-names.json'),

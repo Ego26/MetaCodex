@@ -172,7 +172,20 @@ end
 ---@param text string Fuer Fenster, Warnung und Ton
 ---@param chatText string|nil Fuer den Chat, mit Links; sonst derselbe
 function Remind.Deliver(text, chatText, list)
-    if ns.Profile.RemindWay("chat") then ns.Print(chatText or text) end
+    if ns.Profile.RemindWay("chat") then
+        -- Im Chat untereinander, sonst einzeilig.
+        --
+        -- Eine Raidwarnung mitten im Bild darf nicht vier Zeilen hoch
+        -- sein, und das Fenster hat ohnehin eigene Zeilen. Nur der Chat
+        -- hat Platz nach unten - und dort stand bisher alles in einer
+        -- Zeile hintereinander, Posten an Posten.
+        if type(chatText) == "table" then
+            ns.Print(chatText[1])
+            for i = 2, #chatText do ns.PrintPlain(chatText[i]) end
+        else
+            ns.Print(chatText or text)
+        end
+    end
     if ns.Profile.RemindWay("warning") and RaidNotice_AddMessage and RaidWarningFrame then
         RaidNotice_AddMessage(RaidWarningFrame, text, ChatTypeInfo and ChatTypeInfo.RAID_WARNING)
     end
@@ -188,14 +201,21 @@ function Remind.Announce(mode)
     local parts = Remind.Lines(mode)
     if #parts == 0 then return end
     local linked = Remind.Lines(mode, true)
+
+    -- Fuer den Chat: Ueberschrift, dann je Posten eine Zeile, dann der
+    -- Weg hinein. Der Link fuehrt zur Erinnerung, nicht zur
+    -- Einkaufsliste - die ist der naechste Schritt, nicht die Antwort
+    -- auf "was fehlt mir".
+    local lines = { L["REMIND_MISSING_HEAD"] }
+    for _, part in ipairs(linked) do
+        lines[#lines + 1] = L["REMIND_BULLET"]:format(part)
+    end
+    lines[#lines + 1] = L["REMIND_BULLET"]:format(
+        Remind.AddonLink("remind", L["REMIND_OPEN_LIST"]))
+
     Remind.Deliver(
         L["REMIND_MISSING"]:format(table.concat(parts, ", ")),
-        L["REMIND_MISSING"]:format(table.concat(linked, ", "))
-            -- Der Link fuehrt dorthin, wovon die Zeile handelt: zur
-            -- Erinnerung. Die Einkaufsliste ist der naechste Schritt,
-            -- nicht die Antwort auf "was fehlt mir".
-            .. "  " .. Remind.AddonLink("remind", L["REMIND_OPEN_LIST"]),
-        Remind.Check(mode))
+        lines, Remind.Check(mode))
 end
 
 -- Einmal je Instanz. PLAYER_ENTERING_WORLD feuert auch nach jedem

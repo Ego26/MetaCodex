@@ -100,6 +100,16 @@ ns.SOCKETABLE = {
 
 ---Meldet eine Zeile im Chat, immer mit Absender.
 ---@param fmt string
+---Eine Folgezeile, ohne den Namen davor.
+---
+---Die Erinnerung nennt mehrere Posten, und die standen als eine Wurst
+---in einer Zeile. Untereinander liest man sie; dafuer darf aber nicht
+---vor jeder Zeile noch einmal "MetaCodex" stehen.
+---@param text string
+function ns.PrintPlain(text)
+    print(text)
+end
+
 function ns.Print(fmt, ...)
     local text = select("#", ...) > 0 and fmt:format(...) or fmt
     print("|cff8a6ff0MetaCodex|r: " .. text)
