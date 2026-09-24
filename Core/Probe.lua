@@ -96,6 +96,30 @@ function Probe.Run()
             tostring(row.id), row.owned or 0, row.need or 0)
     end
 
+    -- Was das Addon wirklich belegt.
+    --
+    -- Die Anzeigen im Spiel zaehlen mit, was noch nicht aufgeraeumt ist:
+    -- direkt nach dem Einlesen der Tabellen steht dort mehr, als
+    -- uebrig bleibt. Hier wird erst aufgeraeumt und dann gemessen, und
+    -- zwar je Ordner - sonst streitet man ueber Zahlen, die niemand
+    -- nachrechnen kann.
+    local mem = C_AddOns and C_AddOns.GetAddOnMemoryUsage or GetAddOnMemoryUsage
+    local refresh = C_AddOns and C_AddOns.UpdateAddOnMemoryUsage or UpdateAddOnMemoryUsage
+    if type(mem) == "function" and type(refresh) == "function" then
+        pcall(collectgarbage, "collect")
+        pcall(refresh)
+        local total = 0
+        local parts = {}
+        for _, name in ipairs({ "MetaCodex", "MetaCodex_Data",
+                                "MetaCodex_Dungeons", "MetaCodex_Players" }) do
+            local ok, kb = pcall(mem, name)
+            kb = (ok and type(kb) == "number") and kb or 0
+            total = total + kb
+            parts[#parts + 1] = ("%s %.1f"):format(name:gsub("MetaCodex_?", ""):gsub("^$", "Kern"), kb / 1024)
+        end
+        line("  " .. L["PROBE_MEMORY"], total / 1024, table.concat(parts, ", "))
+    end
+
     Probe.Level()
 
     -- Und alles zusammen zum Kopieren.

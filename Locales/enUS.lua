@@ -116,6 +116,7 @@ ns.RegisterLocale("enUS", {
     ["PROBE_UNRESOLVED"]   = "Unresolved IDs: %s",
     ["PROBE_PRIMARY"]      = "Primary stat detected: %s",
     ["PROBE_AGAIN"] = "The names were requested just now. Run /mc probe again in a moment.",
+    ["PROBE_MEMORY"] = "Memory after a collect: %.1f MB (%s, in MB)",
     ["PROBE_BAGS"] = "Bags known to the client: %s",
     ["PROBE_STOCK"] = "Counted in bags, bank and warband bank:",
     ["PROBE_SOCKETS"]      = "Empty sockets on equipped gear: %d",
