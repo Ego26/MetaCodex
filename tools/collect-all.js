@@ -79,6 +79,16 @@ const STEPS = [
     env: { MC_DUNGEONS: '1', MC_REPORTS: '160' },
   },
   {
+    key: 'raid-normal',
+    what: 'Raid, normal',
+    why: 'Die Aktivitaet steht im Fenster und hatte keine Daten. Der Lauf sammelte Heroisch und Mythisch, "Raid (Normal)" fiel dabei still weg - und was keine Daten hat, zeigt das Addon gar nicht erst an.',
+    script: 'collect-wcl.js',
+    args: ['raid', '3'],
+    // Kleiner als die anderen beiden: wer normal raidet, findet hier
+    // dieselben Bosse, nur mit weniger Auswahl an Berichten.
+    env: { MC_DUNGEONS: '1', MC_REPORTS: '120' },
+  },
+  {
     key: 'consumables',
     what: 'M+: Verbrauchsgueter',
     why: 'Speisen, Traenke und Oele fuehrt kein Aggregator - nur die Logs.',
