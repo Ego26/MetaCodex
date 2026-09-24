@@ -137,13 +137,14 @@ function Remind.Lines(mode, linked)
             local _, link = ns.Compat.ItemInfo(row.id)
             label = link or label
         end
-        if row.owned > 0 then
-            parts[#parts + 1] = L["REMIND_LOW"]:format(label, row.owned)
-        elseif (row.lower or 0) > 0 then
-            parts[#parts + 1] = L["REMIND_LOWER"]:format(label, row.lower)
-        else
-            parts[#parts + 1] = L["REMIND_NONE"]:format(label)
-        end
+        -- Nur der Name, nicht der Stand.
+        --
+        -- Hier stand frueher "(nur niedrigere Qualitaet: 34)" und
+        -- "nichts in der Tasche" hinter jedem Posten. Das beantwortet
+        -- eine Frage, die im Chat niemand stellt: dort will man wissen,
+        -- WAS fehlt, nicht wie knapp es ist. Der Stand steht im
+        -- Erinnerungsfenster und im Reiter, wo Platz dafuer ist.
+        parts[#parts + 1] = label
     end
     -- Auch die offenen Verzauberungen und Steine - gezaehlt gegen
     -- die Ausruestung, wie im Reiter. Vor dem Pull ist der letzte
