@@ -105,6 +105,76 @@ for _, mode in ipairs(ns.MODES) do
     for _, line in ipairs(missing) do gap(mode.label .. ": " .. line) end
 end
 
+-- Und jetzt jeder Abschnitt, den das Fenster anbietet.
+--
+-- Die Frage ist nicht nur "gibt es Talente", sondern: bietet das Fenster
+-- einen Abschnitt an, und steht dann auch etwas darin? Ein angebotener
+-- Abschnitt, der leer bleibt, ist der schlimmere Fall - er verspricht
+-- etwas und haelt es nicht. Gefragt wird ueber dieselbe Funktion, die
+-- auch die Seitenleiste fragt.
+say("")
+say("Abschnitte je Aktivitaet (angeboten / davon leer):")
+local SECTIONS = {
+    { key = "talents",    label = "Talente" },
+    { key = "gear",       label = "Ausruestung" },
+    { key = "enchants",   label = "VZ & Steine" },
+    { key = "consumables", label = "Verbrauchsgueter" },
+    { key = "remind",     label = "Erinnerung" },
+    { key = "stats",      label = "Zielwerte" },
+    { key = "players",    label = "Top-Spieler" },
+}
+
+---Steht in diesem Abschnitt wirklich etwas?
+local function filled(section, specID, mode)
+    if section == "talents" then
+        local picks, build = ns.Recommend.Talents(specID, mode, ns.Recommend.ALL)
+        return (picks and #picks > 0) or (build and build.nodes and #build.nodes > 0)
+    elseif section == "gear" then
+        local gear = ns.Recommend.Gear(specID, mode, ns.Recommend.ALL)
+        if not gear then return false end
+        for _, list in pairs(gear) do if #list > 0 then return true end end
+        return false
+    elseif section == "enchants" then
+        local entry = ns.Recommend.For(specID, mode, ns.Recommend.ALL)
+        if not entry then return false end
+        local slots = 0
+        for _ in pairs(entry.enchants or {}) do slots = slots + 1 end
+        return slots > 0 or #(entry.gems or {}) > 0
+    elseif section == "consumables" or section == "remind" then
+        local list = ns.Recommend.Consumables(specID, mode, ns.Recommend.ALL)
+        return list ~= nil and #list > 0
+    elseif section == "stats" then
+        local st = ns.Recommend.Stats(specID, mode, ns.Recommend.ALL)
+        return st ~= nil and st.values ~= nil and next(st.values) ~= nil
+    elseif section == "players" then
+        local list = ns.Recommend.Players(specID, mode, ns.Recommend.ALL)
+        return list ~= nil and #list > 0
+    end
+    return true
+end
+
+for _, mode in ipairs(ns.MODES) do
+    local parts = {}
+    for _, section in ipairs(SECTIONS) do
+        local offered, empty = 0, {}
+        for _, spec in ipairs(specs) do
+            if ns.Recommend.HasSection(spec.id, mode.key, ns.Recommend.ALL, section.key) then
+                offered = offered + 1
+                if not filled(section.key, spec.id, mode.key) then
+                    empty[#empty + 1] = spec.name
+                end
+            end
+        end
+        parts[#parts + 1] = ("%s %d/%d%s"):format(section.label, offered, #specs,
+            #empty > 0 and (" LEER:" .. #empty) or "")
+        for _, name in ipairs(empty) do
+            gap(mode.label .. " / " .. section.label .. ": " .. name .. " wird angeboten, ist aber leer")
+        end
+    end
+    say("  " .. mode.label)
+    say("     " .. table.concat(parts, "   "))
+end
+
 -- Und dasselbe je Dungeon und je Boss: dort waehlt der Spieler, und dort
 -- war der Fehler.
 say("")
