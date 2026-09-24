@@ -144,6 +144,45 @@ for (const part of profileParts) {
   console.log(`  + prof-${part.mode}.json: ${builds} Builds ergaenzt, ${players} Ranglisten, ${Object.keys(part.specs).length} Speccs Profile`);
 }
 
+// Knotenlisten einmal ablegen, dann nur noch darauf zeigen.
+//
+// Ein Build sind rund fuenfundsiebzig Knoten, und derselbe Build steht
+// fuer jeden Boss, jeden Dungeon und jeden Held-Baum noch einmal
+// vollstaendig da. Gemessen: in Dungeons.lua 2117 Builds, aber nur 319
+// verschiedene - die Haelfte der Datei ist dieselbe Liste, wieder und
+// wieder. Im Spiel wurde daraus ein Vielfaches an Speicher, weil Lua
+// jede davon als eigene Tabelle anlegt.
+//
+// Also: jede Liste einmal, und der Build traegt nur noch ihre Nummer.
+// Recommend.lua loest sie beim Einhaengen auf, und danach zeigen alle
+// Builds mit derselben Wahl auf DIESELBE Tabelle. Fuer das Fenster
+// aendert sich nichts, es sieht wie bisher eine Liste von Knoten.
+const nodePools = new Map();
+function nodeIndex(out, nodes) {
+  let pool = nodePools.get(out);
+  if (!pool) { pool = { list: [], index: new Map() }; nodePools.set(out, pool); }
+  const sig = nodes.map((n) => n.spell + ':' + n.rank).join(',');
+  let at = pool.index.get(sig);
+  if (!at) {
+    pool.list.push(nodes);
+    at = pool.list.length;
+    pool.index.set(sig, at);
+  }
+  return at;
+}
+
+function emitNodePool(out, target, indent) {
+  const pool = nodePools.get(out);
+  if (!pool || !pool.list.length) return;
+  target.push(indent + 'nodeLists = {');
+  for (const nodes of pool.list) {
+    target.push(indent + '  { '
+      + nodes.map((n) => `{ spell = ${n.spell}, rank = ${n.rank} }`).join(', ') + ' },');
+  }
+  target.push(indent + '},');
+  console.log(`  Knotenlisten: ${pool.list.length} verschiedene statt ${pool.used || '?'} Wiederholungen`);
+}
+
 // Talente, Build und Alternativen eines Eintrags - einmal geschrieben,
 // fuer die Spec und fuer jeden ihrer Held-Baeume benutzt.
 function emitTalents(out, entry, indent) {
@@ -162,8 +201,10 @@ function emitTalents(out, entry, indent) {
   }
   if (entry.build && entry.build.nodes && entry.build.nodes.length) {
     const text = entry.build.text ? `text = ${luaString(entry.build.text)}, ` : '';
-    out.push(indent + `build = { pct = ${entry.build.pct}, ${text}nodes = { `
-      + entry.build.nodes.map((n) => `{ spell = ${n.spell}, rank = ${n.rank} }`).join(', ') + ' } },');
+    const at = nodeIndex(out, entry.build.nodes);
+    const pool = nodePools.get(out);
+    pool.used = (pool.used || 0) + 1;
+    out.push(indent + `build = { pct = ${entry.build.pct}, ${text}nodes = ${at} },`);
   }
   if (entry.builds && entry.builds.length) {
     out.push(indent + 'builds = { ' + entry.builds.map((v) => {
@@ -471,6 +512,7 @@ out.push('  drops = {');
 for (const id of extraDrops) out.push(`    [${id}] = { enc = ${journalAll[id].enc}, inst = ${journalAll[id].inst} },`);
 out.push('  },');
 console.log('Fundorte aus dem Journal ergaenzt:', extraDrops.length);
+emitNodePool(baseOut, out, '  ');
 out.push('}');
 out.push('');
 
@@ -493,6 +535,7 @@ dOut.push(`  builtOn = ${newest},`);
 dOut.push('  modes = {');
 for (const line of dungeonOut) dOut.push(line);
 dOut.push('  },');
+emitNodePool(dungeonOut, dOut, '  ');
 dOut.push('}');
 dOut.push('');
 fs.writeFileSync(dungeonFile, dOut.join('\n'), 'utf8');

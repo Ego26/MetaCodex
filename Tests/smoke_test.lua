@@ -1411,6 +1411,32 @@ do
         ns.Profile.SetDungeon(nil)
     end
 
+    -- Und die Knotenlisten sind geteilt, nicht verdoppelt.
+    --
+    -- In der Datei steht jede Liste einmal, der Build traegt ihre
+    -- Nummer, und Recommend haengt beim Laden die Tabelle selbst ein.
+    -- Zweierlei muss danach stimmen: keine Nummer darf uebrig bleiben -
+    -- sonst zeigt das Fenster eine Zahl statt der Talente -, und zwei
+    -- Ansichten mit derselben Wahl muessen auf DIESELBE Tabelle zeigen.
+    do
+        local views, distinct, numbers = 0, {}, 0
+        local count = 0
+        for _, boss in ipairs(bosses) do
+            local _, build = ns.Recommend.Talents(105, boss.key, ns.Recommend.ALL)
+            if build then
+                views = views + 1
+                if type(build.nodes) ~= "table" then numbers = numbers + 1 end
+                if not distinct[build.nodes] then
+                    distinct[build.nodes] = true
+                    count = count + 1
+                end
+            end
+        end
+        check("kein Build traegt noch eine Nummer", numbers == 0, numbers .. " offen")
+        check("gleiche Wahl, dieselbe Tabelle", views > count,
+            views .. " Ansichten, " .. count .. " Listen")
+    end
+
     ns.Profile.SetMode("mplus")
     rowsInSection("talents")
     check("und in M+ 'Alle Dungeons'",

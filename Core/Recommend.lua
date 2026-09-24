@@ -28,10 +28,47 @@ Recommend.ALL = "*"
 -- seiner Herkunft wissen.
 local merged = false
 
+---Loest die Verweise auf die geteilten Knotenlisten auf.
+---
+---Ein Build sind rund fuenfundsiebzig Knoten, und derselbe Build gilt
+---fuer viele Dungeons, Bosse und Held-Baeume. In der Datei steht jede
+---Liste deshalb nur EINMAL, und der Build traegt ihre Nummer. Hier
+---bekommt er die Tabelle selbst - alle Builds mit derselben Wahl zeigen
+---danach auf dieselbe, und genau das spart den Speicher. Fuer alles
+---dahinter aendert sich nichts: build.nodes ist eine Liste von Knoten,
+---wie eh und je.
+---@param tbl table|nil
+local function resolveNodes(tbl)
+    local pool = tbl and tbl.nodeLists
+    if not pool or not tbl.modes then return end
+    local function fix(build)
+        if build and type(build.nodes) == "number" then
+            build.nodes = pool[build.nodes] or {}
+        end
+    end
+    for _, bySource in pairs(tbl.modes) do
+        for _, part in pairs(bySource) do
+            for _, entry in pairs(part.specs or {}) do
+                fix(entry.build)
+                for _, h in pairs(entry.hero or {}) do fix(h.build) end
+            end
+        end
+    end
+end
+
+local resolved = false
+
 local function data()
     local d = MetaCodex_Recommendations
+    if d and not resolved then
+        resolved = true
+        resolveNodes(d)
+    end
     if d and not merged and MetaCodex_Dungeons and MetaCodex_Dungeons.modes then
         merged = true
+        -- Erst aufloesen, dann einhaengen: der Dungeonvorrat gehoert zu
+        -- seiner eigenen Datei.
+        resolveNodes(MetaCodex_Dungeons)
         d.modes = d.modes or {}
         for mode, bySource in pairs(MetaCodex_Dungeons.modes) do
             d.modes[mode] = bySource
