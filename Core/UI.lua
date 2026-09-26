@@ -1364,10 +1364,13 @@ local RIO_ORDER = { "head", "neck", "shoulder", "back", "chest", "wrist", "hands
 local function playerViewRows(who)
     local rows = {}
     local profile, why = ns.Recommend.Player(who.mode, who.specID, who.name, who.realm)
-    rows[#rows + 1] = { kind = "link", url = who.url,
-        group = who.name .. " \194\183 " .. (who.realm or "") }
     if not profile then
+        -- Ohne Profil bleibt wenigstens die Adresse: wer hier landet,
+        -- will den Spieler nachschlagen, und das geht im Browser auch
+        -- dann, wenn raider.io uns gerade nichts gibt.
         rows[#rows + 1] = { kind = "note", text = L[why == "loading" and "PLAYER_LOADING" or "PLAYER_NO_PROFILE"] }
+        rows[#rows + 1] = { kind = "link", url = who.url, realm = who.realm,
+            group = L["PLAYER_PROFILE_GROUP"] }
         return rows
     end
     if profile.text and profile.text ~= "" then
@@ -1384,6 +1387,8 @@ local function playerViewRows(who)
             group = L["SECTION_talents"],
         }
     end
+    rows[#rows + 1] = { kind = "link", url = who.url, realm = who.realm,
+        group = L["PLAYER_PROFILE_GROUP"] }
     local bySlot = {}
     for _, piece in ipairs(profile.gear or {}) do bySlot[piece.slot] = piece end
     for _, slot in ipairs(RIO_ORDER) do
@@ -2073,7 +2078,10 @@ local function setItemRow(row, data)
         row.title:SetText(L["PLAYER_PROFILE"])
         row.detail:ClearAllPoints()
         row.detail:SetPoint("TOPLEFT", S.space.sm + 38, -S.space.sm - 16)
-        row.detail:SetText(L["GUIDE_COPY"])
+        -- Der Realm steht hier, seit ueber der Zeile "Profil" steht
+        -- und nicht mehr der Name mit seinem Realm.
+        row.detail:SetText(data.realm
+            and (data.realm .. "  \194\183  " .. L["GUIDE_COPY"]) or L["GUIDE_COPY"])
         row.share:SetText("")
         row.onClick = function() UI.ShowLink(data.url) end
         return
