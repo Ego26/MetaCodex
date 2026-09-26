@@ -107,6 +107,18 @@ local DUNGEON_SECTIONS = { talents = true, consumables = true, enchants = true }
 -- Aktivitaet, Spec. Darum merkt sich der Eintrag, woraus er kam.
 local viewingPlayer
 
+-- Welche Ausruestungsplaetze gerade aufgeklappt sind.
+--
+-- Sechzehn Plaetze mal fuenf Vorschlaege sind neunzig Zeilen, und
+-- neunzig Zeilen sind keine Liste mehr, sondern eine Wurst: was man
+-- sucht, steht immer irgendwo in der Mitte. Zu sehen ist darum je Platz
+-- das meistgetragene Stueck, und ein Klick zeigt den Rest.
+--
+-- Der Merker lebt nur, solange das Fenster offen ist: aufgeklappt ist
+-- ein Blick, keine Vorliebe.
+local gearUnfolded = {}
+
+
 -- Das Fenster der Erinnerung. Eines fuer alle Ansagen, nicht eines je
 -- Ansage: zwei uebereinander waeren schlimmer als keines.
 local remindFrame
@@ -613,6 +625,9 @@ local function gearRows(specID, mode, source)
                     atLevel = atLevel, wantLevel = yours, wantBonus = yoursBonus,
                     name = name or item.name, link = link, icon = icon,
                     group = L["GEARSLOT_" .. slot:gsub("%s", "")],
+                    -- Der Platz selbst, nicht nur seine Ueberschrift:
+                    -- danach wird gefaltet.
+                    slot = slot,
                     -- Ob man es schon hat: angelegt oder im Gepaeck.
                     -- Die Zahl ist egal, ein Stueck traegt man einmal.
                     worn = worn[item.id] == true,
@@ -2385,7 +2400,21 @@ local function setItemRow(row, data)
         -- "0 %" waere eine Aussage, die niemand gemessen hat.
         row.share:SetText(data.pct and (data.pct .. "%") or "")
         S:Recolor(row.share, (data.pct or 0) >= 50 and "accent" or "textMuted")
-        row.onClick = nil
+        -- Der Hinweis steht IM Titel und nicht in der Unterzeile: die
+        -- ist mit Stufe, Marke, Fundort und "angelegt" schon voll, und
+        -- was man anklicken soll, gehoert nach vorn.
+        if data.more then
+            row.title:SetText((data.name or ("#" .. tostring(data.id)))
+                .. "  |cff" .. S:Hex("textMuted")
+                .. (data.open and L["GEAR_LESS"] or L["GEAR_MORE"]:format(data.more))
+                .. "|r")
+            row.onClick = function()
+                gearUnfolded[data.slot] = (not gearUnfolded[data.slot]) or nil
+                ns.UI.Refresh()
+            end
+        else
+            row.onClick = nil
+        end
         return
     end
 
@@ -3227,6 +3256,25 @@ function UI.Refresh()
         local kept = {}
         for _, row in ipairs(currentRows) do
             if row.sourceKey == pickedSource then kept[#kept + 1] = row end
+        end
+        currentRows = kept
+    end
+
+    -- Und jetzt falten: je Platz eine Zeile, der Rest auf Klick.
+    --
+    -- Ein einzeln gewaehlter Platz bleibt offen. Wer oben "Ring" sagt,
+    -- hat schon gesagt, dass er die Ringe sehen will.
+    if section.key == "gear" and not viewingPlayer and not ns.Profile.GearSlot() then
+        local kept, head = {}, nil
+        for _, row in ipairs(currentRows) do
+            if head and head.slot == row.slot then
+                head.more = (head.more or 0) + 1
+                if gearUnfolded[row.slot] then kept[#kept + 1] = row end
+            else
+                head = row.slot and row or nil
+                if head then head.open = gearUnfolded[row.slot] == true end
+                kept[#kept + 1] = row
+            end
         end
         currentRows = kept
     end

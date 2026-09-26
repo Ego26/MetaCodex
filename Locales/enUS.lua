@@ -54,6 +54,8 @@ ns.RegisterLocale("enUS", {
     ["OWNED_HIGHER"] = "%d owned in higher quality",
     ["OWNED_LOWER"] = "%d owned in lower quality",
     ["GEAR_WORN"] = "equipped",
+    ["GEAR_MORE"] = "+%d more",
+    ["GEAR_LESS"] = "less",
     ["CHARBTN_CLICK"] = "Click to open or close MetaCodex",
     ["MINIMAP_CLICK"] = "Click to open or close MetaCodex  ·  right-click for settings",
     ["MINIMAP_DRAG"] = "Drag to move it around the minimap",

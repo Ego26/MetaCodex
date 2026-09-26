@@ -54,6 +54,8 @@ ns.RegisterLocale("deDE", {
     ["OWNED_HIGHER"] = "%d in höherer Qualität vorhanden",
     ["OWNED_LOWER"] = "%d in niedrigerer Qualität vorhanden",
     ["GEAR_WORN"] = "angelegt",
+    ["GEAR_MORE"] = "+%d weitere",
+    ["GEAR_LESS"] = "weniger",
     ["CHARBTN_CLICK"] = "Klicken, um MetaCodex zu öffnen oder zu schließen",
     ["MINIMAP_CLICK"] = "Klicken zum Öffnen oder Schließen  ·  Rechtsklick für die Einstellungen",
     ["MINIMAP_DRAG"] = "Ziehen verschiebt ihn um die Minimap",

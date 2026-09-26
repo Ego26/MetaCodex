@@ -538,6 +538,46 @@ check("Zielwerte zeigen Zeilen", rowsInSection("stats") >= 4,
     rowsInSection("stats") .. " Zeilen")
 check("Ausruestung zeigt Zeilen", rowsInSection("gear") > 10,
     rowsInSection("gear") .. " Zeilen")
+
+-- Je Platz eine Zeile, und der Rest auf Klick.
+--
+-- Sechzehn Plaetze mal fuenf Vorschlaege waren neunzig Zeilen. Was
+-- geprueft wird, ist nicht die Zahl - die haengt an den Daten -,
+-- sondern dass ueberhaupt gefaltet ist, dass ein Klick aufmacht und
+-- derselbe Klick wieder zu.
+do
+    local shownIn = function()
+        local n = 0
+        for _, row in ipairs(wow.rows()) do if row:IsShown() then n = n + 1 end end
+        return n
+    end
+    local findFold = function(word)
+        for _, row in ipairs(wow.rows()) do
+            local text = row.title:GetText() or ""
+            if row:IsShown() and row.onClick and text:find(word, 1, true) then return row end
+        end
+    end
+    local compact = rowsInSection("gear")
+    -- Das Wort hinter der Zahl: "weitere", "more". Der fertige Text
+    -- traegt eine Zahl, die niemand vorher kennt.
+    local word = L["GEAR_MORE"]:match("%%d%s*(.+)") or "?"
+    local more = findFold(word)
+    check("Ausruestung ist gefaltet", more ~= nil, compact .. " Zeilen")
+    if more then
+        more.onClick(more, "LeftButton")
+        local open = shownIn()
+        check("ein Klick klappt den Platz auf", open > compact,
+            compact .. " -> " .. open)
+        local less = findFold(L["GEAR_LESS"])
+        check("die Zeile bietet jetzt das Zuklappen an", less ~= nil)
+        if less then
+            less.onClick(less, "LeftButton")
+            check("und zugeklappt sind es wieder so viele wie vorher",
+                shownIn() == compact, shownIn() .. " statt " .. compact)
+        end
+    end
+end
+
 check("Verzauberungen zeigen weiter Zeilen", rowsInSection("enchants") > 0)
 -- Hier stand einmal "leerer Abschnitt bleibt leer" und meinte Guides.
 -- Inzwischen ist keiner der sechs Abschnitte mehr leer.
