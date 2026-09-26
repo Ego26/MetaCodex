@@ -3105,5 +3105,49 @@ do
     ns.Profile.SetTooltipOn(true)
 end
 
+-- ------------------------------------------- Eigener Build gegen Bestenbuild
+
+-- Die Rechnung dahinter, ohne Client.
+--
+-- Was der Client ueber die eigene Wahl sagt, steht in Compare.Mine und
+-- braucht das laufende Spiel. Der Vergleich selbst ist reine Rechnung
+-- und muss genau drei Faelle treffen: gleich, etwas fehlt, etwas ist zu
+-- viel. Ein vierter waere der schlimmste - eine Abweichung behaupten,
+-- wo keine ist.
+do
+    local build = { nodes = {
+        { spell = 100, rank = 1 },
+        { spell = 200, rank = 2 },
+        { spell = 300, rank = 1 },
+    } }
+
+    local same = ns.Compare.Diff({ [100] = 1, [200] = 2, [300] = 1 }, build)
+    check("gleiche Wahl, kein Unterschied",
+        same ~= nil and #same.missing == 0 and #same.extra == 0 and same.same == 3,
+        same and (same.same .. " gleich, " .. #same.missing .. " fehlen") or "nichts")
+
+    local lacks = ns.Compare.Diff({ [100] = 1, [300] = 1 }, build)
+    check("fehlendes Talent wird genannt",
+        lacks ~= nil and #lacks.missing == 1 and lacks.missing[1] == 200,
+        lacks and table.concat(lacks.missing, ", ") or "nichts")
+
+    -- Ein niedrigerer Rang ist auch ein Unterschied: zwei Punkte in
+    -- einem Talent sind nicht dasselbe wie einer.
+    local lower = ns.Compare.Diff({ [100] = 1, [200] = 1, [300] = 1 }, build)
+    check("niedrigerer Rang zaehlt als Unterschied",
+        lower ~= nil and #lower.missing == 1 and lower.missing[1] == 200,
+        lower and table.concat(lower.missing, ", ") or "nichts")
+
+    local extra = ns.Compare.Diff({ [100] = 1, [200] = 2, [300] = 1, [400] = 1 }, build)
+    check("zusaetzliches Talent wird genannt",
+        extra ~= nil and #extra.extra == 1 and extra.extra[1] == 400,
+        extra and table.concat(extra.extra, ", ") or "nichts")
+
+    -- Ohne Auskunft des Clients wird nichts behauptet.
+    check("ohne eigene Wahl kein Vergleich", ns.Compare.Diff(nil, build) == nil)
+    check("ohne Build kein Vergleich", ns.Compare.Diff({ [100] = 1 }, nil) == nil)
+end
+
+
 say(fails == 0 and "\nalles gruen" or ("\n" .. fails .. " Fehler"))
 os.exit(fails == 0 and 0 or 1)

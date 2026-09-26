@@ -1496,6 +1496,25 @@ local function talentRows(specID, mode, source)
             fromSource = build.fromSource,
             group = L["TALENT_BUILD"]:format(build.pct or 0),
         }
+
+        -- Und darunter: worin DEIN Build davon abweicht.
+        --
+        -- Eine Kette zum Kopieren ist alles oder nichts. Die Frage, die
+        -- davor steht, ist "worin unterscheide ich mich ueberhaupt" -
+        -- und die beantwortet der Client, wenn man ihn fragt. Nur fuer
+        -- die eigene Spec: fuer eine fremde gibt es keine eigene Wahl,
+        -- mit der man vergleichen koennte.
+        local own = specID == ns.Compat.CurrentSpec()
+        local diff = own and ns.Compare.DiffTo(build) or nil
+        if diff then
+            local n = #diff.missing + #diff.extra
+            rows[#rows + 1] = {
+                kind = "loadout", specID = specID, nodes = {},
+                mine = true, count = n,
+                missing = diff.missing, extra = diff.extra,
+                group = L["TALENT_BUILD"]:format(build.pct or 0),
+            }
+        end
     end
 
     -- Und die naechsthaeufigsten, je mit dem Unterschied.
@@ -1984,6 +2003,10 @@ local function setItemRow(row, data)
             else
                 row.title:SetText(L["TALENT_MINUS"]:format(minus))
             end
+        elseif data.mine then
+            -- Dein eigener Build gegen den haeufigsten.
+            row.title:SetText(data.count == 0 and L["MINE_SAME"]
+                or L["MINE_DIFF"]:format(data.count))
         elseif data.playerRow then
             row.title:SetText(L["PLAYER_LOADOUT"])
         else
@@ -2005,6 +2028,26 @@ local function setItemRow(row, data)
         -- wo es umbrach und abgeschnitten wurde.
         if data.playerRow then
             hint = L[data.verified and "PLAYER_VERIFIED" or "PLAYER_UNVERIFIED"]
+        end
+        if data.mine then
+            -- Worin genau: was dir fehlt, und was du zusaetzlich hast.
+            -- Hoechstens drei je Seite, sonst wird die Zeile zur Liste.
+            local function names(list)
+                local out = {}
+                for _, spell in ipairs(list or {}) do
+                    if #out >= 3 then out[#out + 1] = "..." break end
+                    local info = C_Spell and C_Spell.GetSpellInfo
+                        and C_Spell.GetSpellInfo(spell)
+                    out[#out + 1] = (info and info.name) or ("#" .. spell)
+                end
+                return table.concat(out, ", ")
+            end
+            local parts = {}
+            local lack, plus = names(data.missing), names(data.extra)
+            if lack ~= "" then parts[#parts + 1] = L["MINE_LACK"]:format(lack) end
+            if plus ~= "" then parts[#parts + 1] = L["MINE_PLUS"]:format(plus) end
+            hint = #parts > 0 and table.concat(parts, "  ·  ") or L["MINE_SAME_HINT"]
+            usable = false
         end
         if data.fromBase then
             -- Aus welcher Ansicht geliehen wurde. Hier stand fest

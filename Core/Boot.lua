@@ -35,6 +35,24 @@ local function requestRefresh()
     end
 end
 
+---Laedt die Tabellen still, wenn gerade nichts los ist.
+---
+---Nicht im Kampf: das Einlesen kostet einen Moment, und der gehoert
+---nicht in einen Pull. Klappt es nicht, wird es spaeter noch einmal
+---versucht - hoechstens dreimal, danach holt es der erste Tooltip.
+local warmTries = 0
+local function warmUp()
+    if not ns.Profile.TooltipOn() then return end
+    if ns.Recommend.Ready() then return end
+    warmTries = warmTries + 1
+    if warmTries > 3 then return end
+    if InCombatLockdown and InCombatLockdown() then
+        C_Timer.After(30, warmUp)
+        return
+    end
+    ns.Data.Ensure()
+end
+
 frame:SetScript("OnEvent", function(_, event)
     if event == "PLAYER_LOGIN" then
         -- Bewusst NICHT die Daten laden: sie liegen im nachladbaren
@@ -47,9 +65,19 @@ frame:SetScript("OnEvent", function(_, event)
         -- es ab jetzt, und beide sind ab Werk an.
         ns.UI.UpdateCharacterButton()
         ns.Minimap.Update()
-        -- Und der Anbau an die Gegenstands-Tooltips. Er laedt die Daten
-        -- nicht: erst wenn wirklich ein Item unter dem Zeiger liegt.
+        -- Und der Anbau an die Gegenstands-Tooltips.
         ns.Tooltip.Hook()
+        -- Ein ruhiger Start, wenn der Tooltip etwas sagen soll.
+        --
+        -- Die Tabellen liegen im nachladbaren Addon, und wer sie beim
+        -- Anmelden einliest, zahlt Ladezeit fuer etwas, das er
+        -- vielleicht nie braucht. Beim Tooltip sieht das anders aus: ihn
+        -- trifft man unweigerlich, und dann ruckelt es genau in dem
+        -- Moment, in dem man ueber ein Item faehrt. Also wird ein paar
+        -- Sekunden nach dem Anmelden im Leerlauf geladen, ausserhalb des
+        -- Kampfes - und nur dann, wenn der Anbau ueberhaupt an ist. Wer
+        -- ihn abschaltet, zahlt weiterhin nichts.
+        C_Timer.After(15, warmUp)
     else
         requestRefresh()
     end

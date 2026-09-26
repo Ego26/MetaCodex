@@ -15,6 +15,11 @@ ns.RegisterLocale("enUS", {
     ["SLOT_gems"]          = "Gems",
 
     -- Kennwerte
+    ["MINE_DIFF"]   = "You play %d talents differently",
+    ["MINE_SAME"]   = "Your build is the most common one",
+    ["MINE_SAME_HINT"] = "node for node the same",
+    ["MINE_LACK"]   = "you are missing: %s",
+    ["MINE_PLUS"]   = "you took instead: %s",
     ["TIP_TOP"]     = "most worn in this slot (%d%%)",
     ["TIP_RANK"]    = "number %d of %d in this slot (%d%%)",
     ["SET_TOOLTIP"] = "Add to item tooltips",

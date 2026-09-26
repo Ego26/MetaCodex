@@ -15,6 +15,11 @@ ns.RegisterLocale("deDE", {
     ["SLOT_gems"]          = "Sockelsteine",
 
     -- Kennwerte
+    ["MINE_DIFF"]   = "Du spielst %d Talente anders",
+    ["MINE_SAME"]   = "Dein Build ist der häufigste",
+    ["MINE_SAME_HINT"] = "Knoten für Knoten derselbe",
+    ["MINE_LACK"]   = "dir fehlt: %s",
+    ["MINE_PLUS"]   = "du hast zusätzlich: %s",
     ["TIP_TOP"]     = "am häufigsten getragen auf diesem Platz (%d %%)",
     ["TIP_RANK"]    = "Platz %d von %d auf diesem Platz (%d %%)",
     ["SET_TOOLTIP"] = "Im Gegenstands-Tooltip ergänzen",
