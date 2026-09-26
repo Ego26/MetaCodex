@@ -3049,5 +3049,61 @@ if top then
     end
 end
 
+-- ------------------------------------------------- Gegenstands-Tooltip
+
+-- Was der Tooltip sagen soll, ohne den Tooltip selbst.
+--
+-- Zwei Fragen hat jemand, der ein Item unter dem Zeiger haelt: taugen
+-- die Zweitwerte fuer meine Spec, und ist das ueberhaupt das Teil, das
+-- die Besten tragen? Die Antworten rechnet Tooltip aus. Das Anhaengen
+-- an die Zeilen braucht den laufenden Client und steht in /mc probe.
+do
+    ns.Profile.SetMode("mplus")
+    local stats = ns.Recommend.Stats(105, "mplus", ns.Recommend.ALL)
+    check("Rangfolge der Zweitwerte liegt vor",
+        stats ~= nil and stats.priority ~= nil and #stats.priority >= 2,
+        stats and stats.priority and table.concat(stats.priority, " > "))
+
+    local real = ns.Compat.ItemStats
+    ns.Compat.ItemStats = function()
+        return { ITEM_MOD_HASTE_RATING_SHORT = 800, ITEM_MOD_MASTERY_RATING_SHORT = 500 }
+    end
+    local ranks = ns.Tooltip.StatRanks("|Hitem:200001|h[Item]|h")
+    ns.Compat.ItemStats = real
+
+    local want = {}
+    for i, key in ipairs(stats and stats.priority or {}) do want[key] = i end
+    check("nur die Werte, die das Item traegt",
+        ranks ~= nil and ranks.haste ~= nil and ranks.mastery ~= nil
+            and ranks.crit == nil and ranks.vers == nil,
+        ranks and ("haste=" .. tostring(ranks.haste) .. " mastery=" .. tostring(ranks.mastery)
+            .. " crit=" .. tostring(ranks.crit)) or "nichts")
+    check("und mit der gemessenen Rangnummer",
+        ranks ~= nil and ranks.haste == want.haste and ranks.mastery == want.mastery,
+        ranks and (tostring(ranks.haste) .. " von " .. tostring(want.haste)) or "-")
+
+    -- Platz in der Liste: das meistgetragene Stueck eines Platzes ist
+    -- das, was andere "BiS" nennen.
+    local gear = ns.Recommend.Gear(105, "mplus", ns.Recommend.ALL)
+    local firstID, listLen
+    for _, list in pairs(gear or {}) do
+        if list[1] and list[1].id then firstID, listLen = list[1].id, #list break end
+    end
+    if firstID then
+        local rank, pct, total = ns.Tooltip.GearRank(firstID)
+        check("das meistgetragene Stueck ist Platz eins",
+            rank == 1 and type(pct) == "number" and total == listLen,
+            "Platz " .. tostring(rank) .. " von " .. tostring(total) .. ", " .. tostring(pct) .. " %")
+    end
+    check("ein Stueck ausserhalb der Liste bekommt keinen Platz",
+        ns.Tooltip.GearRank(1) == nil)
+
+    -- Und abgeschaltet haengt es nichts an.
+    ns.Profile.SetTooltipOn(false)
+    check("abgeschaltet bleibt der Tooltip unberuehrt",
+        ns.Profile.TooltipOn() == false)
+    ns.Profile.SetTooltipOn(true)
+end
+
 say(fails == 0 and "\nalles gruen" or ("\n" .. fails .. " Fehler"))
 os.exit(fails == 0 and 0 or 1)

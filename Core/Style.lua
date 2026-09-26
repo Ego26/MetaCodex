@@ -41,6 +41,9 @@ local PALETTE = {
     -- Spec. Eine Ueberschrift soll stehen bleiben, wo sie steht, und
     -- sich vom gedaempften Grau der Nebentexte abheben - sonst sieht
     -- eine Liste aus wie ein einziger Block.
+    -- Die Hausfarbe. Sie stand bisher als "8a6ff0" mitten im Code, an
+    -- jeder Stelle neu getippt.
+    brand       = "8A6FF0",
     heading     = "7FB3E8",
     accent      = "4C8DFF",
     accentHover = "6BA1FF",

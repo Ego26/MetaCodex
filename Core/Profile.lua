@@ -301,6 +301,23 @@ end
 ---Die Erinnerung: warnt beim Betreten von Schlachtzug oder Schluesselstein,
 ---wenn etwas fehlt.
 ---@return boolean
+---Ob MetaCodex Gegenstands-Tooltips ergaenzt.
+---
+---An, weil die Zahl genau dort hilft, wo man das Item anfasst. Aus,
+---weil manche ihre Tooltips unberuehrt wollen und das ihr gutes Recht
+---ist.
+---@return boolean
+function Profile.TooltipOn()
+    local db = MetaCodexDB or {}
+    if db.tooltip == nil then return true end
+    return db.tooltip and true or false
+end
+
+---@param on boolean
+function Profile.SetTooltipOn(on)
+    MetaCodexDB.tooltip = on and true or false
+end
+
 function Profile.RemindersOn()
     local db = MetaCodexDB or {}
     if db.reminders == nil then return true end

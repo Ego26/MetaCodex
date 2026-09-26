@@ -57,6 +57,7 @@ Core\Guides.lua
 Core\UI.lua
 Core\Minimap.lua
 Core\Remind.lua
+Core\Tooltip.lua
 Core\Probe.lua
 Core\Slash.lua
 

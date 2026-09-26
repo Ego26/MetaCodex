@@ -1199,6 +1199,11 @@ local function settingsRows()
         ns.Profile.SetCharButton(value)
         UI.UpdateCharacterButton()
     end)
+    -- Der Tooltip ist der vierte Weg ins Addon, auch wenn er kein Knopf
+    -- ist: er beantwortet zwei Fragen, ohne dass man etwas oeffnet.
+    switch(L["SET_TOOLTIP"], L["SET_GROUP_OPEN"], ns.Profile.TooltipOn(), function(value)
+        ns.Profile.SetTooltipOn(value)
+    end)
 
     -- Schriftgroesse: dieselben Stufen wie /mc scale, zum Auswaehlen.
     --

@@ -47,6 +47,9 @@ frame:SetScript("OnEvent", function(_, event)
         -- es ab jetzt, und beide sind ab Werk an.
         ns.UI.UpdateCharacterButton()
         ns.Minimap.Update()
+        -- Und der Anbau an die Gegenstands-Tooltips. Er laedt die Daten
+        -- nicht: erst wenn wirklich ein Item unter dem Zeiger liegt.
+        ns.Tooltip.Hook()
     else
         requestRefresh()
     end
