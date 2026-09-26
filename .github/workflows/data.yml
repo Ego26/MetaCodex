@@ -355,6 +355,20 @@ jobs:
       # reuse holt die Ernte von gestern, only holt genau die Quelle neu.
       - name: Collect just these sources again
         if: inputs.only != ''
+        # Eine kaputte Quelle kostet ihre eigenen Zahlen, nicht den Lauf.
+        #
+        # Genau das ist am 26.09. passiert: wago.tools antwortete mit
+        # einem HTTP 504, der Katalog fiel aus, collect-all lief brav
+        # weiter ("der Rest laeuft weiter") - und meldete am Ende
+        # trotzdem Exitcode 1. Damit galt der Schritt als gescheitert,
+        # und alles danach wurde uebersprungen: bauen, testen, packen,
+        # veroeffentlichen. Eine Stunde Sammeln lag im Artefakt und kam
+        # nirgends an.
+        #
+        # Der Job danach rechnet ohnehin mit dem, was da ist, und die
+        # Pruefungen im naechsten Schritt sagen, wenn wirklich etwas
+        # Wichtiges fehlt.
+        continue-on-error: true
         env:
           # Ueber die Umgebung, nicht in die Befehlszeile eingesetzt:
           # was von aussen kommt, gehoert nicht in eine Shell-Zeile.
