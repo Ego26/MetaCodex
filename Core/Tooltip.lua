@@ -213,21 +213,58 @@ end
 -- feuert OnTooltipSetItem. Es wird genommen, was da ist - und nur eines
 -- von beiden, sonst stuende die Zeile zweimal da.
 local hooked = false
+---Welcher Gegenstand steht in diesem Tooltip?
+---
+---GetItem beantwortet das fuer den Tooltip unter dem Zeiger. Fuer die
+---VERGLEICHS-Tooltips daneben antwortet es nicht: die werden nicht
+---"gesetzt", sondern mit Daten gefuellt, und deshalb standen die
+---Rangnummern nur am angefassten Stueck und nicht an dem, das man
+---anhat - also genau dort nicht, wo verglichen wird.
+---
+---Die Daten des Tooltips kennen den Gegenstand aber. Sie sind der
+---zweite Weg.
+---@param tip table
+---@param data table|nil
+---@return string|nil
+local function linkOf(tip, data)
+    if tip and tip.GetItem then
+        local ok, _, link = pcall(tip.GetItem, tip)
+        if ok and type(link) == "string" and link ~= "" then return link end
+    end
+    if data then
+        if type(data.hyperlink) == "string" and data.hyperlink ~= "" then
+            return data.hyperlink
+        end
+        if data.id then return "item:" .. data.id end
+    end
+    return nil
+end
+
 function Tooltip.Hook()
     if hooked then return end
     hooked = true
     if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall
         and Enum and Enum.TooltipDataType then
         TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item,
-            function(tip)
-                if not tip or not tip.GetItem then return end
-                local ok, _, link = pcall(tip.GetItem, tip)
-                if ok and link then pcall(Tooltip.Decorate, tip, link) end
+            function(tip, data)
+                local link = linkOf(tip, data)
+                if link then pcall(Tooltip.Decorate, tip, link) end
             end)
     elseif GameTooltip and GameTooltip.HookScript then
         GameTooltip:HookScript("OnTooltipSetItem", function(tip)
-            local ok, _, link = pcall(tip.GetItem, tip)
-            if ok and link then pcall(Tooltip.Decorate, tip, link) end
+            local link = linkOf(tip, nil)
+            if link then pcall(Tooltip.Decorate, tip, link) end
         end)
+        -- Die beiden Vergleichsfenster des alten Clients haben eigene
+        -- Haken; ohne sie bliebe die Zahl dort aus.
+        for _, name in ipairs({ "ShoppingTooltip1", "ShoppingTooltip2" }) do
+            local shop = _G[name]
+            if shop and shop.HookScript then
+                shop:HookScript("OnTooltipSetItem", function(tip)
+                    local link = linkOf(tip, nil)
+                    if link then pcall(Tooltip.Decorate, tip, link) end
+                end)
+            end
+        end
     end
 end
