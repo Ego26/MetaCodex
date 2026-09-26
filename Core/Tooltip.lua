@@ -119,7 +119,12 @@ local function markStats(tip, ranks)
     for i = 2, tip:NumLines() do
         local line = _G[name .. "TextLeft" .. i]
         local text = line and line.GetText and line:GetText()
-        if type(text) == "string" and not text:find("|cff", 1, true) then
+        -- Eine Wertzeile faengt mit ihrer Zahl an: "+56 Meisterschaft".
+        -- Ein Satz, in dem "Tempo" vorkommt - ein Set-Bonus, ein
+        -- Anlegeeffekt -, ist keine, und dort haette die Nummer nichts
+        -- zu suchen.
+        local isStatLine = type(text) == "string" and text:find("^%+?[%d%.,%s]+%a") ~= nil
+        if isStatLine and not text:find("|cff", 1, true) then
             for _, entry in ipairs(order) do
                 if ranks[entry.key] and text:find(entry.text, 1, true) then
                     -- Hausfarbe, nicht Klassenfarbe: die Nummer soll
@@ -163,9 +168,26 @@ function Tooltip.Decorate(tip, link)
     end
 
     local itemID = tonumber(link:match("item:(%d+)"))
-    local ranks = Tooltip.StatRanks(link)
+
+    -- Markiert wird, was im Tooltip STEHT - nicht, was die
+    -- Gegenstandsschnittstelle zum Link zu sagen hat.
+    --
+    -- Der Unterschied ist kein Feinschliff. Ein Handwerksstueck traegt
+    -- seine Zweitwerte ueber Bonus-IDs; fragt man den nackten Link,
+    -- antwortet das Spiel mit "Zufallswert 1" und "Zufallswert 2", und
+    -- die Rangnummern fielen genau dort weg, wo der Spieler sie sieht.
+    -- Dasselbe beim Vergleichstooltip, dessen Link wir nicht kennen.
+    -- Im Tooltip dagegen steht, was das Stueck wirklich hat - und die
+    -- Reihenfolge der Werte haengt ohnehin an der Spec, nicht am
+    -- Gegenstand.
     local marked = 0
-    if ranks then marked = markStats(tip, ranks) end
+    local all = priorityRanks()
+    if all then marked = markStats(tip, all) end
+
+    -- Fuer die Ersatzzeile weiter unten zaehlt weiter, was das Item
+    -- laut Schnittstelle traegt: dort sollen nicht vier Werte stehen,
+    -- wenn es zwei hat.
+    local ranks = Tooltip.StatRanks(link)
 
     -- Keine Wertzeile getroffen, aber Raenge vorhanden?
     --

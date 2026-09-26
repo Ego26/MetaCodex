@@ -167,7 +167,7 @@ local function setButtonActive(button, active)
 end
 
 local function makeStatRow(parent, labelKey, key, values, y)
-    local caption = S:Text(parent, "caption", "textMuted")
+    local caption = S:Text(parent, "caption", "textSecondary")
     caption:SetPoint("TOPLEFT", S.space.lg, y)
     caption:SetWidth(84)
     caption:SetText(L["LBL_" .. labelKey])
@@ -665,6 +665,10 @@ local function kindRows(specID, mode, source, want)
     if not gear then return {}, nil end
 
     local minLevel = ns.Profile.MinItemLevel()
+    -- Dieselbe Stufe wie in der Platzliste. Ohne sie zeigte das Tooltip
+    -- den nackten Gegenstand - bei einem Handwerksstueck "Stufe 44" und
+    -- "Zufallswert 1", wo die Zeile 331 sagt.
+    local yours, yoursBonus = ns.Profile.TargetLevel()
     local rows, seen = {}, {}
     for _, slot in ipairs(GEAR_ORDER) do
         for _, item in ipairs(gear[slot] or {}) do
@@ -681,7 +685,9 @@ local function kindRows(specID, mode, source, want)
                     drop = drop, sourceKey = sourceKey, sourceLabel = sourceLabel,
                     sourceGroup = sourceGroup,
                     badge = nil,
-                    ilvl = item.ilvl, maxKey = item.maxKey,
+                    ilvl = yours or item.ilvl, maxKey = item.maxKey,
+                    atLevel = yours and ns.Compat.LinkAtLevel(item.id, yours) or nil,
+                    wantLevel = yours, wantBonus = yoursBonus,
                     name = name or item.name, link = link, icon = icon,
                     -- Der Platz steht in der Zeile, aber er ordnet sie
                     -- nicht: gruppiert wird hier nach nichts, sortiert
@@ -1897,7 +1903,7 @@ local function acquireRow(index)
     row.barMine:Hide()
 
     -- Der eigene Wert als Zahl, unter der Bahn.
-    row.own = S:Text(row, "caption", "textMuted")
+    row.own = S:Text(row, "caption", "textSecondary")
     row.own:SetPoint("TOPLEFT", BAR_X, -S.space.sm - 24)
     row.own:Hide()
 
@@ -1910,7 +1916,11 @@ local function acquireRow(index)
     row.title:SetPoint("TOPLEFT", S.space.sm + 38, -S.space.sm)
     row.title:SetWidth(contentWidth() - 140)
 
-    row.detail = S:Text(row, "caption", "textMuted")
+    -- Ein Grau fuer alle Unterzeilen. Sie tragen keine Deko, sondern
+    -- Platz, Stufe, Fundort und "angelegt" - das liest man, und dunkler
+    -- als die Notiz daneben zu sein hatte keinen Grund ausser der
+    -- Reihenfolge, in der die Zeilen entstanden sind.
+    row.detail = S:Text(row, "caption", "textSecondary")
     row.detail:SetPoint("TOPLEFT", S.space.sm + 38, -S.space.sm - 16)
     row.detail:SetWidth(contentWidth() - 140)
 
@@ -2050,6 +2060,11 @@ local function setItemRow(row, data)
     -- Zielwerte setzen eine groessere Schrift; ohne diese Zeile behielte
     -- sie die naechste Zeile, die dieselbe Zeile wiederverwendet.
     S:ApplyFont(row.title, "body", "textPrimary")
+    -- Auch die Unterzeile. Ohne das erbt sie die Farbe der Zeile, die
+    -- vorher an dieser Stelle stand - eine Warnung bleibt rot, ein
+    -- gedaempfter Hinweis bleibt gedaempft, und zwar im naechsten
+    -- Abschnitt an einem ganz anderen Gegenstand.
+    S:ApplyFont(row.detail, "caption", "textSecondary")
     row.title:ClearAllPoints()
     row.title:SetPoint("TOPLEFT", S.space.sm + 38, -S.space.sm)
     row:SetHeight(ROW_HEIGHT)
@@ -2442,7 +2457,6 @@ local function setItemRow(row, data)
                 table.concat(parts, "  ·  "), S:Hex(token), status))
         else
             row.detail:SetText(table.concat(parts, "  ·  "))
-            S:Recolor(row.detail, "textMuted")
         end
         row.title:SetAlpha(data.alt and 0.75 or 1)
         row.icon:SetAlpha(data.alt and 0.6 or 1)
@@ -2527,7 +2541,7 @@ local function setItemRow(row, data)
         -- was man anklicken soll, gehoert nach vorn.
         if data.more then
             row.title:SetText((data.name or ("#" .. tostring(data.id)))
-                .. "  |cff" .. S:Hex("textMuted")
+                .. "  |cff" .. S:Hex("textSecondary")
                 .. (data.open and L["GEAR_LESS"] or L["GEAR_MORE"]:format(data.more))
                 .. "|r")
             row.onClick = function()
@@ -2594,7 +2608,6 @@ local function setItemRow(row, data)
             parts[#parts + 1] = L["MAX_KEY"]:format(data.maxKey)
         end
         row.detail:SetText(table.concat(parts, "  ·  "))
-        S:Recolor(row.detail, "textMuted")
         row.title:SetAlpha(0.75)
         row.icon:SetAlpha(0.6)
         row.onClick = nil
@@ -3714,7 +3727,7 @@ function UI.ShowLink(url)
         end)
         linkFrame.box = box
 
-        local hint = S:Text(linkFrame, "caption", "textMuted")
+        local hint = S:Text(linkFrame, "caption", "textSecondary")
         hint:SetPoint("TOPLEFT", S.space.lg, -S.space.lg - 64)
         hint:SetPoint("TOPRIGHT", -S.space.lg, -S.space.lg - 64)
         hint:SetJustifyH("LEFT")
@@ -4147,7 +4160,7 @@ function UI.ShowText(text)
         title:SetPoint("TOPLEFT", S.space.lg, -S.space.lg)
         title:SetText(L["TEXT_TITLE"])
 
-        local hint = S:Text(textFrame, "caption", "textMuted")
+        local hint = S:Text(textFrame, "caption", "textSecondary")
         hint:SetPoint("TOPLEFT", S.space.lg, -S.space.lg - 22)
         hint:SetText(L["TEXT_HINT"])
 

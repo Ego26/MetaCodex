@@ -641,6 +641,34 @@ do
     end
 end
 
+-- Gleiche Rolle, gleiche Farbe.
+--
+-- Zeilen werden wiederverwendet, und die Unterzeile setzte ihre Farbe
+-- nicht zurueck: was einmal gedaempft oder rot war, blieb es im
+-- naechsten Abschnitt an einem ganz anderen Gegenstand. Im Fenster sah
+-- das aus wie Zufall, und es war auch einer.
+do
+    local erlaubt = { textSecondary = true, warning = true }
+    local schief, geprueft = {}, 0
+    for _, key in ipairs({ "gear", "tier", "crafted", "enchants", "consumables",
+                           "remind", "stats", "talents", "players", "settings",
+                           "info", "guides" }) do
+        rowsInSection(key)
+        for _, row in ipairs(wow.rows()) do
+            local text = row:IsShown() and row.detail and (row.detail:GetText() or "") or ""
+            if text ~= "" then
+                geprueft = geprueft + 1
+                local token = rawget(row.detail, "__token")
+                if token and not erlaubt[token] then
+                    schief[#schief + 1] = key .. ": " .. token
+                end
+            end
+        end
+    end
+    check("Unterzeilen tragen ueberall dieselbe Farbe", #schief == 0 and geprueft > 40,
+        geprueft .. " Zeilen geprueft" .. (#schief > 0 and (": " .. table.concat(schief, ", ")) or ""))
+end
+
 check("Verzauberungen zeigen weiter Zeilen", rowsInSection("enchants") > 0)
 -- Hier stand einmal "leerer Abschnitt bleibt leer" und meinte Guides.
 -- Inzwischen ist keiner der sechs Abschnitte mehr leer.
@@ -3273,6 +3301,51 @@ do
     end
     check("ein Stueck ausserhalb der Liste bekommt keinen Platz",
         ns.Tooltip.GearRank(1) == nil)
+
+    -- Und die Nummern haengen an den Zeilen, die der Tooltip zeigt.
+    --
+    -- Ein Handwerksstueck traegt seine Zweitwerte ueber Bonus-IDs. Der
+    -- nackte Link antwortet dann mit "Zufallswert 1/2", und genau dort
+    -- fehlten die Nummern - sichtbar im Abschnitt Handwerk. Gelesen
+    -- wird deshalb der Tooltip selbst.
+    do
+        ITEM_MOD_CRIT_RATING_SHORT = "Kritischer Trefferwert"
+        ITEM_MOD_HASTE_RATING_SHORT = "Tempo"
+        ITEM_MOD_MASTERY_RATING_SHORT = "Meisterschaft"
+        ITEM_MOD_VERSATILITY = "Vielseitigkeit"
+        local shown = {
+            "Plattenarmschienen des Weltenwanderers",
+            "Gegenstandsstufe 331",
+            "+103 Intelligenz",
+            "+56 Kritischer Trefferwert",
+            "+56 Meisterschaft",
+            "Anlegen: Eure Zauber erhoehen euer Tempo um 5%.",
+        }
+        for i, text in ipairs(shown) do
+            local slot = { __text = text }
+            function slot:GetText() return self.__text end
+            function slot:SetText(value) self.__text = value end
+            _G["MCProbeTipTextLeft" .. i] = slot
+        end
+        local tip = { added = {} }
+        function tip:GetName() return "MCProbeTip" end
+        function tip:NumLines() return #shown end
+        function tip:AddLine(text) self.added[#self.added + 1] = text end
+        -- Der Link ist der nackte Gegenstand, wie ihn unsere Liste hat.
+        local realStats = ns.Compat.ItemStats
+        ns.Compat.ItemStats = function() return nil end
+        ns.Tooltip.Decorate(tip, "|Hitem:244584|h[Handwerk]|h")
+        ns.Compat.ItemStats = realStats
+        local crit = _G["MCProbeTipTextLeft4"]:GetText()
+        local mast = _G["MCProbeTipTextLeft5"]:GetText()
+        local satz = _G["MCProbeTipTextLeft6"]:GetText()
+        check("die Wertzeile bekommt ihre Nummer",
+            crit:find("#%d") ~= nil and mast:find("#%d") ~= nil, crit .. " / " .. mast)
+        check("der Satz mit dem Wertnamen bekommt keine",
+            satz:find("#%d") == nil, satz)
+        check("und die Zeile mit dem Hauptwert auch nicht",
+            _G["MCProbeTipTextLeft3"]:GetText():find("#%d") == nil)
+    end
 
     -- Und abgeschaltet haengt es nichts an.
     ns.Profile.SetTooltipOn(false)
