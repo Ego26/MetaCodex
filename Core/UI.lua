@@ -1364,7 +1364,15 @@ local RIO_ORDER = { "head", "neck", "shoulder", "back", "chest", "wrist", "hands
 local function playerViewRows(who)
     local rows = {}
     local profile, why = ns.Recommend.Player(who.mode, who.specID, who.name, who.realm)
-    rows[#rows + 1] = { kind = "link", url = who.url, group = who.name .. " \194\183 " .. (who.realm or "") }
+    -- Der Kopf ist dieselbe Karte wie unter Talenten: das Bild der
+    -- Spezialisierung, der Name, der Realm, und ein Klick legt die
+    -- Adresse hin. Eine Ueberschrift mit einer Zeile darunter sah
+    -- daneben aus wie ein Rest.
+    rows[#rows + 1] = {
+        kind = "buildcard", specID = who.specID, url = who.url,
+        cardTitle = who.name, cardNote = who.realm or "",
+        cardBody = L["PLAYER_PROFILE"] .. "  " .. L["GUIDE_COPY"],
+    }
     if not profile then
         rows[#rows + 1] = { kind = "note", text = L[why == "loading" and "PLAYER_LOADING" or "PLAYER_NO_PROFILE"] }
         return rows
@@ -2101,13 +2109,13 @@ local function setItemRow(row, data)
         local w = math.max(1, contentWidth() - S.space.sm * 2)
         local h = CARD_HEIGHT * (S.fontScale or 1)
         fitArt(card, wide or small, w, h)
-        card.title:SetText(L["CARD_TARGET"])
-        card.note:SetText(L["TALENT_BUILD"]:format(data.pct or 0))
+        card.title:SetText(data.cardTitle or L["CARD_TARGET"])
+        card.note:SetText(data.cardNote or L["TALENT_BUILD"]:format(data.pct or 0))
         -- Ohne Kette waere die Karte ein Knopf, der nichts tut. Dann
         -- sagt sie das, statt zum Klicken einzuladen.
         local ready = data.text ~= nil and data.text ~= ""
-        local hint = ready and L["LOADOUT_HINT"]:format(data.count)
-            or L["LOADOUT_NO_STRING"]
+        local hint = data.cardBody or (ready and L["LOADOUT_HINT"]:format(data.count)
+            or L["LOADOUT_NO_STRING"])
         if data.fromBase then
             local whence
             for _, entry in ipairs(ns.MODES) do
@@ -2119,9 +2127,12 @@ local function setItemRow(row, data)
             hint = hint .. "  ·  " .. L["LOADOUT_FROM_SOURCE"]:format(data.fromSource)
         end
         card.body:SetText(hint)
-        S:Recolor(card.body, ready and "textSecondary" or "warning")
+        S:Recolor(card.body, (ready or data.cardBody) and "textSecondary" or "warning")
         card:Show()
-        row.onClick = ready and function() UI.ShowLink(data.text) end or nil
+        -- Was der Klick hinlegt, sagt die Zeile: die Buildkarte ihre
+        -- Kette, die Spielerkarte seine Adresse.
+        local what = data.url or (ready and data.text) or nil
+        row.onClick = what and function() UI.ShowLink(what) end or nil
         return
     end
     if data.kind == "loadout" then
