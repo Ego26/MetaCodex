@@ -248,6 +248,42 @@ function Style:Text(parent, size, token)
     return fontString
 end
 
+---Wofuer eine Textzeile da ist - und damit, wie sie aussieht.
+---
+---WARUM ES DAS GIBT. Schriftgroesse und Farbe standen an dreissig
+---Stellen im Fenster, jede fuer sich entschieden. Das Ergebnis war
+---genau das, wonach es aussah: manche Titel weiss, andere grau, eine
+---Notiz so gross wie eine Ueberschrift. Wer eine Zeile baut, soll
+---sagen, WAS sie ist; wie sie dann aussieht, steht hier und nur hier.
+---
+---  title   Der Gegenstand, der Name, die Einstellung. Weiss.
+---  detail  Alles Erklaerende darunter. Klein und grau.
+---  note    Ein ganzer Satz statt einer Zeile - erklaerend, also wie
+---          detail. Niemals weiss: sonst sieht ein Satz aus wie ein
+---          Titel, und im Fenster stehen graue und weisse Titel
+---          nebeneinander.
+---  head    Die Gruppenueberschrift.
+---  big     Die Zielwerte, die eine eigene Groesse haben.
+Style.role = {
+    title  = { size = "body",    token = "textPrimary" },
+    detail = { size = "caption", token = "textSecondary" },
+    note   = { size = "caption", token = "textSecondary" },
+    head   = { size = "caption", token = "heading" },
+    big    = { size = "title",   token = "textPrimary" },
+}
+
+---Setzt Groesse und Farbe einer Zeile nach ihrer Rolle.
+---
+---Ein Zustand darf die Farbe uebersteuern - "fehlt" ist rot, "angelegt"
+---gruen -, die GROESSE nicht: die haengt an der Rolle.
+---@param fontString table
+---@param role string
+---@param token string|nil Zustandsfarbe statt der Rollenfarbe
+function Style:ApplyRole(fontString, role, token)
+    local r = Style.role[role] or Style.role.title
+    Style:ApplyFont(fontString, r.size, token or r.token)
+end
+
 ---Faerbt um und entscheidet die Kontur neu. Nie SetTextColor direkt
 ---benutzen - sonst behaelt dunkler Text die schwarze Kontur.
 ---@param fontString table

@@ -663,9 +663,24 @@ do
                     schief[#schief + 1] = key .. ": " .. token
                 end
             end
+            -- Und die Hauptzeile: grau darf sie sein, aber dann in der
+            -- kleinen Schrift. Ein grauer Titel in Titelgroesse sieht
+            -- aus wie ein Titel, der vergessen wurde - genau das stand
+            -- unter "Talente" neben weissen.
+            local kopf = row:IsShown() and row.title and (row.title:GetText() or "") or ""
+            if kopf ~= "" and not rawget(row, "__header") then
+                local token = rawget(row.title, "__token")
+                local size = rawget(row.title, "__fontPoints")
+                geprueft = geprueft + 1
+                if token == "textSecondary" and size ~= ns.Style.font.caption then
+                    schief[#schief + 1] = key .. ": grauer Titel in Groesse " .. tostring(size)
+                elseif token == "textMuted" then
+                    schief[#schief + 1] = key .. ": Titel in textMuted"
+                end
+            end
         end
     end
-    check("Unterzeilen tragen ueberall dieselbe Farbe", #schief == 0 and geprueft > 40,
+    check("jede Zeile traegt die Farbe ihrer Rolle", #schief == 0 and geprueft > 40,
         geprueft .. " Zeilen geprueft" .. (#schief > 0 and (": " .. table.concat(schief, ", ")) or ""))
 end
 

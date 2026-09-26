@@ -1912,7 +1912,7 @@ local function acquireRow(index)
     row.icon:SetPoint("LEFT", S.space.sm, 0)
     row.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
-    row.title = S:Text(row, "body", "textPrimary")
+    row.title = S:Text(row, S.role.title.size, S.role.title.token)
     row.title:SetPoint("TOPLEFT", S.space.sm + 38, -S.space.sm)
     row.title:SetWidth(contentWidth() - 140)
 
@@ -1920,7 +1920,7 @@ local function acquireRow(index)
     -- Platz, Stufe, Fundort und "angelegt" - das liest man, und dunkler
     -- als die Notiz daneben zu sein hatte keinen Grund ausser der
     -- Reihenfolge, in der die Zeilen entstanden sind.
-    row.detail = S:Text(row, "caption", "textSecondary")
+    row.detail = S:Text(row, S.role.detail.size, S.role.detail.token)
     row.detail:SetPoint("TOPLEFT", S.space.sm + 38, -S.space.sm - 16)
     row.detail:SetWidth(contentWidth() - 140)
 
@@ -2030,7 +2030,7 @@ local function setHeaderRow(row, text)
     row.__header = true
     row.bg:SetAlpha(0)
     row.icon:SetTexture(nil)
-    S:Recolor(row.title, "heading")
+    S:ApplyRole(row.title, "head")
     row.title:ClearAllPoints()
     row.title:SetPoint("BOTTOMLEFT", S.space.sm, 4)
     row.title:SetText(text:upper())
@@ -2059,12 +2059,12 @@ local function setItemRow(row, data)
     row.bg:SetAlpha(0.5)
     -- Zielwerte setzen eine groessere Schrift; ohne diese Zeile behielte
     -- sie die naechste Zeile, die dieselbe Zeile wiederverwendet.
-    S:ApplyFont(row.title, "body", "textPrimary")
+    S:ApplyRole(row.title, "title")
     -- Auch die Unterzeile. Ohne das erbt sie die Farbe der Zeile, die
     -- vorher an dieser Stelle stand - eine Warnung bleibt rot, ein
     -- gedaempfter Hinweis bleibt gedaempft, und zwar im naechsten
     -- Abschnitt an einem ganz anderen Gegenstand.
-    S:ApplyFont(row.detail, "caption", "textSecondary")
+    S:ApplyRole(row.detail, "detail")
     row.title:ClearAllPoints()
     row.title:SetPoint("TOPLEFT", S.space.sm + 38, -S.space.sm)
     row:SetHeight(ROW_HEIGHT)
@@ -2085,7 +2085,7 @@ local function setItemRow(row, data)
         -- damit sichtbar ist, dass ein Kritziel groesser ist als ein
         -- Vielseitigkeitsziel - und darin steht, wie weit man selbst ist.
         row:SetHeight(STAT_ROW_HEIGHT)
-        S:ApplyFont(row.title, "title", "textPrimary")
+        S:ApplyRole(row.title, "big")
 
         local scale = math.max(data.scale or 0, 1)
         local BAR_WIDTH = barWidth()
@@ -2256,7 +2256,7 @@ local function setItemRow(row, data)
         row.icon:SetTexture(data.tone == "ok"
             and "Interface\\RaidFrame\\ReadyCheck-Ready" or nil)
         row.title:SetText(data.text or "")
-        S:Recolor(row.title, data.tone == "ok" and "success" or "textSecondary")
+        S:ApplyRole(row.title, "note", data.tone == "ok" and "success" or nil)
         row.detail:SetText("")
         row.share:SetText("")
         row.onClick = nil
@@ -3581,7 +3581,7 @@ function UI.Refresh()
             row.icon:SetPoint("LEFT", S.space.sm + 38, 0)
             row.title:ClearAllPoints()
             row.title:SetPoint("LEFT", S.space.sm + 58, 0)
-            S:ApplyFont(row.title, "caption", "textSecondary")
+            S:ApplyRole(row.title, "detail")
             place(row, SUB_ROW_HEIGHT * (S.fontScale or 1))
         elseif data.kind == "buildcard" then
             place(row, (CARD_HEIGHT + 16) * (S.fontScale or 1))
@@ -3593,7 +3593,7 @@ function UI.Refresh()
             row.icon:SetPoint("LEFT", S.space.md, 0)
             row.title:ClearAllPoints()
             row.title:SetPoint("LEFT", data.tone == "ok" and (S.space.md + 24) or S.space.md, 0)
-            S:ApplyFont(row.title, "body", data.tone == "ok" and "success" or "textSecondary")
+            S:ApplyRole(row.title, "note", data.tone == "ok" and "success" or nil)
             place(row, 30)
         else
             row.icon:SetSize(30, 30)
@@ -3781,7 +3781,7 @@ local function remindWindowRow(parent, index)
     row.icon:SetSize(22, 22)
     row.icon:SetPoint("LEFT")
     row.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    row.title = S:Text(row, "body", "textPrimary")
+    row.title = S:Text(row, S.role.title.size, S.role.title.token)
     row.title:SetPoint("LEFT", 28, 0)
     row.state = S:Text(row, "caption", "warning")
     row.state:SetPoint("RIGHT")
