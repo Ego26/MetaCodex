@@ -363,6 +363,7 @@ ns.RegisterLocale("enUS", {
     ["ORIGIN_HONOR"]      = "Honor vendor",
     ["ORIGIN_PVPCRAFT"]   = "crafted (PvP)",
     ["ORIGIN_NONE"]       = "not an instance drop",
+    ["ORIGIN_EMPTY"]      = "Nobody in the measurement wears anything from here.",
     ["ORIGIN_ALL_BOSSES"] = "All bosses",
     ["ORIGIN_G_dungeon"]    = "Dungeons",
     ["ORIGIN_G_raid"]       = "Raids",

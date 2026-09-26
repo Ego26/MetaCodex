@@ -881,9 +881,9 @@ local function sourcesIn(rows)
             }
             seen[row.sourceKey] = out[#out]
         end
-        -- Die Bosse des Schlachtzugs, in der Reihenfolge, in der sie
-        -- vorkommen. Nur die, aus denen in dieser Liste wirklich etwas
-        -- stammt - ein Boss ohne Beute waere eine leere Auswahl.
+        -- Die Bosse, von denen in dieser Liste etwas stammt. Sie sind
+        -- der Rueckfall, falls der Katalog zu dieser Instanz nichts
+        -- fuehrt - die ganze Liste kommt gleich aus ihm.
         local at = seen[row.sourceKey]
         if type(at) == "table" and row.sourceBossKey and not at.bossSeen[row.sourceBossKey] then
             at.bossSeen[row.sourceBossKey] = true
@@ -892,6 +892,30 @@ local function sourcesIn(rows)
                 label = row.sourceBossLabel or row.sourceBossKey,
             }
         end
+    end
+
+    -- Und jetzt die VOLLE Bossliste aus dem Katalog.
+    --
+    -- Gezeigt werden alle Bosse des Schlachtzugs, nicht nur die, von
+    -- denen diese Woche jemand etwas traegt. Ein Schlachtzug, der mal
+    -- sechs und mal acht Bosse zeigt, ist keine Auswahl, sondern ein
+    -- Raetsel.
+    for _, src in ipairs(out) do
+        if src.group == "raid" then
+            local inst = tonumber(tostring(src.key):match("^inst:(%d+)$"))
+            local all = inst and ns.Catalog.Bosses(inst)
+            if all and #all > 0 then
+                local list = {}
+                for _, enc in ipairs(all) do
+                    list[#list + 1] = {
+                        key = "enc:" .. enc,
+                        label = ns.Compat.DropText(enc, nil) or ("#" .. enc),
+                    }
+                end
+                src.bosses = list
+            end
+        end
+        src.bossSeen = nil
     end
     -- Erst die Gruppe, dann der Name: so stehen die Dungeons beieinander
     -- und Handwerk nicht zwischen zweien von ihnen.
@@ -3798,6 +3822,14 @@ function UI.Refresh()
                 or row.sourceKey == pickedSource
                 or row.sourceBossKey == pickedSource
             if hit then kept[#kept + 1] = row end
+        end
+        -- Nichts von dieser Quelle ist eine Antwort, kein leeres Fenster.
+        --
+        -- Seit der Waehler ALLE Bosse eines Schlachtzugs zeigt, kann man
+        -- einen anklicken, von dem niemand etwas traegt. Genau das ist
+        -- die Auskunft - sie muss nur dastehen.
+        if #kept == 0 then
+            kept[1] = { kind = "note", text = L["ORIGIN_EMPTY"] }
         end
         currentRows = kept
     end

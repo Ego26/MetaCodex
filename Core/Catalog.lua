@@ -284,6 +284,22 @@ function Catalog.InstanceKind(inst)
     return c and c.instKind and c.instKind[inst] or nil
 end
 
+---Die Bosse eines Schlachtzugs, in der Reihenfolge des Journals.
+---
+---ALLE, nicht nur die, von denen wir etwas gemessen haben. Ein
+---Schlachtzug mit acht Bossen, der mal sechs und mal sieben zeigt, ist
+---keine Auswahl, sondern ein Raetsel: wer den fehlenden sucht, weiss
+---nicht, ob er ihn uebersehen hat oder ob dort nichts faellt. Die
+---Antwort "von dem traegt niemand etwas" ist selbst eine Auskunft, und
+---sie steht in der leeren Liste.
+---@param inst number|nil Journal-Instanz
+---@return number[]|nil Begegnungs-IDs
+function Catalog.Bosses(inst)
+    if not inst then return nil end
+    local c = data()
+    return c and c.bosses and c.bosses[inst] or nil
+end
+
 ---PvP-Ware: Eroberung, Ehre oder das Handwerksstueck dazu.
 ---@param itemID number
 ---@return string|nil "conquest" | "honor" | "pvpcraft"

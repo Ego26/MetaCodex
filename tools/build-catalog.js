@@ -714,6 +714,14 @@ function emitEnchants(groups) {
   const mapType = new Map();
   for (const row of maps) mapType.set(Number(row.ID), Number(row.InstanceType) || 0);
   const instKind = {};
+  // Und die Bosse je Schlachtzug, in der Reihenfolge des Journals.
+  //
+  // Gebraucht im Fundort-Waehler: dort sollen ALLE Bosse stehen, nicht
+  // nur die, von denen in der gerade gezeigten Liste etwas stammt. Sonst
+  // zeigt ein Schlachtzug mit acht Bossen mal sechs und mal sieben, je
+  // nachdem, was die Besten diese Woche anhaben - und wer den fehlenden
+  // sucht, weiss nicht, ob er ihn uebersehen hat oder ob er fehlt.
+  const bossesOf = {};
   for (const row of journalInstances) {
     const kind = mapType.get(Number(row.MapID));
     if (kind === 1) instKind[Number(row.ID)] = 'dungeon';
@@ -721,6 +729,19 @@ function emitEnchants(groups) {
   }
   console.log('Instanzen nach Art:', Object.keys(instKind).length,
     '(' + Object.values(instKind).filter((x) => x === 'raid').length + ' Schlachtzuege)');
+
+  // Nur fuer Schlachtzuege: ein Dungeon wird als Ganzes gefiltert - "was
+  // faellt hier" -, und vier Bosse je Dungeon waeren nur eine laengere
+  // Liste ohne eine neue Antwort.
+  for (const row of journalEncounters) {
+    const inst = Number(row.JournalInstanceID) || 0;
+    if (instKind[inst] !== 'raid') continue;
+    (bossesOf[inst] = bossesOf[inst] || []).push({
+      id: Number(row.ID), order: Number(row.OrderIndex) || 0,
+    });
+  }
+  for (const list of Object.values(bossesOf)) list.sort((a, b) => a.order - b.order);
+  console.log('Schlachtzuege mit Bossliste:', Object.keys(bossesOf).length);
 
   const drops = new Map();
   for (const row of journalItems) {
@@ -952,6 +973,14 @@ function emitEnchants(groups) {
   // Instanz gehoert in den Katalog, nicht in den Sammler: der Sammler
   // kennt nur die Instanzen, in denen er gemessen hat, und eine, in der
   // niemand gemessen hat, fiele damit in "Sonstiges".
+  // Die Bosse je Schlachtzug, in der Reihenfolge des Journals.
+  out.push('  bosses = {');
+  for (const [inst, list] of Object.entries(bossesOf).sort((a, b) => a[0] - b[0])) {
+    out.push(`    [${inst}] = { ${list.map((b) => b.id).join(', ')} },`);
+  }
+  out.push('  },');
+  out.push('');
+
   out.push('  instKind = {');
   for (const [id, kind] of Object.entries(instKind).sort((a, b) => a[0] - b[0])) {
     out.push(`    [${id}] = ${luaString(kind)},`);

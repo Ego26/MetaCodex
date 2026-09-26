@@ -1705,6 +1705,31 @@ do
     if raid then
         check("der Schlachtzug zeigt seine Bosse", #raid.bosses > 1,
             raid.label .. ": " .. #raid.bosses .. " Bosse")
+        -- Und zwar ALLE, aus dem Journal - nicht nur die, von denen
+        -- diese Woche jemand etwas traegt.
+        local inst = tonumber(raid.key:match("^inst:(%d+)$"))
+        local ausKatalog = inst and ns.Catalog.Bosses(inst)
+        check("und zwar alle, die das Journal kennt",
+            ausKatalog ~= nil and #raid.bosses == #ausKatalog,
+            #raid.bosses .. " gezeigt, " .. tostring(ausKatalog and #ausKatalog) .. " im Journal")
+        -- Ein Boss, von dem niemand etwas traegt, ist erlaubt - dann
+        -- steht dort ein Satz und kein leeres Fenster.
+        --
+        -- Gesucht wird das in M+: im Schlachtzug selbst traegt die
+        -- Spitze von jedem Boss etwas, in hohen Schluesseln nicht.
+        ns.Profile.SetMode("mplus")
+        local leer
+        for _, boss in ipairs(raid.bosses) do
+            ns.Profile.SetCategory("gearSource", boss.key)
+            rowsInSection("gear")
+            for _, row in ipairs(wow.rows()) do
+                local t = row:IsShown() and row.title and row.title:GetText() or nil
+                if t == ns.L["ORIGIN_EMPTY"] then leer = boss.label end
+            end
+        end
+        ns.Profile.SetCategory("gearSource", nil)
+        check("ein Boss ohne Messung sagt es", leer ~= nil,
+            tostring(leer))
         -- Jeder Boss ist einzeln waehlbar, und die Liste wird kuerzer.
         local boss = raid.bosses[1]
         ns.Profile.SetCategory("gearSource", boss.key)
@@ -3679,6 +3704,62 @@ do
         check("die offenen Verzauberungen stehen als eine Zeile drin",
             at[line] ~= nil, table.concat(parts, " | "))
     end
+end
+
+
+-- Ein Klick auf "+N weitere" darf den Fundort-Filter nicht wegwerfen.
+--
+-- Gefaltet wird NACH dem Filtern, aufgeklappt wird per Merker - beides
+-- soll sich nicht in die Quere kommen. Geprueft wird mit jeder Wahl, die
+-- es gibt: ganze Gruppe, einzelne Instanz, einzelner Boss. Bei welcher
+-- ueberhaupt etwas zu falten ist, entscheiden die Daten.
+do
+    ns.Profile.SetMode("mplus")
+    ns.Profile.SetCategory("gearSource", nil)
+    rowsInSection("gear")
+    local frame = _G.MetaCodexFrame
+    local candidates = {}
+    for _, src in ipairs(frame.__sources or {}) do
+        candidates[#candidates + 1] = "group:" .. (src.group or "other")
+        candidates[#candidates + 1] = src.key
+        for _, boss in ipairs(src.bosses or {}) do candidates[#candidates + 1] = boss.key end
+    end
+
+    local geprueft, verloren, wuchs = 0, 0, 0
+    for _, pick in ipairs(candidates) do
+        ns.Profile.SetCategory("gearSource", pick)
+        local before = rowsInSection("gear")
+        local head
+        for _, row in ipairs(wow.rows()) do
+            local t = row:IsShown() and row.title and row.title:GetText() or nil
+            if t and row.onClick and t:find(ns.L["GEAR_LESS"], 1, true) == nil
+                and t:find("|cff", 1, true) and not head then head = row end
+        end
+        if head then
+            geprueft = geprueft + 1
+            head.onClick(head)
+            local after = 0
+            for _, row in ipairs(wow.rows()) do if row:IsShown() then after = after + 1 end end
+            if ns.Profile.Category("gearSource") ~= pick then verloren = verloren + 1 end
+            if after > before then wuchs = wuchs + 1 end
+            -- wieder zuklappen, damit die naechste Wahl sauber anfaengt
+            head = nil
+            for _, row in ipairs(wow.rows()) do
+                local t = row:IsShown() and row.title and row.title:GetText() or nil
+                if t and row.onClick and t:find(ns.L["GEAR_LESS"], 1, true) and not head then
+                    head = row
+                end
+            end
+            if head then head.onClick(head) end
+        end
+    end
+    ns.Profile.SetCategory("gearSource", nil)
+    check("es gab ueberhaupt etwas zum Aufklappen", geprueft > 0,
+        geprueft .. " von " .. #candidates .. " Wahlen")
+    check("der Filter ueberlebt jedes Aufklappen", verloren == 0,
+        verloren .. " verloren")
+    check("und das Aufklappen zeigt wirklich mehr", wuchs > 0,
+        wuchs .. " von " .. geprueft)
 end
 
 say(fails == 0 and "\nalles gruen" or ("\n" .. fails .. " Fehler"))
