@@ -47,6 +47,15 @@ const dungeons = {};
 let newest = 0;
 const profileParts = [];
 // Fuer das Spieler-Addon: Modus -> Spec -> Spieler mit Ausruestung.
+// Welche Bonus-ID welche Werte setzt, und welche eine Verzierung
+// anhaengt. Der Katalog schreibt sie heraus.
+let bonusMap = { stats: {}, embellish: {} };
+try {
+  bonusMap = JSON.parse(fs.readFileSync(path.join(dir, 'bonus-map.json'), 'utf8'));
+} catch (err) {
+  console.log('Keine bonus-map.json - Verzierungen bleiben ungezaehlt.');
+}
+
 const profilesOut = {};
 // Zwei Quellen koennen denselben Spieler fuehren; er steht dann einmal.
 function addProfiles(mode, specID, profiles) {
@@ -138,6 +147,72 @@ for (const part of profileParts) {
       }));
       players += 1;
     }
+    // Verzierungen und Wertewahl - aber nur, wo keine Quelle dieses
+    // Modus sie schon fuehrt.
+    //
+    // Bei M+ zaehlt raider.io zwoelfhundert Profile; die zwanzig hier
+    // waeren die schlechtere Antwort auf dieselbe Frage. Bei Raid und
+    // PvP gibt es sie sonst gar nicht: Warcraft Logs liefert keine
+    // Bonus-IDs, und murlok fuehrt keine. Die Profile, die wir fuer die
+    // Spieleransicht ohnehin holen, tragen sie mit.
+    const anyCraft = Object.values(mode).some((src) => src.specs
+      && src.specs[specID] && src.specs[specID].craftStats);
+    if (!anyCraft) {
+      const craft = {}, emb = {}, perItem = {};
+      let counted = 0;
+      for (const pl of entry.players || []) {
+        const worn = new Set();
+        let any = false;
+        for (const item of Object.values(pl.gear || {})) {
+          for (const b of item.bonuses || []) {
+            if (bonusMap.stats[b]) {
+              craft[b] = (craft[b] || 0) + 1;
+              const per = perItem[item.id] || (perItem[item.id] = {});
+              per[b] = (per[b] || 0) + 1;
+              any = true;
+            }
+            if (bonusMap.embellish[b]) worn.add(bonusMap.embellish[b]);
+          }
+        }
+        if (worn.size) {
+          const key = [...worn].sort((a, b) => a - b).join(',');
+          emb[key] = (emb[key] || 0) + 1;
+        }
+        if (any || worn.size) counted += 1;
+      }
+      const players = Math.max(1, (entry.players || []).length);
+      const statTotal = Object.values(craft).reduce((a, b) => a + b, 0);
+      if (statTotal > 0) {
+        spec.craftStats = Object.entries(craft)
+          .map(([bonus, n]) => ({ bonus: Number(bonus), pct: Math.round((n / statTotal) * 100) }))
+          .filter((r) => r.pct > 0)
+          .sort((a, b) => b.pct - a.pct);
+      }
+      const embRows = Object.entries(emb)
+        .map(([key, n]) => ({ ids: key.split(',').map(Number), pct: Math.round((n / players) * 100) }))
+        .filter((r) => r.pct > 0)
+        .sort((a, b) => b.pct - a.pct)
+        .slice(0, 8);
+      if (embRows.length) spec.embellish = embRows;
+
+      // Und die Wertewahl an die Zeilen des Gegenstands - egal, welche
+      // Quelle dieses Modus die Ausruestung fuehrt. Ohne sie zeigt das
+      // Tooltip "Zufallswert 1", und die Rangnummern fallen weg.
+      for (const src of Object.values(mode)) {
+        const other = src.specs && src.specs[specID];
+        for (const list of Object.values((other && other.gear) || {})) {
+          for (const row of list) {
+            const per = perItem[row.id];
+            if (!per || row.statBonus) continue;
+            const best = Object.entries(per).sort((a, b) => b[1] - a[1])[0];
+            const total = Object.values(per).reduce((a, b) => a + b, 0);
+            row.statBonus = Number(best[0]);
+            row.statPct = Math.round((best[1] / total) * 100);
+          }
+        }
+      }
+    }
+
     // Und die Details fuer die Spieleransicht - alle, verifiziert oder nicht.
     addProfiles(part.mode, specID, (entry.players || []).slice(0, 10));
   }
@@ -296,6 +371,47 @@ if (Object.keys(dungeons).length) {
   out.push('  },');
 }
 out.push('  modes = {');
+
+// Die Wertewahl gilt fuer den GEGENSTAND, nicht fuer die Quelle.
+//
+// Nur raider.io und die Profile liefern Bonus-IDs; murlok und Warcraft
+// Logs fuehren keine. Welche Quelle im Fenster die Ausruestung eines
+// Modus stellt, entscheidet aber die Reihenfolge der Quellen - und wenn
+// das die ohne Bonus-IDs ist, steht im Tooltip wieder "Zufallswert 1",
+// obwohl wir es fuer dasselbe Stueck gemessen haben.
+//
+// Also: je Modus einmal einsammeln, wer es weiss, und den anderen
+// Zeilen desselben Stuecks mitgeben. Der Anteil reist nicht mit - er
+// gehoert zu der Stichprobe, die ihn gemessen hat.
+let filled = 0;
+for (const bySource of Object.values(byMode)) {
+  const perSpec = {};
+  for (const part of Object.values(bySource)) {
+    for (const [specID, entry] of Object.entries(part.specs || {})) {
+      for (const list of Object.values(entry.gear || {})) {
+        for (const row of list) {
+          if (!row.statBonus) continue;
+          const mine = perSpec[specID] || (perSpec[specID] = {});
+          if (!mine[row.id]) mine[row.id] = row.statBonus;
+        }
+      }
+    }
+  }
+  for (const part of Object.values(bySource)) {
+    for (const [specID, entry] of Object.entries(part.specs || {})) {
+      const mine = perSpec[specID];
+      if (!mine) continue;
+      for (const list of Object.values(entry.gear || {})) {
+        for (const row of list) {
+          if (row.statBonus || !mine[row.id]) continue;
+          row.statBonus = mine[row.id];
+          filled += 1;
+        }
+      }
+    }
+  }
+}
+console.log('Wertewahl an weitere Zeilen gegeben:', filled);
 
 // Zwei Puffer, zwei Addons.
 //

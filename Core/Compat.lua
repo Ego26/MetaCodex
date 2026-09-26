@@ -578,12 +578,22 @@ end
 ---@param extra number|nil eine zusaetzliche Bonus-ID (die Wertewahl
 ---eines Handwerksstuecks - ohne sie steht im Tooltip "Zufallswert 1")
 function Compat.LinkAtLevel(itemID, level, extra)
-    if not itemID or not level then return nil end
+    if not itemID then return nil end
+    -- Ohne Zielstufe bleibt der Gegenstand, wie er ist - seine Werte
+    -- gehoeren trotzdem in den Link.
+    if not level then return extra and linkWith(itemID, extra) or nil end
     local info = C_Item and C_Item.GetItemInfo and { pcall(C_Item.GetItemInfo, itemID) }
     -- GetItemInfo gibt die Grundstufe an vierter Stelle (nach dem
     -- pcall-Erfolg also an fuenfter).
     local base = info and info[1] and tonumber(info[5]) or nil
-    if not base or base <= 0 then return nil end
+    -- Ohne Grundstufe koennen wir die Stufe nicht setzen - die Werte
+    -- aber schon, und die sind das Wichtigere: ohne sie steht im
+    -- Tooltip "Zufallswert 1", und die Rangnummern fallen weg. Der
+    -- Client kennt die Grundstufe eines Gegenstands erst, wenn er ihn
+    -- vom Server geholt hat; beim Aufbau der Liste hat er die wenigsten.
+    if not base or base <= 0 then
+        return extra and linkWith(itemID, extra) or nil
+    end
 
     -- Erst der Aufwertungspfad, dann die Differenz.
     --

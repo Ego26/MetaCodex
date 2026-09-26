@@ -684,6 +684,72 @@ do
         geprueft .. " Zeilen geprueft" .. (#schief > 0 and (": " .. table.concat(schief, ", ")) or ""))
 end
 
+-- Verzierungen und die Werte der Handwerksstuecke.
+--
+-- Beides steht nur in den Bonus-IDs der gemessenen Spieler. Was hier
+-- geprueft wird, ist nicht die Zahl - die haengt an den Daten -,
+-- sondern dass der Weg von der Bonus-ID bis in die Zeile haelt: eine
+-- Verzierung hat einen Namen, ein Handwerksstueck hat ein Wertepaar,
+-- und der Link traegt es mit.
+do
+    local n = rowsInSection("embellish")
+    check("Abschnitt Verzierungen zeigt Zeilen", n > 0, n .. " Zeilen")
+    local ohneName = 0
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() and not rawget(row, "__header") then
+            local text = row.title:GetText() or ""
+            if text == "" or text:find("^#%d+$") then ohneName = ohneName + 1 end
+        end
+    end
+    check("  jede Verzierung hat einen Namen", ohneName == 0, ohneName .. " ohne")
+
+    -- Und das Handwerk traegt sein Wertepaar.
+    rowsInSection("crafted")
+    local mitWerten, mitBonusImLink = 0, 0
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() and type(row.link) == "string" then
+            local text = (row.detail:GetText() or "")
+            if text:find(L["STAT_haste"], 1, true) or text:find(L["STAT_crit"], 1, true)
+                or text:find(L["STAT_mastery"], 1, true) or text:find(L["STAT_vers"], 1, true) then
+                mitWerten = mitWerten + 1
+                -- Die Bonus-ID gehoert IN den Link, sonst zeigt das
+                -- Tooltip "Zufallswert 1".
+                for id in row.link:gmatch(":(%d+)") do
+                    if ns.Catalog.StatsOfBonus(tonumber(id)) then
+                        mitBonusImLink = mitBonusImLink + 1
+                        break
+                    end
+                end
+            end
+        end
+    end
+    check("  Handwerk nennt seine Werte", mitWerten > 0, mitWerten .. " Zeilen")
+    check("  und der Link traegt sie mit", mitBonusImLink == mitWerten,
+        mitBonusImLink .. " von " .. mitWerten)
+
+    -- Eine gewaehlte Kombination schlaegt die gemessene.
+    local choices = ns.Catalog.CraftStatChoices()
+    if #choices > 0 then
+        ns.Profile.SetCraftStats(choices[1].bonus)
+        rowsInSection("crafted")
+        local fremd, passend = 0, 0
+        for _, row in ipairs(wow.rows()) do
+            if row:IsShown() and type(row.link) == "string" then
+                for id in row.link:gmatch(":(%d+)") do
+                    local stats = ns.Catalog.StatsOfBonus(tonumber(id))
+                    if stats then
+                        if tonumber(id) == choices[1].bonus then passend = passend + 1
+                        else fremd = fremd + 1 end
+                    end
+                end
+            end
+        end
+        check("  die gewaehlte Kombination gilt ueberall",
+            fremd == 0 and passend > 0, passend .. " passend, " .. fremd .. " andere")
+        ns.Profile.SetCraftStats(nil)
+    end
+end
+
 check("Verzauberungen zeigen weiter Zeilen", rowsInSection("enchants") > 0)
 -- Hier stand einmal "leerer Abschnitt bleibt leer" und meinte Guides.
 -- Inzwischen ist keiner der sechs Abschnitte mehr leer.
