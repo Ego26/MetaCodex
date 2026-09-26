@@ -2032,18 +2032,28 @@ local function setItemRow(row, data)
         if data.mine then
             -- Worin genau: was dir fehlt, und was du zusaetzlich hast.
             -- Hoechstens drei je Seite, sonst wird die Zeile zur Liste.
-            local function names(list)
+            --
+            -- Zwei Arten von Nummern: was fehlt, kommt als Zauber aus
+            -- dem Build; was zusaetzlich dasteht, ist ein KNOTEN deines
+            -- Baums, und den kann nur der Client benennen.
+            local function names(list, asNode)
                 local out = {}
-                for _, spell in ipairs(list or {}) do
+                for _, id in ipairs(list or {}) do
                     if #out >= 3 then out[#out + 1] = "..." break end
-                    local info = C_Spell and C_Spell.GetSpellInfo
-                        and C_Spell.GetSpellInfo(spell)
-                    out[#out + 1] = (info and info.name) or ("#" .. spell)
+                    local name
+                    if asNode then
+                        name = ns.Compare.NodeName(id)
+                    else
+                        local info = C_Spell and C_Spell.GetSpellInfo
+                            and C_Spell.GetSpellInfo(id)
+                        name = info and info.name
+                    end
+                    out[#out + 1] = name or ("#" .. id)
                 end
                 return table.concat(out, ", ")
             end
             local parts = {}
-            local lack, plus = names(data.missing), names(data.extra)
+            local lack, plus = names(data.missing), names(data.extra, true)
             if lack ~= "" then parts[#parts + 1] = L["MINE_LACK"]:format(lack) end
             if plus ~= "" then parts[#parts + 1] = L["MINE_PLUS"]:format(plus) end
             hint = #parts > 0 and table.concat(parts, "  ·  ") or L["MINE_SAME_HINT"]
