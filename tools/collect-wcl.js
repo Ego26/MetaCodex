@@ -179,12 +179,47 @@ async function gqlRaw(query, variables) {
   return json.data;
 }
 
+// Was der Lauf kostet.
+//
+// "Wir haben doch Gold mit 9000 Punkten die Stunde" - stimmt, und
+// gemessen am 26.09. war die Stunde trotzdem zu 5692 Punkten leer,
+// mitten im Lauf. Die Frage ist also nicht der Tarif, sondern der
+// Preis: wieviele Punkte kostet ein Bericht, und welcher Schritt
+// verbrennt sie. Geraten hat noch nie etwas verbessert.
+//
+// Gefragt wird alle hundert Abfragen - das kostet selbst einen Punkt,
+// also nicht oefter - und die Differenz wird aufsummiert. Springt die
+// Stunde um, faellt der Zaehler bei Warcraft Logs zurueck; dann gilt
+// der neue Stand als das, was seither dazukam.
+let queries = 0;
+let spentTotal = 0;
+let spentSeen = null;
+
+async function noteCost(force) {
+  if (!force && queries % 100 !== 0) return;
+  const info = await quota();
+  if (!info) return;
+  const now = Number(info.pointsSpentThisHour);
+  if (spentSeen === null) spentSeen = now;
+  else if (now >= spentSeen) spentTotal += now - spentSeen;
+  else spentTotal += now;
+  spentSeen = now;
+}
+
+function costLine() {
+  if (!queries) return 'keine Abfrage';
+  return Math.round(spentTotal) + ' Punkte bei ' + queries + ' Abfragen'
+    + ' (' + (spentTotal / queries).toFixed(1) + ' je Abfrage)';
+}
+
 // Dieselbe Abfrage, aber sie gibt bei 429 nicht auf.
 //
 // Ein erschoepftes Kontingent ist kein Fehler, sondern eine Pause. Wer
 // daran abbricht, wirft eine halbe Stunde Arbeit weg - und genau das
 // ist passiert.
 async function gql(query, variables) {
+  queries += 1;
+  await noteCost();
   for (let tries = 0; ; tries++) {
     try {
       return await gqlRaw(query, variables);
@@ -599,6 +634,7 @@ function mythicZones(expansions) {
   if (room) {
     console.log(`  Kontingent: ${room.pointsSpentThisHour} von `
       + `${room.limitPerHour} verbraucht, Ruecksetzung in ${room.pointsResetIn}s`);
+    spentSeen = Number(room.pointsSpentThisHour);
   }
 
   const world = await gql(`
@@ -1473,8 +1509,10 @@ Probelauf ${mode}, ${Object.keys(specs).length} Speccs, Spec ${id}:`);
     console.log(`  ${Object.keys(specs).length} Speccs`);
   }
 
+  await noteCost(true);
   console.log(`
 Spieler insgesamt: ${players}`);
+  console.log('Kosten: ' + costLine());
   console.log('Jetzt zusammenbauen: node tools/build-recommendations.js .');
 })();
 
