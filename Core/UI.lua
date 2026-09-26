@@ -129,6 +129,8 @@ local SECTIONS = {
     { key = "talents",     group = "GROUP_KNOW" },
     { key = "players",     group = "GROUP_KNOW" },
 
+    { key = "priority",    group = "GROUP_GEAR" },
+    { key = "priority",    group = "GROUP_GEAR" },
     { key = "gear",        group = "GROUP_GEAR" },
     { key = "tier",        group = "GROUP_GEAR" },
     { key = "crafted",     group = "GROUP_GEAR" },
@@ -1376,6 +1378,26 @@ local function consumableRows(specID, mode, source)
     return rows, from
 end
 
+---Der Abschnitt "Prioritaeten": was am meisten fehlt, oben.
+---
+---Die Reihenfolge kommt aus ns.Remind.Priorities - derselben Stelle,
+---aus der die Ansage vor dem Dungeon ihre Reihenfolge nimmt. Eine
+---Messung, zwei Orte: was hier oben steht, sagt die Erinnerung zuerst.
+---@param mode string
+---@return table[] rows
+local function priorityRows(mode)
+    local rows = {}
+    for _, row in ipairs(ns.Remind.Priorities(mode, ns.Profile.SelectedSpec())) do
+        if not row.name and row.id then ns.Compat.RequestItem(row.id) end
+        rows[#rows + 1] = row
+    end
+    -- Nichts offen ist eine Auskunft, kein leeres Fenster.
+    if #rows == 0 and ns.Recommend.Ready() then
+        rows[#rows + 1] = { kind = "note", tone = "ok", text = L["PRIO_NONE"] }
+    end
+    return rows
+end
+
 ---Der Reiter "Erinnerung": was die Erinnerung prueft, und wie.
 ---
 ---Oben der Stand je Art - gruen, gelb, rot -, darunter die drei
@@ -2383,6 +2405,43 @@ local function setItemRow(row, data)
                 openedIn = ns.Profile.Mode(), openedSpec = data.specID,
             }
             UI.Refresh()
+        end
+        return
+    end
+
+    if data.kind == "priority" then
+        row.link = data.link
+        row.icon:SetTexture(data.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+        row.title:SetText(data.name or ("#" .. tostring(data.id)))
+        row.detail:ClearAllPoints()
+        row.detail:SetPoint("TOPLEFT", S.space.sm + 38, -S.space.sm - 16)
+
+        local parts = {}
+        if data.what == "consumable" then
+            parts[#parts + 1] = L["CONSUM_" .. data.ckind]
+            if data.own then parts[#parts + 1] = L["CONSUM_MINE"] end
+            parts[#parts + 1] = L["REMIND_HAVE"]:format(data.owned, data.need)
+        else
+            parts[#parts + 1] = data.what == "gem" and L["PRIO_GEM"] or L["PRIO_ENCHANT"]
+            if data.where then parts[#parts + 1] = L["SLOT_" .. data.where] end
+            if (data.missing or 0) > 1 then
+                parts[#parts + 1] = L["SLOT_COUNT"]:format(data.missing)
+            end
+        end
+        local token = (data.what == "consumable" and data.state == "low")
+            and "warning" or "danger"
+        parts[#parts + 1] = ("|cff%s%s|r"):format(S:Hex(token),
+            L["NEED"]:format(data.buy or data.missing or 1))
+        row.detail:SetText(table.concat(parts, "  \194\183  "))
+
+        -- Die Zahl, nach der sortiert wird - und nur sie. Was sie zaehlt,
+        -- steht im Hinweis ueber der Liste; eine Prozentzahl ohne diesen
+        -- Satz waere eine Behauptung.
+        row.share:SetText(data.pct and (data.pct .. "%") or L["PRIO_NOPCT"])
+        S:Recolor(row.share, (data.pct or 0) >= 50 and "accent" or "textMuted")
+        -- Verbrauchsgueter fragen nach der Zielmenge, wie ueberall sonst.
+        if data.what == "consumable" then
+            row.onClick = function(self) openTargetPicker(self, data.ckind) end
         end
         return
     end
@@ -3570,6 +3629,10 @@ function UI.Refresh()
             return playerRows(specID, mode, source)
         end)
         hintText:SetText(#currentRows > 0 and L["PLAYER_HINT"] or L["NO_PLAYERS"])
+    elseif section.key == "priority" then
+        currentRows = priorityRows(mode)
+        hintText:SetText(#currentRows > 0 and L["PRIO_HINT"]
+            or emptyReason(mode, wanted))
     elseif section.key == "remind" then
         currentRows = remindRows(mode)
         hintText:SetText(#currentRows > 3 and L["REMIND_HINT"] or emptyReason(mode, wanted))

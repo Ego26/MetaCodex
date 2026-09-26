@@ -59,6 +59,15 @@ function Remind.Status(mode, forSpec)
     local below = ns.Profile.WarnBelow()
     for _, kind in ipairs(KIND_ORDER) do
         local entry = bestOfKind[kind]
+        -- Der gemessene Anteil der Art, bevor die eigene Wahl ihn
+        -- verdeckt.
+        --
+        -- Wer ein billigeres Flaeschchen nimmt, bekommt seine Zeile mit
+        -- SEINEM Stueck - aber die Frage "wie wichtig ist ein
+        -- Flaeschchen ueberhaupt" beantwortet weiter die Messung. Ohne
+        -- diese Zahl faellt die eigene Wahl in der Rangfolge nach unten,
+        -- obwohl sie dieselbe Luecke fuellt.
+        local measured = entry and entry.pct or nil
         -- Die eigene Wahl schlaegt die Messung: gezaehlt wird, was man
         -- benutzt, nicht was die Besten benutzen.
         local own = ns.Profile.OwnConsumable(kind)
@@ -82,10 +91,79 @@ function Remind.Status(mode, forSpec)
                     name = ns.Compat.ItemInfo(entry.id)
                         or ns.Catalog.ItemName(entry.id) or entry.name,
                     owned = owned, lower = lower, need = need, state = state, pct = entry.pct,
+                    kindPct = measured,
                 }
             end
         end
     end
+    return out
+end
+
+---Was am meisten fehlt, der Reihe nach.
+---
+---WAS DIE REIHENFOLGE IST - UND WAS SIE NICHT IST. Sie ist keine
+---Schadensrechnung. Wieviel Schaden eine fehlende Verzauberung kostet,
+---misst dieses Addon nicht, und eine erfundene Zahl waere schlimmer als
+---keine. Geordnet wird nach dem, was wir WIRKLICH gezaehlt haben: dem
+---Anteil der Besten, die das Stueck tragen. Was neunzig von hundert
+---Spitzenspielern haben und dir fehlt, steht ueber dem, was dreissig
+---von hundert haben. Die Zahl an der Zeile ist genau die, nach der
+---sortiert wird - die Ueberschrift sagt, was sie zaehlt.
+---
+---Zwei Quellen, eine Liste: die Verbrauchsgueter aus den Beuteln und
+---die offenen Verzauberungen und Steine von der Ausruestung. Beide
+---werden anderswo schon gezaehlt; hier werden sie nur nebeneinander
+---gelegt.
+---@param mode string
+---@param forSpec number|nil
+---@return table[] rows
+function Remind.Priorities(mode, forSpec)
+    local out = {}
+    if not ns.Recommend.Ready() then return out end
+    local specID = forSpec or ns.Compat.CurrentSpec() or ns.Profile.SelectedSpec()
+
+    for _, row in ipairs(Remind.Status(mode, specID)) do
+        if row.state ~= "ok" then
+            local name, link, icon = ns.Compat.ItemInfo(row.id)
+            out[#out + 1] = {
+                kind = "priority", what = "consumable", ckind = row.kind,
+                id = row.id, name = name or row.name, link = link, icon = icon,
+                pct = row.pct or row.kindPct,
+                own = row.own, state = row.state,
+                owned = row.owned, need = row.need,
+                buy = math.max(0, row.need - row.owned),
+            }
+        end
+    end
+
+    -- Verzauberungen und Steine - dieselben Zeilen wie im Reiter, nur
+    -- die offenen. ns.List.BuyCount zaehlt genau diese Bedingung; die
+    -- Zahl in der Erinnerung bleibt damit dieselbe wie bisher.
+    if ns.Profile.Complete() and not ns.Profile.IsForeignClass() then
+        for _, row in ipairs(ns.List.Build(ns.Gear.Scan())) do
+            if not row.pending and not row.alt and (row.buy or 0) > 0 then
+                out[#out + 1] = {
+                    -- Der Platz heisst hier NICHT slot, und das mit Absicht:
+                    -- die Liste setzt ueber jeden Platzwechsel eine
+                    -- Ueberschrift, und acht Ueberschriften ueber acht Zeilen
+                    -- zerschneiden genau die Rangfolge, um die es hier geht.
+                    kind = "priority", what = row.kind, where = row.slot,
+                    id = row.id, name = row.name or row.fallback, link = row.link,
+                    icon = row.icon, pct = row.pct,
+                    missing = row.missing, buy = row.buy,
+                }
+            end
+        end
+    end
+
+    -- Ohne Messung ans Ende: eine Zeile ohne Zahl kann nicht behaupten,
+    -- sie sei wichtiger als eine mit.
+    table.sort(out, function(a, b)
+        local pa, pb = a.pct or -1, b.pct or -1
+        if pa ~= pb then return pa > pb end
+        if (a.buy or 0) ~= (b.buy or 0) then return (a.buy or 0) > (b.buy or 0) end
+        return (a.name or "") < (b.name or "")
+    end)
     return out
 end
 
@@ -127,33 +205,43 @@ end
 ---@param linked boolean|nil Gegenstandslinks statt blosser Namen
 function Remind.Lines(mode, linked)
     local parts = {}
-    for _, row in ipairs(Remind.Check(mode)) do
+    -- Eine Messung, zwei Orte: die Ansage sagt dasselbe zuerst, was im
+    -- Abschnitt "Prioritaeten" oben steht. Frueher kamen erst alle
+    -- Verbrauchsgueter und dann die Verzauberungen, egal wie wichtig sie
+    -- waren - wer kein Flaeschchen hat, das neunzig Prozent tragen, las
+    -- es hinter einem Oel, das zwoelf tragen.
+    local open, openAt = 0, nil
+    for _, row in ipairs(Remind.Priorities(mode)) do
         -- Im Chat der echte Gegenstandslink: dann haengt das Tooltip
         -- daran, Shift-Klick setzt ihn in die Suche, und man muss den
         -- Namen nicht abtippen. Ohne geladenen Gegenstand bleibt der
         -- Name - ein Link, der ins Leere zeigt, waere schlimmer.
-        local label = row.name
-        if linked and row.id then
-            local _, link = ns.Compat.ItemInfo(row.id)
-            label = link or label
+        if row.what == "consumable" then
+            local label = row.name
+            if linked and row.id then
+                local _, link = ns.Compat.ItemInfo(row.id)
+                label = link or label
+            end
+            -- Nur der Name, nicht der Stand.
+            --
+            -- Hier stand frueher "(nur niedrigere Qualitaet: 34)" und
+            -- "nichts in der Tasche" hinter jedem Posten. Das beantwortet
+            -- eine Frage, die im Chat niemand stellt: dort will man wissen,
+            -- WAS fehlt, nicht wie knapp es ist. Der Stand steht im
+            -- Erinnerungsfenster und im Reiter, wo Platz dafuer ist.
+            parts[#parts + 1] = label
+        else
+            -- Verzauberungen und Steine bleiben EINE Zeile - acht
+            -- Rollen einzeln aufzuzaehlen macht aus einer Ansage eine
+            -- Wand. Sie steht aber dort, wo die wichtigste von ihnen
+            -- hingehoert, nicht immer ganz unten.
+            open = open + 1
+            if not openAt then openAt = #parts + 1 end
         end
-        -- Nur der Name, nicht der Stand.
-        --
-        -- Hier stand frueher "(nur niedrigere Qualitaet: 34)" und
-        -- "nichts in der Tasche" hinter jedem Posten. Das beantwortet
-        -- eine Frage, die im Chat niemand stellt: dort will man wissen,
-        -- WAS fehlt, nicht wie knapp es ist. Der Stand steht im
-        -- Erinnerungsfenster und im Reiter, wo Platz dafuer ist.
-        parts[#parts + 1] = label
     end
-    -- Auch die offenen Verzauberungen und Steine - gezaehlt gegen
-    -- die Ausruestung, wie im Reiter. Vor dem Pull ist der letzte
-    -- Moment, an dem man das noch aendern kann.
-    local open = 0
-    if ns.Profile.Complete() and not ns.Profile.IsForeignClass() then
-        open = ns.List.BuyCount(ns.List.Build(ns.Gear.Scan()))
+    if open > 0 then
+        table.insert(parts, openAt or (#parts + 1), L["REMIND_ENCHANTS"]:format(open))
     end
-    if open > 0 then parts[#parts + 1] = L["REMIND_ENCHANTS"]:format(open) end
     return parts
 end
 

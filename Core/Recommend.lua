@@ -714,7 +714,8 @@ end
 function Recommend.HasSection(specID, mode, source, section)
     if section == "stats" then
         return Recommend.Stats(specID, mode, source) ~= nil
-    elseif section == "consumables" or section == "remind" then
+    elseif section == "consumables" or section == "remind"
+        or section == "priority" then
         return Recommend.Consumables(specID, mode, source) ~= nil
     elseif section == "talents" then
         return Recommend.Talents(specID, mode, source) ~= nil

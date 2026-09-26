@@ -3510,5 +3510,86 @@ end
 
 
 
+-- ------------------------------ Prioritaeten: eine Messung, zwei Orte
+
+-- Die Frage, mit der man das Fenster aufmacht, ist nicht "was tragen die
+-- Besten", sondern "was fehlt MIR gerade am meisten". Beantwortet wird sie
+-- mit derselben Messung, nur anders geordnet - und die Ansage vor dem
+-- Dungeon nimmt genau dieselbe Reihenfolge.
+do
+    ns.Profile.SetMode("raid")
+    local rows = ns.Remind.Priorities("raid", ns.Profile.SelectedSpec())
+    check("die Rangfolge hat Zeilen", #rows > 0, #rows .. " Zeilen")
+
+    -- Geordnet nach dem gemessenen Anteil, und was nicht gemessen ist,
+    -- steht unten: eine Zeile ohne Zahl kann nicht behaupten, sie sei
+    -- wichtiger als eine mit.
+    local ordered, seenBlank, last = true, false, 101
+    for _, row in ipairs(rows) do
+        if row.pct then
+            if seenBlank or row.pct > last then ordered = false end
+            last = row.pct
+        else
+            seenBlank = true
+        end
+    end
+    check("nach Anteil geordnet, ohne Messung ganz unten", ordered)
+
+    -- Jede Zeile sagt, was sie ist und was ihr fehlt.
+    local named = true
+    for _, row in ipairs(rows) do
+        local kind = row.what
+        if not row.id then named = false end
+        if kind ~= "consumable" and kind ~= "enchant" and kind ~= "gem" then
+            named = false
+        end
+        if (row.buy or 0) <= 0 and (row.missing or 0) <= 0 then named = false end
+    end
+    check("jede Zeile nennt Gegenstand, Art und Fehlmenge", named)
+
+    -- Und im Fenster steht dieselbe Reihenfolge, mit derselben Zahl.
+    local shown = rowsInSection("priority")
+    check("der Abschnitt zeigt Zeilen", shown > 0, shown .. " Zeilen")
+    local titles = {}
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() then titles[#titles + 1] = row.title:GetText() end
+    end
+    check("oben steht, was den groessten Anteil hat",
+        titles[1] == (rows[1].name or ("#" .. tostring(rows[1].id))),
+        tostring(titles[1]) .. " statt " .. tostring(rows[1].name))
+
+    -- Der Hinweis sagt, was die Prozentzahl zaehlt. Ohne ihn waere sie
+    -- eine Behauptung.
+    local hint = ns.UI.Frame().hintText:GetText() or ""
+    check("ueber der Liste steht, was die Zahl zaehlt",
+        hint == L["PRIO_HINT"], hint)
+
+    -- Die Ansage vor dem Dungeon folgt derselben Rangfolge.
+    local parts = ns.Remind.Lines("raid")
+    local at = {}
+    for i, text in ipairs(parts) do at[text] = i end
+    local sameOrder, before = true, 0
+    for _, row in ipairs(rows) do
+        if row.what == "consumable" and row.name and at[row.name] then
+            if at[row.name] < before then sameOrder = false end
+            before = at[row.name]
+        end
+    end
+    check("die Ansage sagt zuerst, was oben steht", sameOrder,
+        table.concat(parts, " | "))
+
+    -- Verzauberungen und Steine bleiben EINE Zeile - aber an der Stelle,
+    -- an der die wichtigste von ihnen steht, nicht immer ganz unten.
+    local openCount = 0
+    for _, row in ipairs(rows) do
+        if row.what ~= "consumable" then openCount = openCount + 1 end
+    end
+    if openCount > 0 then
+        local line = L["REMIND_ENCHANTS"]:format(openCount)
+        check("die offenen Verzauberungen stehen als eine Zeile drin",
+            at[line] ~= nil, table.concat(parts, " | "))
+    end
+end
+
 say(fails == 0 and "\nalles gruen" or ("\n" .. fails .. " Fehler"))
 os.exit(fails == 0 and 0 or 1)
