@@ -49,7 +49,6 @@ Core\Compat.lua
 Core\Data.lua
 Core\Catalog.lua
 Core\Recommend.lua
-Core\Compare.lua
 Core\Profile.lua
 Core\Gear.lua
 Core\List.lua

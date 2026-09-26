@@ -1489,7 +1489,7 @@ local function talentRows(specID, mode, source)
     -- die Importkette - ein Klick, einfuegen, fertig.
     if build and build.nodes and #build.nodes > 0 then
         rows[#rows + 1] = {
-            kind = "loadout", nodes = build.nodes, specID = specID,
+            kind = "buildcard", nodes = build.nodes, specID = specID,
             -- Die fertige Kette der Quelle, wenn es eine gibt.
             text = build.text,
             pct = build.pct, count = #build.nodes,
@@ -1498,44 +1498,6 @@ local function talentRows(specID, mode, source)
             group = L["TALENT_BUILD"]:format(build.pct or 0),
         }
 
-        -- Und darunter: worin DEIN Build davon abweicht.
-        --
-        -- Eine Kette zum Kopieren ist alles oder nichts. Die Frage, die
-        -- davor steht, ist "worin unterscheide ich mich ueberhaupt" -
-        -- und die beantwortet der Client, wenn man ihn fragt. Nur fuer
-        -- die eigene Spec: fuer eine fremde gibt es keine eigene Wahl,
-        -- mit der man vergleichen koennte.
-        local own = specID == ns.Compat.CurrentSpec()
-        local diff = own and ns.Compare.DiffTo(build) or nil
-        if diff then
-            -- Was auf welche Karte gehoert: links, was du aufgeben
-            -- wuerdest, rechts, was du dafuer bekommst. So liest sich
-            -- der Pfeil dazwischen als Weg und nicht als Verzierung.
-            local function names(list, asNode)
-                local out = {}
-                for _, id in ipairs(list or {}) do
-                    if #out >= 4 then out[#out + 1] = "..." break end
-                    local name
-                    if asNode then
-                        name = ns.Compare.NodeName(id)
-                    else
-                        local info = C_Spell and C_Spell.GetSpellInfo
-                            and C_Spell.GetSpellInfo(id)
-                        name = info and info.name
-                    end
-                    out[#out + 1] = name or ("#" .. id)
-                end
-                return table.concat(out, ", ")
-            end
-            local lack, plus = names(diff.missing), names(diff.extra, true)
-            rows[#rows + 1] = {
-                kind = "compare", specID = specID,
-                count = #diff.missing + #diff.extra, pct = build.pct,
-                giveUp = plus ~= "" and L["MINE_PLUS"]:format(plus) or nil,
-                gain = lack ~= "" and L["MINE_LACK"]:format(lack) or L["MINE_SAME_HINT"],
-                group = L["TALENT_BUILD"]:format(build.pct or 0),
-            }
-        end
     end
 
     -- Und die naechsthaeufigsten, je mit dem Unterschied.
@@ -1642,54 +1604,48 @@ local function specAtlas(specID)
     return ("spec-thumbnail-%s-%s"):format(cls:gsub("%-", ""), spec:gsub("%-", ""))
 end
 
----Baut die beiden Karten einmal und haengt sie an die Zeile.
-local function buildCards(row)
-    if row.cards then return row.cards end
-    local cards = {}
+---Die Karte fuer den haeufigsten Build - einmal gebaut, dann benutzt.
+---
+---Vorher stand hier eine Zeile wie jede andere, und sie sah aus wie
+---Zubehoer. Der haeufigste Build ist aber das, wofuer die meisten den
+---Abschnitt ueberhaupt oeffnen. Also bekommt er eine Karte mit dem Bild
+---seiner Spezialisierung, und ein Klick darauf legt die Importkette
+---zum Kopieren hin.
+-- Die Karten liegen NEBEN den Zeilen, nicht in ihnen.
+--
+-- "if row.card then" waere der naheliegende Weg und in den Tests eine
+-- Falle: die Attrappe der WoW-API gibt auf jedes unbekannte Feld ein
+-- Kind zurueck, also ist row.card dort immer wahr - und zurueck kaeme
+-- eine Attrappe statt der Karte. Eine eigene Tabelle kennt nur, was
+-- wirklich hineingelegt wurde. Schwach, damit sie nichts festhaelt.
+local cardOf = setmetatable({}, { __mode = "k" })
 
-    local function card(side)
-        local f = CreateFrame("Frame", nil, row)
-        f:SetHeight(CARD_HEIGHT)
-        S:Fill(f, "bgRaised")
-        S:Border(f, "borderSubtle")
-        -- Das Spec-Bild, verschleiert: es soll die Karte faerben, nicht
-        -- den Text verschlucken.
-        f.art = f:CreateTexture(nil, "BACKGROUND")
-        f.art:SetAllPoints()
-        f.art:SetAlpha(0.35)
-        f.veil = f:CreateTexture(nil, "BORDER")
-        f.veil:SetAllPoints()
-        f.veil:SetColorTexture(0, 0, 0, 0.45)
-        f.title = S:Text(f, "body", "textPrimary")
-        f.title:SetPoint("TOPLEFT", S.space.md, -S.space.sm)
-        f.title:SetPoint("TOPRIGHT", -S.space.md, -S.space.sm)
-        f.title:SetJustifyH("LEFT")
-        f.note = S:Text(f, "caption", "heading")
-        f.note:SetPoint("TOPLEFT", S.space.md, -S.space.sm - 18)
-        f.note:SetPoint("TOPRIGHT", -S.space.md, -S.space.sm - 18)
-        f.note:SetJustifyH("LEFT")
-        f.body = S:Text(f, "caption", "textSecondary")
-        f.body:SetPoint("TOPLEFT", S.space.md, -S.space.sm - 38)
-        f.body:SetPoint("BOTTOMRIGHT", -S.space.md, S.space.sm)
-        f.body:SetJustifyH("LEFT")
-        f.body:SetJustifyV("TOP")
-        f.body:SetWordWrap(true)
-        cards[side] = f
-        return f
-    end
-
-    cards.left = card("left")
-    cards.right = card("right")
-
-    cards.arrow = row:CreateTexture(nil, "OVERLAY")
-    cards.arrow:SetSize(28, 28)
-    if cards.arrow.SetAtlas then
-        local ok = pcall(cards.arrow.SetAtlas, cards.arrow, "common-icon-forwardarrow", true)
-        if not ok then cards.arrow:SetColorTexture(1, 1, 1, 0.6) end
-    end
-
-    row.cards = cards
-    return cards
+local function buildCard(row)
+    if cardOf[row] then return cardOf[row] end
+    local f = CreateFrame("Frame", nil, row)
+    S:Fill(f, "bgRaised")
+    S:Border(f, "borderSubtle")
+    f.art = f:CreateTexture(nil, "BACKGROUND")
+    f.art:SetAllPoints()
+    f.art:SetAlpha(0.40)
+    -- Der Schleier: das Bild soll die Karte faerben, nicht den Text
+    -- verschlucken.
+    f.veil = f:CreateTexture(nil, "BORDER")
+    f.veil:SetAllPoints()
+    f.veil:SetColorTexture(0, 0, 0, 0.45)
+    f.title = S:Text(f, "title", "textPrimary")
+    f.title:SetPoint("TOPLEFT", S.space.lg, -S.space.md)
+    f.title:SetJustifyH("LEFT")
+    f.note = S:Text(f, "body", "heading")
+    f.note:SetPoint("TOPLEFT", S.space.lg, -S.space.md - 24)
+    f.note:SetJustifyH("LEFT")
+    f.body = S:Text(f, "caption", "textSecondary")
+    f.body:SetPoint("TOPLEFT", S.space.lg, -S.space.md - 46)
+    f.body:SetPoint("RIGHT", -S.space.lg, 0)
+    f.body:SetJustifyH("LEFT")
+    f.body:SetWordWrap(true)
+    cardOf[row] = f
+    return f
 end
 
 local function acquireRow(index)
@@ -2068,54 +2024,47 @@ local function setItemRow(row, data)
         return
     end
 
-    if data.kind == "compare" then
-        -- Zwei Karten, ein Pfeil: links wie du spielst, rechts wohin.
-        local cards = buildCards(row)
+    if data.kind == "buildcard" then
+        local card = buildCard(row)
         row.bg:SetAlpha(0)
         row.icon:SetTexture(nil)
         row.title:SetText("")
         row.detail:SetText("")
         row.share:SetText("")
+        card:ClearAllPoints()
+        card:SetPoint("TOPLEFT", S.space.sm, -S.space.sm)
+        card:SetPoint("BOTTOMRIGHT", -S.space.sm, S.space.sm)
         local atlas = specAtlas(data.specID)
-        local half = math.floor((contentWidth() - S.space.lg * 2 - 36) / 2)
-        cards.left:ClearAllPoints()
-        cards.left:SetPoint("TOPLEFT", S.space.sm, -S.space.sm)
-        cards.left:SetWidth(half)
-        cards.right:ClearAllPoints()
-        cards.right:SetPoint("TOPRIGHT", -S.space.sm, -S.space.sm)
-        cards.right:SetWidth(half)
-        cards.arrow:ClearAllPoints()
-        cards.arrow:SetPoint("CENTER", row, "CENTER", 0, -S.space.sm)
-        for _, side in ipairs({ cards.left, cards.right }) do
-            side:SetHeight(CARD_HEIGHT * (S.fontScale or 1))
-            if atlas and side.art.SetAtlas then
-                local ok = pcall(side.art.SetAtlas, side.art, atlas, false)
-                side.art:SetShown(ok and true or false)
-            else
-                side.art:Hide()
-            end
-            side:Show()
+        if atlas and card.art.SetAtlas then
+            local ok = pcall(card.art.SetAtlas, card.art, atlas, false)
+            card.art:SetShown(ok and true or false)
+        else
+            card.art:Hide()
         end
-        -- Deine Seite ist blasser: sie zeigt, wo du stehst, nicht wohin.
-        cards.left.art:SetAlpha(0.18)
-        cards.right.art:SetAlpha(0.40)
-        cards.arrow:Show()
-
-        cards.left.title:SetText(L["CARD_MINE"])
-        cards.left.note:SetText(data.count == 0 and L["MINE_SAME"]
-            or L["MINE_DIFF"]:format(data.count))
-        cards.left.body:SetText(data.giveUp or "")
-        cards.right.title:SetText(L["CARD_TARGET"])
-        cards.right.note:SetText(L["TALENT_BUILD"]:format(data.pct or 0))
-        cards.right.body:SetText(data.gain or "")
-        row.onClick = nil
+        card.title:SetText(L["CARD_TARGET"])
+        card.note:SetText(L["TALENT_BUILD"]:format(data.pct or 0))
+        -- Ohne Kette waere die Karte ein Knopf, der nichts tut. Dann
+        -- sagt sie das, statt zum Klicken einzuladen.
+        local ready = data.text ~= nil and data.text ~= ""
+        local hint = ready and L["LOADOUT_HINT"]:format(data.count)
+            or L["LOADOUT_NO_STRING"]
+        if data.fromBase then
+            local whence
+            for _, entry in ipairs(ns.MODES) do
+                if entry.key == data.fromMode then whence = entry.label break end
+            end
+            hint = hint .. "  ·  " .. L["LOADOUT_FROM_BASE"]:format(whence or "?")
+        end
+        if data.fromSource then
+            hint = hint .. "  ·  " .. L["LOADOUT_FROM_SOURCE"]:format(data.fromSource)
+        end
+        card.body:SetText(hint)
+        S:Recolor(card.body, ready and "textSecondary" or "warning")
+        card:Show()
+        row.onClick = ready and function() UI.ShowLink(data.text) end or nil
         return
     end
-    if row.cards then
-        row.cards.left:Hide()
-        row.cards.right:Hide()
-        row.cards.arrow:Hide()
-    end
+    if cardOf[row] then cardOf[row]:Hide() end
 
     if data.kind == "loadout" then
         row.link = nil
@@ -2142,10 +2091,6 @@ local function setItemRow(row, data)
             else
                 row.title:SetText(L["TALENT_MINUS"]:format(minus))
             end
-        elseif data.mine then
-            -- Dein eigener Build gegen den haeufigsten.
-            row.title:SetText(data.count == 0 and L["MINE_SAME"]
-                or L["MINE_DIFF"]:format(data.count))
         elseif data.playerRow then
             row.title:SetText(L["PLAYER_LOADOUT"])
         else
@@ -2167,36 +2112,6 @@ local function setItemRow(row, data)
         -- wo es umbrach und abgeschnitten wurde.
         if data.playerRow then
             hint = L[data.verified and "PLAYER_VERIFIED" or "PLAYER_UNVERIFIED"]
-        end
-        if data.mine then
-            -- Worin genau: was dir fehlt, und was du zusaetzlich hast.
-            -- Hoechstens drei je Seite, sonst wird die Zeile zur Liste.
-            --
-            -- Zwei Arten von Nummern: was fehlt, kommt als Zauber aus
-            -- dem Build; was zusaetzlich dasteht, ist ein KNOTEN deines
-            -- Baums, und den kann nur der Client benennen.
-            local function names(list, asNode)
-                local out = {}
-                for _, id in ipairs(list or {}) do
-                    if #out >= 3 then out[#out + 1] = "..." break end
-                    local name
-                    if asNode then
-                        name = ns.Compare.NodeName(id)
-                    else
-                        local info = C_Spell and C_Spell.GetSpellInfo
-                            and C_Spell.GetSpellInfo(id)
-                        name = info and info.name
-                    end
-                    out[#out + 1] = name or ("#" .. id)
-                end
-                return table.concat(out, ", ")
-            end
-            local parts = {}
-            local lack, plus = names(data.missing), names(data.extra, true)
-            if lack ~= "" then parts[#parts + 1] = L["MINE_LACK"]:format(lack) end
-            if plus ~= "" then parts[#parts + 1] = L["MINE_PLUS"]:format(plus) end
-            hint = #parts > 0 and table.concat(parts, "  ·  ") or L["MINE_SAME_HINT"]
-            usable = false
         end
         if data.fromBase then
             -- Aus welcher Ansicht geliehen wurde. Hier stand fest
@@ -3371,7 +3286,7 @@ function UI.Refresh()
             row.title:SetPoint("LEFT", S.space.sm + 58, 0)
             S:ApplyFont(row.title, "caption", "textSecondary")
             place(row, SUB_ROW_HEIGHT * (S.fontScale or 1))
-        elseif data.kind == "compare" then
+        elseif data.kind == "buildcard" then
             place(row, (CARD_HEIGHT + 16) * (S.fontScale or 1))
         elseif data.kind == "note" then
             -- Eine Notiz ist eine Zeile Text, kein Gegenstand: Symbol
