@@ -9,6 +9,21 @@
 # The Warcraft Logs and Battle.net credentials come from the repository
 # secrets WCL_CLIENT_ID / WCL_CLIENT_SECRET and BNET_CLIENT_ID /
 # BNET_CLIENT_SECRET. They are in no file.
+#
+# WHY THIS IS SEVERAL JOBS AND NOT ONE.
+#
+# Warcraft Logs counts points per HOUR. The run asks for more than one
+# hour holds, so it waits for the next one - and waiting is where the
+# time goes: on 25 September the collecting step ran 5 h 32 min, almost
+# all of it idle at the hourly limit. A GitHub job is killed after six
+# hours, so that run finished 27 minutes from losing a whole night.
+#
+# The cure is not to measure less. It is to let the waiting happen in
+# several jobs, one after the other, each with its own six hours. The
+# sources are split by what they cost, every job hands its harvest to
+# the next as an artifact, and a job that fails does not take the
+# others with it - the last one builds the tables from whatever came
+# back.
 name: Daily data
 
 on:
@@ -35,14 +50,244 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  collect:
+  # 1. Was nichts kostet: die Spieldaten und die Quellen ohne Kontingent.
+  #
+  # Der Katalog muss zuerst laufen - die Sammler lesen seine
+  # Verzauberungskarte, und eine veraltete Karte laesst Verzauberungen
+  # still verschwinden.
+  sources:
+    name: Catalog, raider.io, murlok.io
     runs-on: ubuntu-latest
-    # Warcraft Logs waits for its hourly quota; a full run can take two
-    # hours.
-    # Mehr Berichte, mehr Zeit. Der Lauf vom 24.09. brauchte mit 880
-    # Berichten gut drei Stunden; mit rund zweitausend wird es knapp
-    # vier, und Wartezeiten am Stundenlimit koennen dazukommen.
-    timeout-minutes: 350
+    if: inputs.reuse == ''
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Mark the time
+        run: |
+          mkdir -p tools/data harvest
+          touch /tmp/started
+      - name: Collect
+        run: node tools/collect-all.js . nur=catalog,raiderio,murlok
+
+      # Nur, was DIESER Job neu geschrieben hat. Jeder Job das ganze
+      # Verzeichnis hochladen zu lassen hiesse, 90 MB sechsmal je Nacht
+      # abzulegen, damit am Ende dieselben Dateien herauskommen.
+      - name: Hand it on
+        if: always()
+        run: |
+          mkdir -p harvest
+          # Mit Pfad: die Sammler lesen MetaCodex_Data/Catalog.lua, und
+          # eine Datei ohne ihr Verzeichnis findet dort niemand wieder.
+          find tools/data MetaCodex_Data -type f -newer /tmp/started -exec cp --parents -t harvest {} + || true
+          find harvest -type f | head -80
+      - name: Keep it
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: step-sources-${{ github.run_id }}
+          path: harvest
+          retention-days: 2
+          if-no-files-found: warn
+
+  # 2. Raid, drei Schwierigkeiten. 660 Berichte.
+  logs-raid:
+    name: Warcraft Logs - raid
+    runs-on: ubuntu-latest
+    needs: sources
+    # Auch dann, wenn der Schritt davor gescheitert ist: ein fehlender
+    # murlok-Abruf ist kein Grund, den Raid nicht zu messen.
+    if: ${{ !cancelled() && inputs.reuse == '' }}
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Take what the jobs before collected
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          pattern: step-*-${{ github.run_id }}
+          merge-multiple: true
+          path: .
+      - name: Mark the time
+        run: |
+          mkdir -p tools/data harvest
+          touch /tmp/started
+      - name: Collect
+        env:
+          WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
+          WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
+        run: node tools/collect-all.js . nur=raid,raid-mythic,raid-normal
+      - name: Hand it on
+        if: always()
+        run: |
+          mkdir -p harvest
+          # Mit Pfad: die Sammler lesen MetaCodex_Data/Catalog.lua, und
+          # eine Datei ohne ihr Verzeichnis findet dort niemand wieder.
+          find tools/data MetaCodex_Data -type f -newer /tmp/started -exec cp --parents -t harvest {} + || true
+          find harvest -type f | head -80
+      - name: Keep it
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: step-logs-raid-${{ github.run_id }}
+          path: harvest
+          retention-days: 2
+          if-no-files-found: warn
+
+  # 3. Die Verbrauchsgueter der hohen Schluessel. Der teuerste Schritt
+  #    von allen: tausend Berichte, und fuer jeden die Ereignisse.
+  logs-consumables:
+    name: Warcraft Logs - M+ consumables
+    runs-on: ubuntu-latest
+    needs: logs-raid
+    if: ${{ !cancelled() && inputs.reuse == '' }}
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Take what the jobs before collected
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          pattern: step-*-${{ github.run_id }}
+          merge-multiple: true
+          path: .
+      - name: Mark the time
+        run: |
+          mkdir -p tools/data harvest
+          touch /tmp/started
+      - name: Collect
+        env:
+          WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
+          WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
+        run: node tools/collect-all.js . nur=consumables
+      - name: Hand it on
+        if: always()
+        run: |
+          mkdir -p harvest
+          # Mit Pfad: die Sammler lesen MetaCodex_Data/Catalog.lua, und
+          # eine Datei ohne ihr Verzeichnis findet dort niemand wieder.
+          find tools/data MetaCodex_Data -type f -newer /tmp/started -exec cp --parents -t harvest {} + || true
+          find harvest -type f | head -80
+      - name: Keep it
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: step-logs-consumables-${{ github.run_id }}
+          path: harvest
+          retention-days: 2
+          if-no-files-found: warn
+
+  # 4. Dieselbe Messung fuer die Stufen, die die meisten spielen.
+  logs-keys:
+    name: Warcraft Logs - M+ by key level
+    runs-on: ubuntu-latest
+    needs: logs-consumables
+    if: ${{ !cancelled() && inputs.reuse == '' }}
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Take what the jobs before collected
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          pattern: step-*-${{ github.run_id }}
+          merge-multiple: true
+          path: .
+      - name: Mark the time
+        run: |
+          mkdir -p tools/data harvest
+          touch /tmp/started
+      - name: Collect
+        env:
+          WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
+          WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
+        run: node tools/collect-all.js . nur=keys
+      - name: Hand it on
+        if: always()
+        run: |
+          mkdir -p harvest
+          # Mit Pfad: die Sammler lesen MetaCodex_Data/Catalog.lua, und
+          # eine Datei ohne ihr Verzeichnis findet dort niemand wieder.
+          find tools/data MetaCodex_Data -type f -newer /tmp/started -exec cp --parents -t harvest {} + || true
+          find harvest -type f | head -80
+      - name: Keep it
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: step-logs-keys-${{ github.run_id }}
+          path: harvest
+          retention-days: 2
+          if-no-files-found: warn
+
+  # 5. Blizzard: die PvP-Ranglisten und die Profile der Spitze. Eigenes
+  #    Kontingent, darum am Ende und nicht zwischendrin.
+  blizzard:
+    name: Battle.net and the profiles
+    runs-on: ubuntu-latest
+    needs: logs-keys
+    if: ${{ !cancelled() && inputs.reuse == '' }}
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Take what the jobs before collected
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          pattern: step-*-${{ github.run_id }}
+          merge-multiple: true
+          path: .
+      - name: Mark the time
+        run: |
+          mkdir -p tools/data harvest
+          touch /tmp/started
+      - name: Collect
+        env:
+          BNET_CLIENT_ID: ${{ secrets.BNET_CLIENT_ID }}
+          BNET_CLIENT_SECRET: ${{ secrets.BNET_CLIENT_SECRET }}
+        run: node tools/collect-all.js . nur=bnet,profiles
+      - name: Hand it on
+        if: always()
+        run: |
+          mkdir -p harvest
+          # Mit Pfad: die Sammler lesen MetaCodex_Data/Catalog.lua, und
+          # eine Datei ohne ihr Verzeichnis findet dort niemand wieder.
+          find tools/data MetaCodex_Data -type f -newer /tmp/started -exec cp --parents -t harvest {} + || true
+          find harvest -type f | head -80
+      - name: Keep it
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: step-blizzard-${{ github.run_id }}
+          path: harvest
+          retention-days: 2
+          if-no-files-found: warn
+
+  # 6. Aus den Rohdaten die Tabellen, und die Tabellen in die Welt.
+  #
+  # Dieser Job fragt keine Quelle mehr - er rechnet nur. Darum darf er
+  # auch dann laufen, wenn einer der Sammler gescheitert ist: was da
+  # ist, wird gebaut, und was fehlt, ist von gestern.
+  publish:
+    name: Build, test and publish
+    runs-on: ubuntu-latest
+    needs: [sources, logs-raid, logs-consumables, logs-keys, blizzard]
+    if: ${{ !cancelled() }}
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
         with:
@@ -55,18 +300,13 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Collect every source and build the tables
+      - name: Take tonight's harvest
         if: inputs.reuse == ''
-        env:
-          # The account behind these credentials has 9,000 points an hour
-          # (Gold). A whole run costs just under 5,000, so it fits into one
-          # hour without waiting. On the free limit of 3,600 it stopped
-          # halfway and waited an hour.
-          WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
-          WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
-          BNET_CLIENT_ID: ${{ secrets.BNET_CLIENT_ID }}
-          BNET_CLIENT_SECRET: ${{ secrets.BNET_CLIENT_SECRET }}
-        run: node tools/collect-all.js .
+        uses: actions/download-artifact@v4
+        with:
+          pattern: step-*-${{ github.run_id }}
+          merge-multiple: true
+          path: .
 
       # Die Ernte eines frueheren Laufs statt einer neuen.
       #
@@ -90,27 +330,24 @@ jobs:
           path: .
 
       - name: Say what came back
-        if: inputs.reuse != ''
         run: |
-          echo "Aus Lauf ${{ inputs.reuse }}:"
-          ls -l MetaCodex_Data MetaCodex_Dungeons MetaCodex_Players
-          test -s MetaCodex_Data/Catalog.lua
-          test -s MetaCodex_Data/Recommendations.lua
+          ls -l tools/data | head -80
+          test -s tools/data/enchant-map.json
 
       # Aus den Rohdaten neu bauen, nicht die alten Tabellen nehmen.
       #
-      # Die Sicherung traegt beides: die fertigen Tabellen und das, woraus
-      # sie gebaut wurden. Wird am Zusammenbau etwas verbessert - ein
-      # Name, der aus dem Journal kommen soll, eine Gruppierung, ein
-      # Feld mehr -, dann muss dafuer niemand vier Stunden neu sammeln.
       # Der Katalog wird mitgebaut, weil der Zusammenbau seine
       # Journalnamen braucht; beides zusammen dauert Minuten und fragt
-      # Warcraft Logs kein einziges Mal.
-      - name: Rebuild the tables from what came back
-        if: inputs.reuse != ''
+      # Warcraft Logs kein einziges Mal. Wird am Zusammenbau etwas
+      # verbessert - ein Name, der aus dem Journal kommen soll, eine
+      # Gruppierung, ein Feld mehr -, dann muss dafuer niemand fuenf
+      # Stunden neu sammeln.
+      - name: Build the tables
         run: |
           node tools/build-catalog.js .
           node tools/build-recommendations.js .
+          test -s MetaCodex_Data/Catalog.lua
+          test -s MetaCodex_Data/Recommendations.lua
 
       # Erst sichern, dann weitermachen.
       #

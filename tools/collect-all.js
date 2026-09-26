@@ -32,7 +32,17 @@ if (!BASE) {
   console.error('Aufruf: node tools/collect-all.js <Pfad zum Repo> [nur=<quelle>]');
   process.exit(1);
 }
-const ONLY = (process.argv.find((a) => a.startsWith('nur=')) || '').slice(4);
+// Eine Liste, nicht ein einzelner Schritt.
+//
+// Warcraft Logs rechnet in Punkten JE STUNDE, und der ganze Tageslauf
+// braucht mehr, als eine Stunde hergibt: er wartet auf die naechste.
+// Bei GitHub stirbt ein Job nach sechs Stunden - am 25.09. brauchte er
+// fuenfeinhalb. Darum laeuft der Lauf dort in mehreren Jobs,
+// nacheinander, jeder mit seiner eigenen Frist, und jeder sagt mit
+// nur=a,b,c, welche Schritte ihm gehoeren.
+const ONLY = (process.argv.find((a) => a.startsWith('nur=')) || '').slice(4)
+  .split(',').map((s) => s.trim()).filter((s) => s !== '');
+const wanted = (key) => ONLY.length === 0 || ONLY.indexOf(key) >= 0;
 
 // Jeder Schritt nennt, WAS er holt und WARUM von dort. Wer hier etwas
 // verschiebt, soll die Begruendung mitverschieben muessen.
@@ -154,17 +164,27 @@ function run(step) {
 }
 
 (async () => {
+  for (const key of ONLY) {
+    if (!STEPS.some((s) => s.key === key)) {
+      console.error('Unbekannter Schritt: ' + key);
+      console.error('Bekannt sind: ' + STEPS.map((s) => s.key).join(', '));
+      process.exit(2);
+    }
+  }
   const started = Date.now();
   const failed = [];
 
   for (const step of STEPS) {
-    if (ONLY && ONLY !== step.key) continue;
+    if (!wanted(step.key)) continue;
     console.log('\n' + '='.repeat(64));
     console.log(step.key + ': ' + step.what);
     if (step.why) console.log('  ' + step.why);
     console.log('='.repeat(64));
 
+    const stepStarted = Date.now();
     const ok = await run(step);
+    console.log('  ' + step.key + ': '
+      + Math.round((Date.now() - stepStarted) / 60000) + ' Minuten');
     if (!ok) {
       failed.push(step.key);
       // Weitermachen statt abbrechen. Jeder Schritt schreibt seine eigene
