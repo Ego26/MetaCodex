@@ -1601,7 +1601,35 @@ end
 local function specAtlas(specID)
     local cls, spec = ns.Catalog.SpecSlug(specID)
     if not cls or not spec then return nil end
-    return ("spec-thumbnail-%s-%s"):format(cls:gsub("%-", ""), spec:gsub("%-", ""))
+    -- Das BREITE Bild, nicht die Miniatur.
+    --
+    -- Die Miniatur ist 306 mal 186 und damit fast quadratisch; auf einer
+    -- langen flachen Karte sah sie gezogen aus. Der Hintergrund des
+    -- Talentbaums ist 1612 mal 774 und passt in der Form. Beide gibt es
+    -- fuer alle vierzig Speccs, nachgezaehlt in den Spieldaten.
+    local slug = ("%s-%s"):format(cls:gsub("%-", ""), spec:gsub("%-", ""))
+    return "talents-background-" .. slug, "spec-thumbnail-" .. slug
+end
+
+---Legt ein Bild in die Karte, ohne es zu ziehen.
+---
+---Es wird so vergroessert, dass es die Karte deckt, und der Rest wird
+---abgeschnitten - wie ein Hintergrundbild, das "cover" heisst. Gestreckt
+---sah der Drache aus wie eine Wurst.
+local function fitArt(card, atlas, width, height)
+    if not atlas or not card.art.SetAtlas then card.art:Hide() return end
+    if not pcall(card.art.SetAtlas, card.art, atlas, false) then card.art:Hide() return end
+    local aw, ah = 1612, 774
+    local info = C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(atlas)
+    if type(info) == "table" and tonumber(info.width) and tonumber(info.height)
+        and tonumber(info.width) > 0 and tonumber(info.height) > 0 then
+        aw, ah = tonumber(info.width), tonumber(info.height)
+    end
+    local scale = math.max(width / aw, height / ah)
+    card.art:ClearAllPoints()
+    card.art:SetPoint("CENTER")
+    card.art:SetSize(aw * scale, ah * scale)
+    card.art:Show()
 end
 
 ---Die Karte fuer den haeufigsten Build - einmal gebaut, dann benutzt.
@@ -1625,8 +1653,11 @@ local function buildCard(row)
     local f = CreateFrame("Frame", nil, row)
     S:Fill(f, "bgRaised")
     S:Border(f, "borderSubtle")
-    f.art = f:CreateTexture(nil, "BACKGROUND")
-    f.art:SetAllPoints()
+    -- Der Rahmen schneidet ab, was ueber die Karte hinausragt.
+    f.clip = CreateFrame("Frame", nil, f)
+    f.clip:SetAllPoints()
+    if f.clip.SetClipsChildren then pcall(f.clip.SetClipsChildren, f.clip, true) end
+    f.art = f.clip:CreateTexture(nil, "BACKGROUND")
     f.art:SetAlpha(0.40)
     -- Der Schleier: das Bild soll die Karte faerben, nicht den Text
     -- verschlucken.
@@ -2034,13 +2065,10 @@ local function setItemRow(row, data)
         card:ClearAllPoints()
         card:SetPoint("TOPLEFT", S.space.sm, -S.space.sm)
         card:SetPoint("BOTTOMRIGHT", -S.space.sm, S.space.sm)
-        local atlas = specAtlas(data.specID)
-        if atlas and card.art.SetAtlas then
-            local ok = pcall(card.art.SetAtlas, card.art, atlas, false)
-            card.art:SetShown(ok and true or false)
-        else
-            card.art:Hide()
-        end
+        local wide, small = specAtlas(data.specID)
+        local w = math.max(1, contentWidth() - S.space.sm * 2)
+        local h = CARD_HEIGHT * (S.fontScale or 1)
+        fitArt(card, wide or small, w, h)
         card.title:SetText(L["CARD_TARGET"])
         card.note:SetText(L["TALENT_BUILD"]:format(data.pct or 0))
         -- Ohne Kette waere die Karte ein Knopf, der nichts tut. Dann
