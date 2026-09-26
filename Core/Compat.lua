@@ -478,6 +478,14 @@ local function trackLink(itemID, bonus)
     return linkWith(itemID, bonus)
 end
 
+---Ein Gegenstandslink mit beliebigen Bonus-IDs.
+---@param itemID number
+---@param ... number
+---@return string
+function Compat.LinkWith(itemID, ...)
+    return linkWith(itemID, ...)
+end
+
 ---Welche Pfade zur laufenden Saison gehoeren.
 ---
 ---Der Katalog fuehrt alle - auch die der letzten Saison und die der

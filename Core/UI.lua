@@ -743,7 +743,9 @@ local function embellishRows(specID, mode, source)
             local single = #entry.ids == 1
             rows[#rows + 1] = {
                 kind = "gear", pct = entry.pct,
-                id = single and entry.ids[1] or nil,
+                id = entry.ids[1],
+                -- Beide, damit der Zeiger beide Tooltips zeigt.
+                ids = entry.ids,
                 link = single and link or nil,
                 name = table.concat(names, "  +  "),
                 icon = icon,
@@ -1944,6 +1946,17 @@ local function buildCard(row)
     return f
 end
 
+-- Der zweite Tooltip. Einer fuer alle Zeilen, erst gebaut, wenn ihn
+-- jemand braucht: die meisten Zeilen haben nur einen Gegenstand.
+local secondFrame
+local function secondTooltip()
+    if not secondFrame then
+        secondFrame = CreateFrame("GameTooltip", "MetaCodexTooltipTwo",
+            UIParent, "GameTooltipTemplate")
+    end
+    return secondFrame
+end
+
 local function acquireRow(index)
     rows = rows or {}
     if rows[index] then return rows[index] end
@@ -2037,6 +2050,21 @@ local function acquireRow(index)
 
     row:SetScript("OnEnter", function(self)
         self.bg:SetAlpha(1)
+        -- Zwei Gegenstaende in einer Zeile: eine Kombination aus zwei
+        -- Verzierungen. Ein Tooltip zum ersten von zweien waere eine
+        -- halbe Auskunft - also beide, der zweite unter dem ersten.
+        if self.ids and #self.ids > 1 then
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetHyperlink("item:" .. self.ids[1])
+            GameTooltip:Show()
+            local second = secondTooltip()
+            second:SetOwner(self, "ANCHOR_NONE")
+            second:ClearAllPoints()
+            second:SetPoint("TOPRIGHT", GameTooltip, "BOTTOMRIGHT", 0, -6)
+            second:SetHyperlink("item:" .. self.ids[2])
+            second:Show()
+            return
+        end
         -- Der Link wird JETZT gebaut, nicht beim Aufbau der Liste.
         -- Zu dem Zeitpunkt kennt der Client die Grundstufe meist noch
         -- nicht, und ohne Grundstufe gibt es keine Differenz und keine
@@ -2056,9 +2084,11 @@ local function acquireRow(index)
         end
         local link = self.link
         if self.itemID and self.wantBonus then
-            link = ("item:%d::::::::::::1:%d"):format(self.itemID, self.wantBonus)
+            link = ns.Compat.LinkWith(self.itemID, self.wantBonus, self.statBonus)
         elseif self.itemID and self.wantLevel then
-            link = ns.Compat.LinkAtLevel(self.itemID, self.wantLevel) or link
+            link = ns.Compat.LinkAtLevel(self.itemID, self.wantLevel, self.statBonus) or link
+        elseif self.itemID and self.statBonus then
+            link = ns.Compat.LinkWith(self.itemID, self.statBonus)
         end
         if not link then return end
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -2068,6 +2098,7 @@ local function acquireRow(index)
     row:SetScript("OnLeave", function(self)
         self.bg:SetAlpha(self.__header and 0 or 0.5)
         GameTooltip:Hide()
+        if secondFrame then secondFrame:Hide() end
     end)
 
     rows[index] = row
@@ -2099,6 +2130,9 @@ local function resetRow(row)
     -- wiederverwendet, und eine vergessene Gegenstands-ID zeigte sonst
     -- das Tooltip des Vorgaengers.
     row.itemID, row.wantLevel, row.wantBonus = nil, nil, nil
+    -- Und die Wertewahl und die zweite Gegenstands-ID: eine
+    -- wiederverwendete Zeile zeigte sonst das Tooltip des Vorgaengers.
+    row.statBonus, row.ids = nil, nil
     -- Und den Zauber: eine Talentzeile zeigt sein Tooltip, und eine
     -- wiederverwendete Zeile zeigte sonst den Zauber des Vorgaengers.
     row.spellID = nil
@@ -2579,6 +2613,7 @@ local function setItemRow(row, data)
         -- das Tooltip.
         row.link = data.atLevel or data.link
         row.itemID, row.wantLevel, row.wantBonus = data.id, data.wantLevel, data.wantBonus
+        row.statBonus, row.ids = data.statBonus, data.ids
         -- Den Gegenstand anfordern, damit er beim Hovern da ist.
         if data.id and C_Item and C_Item.RequestLoadItemDataByID then
             pcall(C_Item.RequestLoadItemDataByID, data.id)

@@ -703,6 +703,56 @@ do
     end
     check("  jede Verzierung hat einen Namen", ohneName == 0, ohneName .. " ohne")
 
+    -- Zwei Verzierungen, zwei Tooltips.
+    --
+    -- Eine Zeile, aber zwei Entscheidungen: wer wissen will, was die
+    -- Kombination kann, muss beide lesen koennen. Vorher zeigte die
+    -- Zeile gar keins - ein Tooltip zum ersten von zweien waere eine
+    -- halbe Auskunft gewesen, also stand dort keines.
+    -- Eine Spec suchen, die wirklich zwei traegt: nicht jede tut es,
+    -- und ein Test, der bei der falschen still nichts prueft, ist
+    -- keiner.
+    local pair
+    local mine = ns.Profile.SelectedSpec()
+    for _, spec in ipairs({ mine, 62, 102, 70, 71, 65 }) do
+        local list = ns.Recommend.Embellish(spec, "mplus", ns.Recommend.ALL)
+        local hat = false
+        for _, entry in ipairs(list or {}) do
+            if #(entry.ids or {}) > 1 then hat = true break end
+        end
+        if hat then
+            local klasse = ns.Compat.ClassOfSpec(spec)
+            if klasse then ns.Profile.Select(klasse, spec) end
+            rowsInSection("embellish")
+            for _, row in ipairs(wow.rows()) do
+                local ids = row:IsShown() and rawget(row, "ids") or nil
+                if ids and #ids > 1 then pair = row break end
+            end
+        end
+        if pair then break end
+    end
+    check("  eine Spec traegt zwei Verzierungen", pair ~= nil)
+    if pair then
+        local first, second
+        GameTooltip.SetHyperlink = function(_, link) first = link end
+        pair.__scripts.OnEnter(pair)
+        local tip2 = _G["MetaCodexTooltipTwo"]
+        check("  der zweite Tooltip entsteht", tip2 ~= nil)
+        if tip2 then
+            tip2.SetHyperlink = function(_, link) second = link end
+            pair.__scripts.OnEnter(pair)
+            check("  beide Gegenstaende bekommen ihr Tooltip",
+                first == "item:" .. pair.ids[1] and second == "item:" .. pair.ids[2],
+                tostring(first) .. "  /  " .. tostring(second))
+            tip2.SetHyperlink = nil
+        end
+        GameTooltip.SetHyperlink = nil
+    end
+    do
+        local klasse = ns.Compat.ClassOfSpec(mine)
+        if klasse then ns.Profile.Select(klasse, mine) else ns.Profile.SelectActive() end
+    end
+
     -- Und das Handwerk traegt sein Wertepaar.
     rowsInSection("crafted")
     local mitWerten, mitBonusImLink = 0, 0
