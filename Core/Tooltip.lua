@@ -139,15 +139,46 @@ end
 ---@param link string|nil
 function Tooltip.Decorate(tip, link)
     if not ns.Profile.TooltipOn() then return end
-    if not link or not ns.Recommend.Ready() then return end
-    -- Die Daten liegen im nachladbaren Addon. Wer nur Tooltips anschaut
-    -- und nie das Fenster oeffnet, bekommt sie hier.
-    if not ns.Data.Ensure() then return end
+    if not link then return end
+    -- Erst laden, dann fragen - nicht umgekehrt.
+    --
+    -- Hier stand die Bereitschaftspruefung VOR dem Laden, und die kann
+    -- vor dem Laden gar nicht wahr sein: die Tabellen liegen im
+    -- nachladbaren Addon. Wer nie das Fenster oeffnete, sah deshalb nie
+    -- eine Zahl im Tooltip - die Zeile stieg immer vorher aus. Das
+    -- Fenster einmal aufmachen zu muessen, damit ein Tooltip etwas
+    -- sagt, waere eine Zumutung.
+    --
+    -- Im Kampf wird allerdings nicht geladen: die Tabellen sind
+    -- Megabytes, ihr Einlesen kostet einen Moment, und der gehoert
+    -- nicht in einen Pull. Wer waehrend des Kampfes ueber ein Item
+    -- faehrt, sieht dann eben nichts - nach dem Kampf holt es der
+    -- naechste Tooltip nach.
+    if not ns.Recommend.Ready() then
+        if InCombatLockdown and InCombatLockdown() then return end
+        if not ns.Data.Ensure() then return end
+    end
 
     local itemID = tonumber(link:match("item:(%d+)"))
     local ranks = Tooltip.StatRanks(link)
     local marked = 0
     if ranks then marked = markStats(tip, ranks) end
+
+    -- Keine Wertzeile getroffen, aber Raenge vorhanden?
+    --
+    -- Die Beschriftungen kommen vom Client, und wenn eine davon anders
+    -- lautet als im Tooltip, faende die Suche nichts. Dann stehen die
+    -- Raenge eben in einer eigenen Zeile - lieber so als gar nicht.
+    local spare
+    if ranks and marked == 0 then
+        local parts = {}
+        for _, key in ipairs(ns.SECONDARY) do
+            if ranks[key] then
+                parts[#parts + 1] = L["STAT_" .. key] .. " #" .. ranks[key]
+            end
+        end
+        if #parts > 0 then spare = table.concat(parts, "  ") end
+    end
 
     local rank, pct, total = Tooltip.GearRank(itemID)
     if rank then
@@ -162,6 +193,9 @@ function Tooltip.Decorate(tip, link)
         -- Woher die Zahlen kommen, gehoert einmal dazugesagt - sonst
         -- steht da eine Raute, die niemand zuordnen kann.
         tip:AddLine("|cff" .. ns.Style:Hex("brand") .. "MetaCodex|r  " .. L["TIP_STATS"], 1, 1, 1)
+    end
+    if spare then
+        tip:AddLine("|cff" .. ns.Style:Hex("brand") .. "MetaCodex|r  " .. spare, 1, 1, 1)
     end
 end
 
