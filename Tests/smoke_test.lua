@@ -578,6 +578,27 @@ do
     end
 end
 
+-- Und der Fundort laesst sich als ganze Gruppe waehlen.
+--
+-- Vorher standen zehn Dungeons, das Handwerk, die Set-Teile und
+-- "nicht im Journal" in einer alphabetischen Reihe, und wer wissen
+-- wollte, was in Dungeons faellt, konnte nur einen einzelnen anklicken.
+do
+    ns.Profile.SetCategory("gearSource", nil)
+    local all = rowsInSection("gear")
+    ns.Profile.SetCategory("gearSource", "group:dungeon")
+    local some = rowsInSection("gear")
+    check("die Gruppe Dungeons bleibt gewaehlt",
+        ns.Profile.Category("gearSource") == "group:dungeon", some .. " Zeilen")
+    check("und zeigt weniger als alles", some > 0 and some < all,
+        some .. " von " .. all)
+    check("der Knopf nennt die Gruppe",
+        ns.UI.Frame().originButton.label:GetText() == L["ORIGIN_GALL_dungeon"],
+        tostring(ns.UI.Frame().originButton.label:GetText()))
+    ns.Profile.SetCategory("gearSource", nil)
+    check("ohne Filter sind es wieder alle", rowsInSection("gear") == all)
+end
+
 check("Verzauberungen zeigen weiter Zeilen", rowsInSection("enchants") > 0)
 -- Hier stand einmal "leerer Abschnitt bleibt leer" und meinte Guides.
 -- Inzwischen ist keiner der sechs Abschnitte mehr leer.

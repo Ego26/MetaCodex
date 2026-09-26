@@ -400,6 +400,41 @@ function Recommend.Dungeons(mode)
     return (d and d.dungeons and d.dungeons[mode]) or {}
 end
 
+---Ist diese Instanz ein Dungeon oder ein Schlachtzug?
+---
+---Aus den eigenen Daten, nicht aus einer Liste zum Pflegen: die
+---Bossliste jedes Modus nennt ihre Instanz, und der Modus sagt, was sie
+---ist. Eine gepflegte Liste waere beim naechsten Dungeon falsch, und
+---zwar still.
+---
+---Was in keiner Liste vorkommt, bekommt keine Antwort. Raten waere hier
+---schlimmer als schweigen: der Fundort-Waehler wuerde einen Schlachtzug
+---unter die Dungeons haengen, und wer danach filtert, saehe eine leere
+---Liste ohne zu verstehen, warum.
+---@param inst number|nil
+---@return string|nil "dungeon" oder "raid"
+function Recommend.InstanceKind(inst)
+    if not inst then return nil end
+    local d = data()
+    if not d or not d.dungeons then return nil end
+    local map = rawget(d, "__instKind")
+    if not map then
+        map = {}
+        for mode, list in pairs(d.dungeons) do
+            local kind = nil
+            if mode:find("^mplus") then kind = "dungeon"
+            elseif mode:find("^raid") then kind = "raid" end
+            if kind then
+                for _, entry in ipairs(list) do
+                    if entry.inst then map[entry.inst] = kind end
+                end
+            end
+        end
+        d.__instKind = map
+    end
+    return map[inst]
+end
+
 ---Talente: die einzelnen Anteile und der haeufigste ganze Build.
 ---
 ---Nicht gemittelt, aus demselben Grund wie Zielwerte und Ausruestung: ein

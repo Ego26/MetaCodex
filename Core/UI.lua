@@ -534,15 +534,19 @@ local function originText(itemID, badge, mode)
         -- Gefiltert wird nach INSTANZ, nicht nach Boss: "was faellt in
         -- diesem Dungeon" ist die Frage, die jemand stellt.
         local place = inst and ns.Compat.DropText(nil, inst) or text
-        return text, "inst:" .. tostring(inst or enc), place
+        -- Und wohin der Fundort im Waehler gehoert. Unbekannt heisst
+        -- "sonstiges", nicht "Dungeon": ein falsch einsortierter
+        -- Schlachtzug fuehrt in eine leere Liste.
+        local kind = inst and ns.Recommend.InstanceKind(inst) or nil
+        return text, "inst:" .. tostring(inst or enc), place, kind or "other"
     end
     -- PvP-Ware, am englischen Namen im Katalog erkannt.
     local origin = ns.Catalog.Origin and ns.Catalog.Origin(itemID)
-    if origin == "conquest" then return L["ORIGIN_CONQUEST"], "conquest", L["ORIGIN_CONQUEST"] end
-    if origin == "honor" then return L["ORIGIN_HONOR"], "honor", L["ORIGIN_HONOR"] end
-    if origin == "pvpcraft" then return L["ORIGIN_PVPCRAFT"], "craft", L["ORIGIN_CRAFT"] end
-    if badge == "set" then return L["ORIGIN_SET"], "set", L["ORIGIN_SET"] end
-    if badge == "craft" then return L["ORIGIN_CRAFT"], "craft", L["ORIGIN_CRAFT"] end
+    if origin == "conquest" then return L["ORIGIN_CONQUEST"], "conquest", L["ORIGIN_CONQUEST"], "other" end
+    if origin == "honor" then return L["ORIGIN_HONOR"], "honor", L["ORIGIN_HONOR"], "other" end
+    if origin == "pvpcraft" then return L["ORIGIN_PVPCRAFT"], "craft", L["ORIGIN_CRAFT"], "other" end
+    if badge == "set" then return L["ORIGIN_SET"], "set", L["ORIGIN_SET"], "other" end
+    if badge == "craft" then return L["ORIGIN_CRAFT"], "craft", L["ORIGIN_CRAFT"], "other" end
     -- Was uebrig bleibt, steht in Blizzards Abenteuerjournal nicht.
     --
     -- Das ist die Auskunft, die wir haben, und sie ist nachgeprueft: die
@@ -550,7 +554,7 @@ local function originText(itemID, badge, mode)
     -- Gegenstands-Schnittstelle nennt keine Quelle, und eine Tabelle fuer
     -- Haendler, Quests oder Ruf gibt es nicht. Die Zeile sagt deshalb
     -- zuerst, was bekannt ist, und erst danach, was daraus folgt.
-    return L["ORIGIN_WORLD"], "world", L["ORIGIN_WORLD"]
+    return L["ORIGIN_WORLD"], "world", L["ORIGIN_WORLD"], "other"
 end
 
 ---Die haeufigste Ausruestung je Platz.
@@ -605,10 +609,11 @@ local function gearRows(specID, mode, source)
                 -- die 334 sagt.
                 local showLevel = yours or item.ilvl
                 local atLevel = yours and ns.Compat.LinkAtLevel(item.id, yours) or nil
-                local drop, sourceKey, sourceLabel = originText(item.id, badge, mode)
+                local drop, sourceKey, sourceLabel, sourceGroup = originText(item.id, badge, mode)
                 rows[#rows + 1] = {
                     kind = "gear", id = item.id, pct = item.pct,
                     drop = drop, sourceKey = sourceKey, sourceLabel = sourceLabel,
+                    sourceGroup = sourceGroup,
                     -- Die Quelle darf es sagen; wenn sie schweigt,
                     -- sagen es die Spieldaten. murlok liefert die Marke
                     -- mit, Warcraft Logs nicht - und ein Set-Teil bleibt
@@ -683,23 +688,84 @@ end
 ---Die Fundorte, die in dieser Liste vorkommen: Instanzen und Arten.
 ---@param rows table[]
 ---@return table[] { key, label }
+local ORIGIN_GROUPS = { "dungeon", "raid", "other" }
+local ORIGIN_RANK = { dungeon = 1, raid = 2, other = 3 }
+
 local function sourcesIn(rows)
     local seen, out = {}, {}
     for _, row in ipairs(rows or {}) do
         if row.sourceKey and not seen[row.sourceKey] then
             seen[row.sourceKey] = true
-            out[#out + 1] = { key = row.sourceKey, label = row.sourceLabel or row.sourceKey }
+            out[#out + 1] = {
+                key = row.sourceKey, label = row.sourceLabel or row.sourceKey,
+                group = row.sourceGroup or "other",
+            }
         end
     end
-    table.sort(out, function(a, b) return a.label < b.label end)
+    -- Erst die Gruppe, dann der Name: so stehen die Dungeons beieinander
+    -- und Handwerk nicht zwischen zweien von ihnen.
+    table.sort(out, function(a, b)
+        local ra, rb = ORIGIN_RANK[a.group] or 9, ORIGIN_RANK[b.group] or 9
+        if ra ~= rb then return ra < rb end
+        return a.label < b.label
+    end)
     return out
 end
 
 ---Fundort waehlen: "was faellt hier", nicht nur "wo faellt das".
+---
+---In Gruppen, und die Gruppe selbst ist waehlbar. Vorher standen zehn
+---Dungeons, das Handwerk, die Set-Teile und "nicht im Journal" in EINER
+---alphabetischen Reihe - man musste wissen, welcher Name ein Dungeon
+---ist, um die Liste zu lesen. Und wer "was faellt in Dungeons" fragte,
+---konnte nur einen einzelnen anklicken.
 local function openSourcePickerGear(anchor, sources)
-    local entries = { { key = false, label = L["SOURCE_ANY"] } }
+    local groups = {}
     for _, src in ipairs(sources) do
-        entries[#entries + 1] = { key = src.key, label = src.label }
+        local key = src.group or "other"
+        groups[key] = groups[key] or {}
+        table.insert(groups[key], src)
+    end
+    local chosen = function() return ns.Profile.Category("gearSource") end
+
+    if MenuUtil and MenuUtil.CreateContextMenu then
+        MenuUtil.CreateContextMenu(anchor, function(_, root)
+            root:CreateTitle(L["LBL_ORIGIN"])
+            root:CreateRadio(L["SOURCE_ANY"], function() return chosen() == nil end,
+                function() ns.Profile.SetCategory("gearSource", nil); UI.Refresh() end)
+            for _, group in ipairs(ORIGIN_GROUPS) do
+                local list = groups[group]
+                if list and #list == 1 then
+                    -- Ein einzelner Eintrag braucht kein Untermenue.
+                    local src = list[1]
+                    root:CreateRadio(src.label, function() return chosen() == src.key end,
+                        function() ns.Profile.SetCategory("gearSource", src.key); UI.Refresh() end)
+                elseif list then
+                    local sub = root:CreateButton(L["ORIGIN_G_" .. group])
+                    local all = "group:" .. group
+                    sub:CreateRadio(L["ORIGIN_GALL_" .. group], function() return chosen() == all end,
+                        function() ns.Profile.SetCategory("gearSource", all); UI.Refresh() end)
+                    for _, src in ipairs(list) do
+                        sub:CreateRadio(src.label, function() return chosen() == src.key end,
+                            function() ns.Profile.SetCategory("gearSource", src.key); UI.Refresh() end)
+                    end
+                end
+            end
+        end)
+        return
+    end
+
+    -- Ohne MenuUtil bleibt die flache Liste, aber die ganze Gruppe steht
+    -- vor ihren Eintraegen und ist selbst waehlbar.
+    local entries = { { key = false, label = L["SOURCE_ANY"] } }
+    for _, group in ipairs(ORIGIN_GROUPS) do
+        local list = groups[group]
+        if list and #list > 1 then
+            entries[#entries + 1] = { key = "group:" .. group, label = L["ORIGIN_GALL_" .. group] }
+        end
+        for _, src in ipairs(list or {}) do
+            entries[#entries + 1] = { key = src.key, label = src.label }
+        end
     end
     contextMenu(anchor, L["LBL_ORIGIN"], entries, function(entry)
         ns.Profile.SetCategory("gearSource", entry.key or nil)
@@ -3240,9 +3306,18 @@ function UI.Refresh()
     frame.__sources = sources
     frame.originButton:SetShown(#sources > 1)
     local pickedSource = ns.Profile.Category("gearSource")
+    -- Eine ganze Gruppe statt eines Fundorts: "group:dungeon".
+    local wantGroup = type(pickedSource) == "string"
+        and pickedSource:match("^group:(.+)$") or nil
     local validSource = pickedSource == nil
     for _, src in ipairs(sources) do
-        if src.key == pickedSource then
+        if wantGroup then
+            -- Gueltig, solange die Gruppe ueberhaupt noch vorkommt.
+            if src.group == wantGroup then
+                validSource = true
+                frame.originButton.label:SetText(L["ORIGIN_GALL_" .. wantGroup] or wantGroup)
+            end
+        elseif src.key == pickedSource then
             validSource = true
             frame.originButton.label:SetText(src.label)
         end
@@ -3255,7 +3330,9 @@ function UI.Refresh()
     if pickedSource then
         local kept = {}
         for _, row in ipairs(currentRows) do
-            if row.sourceKey == pickedSource then kept[#kept + 1] = row end
+            local hit = wantGroup and (row.sourceGroup or "other") == wantGroup
+                or row.sourceKey == pickedSource
+            if hit then kept[#kept + 1] = row end
         end
         currentRows = kept
     end
