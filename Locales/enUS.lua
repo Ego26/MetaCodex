@@ -179,6 +179,8 @@ ns.RegisterLocale("enUS", {
     ["GROUP_SHOPPING"]     = "Shopping",
     ["GROUP_PREP"]         = "Preparation",
     ["SECTION_all"]        = "Everything",
+    ["LBL_CRAFTLEVEL"]     = "Item level",
+    ["CRAFTLEVEL_BEST"]    = "Highest measured",
     ["LBL_CRAFTSTATS"]      = "Stats",
     ["CRAFTSTATS_MEASURED"] = "As measured",
     ["CRAFTSTATS_SHARE"]    = "(%d%%)",
