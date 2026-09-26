@@ -13,6 +13,21 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
   Schadensrechnung; über der Liste steht, was die Zahl zählt. Die
   Erinnerung vor dem Start nimmt dieselbe Rangfolge.
 
+## [1.1.1] - 2026-09-26
+
+### Behoben
+
+- Ein Schlachtzug, aus dem niemand einen Bericht hochgeladen hat, landete
+  unter "Sonstiges": die Art einer Instanz kam aus den Messungen. Sie kommt
+  jetzt aus dem Katalog, für alle 213 Instanzen, abgelesen an ihrer Karte.
+- Eine Gruppe mit einem einzigen Eintrag verlor ihre Überschrift - der eine
+  Schlachtzug stand nackt zwischen "Dungeons" und "Sonstiges".
+
+### Neu
+
+- Ein Schlachtzug klappt im Fundort-Wähler in seine Bosse auf - nur in die,
+  aus denen in der Liste wirklich etwas steht.
+
 ## [1.1.0] - 2026-09-26
 
 ### Neu

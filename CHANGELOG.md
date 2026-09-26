@@ -13,6 +13,21 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
   the list says what the number counts. The reminder before the pull takes
   its order from the same ranking.
 
+## [1.1.1] - 2026-09-26
+
+### Fixed
+
+- A raid that nobody has uploaded a report from was sorted into "Other":
+  the kind of an instance came from the measurements. It comes from the
+  catalog now, for all 213 instances, read off the map behind them.
+- A group with a single entry lost its heading, so the one current raid
+  stood bare between "Dungeons" and "Other".
+
+### Added
+
+- A raid opens into its bosses in the origin picker - only those
+  something in the list actually came from.
+
 ## [1.1.0] - 2026-09-26
 
 ### Added
