@@ -410,6 +410,7 @@ ns.RegisterLocale("deDE", {
 ns.RegisterLocale("deDE", {
     ["LOADOUT_TITLE"]      = "Diesen Build kopieren",
     ["LOADOUT_HINT"]       = "%d Talente · im Talentfenster bei „Importieren“ einfügen",
+    ["LOADOUT_PASTE"]      = "im Talentfenster bei „Importieren“ einfügen",
     ["LOADOUT_DIFF_HINT"]  = "%d Talente anders · im Talentfenster bei „Importieren“ einfügen",
 })
 

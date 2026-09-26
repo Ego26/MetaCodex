@@ -1364,27 +1364,23 @@ local RIO_ORDER = { "head", "neck", "shoulder", "back", "chest", "wrist", "hands
 local function playerViewRows(who)
     local rows = {}
     local profile, why = ns.Recommend.Player(who.mode, who.specID, who.name, who.realm)
-    -- Der Kopf ist dieselbe Karte wie unter Talenten: das Bild der
-    -- Spezialisierung, der Name, der Realm, darunter seine Spec.
-    --
-    -- Sie ist ein Schild, kein Knopf. Was man tun kann, steht als
-    -- Zeile darunter - eine Karte, die heimlich klickbar ist, findet
-    -- niemand, und die Profilzeile war vorher genau dort.
-    rows[#rows + 1] = {
-        kind = "buildcard", specID = who.specID,
-        cardTitle = who.name, cardNote = who.realm or "",
-        cardBody = ns.Compat.SpecName(who.specID) or "",
-    }
-    rows[#rows + 1] = { kind = "link", url = who.url, group = L["SECTION_players"] }
+    rows[#rows + 1] = { kind = "link", url = who.url,
+        group = who.name .. " \194\183 " .. (who.realm or "") }
     if not profile then
         rows[#rows + 1] = { kind = "note", text = L[why == "loading" and "PLAYER_LOADING" or "PLAYER_NO_PROFILE"] }
         return rows
     end
     if profile.text and profile.text ~= "" then
+        -- Dieselbe Karte wie unter "Talente", nur traegt sie die
+        -- Kette DIESES Spielers. Geprueft oder nicht steht darunter,
+        -- denn eine Kette aus einem Profil ist nicht automatisch der
+        -- Build, mit dem er den Lauf gespielt hat.
         rows[#rows + 1] = {
-            kind = "loadout", text = profile.text, specID = who.specID,
-            nodes = {}, count = 0, pct = nil,
-            verified = profile.verified, playerRow = true,
+            kind = "buildcard", text = profile.text, specID = who.specID,
+            nodes = {}, count = 0,
+            cardTitle = L["PLAYER_LOADOUT"],
+            cardNote = L[profile.verified and "PLAYER_VERIFIED" or "PLAYER_UNVERIFIED"],
+            cardBody = L["LOADOUT_PASTE"],
             group = L["SECTION_talents"],
         }
     end

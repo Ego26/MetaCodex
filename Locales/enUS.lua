@@ -433,6 +433,7 @@ ns.RegisterLocale("enUS", {
     -- wanted is the import string: one click, paste, done.
     ["LOADOUT_TITLE"]      = "Copy this build",
     ["LOADOUT_HINT"]       = "%d talents · paste into the talent window's import box",
+    ["LOADOUT_PASTE"]      = "paste it under Import in the talent window",
     ["LOADOUT_DIFF_HINT"]  = "%d talents differ · paste into the talent window's import box",
 })
 
