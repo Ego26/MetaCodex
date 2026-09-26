@@ -3578,6 +3578,17 @@ do
     check("die Ansage sagt zuerst, was oben steht", sameOrder,
         table.concat(parts, " | "))
 
+    -- In der Arena misst niemand Verbrauchsgueter. Die Erinnerung ist
+    -- dort deshalb ausgeblendet - die Rangfolge nicht: Verzauberungen
+    -- und Steine sind auch dort gemessen, und eine halbe Auskunft ist
+    -- mehr als keine.
+    for _, pvp in ipairs({ "solo", "3v3" }) do
+        if ns.Recommend.HasSection(ns.Profile.SelectedSpec(), pvp,
+            ns.Recommend.ALL, "enchants") then
+            check("Prioritaeten stehen auch in " .. pvp,
+                ns.UI.SectionHasData("priority", pvp))
+        end
+    end
     -- Verzauberungen und Steine bleiben EINE Zeile - aber an der Stelle,
     -- an der die wichtigste von ihnen steht, nicht immer ganz unten.
     local openCount = 0

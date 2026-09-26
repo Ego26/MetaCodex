@@ -714,9 +714,18 @@ end
 function Recommend.HasSection(specID, mode, source, section)
     if section == "stats" then
         return Recommend.Stats(specID, mode, source) ~= nil
-    elseif section == "consumables" or section == "remind"
-        or section == "priority" then
+    elseif section == "consumables" or section == "remind" then
         return Recommend.Consumables(specID, mode, source) ~= nil
+    elseif section == "priority" then
+        -- Die Rangfolge hat zwei Quellen, und EINE genuegt ihr.
+        --
+        -- In der Arena misst niemand Verbrauchsgueter - Verzauberungen
+        -- und Steine aber schon. Haette die Liste dieselbe Bedingung wie
+        -- die Erinnerung, verschwaende sie dort ganz, obwohl sie die
+        -- Haelfte ihrer Auskunft noch geben kann.
+        if Recommend.Consumables(specID, mode, source) ~= nil then return true end
+        local entry = Recommend.For(specID, mode, source)
+        return entry ~= nil and (entry.enchants ~= nil or entry.gems ~= nil)
     elseif section == "talents" then
         return Recommend.Talents(specID, mode, source) ~= nil
     elseif section == "gear" then
