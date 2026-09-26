@@ -124,6 +124,7 @@ local SECTIONS = {
     { key = "gear",       label = "Ausruestung" },
     { key = "tier",       label = "Tier-Set" },
     { key = "crafted",    label = "Handwerk" },
+    { key = "embellish",  label = "Verzierungen" },
     { key = "enchants",   label = "VZ & Steine" },
     { key = "consumables", label = "Verbrauchsgueter" },
     { key = "remind",     label = "Erinnerung" },
@@ -141,7 +142,7 @@ local function filled(section, specID, mode)
         if not gear then return false end
         for _, list in pairs(gear) do if #list > 0 then return true end end
         return false
-    elseif section == "tier" or section == "crafted" then
+    elseif section == "tier" or section == "crafted" or section == "embellish" then
         -- Angeboten wird er nur, wenn etwas drinsteht - die Pruefung
         -- steht in HasSection und muss hier nicht zweimal stehen.
         return true

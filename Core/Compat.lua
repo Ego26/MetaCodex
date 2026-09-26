@@ -455,8 +455,27 @@ end
 ---@param itemID number
 ---@param bonus number
 ---@return string
+---Baut einen Gegenstandslink mit Bonus-IDs.
+---
+---Die Felder bis zur ANZAHL der Bonus-IDs sind leer; dann kommt die
+---Anzahl, dann die IDs. Ein Feld zu wenig, und der Client liest die
+---Anzahl als etwas anderes und verwirft den Link - das Tooltip bleibt
+---dann leer.
+---@param itemID number
+---@param ... number Bonus-IDs, nil wird uebersprungen
+---@return string
+local function linkWith(itemID, ...)
+    local ids = {}
+    for i = 1, select("#", ...) do
+        local id = select(i, ...)
+        if id then ids[#ids + 1] = id end
+    end
+    if #ids == 0 then return "item:" .. itemID end
+    return ("item:%d::::::::::::%d:%s"):format(itemID, #ids, table.concat(ids, ":"))
+end
+
 local function trackLink(itemID, bonus)
-    return ("item:%d::::::::::::1:%d"):format(itemID, bonus)
+    return linkWith(itemID, bonus)
 end
 
 ---Welche Pfade zur laufenden Saison gehoeren.
@@ -556,7 +575,9 @@ end
 ---@param itemID number
 ---@param level number Zielstufe
 ---@return string|nil link
-function Compat.LinkAtLevel(itemID, level)
+---@param extra number|nil eine zusaetzliche Bonus-ID (die Wertewahl
+---eines Handwerksstuecks - ohne sie steht im Tooltip "Zufallswert 1")
+function Compat.LinkAtLevel(itemID, level, extra)
     if not itemID or not level then return nil end
     local info = C_Item and C_Item.GetItemInfo and { pcall(C_Item.GetItemInfo, itemID) }
     -- GetItemInfo gibt die Grundstufe an vierter Stelle (nach dem
@@ -573,16 +594,15 @@ function Compat.LinkAtLevel(itemID, level)
     -- und er liegt nicht in einer Tabelle, sondern in der ART der
     -- Bonus-ID.
     local delta = level - base
-    -- Die Grundstufe braucht keinen Bonus - und keinen Pfad.
-    if delta == 0 then return "item:" .. itemID end
+    -- Die Grundstufe braucht keinen Bonus - und keinen Pfad. Die
+    -- Wertewahl aber schon: sie haengt nicht an der Stufe.
+    if delta == 0 then return linkWith(itemID, extra) end
 
     local hit = Compat.TrackFor(level, itemID)
-    if hit then return trackLink(itemID, hit.bonus) end
+    if hit then return linkWith(itemID, hit.bonus, extra) end
 
     local bonus = ns.Catalog.LevelDeltaBonus(delta)
-    if not bonus then return nil end
+    if not bonus then return linkWith(itemID, extra) end
 
-    -- Die Felder eines Gegenstandslinks bis zur Anzahl der Bonus-IDs.
-    -- Dreizehn leere, dann die Zahl, dann die IDs selbst.
-    return ("item:%d::::::::::::1:%d"):format(itemID, bonus)
+    return linkWith(itemID, bonus, extra)
 end

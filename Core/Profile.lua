@@ -104,6 +104,22 @@ function Profile.Mode()
     return db.mode or ns.MODES[1].key
 end
 
+---Welche Werte auf einem Handwerksstueck angezeigt werden sollen.
+---
+---Nichts gewaehlt heisst: die gemessene Wahl - was die Besten auf
+---DIESEM Stueck tatsaechlich genommen haben. Wer etwas anderes plant,
+---waehlt es und sieht das Tooltip so, wie sein Stueck aussehen wuerde.
+---@return number|nil bonus
+function Profile.CraftStats()
+    local db = MetaCodexDB or {}
+    return db.craftStats
+end
+
+---@param bonus number|nil
+function Profile.SetCraftStats(bonus)
+    MetaCodexDB.craftStats = bonus
+end
+
 ---@param mode string
 function Profile.SetMode(mode)
     MetaCodexDB.mode = mode

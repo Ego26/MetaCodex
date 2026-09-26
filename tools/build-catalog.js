@@ -146,7 +146,7 @@ function emitEnchants(groups) {
   const [items, gemProps, sieRows, itemEffects, itemLinks, spellEffects, itemClasses,
     chrSpecs, chrClasses, journalItems, journalEncounters, journalInstances, itemSets,
     craftQualities, craftingData, levelDeltas,
-    trackRows, traitDefs, pvpTalents, spellNames,
+    trackRows, statBonusRows, effectBonusRows, traitDefs, pvpTalents, spellNames,
     traitNodes, traitNodeXEntry, traitEntries, traitLoadouts, subTreesEN, subTreesDE]
     = await Promise.all([
       db2('ItemSparse', { ExpansionID: String(expansion) }),
@@ -176,6 +176,13 @@ function emitEnchants(groups) {
       // Name als SharedString. Die Liste, an der die Zeile haengt, ist
       // die Bonus-ID, die man an einen Link haengt.
       db2('ItemBonus', { Type: '34' }),
+      // Typ 25 ist die Wertevergabe: je Zeile ein Wert, Value_0 seine
+      // Nummer. Ein Handwerksstueck traegt seine Zweitwerte NUR so -
+      // am Gegenstand selbst stehen "Zufallswert 1" und "Zufallswert 2".
+      db2('ItemBonus', { Type: '25' }),
+      // Typ 23 haengt eine Wirkung an: Value_0 ist die ItemEffect-ID.
+      // Darunter sind die Verzierungen, aber nicht nur sie.
+      db2('ItemBonus', { Type: '23' }),
       // Fuer die Namenskarte der Talente: murlok nennt Talente beim
       // englischen Namen, das Addon braucht die Zauber-ID. SpellName ist
       // gross, aber einmal am Tag ist das egal.
@@ -572,6 +579,67 @@ function emitEnchants(groups) {
     if (current.has(id) && !kinds.has(id)) { kinds.set(id, 'craft'); fromRecipes += 1; }
   }
   console.log('Handwerk aus Rezepten:', fromRecipes, 'von', craftedIDs.size);
+
+  // --- Welche Bonus-ID setzt welche Werte? -------------------------------
+  //
+  // Ein Handwerksstueck bekommt seine Zweitwerte beim Herstellen, ueber
+  // eine Bonus-ID. Am Gegenstand steht "Zufallswert 1" und "Zufallswert
+  // 2" - und genau das zeigte unser Tooltip, mit Stufe und allem, aber
+  // ohne einen Wert, den man in eine Rangfolge bringen koennte.
+  //
+  // Typ 25 fuehrt je Zeile einen Wert. Zwei Zeilen an derselben Liste
+  // sind die beiden Zweitwerte: 8790 ist Krit und Tempo, 8791 Krit und
+  // Meisterschaft, und so weiter.
+  const STAT_BY_ID = { [32]: 'crit', [36]: 'haste', [40]: 'vers', [49]: 'mastery' };
+  const statBonus = new Map();
+  for (const row of statBonusRows) {
+    const key = STAT_BY_ID[Number(row.Value_0)];
+    if (!key) continue;
+    const list = Number(row.ParentItemBonusListID);
+    if (!list) continue;
+    const have = statBonus.get(list) || [];
+    if (!have.includes(key)) have.push(key);
+    statBonus.set(list, have);
+  }
+  // Nur die Paare. Eine Liste mit einem einzigen Wert waere keine Wahl
+  // zwischen Werten, sondern etwas anderes - und wir wuessten nicht was.
+  for (const [list, keys] of statBonus) if (keys.length !== 2) statBonus.delete(list);
+  console.log('Werte-Bonuslisten:', statBonus.size);
+
+  // --- Und welche haengt eine Verzierung an? -----------------------------
+  //
+  // Typ 23 haengt eine Wirkung an den Gegenstand, und darunter ist
+  // allerlei: Gift, "Masterful", Proc-Effekte aus Dungeons. Die
+  // Verzierungen erkennt man daran, dass es ihre Wirkung auch als
+  // GEGENSTAND gibt - als das Reagenz, das der Handwerker einsetzt.
+  // "Arcanoweave Lining" ist ein Zauber und ein Gegenstand;
+  // "Venomcursed Haste" ist nur ein Zauber.
+  //
+  // Gespeichert wird die Gegenstands-ID, nicht der Name: der Client
+  // kennt sie in seiner Sprache, und ein Symbol hat er auch.
+  const effectSpell = new Map(itemEffects.map((r) => [r.ID, Number(r.SpellID)]));
+  const spellNameOf = new Map(spellNames.map((r) => [Number(r.ID), r.Name_lang]));
+  const itemByName = new Map();
+  for (const row of items) {
+    const name = row.Display_lang;
+    if (name && !itemByName.has(name)) itemByName.set(name, Number(row.ID));
+  }
+  const embellish = new Map();
+  for (const row of effectBonusRows) {
+    const spell = effectSpell.get(row.Value_0);
+    const name = spell && spellNameOf.get(spell);
+    const reagent = name && itemByName.get(name);
+    if (!reagent) continue;
+    embellish.set(Number(row.ParentItemBonusListID), reagent);
+  }
+  console.log('Verzierungen:', embellish.size);
+
+  // Fuer den Sammler: er liest die Bonus-IDs der Spieler und braucht
+  // beide Karten. Fuer das Addon stehen sie weiter unten im Katalog.
+  fs.writeFileSync(path.join(BASE, 'tools', 'data', 'bonus-map.json'), JSON.stringify({
+    stats: Object.fromEntries([...statBonus].map(([k, v]) => [k, v])),
+    embellish: Object.fromEntries([...embellish]),
+  }, null, 1), 'utf8');
   // Das Set gewinnt: ein Tier-Teil bleibt ein Tier-Teil, auch wenn es
   // nebenbei eine Handwerksstufe traegt.
   for (const row of itemSets) {
@@ -801,6 +869,18 @@ function emitEnchants(groups) {
   out.push('  tracks = {');
   for (const t of tracks) {
     out.push(`    { path = ${t.path}, name = ${t.name}, lists = { ${t.lists.join(', ')} } },`);
+  }
+  out.push('  },');
+  out.push('');
+  // Welche Bonus-ID welche Zweitwerte setzt.
+  //
+  // Sechs Zeilen - mehr Paare gibt es aus vier Zweitwerten nicht. Das
+  // Addon braucht sie zweimal: um zu sagen, WELCHE Werte auf einem
+  // Handwerksstueck stehen, und um den Link zu bauen, mit dem das
+  // Tooltip sie auch zeigt.
+  out.push('  craftStats = {');
+  for (const [list, keys] of [...statBonus.entries()].sort((a, b) => a[0] - b[0])) {
+    out.push(`    [${list}] = { ${keys.map(luaString).join(', ')} },`);
   }
   out.push('  },');
   out.push('');

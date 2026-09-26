@@ -400,6 +400,52 @@ function Recommend.Dungeons(mode)
     return (d and d.dungeons and d.dungeons[mode]) or {}
 end
 
+---Die erste Quelle, die zu dieser Spec eine solche Liste hat.
+---
+---NICHT ueber Recommend.For: der mittelt ueber die Quellen und behaelt
+---dabei nur Verzauberungen und Steine - alles andere faellt still weg.
+---Fuer eine Liste, die nur EINE Quelle fuehrt, waere das Ergebnis immer
+---leer, und zwar ohne ein Wort darueber.
+---@param field string
+---@return table|nil list
+---@return string|nil fromSource
+local function firstWith(specID, mode, source, field)
+    local d = data()
+    if not d or not d.modes or not specID then return nil end
+    for _, which in ipairs(Recommend.ModeChain(mode)) do
+        local byMode = d.modes[which]
+        if byMode then
+            local names = (source and source ~= Recommend.ALL) and { source }
+                or Recommend.SourcesFor(which)
+            for _, name in ipairs(names) do
+                local part = byMode[name]
+                local entry = part and part.specs and part.specs[specID]
+                local list = entry and entry[field]
+                if list and #list > 0 then return list, name end
+            end
+        end
+    end
+    return nil
+end
+
+---Welche Werte auf Handwerksstuecken gewaehlt werden.
+---@return table[]|nil { { bonus = 8790, pct = 57 }, ... }
+---@return string|nil fromSource
+function Recommend.CraftStats(specID, mode, source)
+    return firstWith(specID, mode, source, "craftStats")
+end
+
+---Welche Verzierungen zusammen getragen werden.
+---
+---Als Paar, nicht einzeln: man darf zwei tragen, und welche zwei
+---zusammen ist die Frage. Einzeln gezaehlt stuenden zwei Haelften einer
+---Entscheidung untereinander, als waeren es zwei Entscheidungen.
+---@return table[]|nil { { ids = { 240166, 273059 }, pct = 80 }, ... }
+---@return string|nil fromSource
+function Recommend.Embellish(specID, mode, source)
+    return firstWith(specID, mode, source, "embellish")
+end
+
 ---Ist diese Instanz ein Dungeon oder ein Schlachtzug?
 ---
 ---Aus den eigenen Daten, nicht aus einer Liste zum Pflegen: die
@@ -656,6 +702,8 @@ function Recommend.HasSection(specID, mode, source, section)
         return Recommend.Talents(specID, mode, source) ~= nil
     elseif section == "gear" then
         return Recommend.Gear(specID, mode, source) ~= nil
+    elseif section == "embellish" then
+        return Recommend.Embellish(specID, mode, source) ~= nil
     elseif section == "tier" or section == "crafted" then
         -- Ein Abschnitt, der leer waere, wird nicht angeboten - sonst
         -- steht in der Arena ein Tier-Set im Menue, zu dem es nichts

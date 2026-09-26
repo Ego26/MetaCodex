@@ -132,6 +132,7 @@ local SECTIONS = {
     { key = "gear",        group = "GROUP_GEAR" },
     { key = "tier",        group = "GROUP_GEAR" },
     { key = "crafted",     group = "GROUP_GEAR" },
+    { key = "embellish",   group = "GROUP_GEAR" },
     { key = "enchants",    group = "GROUP_GEAR" },
     { key = "consumables", group = "GROUP_GEAR" },
     { key = "remind",      group = "GROUP_GEAR" },
@@ -669,6 +670,8 @@ local function kindRows(specID, mode, source, want)
     -- den nackten Gegenstand - bei einem Handwerksstueck "Stufe 44" und
     -- "Zufallswert 1", wo die Zeile 331 sagt.
     local yours, yoursBonus = ns.Profile.TargetLevel()
+    -- Die gewaehlte Wertekombination, wenn eine gewaehlt ist.
+    local pickedStats = want == "craft" and ns.Profile.CraftStats() or nil
     local rows, seen = {}, {}
     for _, slot in ipairs(GEAR_ORDER) do
         for _, item in ipairs(gear[slot] or {}) do
@@ -677,6 +680,9 @@ local function kindRows(specID, mode, source, want)
             -- Schmuckstuecke -, steht einmal da, mit seinem besten Wert.
             if badge == want and (item.ilvl or 0) >= minLevel and not seen[item.id] then
                 seen[item.id] = true
+                -- Gewaehlt schlaegt gemessen: wer oben ein Wertepaar
+                -- gewaehlt hat, will sehen, wie SEIN Stueck aussaehe.
+                local statBonus = pickedStats or item.sb
                 local name, link, icon = ns.Compat.ItemInfo(item.id)
                 if not name then ns.Compat.RequestItem(item.id) end
                 local drop, sourceKey, sourceLabel, sourceGroup = originText(item.id, badge, mode)
@@ -686,7 +692,14 @@ local function kindRows(specID, mode, source, want)
                     sourceGroup = sourceGroup,
                     badge = nil,
                     ilvl = yours or item.ilvl, maxKey = item.maxKey,
-                    atLevel = yours and ns.Compat.LinkAtLevel(item.id, yours) or nil,
+                    -- Die Wertewahl gehoert IN den Link. Ohne sie steht
+                    -- im Tooltip "Zufallswert 1" und "Zufallswert 2" -
+                    -- ein Handwerksstueck bekommt seine Zweitwerte erst
+                    -- beim Herstellen, ueber eine Bonus-ID.
+                    statBonus = statBonus,
+                    stats = ns.Catalog.StatsOfBonus(statBonus),
+                    statPct = (not pickedStats) and item.sbPct or nil,
+                    atLevel = ns.Compat.LinkAtLevel(item.id, yours or item.ilvl, statBonus),
                     wantLevel = yours, wantBonus = yoursBonus,
                     name = name or item.name, link = link, icon = icon,
                     -- Der Platz steht in der Zeile, aber er ordnet sie
@@ -703,6 +716,42 @@ local function kindRows(specID, mode, source, want)
         if (a.pct or 0) ~= (b.pct or 0) then return (a.pct or 0) > (b.pct or 0) end
         return (a.name or "") < (b.name or "")
     end)
+    return rows, from
+end
+
+---Die Verzierungen, als Paar.
+---
+---Eine Zeile ist eine Kombination, kein Gegenstand: deshalb traegt sie
+---beide Namen und nur dann einen Link, wenn es wirklich nur einer ist.
+---Ein Tooltip zum ersten von zweien waere eine halbe Auskunft.
+---@return table[] rows
+---@return string|nil fromSource
+local function embellishRows(specID, mode, source)
+    local list, from = ns.Recommend.Embellish(specID, mode, source)
+    if not list then return {}, nil end
+    local rows = {}
+    for _, entry in ipairs(list) do
+        local names, icon, link = {}, nil, nil
+        for _, id in ipairs(entry.ids or {}) do
+            local name, itemLink, itemIcon = ns.Compat.ItemInfo(id)
+            if not name then ns.Compat.RequestItem(id) end
+            names[#names + 1] = name or ("#" .. id)
+            icon = icon or itemIcon
+            link = link or itemLink
+        end
+        if #names > 0 then
+            local single = #entry.ids == 1
+            rows[#rows + 1] = {
+                kind = "gear", pct = entry.pct,
+                id = single and entry.ids[1] or nil,
+                link = single and link or nil,
+                name = table.concat(names, "  +  "),
+                icon = icon,
+                slotLabel = single and L["EMBELLISH_ONE"] or L["EMBELLISH_TWO"],
+                owned = single and ns.Compat.ItemCount(entry.ids[1]) > 0 or false,
+            }
+        end
+    end
     return rows, from
 end
 
@@ -772,6 +821,41 @@ local function sourcesIn(rows)
         return a.label < b.label
     end)
     return out
+end
+
+---Die Werte eines Handwerksstuecks waehlen.
+---
+---Sechs Paare gibt es, mehr nicht: aus vier Zweitwerten. Oben steht,
+---was gemessen wurde - das ist die Vorgabe und der ehrlichste Eintrag.
+---Darunter die sechs, fuer den, der etwas anderes plant und sehen will,
+---wie sein Stueck dann aussaehe.
+local function openCraftStatPicker(anchor)
+    local choices = ns.Catalog.CraftStatChoices()
+    local label = function(entry)
+        return L["STAT_" .. entry.stats[1]] .. "  ·  " .. L["STAT_" .. entry.stats[2]]
+    end
+    local chosen = function() return ns.Profile.CraftStats() end
+
+    if MenuUtil and MenuUtil.CreateContextMenu then
+        MenuUtil.CreateContextMenu(anchor, function(_, root)
+            root:CreateTitle(L["LBL_CRAFTSTATS"])
+            root:CreateRadio(L["CRAFTSTATS_MEASURED"], function() return chosen() == nil end,
+                function() ns.Profile.SetCraftStats(nil); UI.Refresh() end)
+            for _, entry in ipairs(choices) do
+                root:CreateRadio(label(entry), function() return chosen() == entry.bonus end,
+                    function() ns.Profile.SetCraftStats(entry.bonus); UI.Refresh() end)
+            end
+        end)
+        return
+    end
+
+    local entries = { { key = false, label = L["CRAFTSTATS_MEASURED"] } }
+    for _, entry in ipairs(choices) do
+        entries[#entries + 1] = { key = entry.bonus, label = label(entry) }
+    end
+    contextMenu(anchor, L["LBL_CRAFTSTATS"], entries, function(entry)
+        ns.Profile.SetCraftStats(entry.key or nil)
+    end)
 end
 
 ---Fundort waehlen: "was faellt hier", nicht nur "wo faellt das".
@@ -2507,6 +2591,15 @@ local function setItemRow(row, data)
         -- und Schultern aus, als gaebe es nur Tier - die Alternativen
         -- stehen unkommentiert daneben.
         local detail = data.slotLabel or data.group or ""
+        -- Welche Zweitwerte auf diesem Stueck stehen. Beim Handwerk ist
+        -- das die Antwort auf die Frage, mit der man in die Liste geht.
+        if data.stats then
+            detail = detail .. "  ·  " .. L["STAT_" .. data.stats[1]]
+                .. "/" .. L["STAT_" .. data.stats[2]]
+            if data.statPct then
+                detail = detail .. " " .. L["CRAFTSTATS_SHARE"]:format(data.statPct)
+            end
+        end
         if (data.ilvl or 0) > 0 then
             detail = detail .. "  ·  " .. L["ILVL"]:format(data.ilvl)
         end
@@ -2813,6 +2906,14 @@ local function build()
         openSourcePickerGear(self, frame.__sources or {})
     end)
     frame.originButton = originButton
+
+    -- Die Wertewahl eines Handwerksstuecks. Nur dort sichtbar, wo sie
+    -- etwas aendert: ein Set-Teil hat seine Werte, ein Handwerksstueck
+    -- bekommt sie beim Herstellen.
+    local statButton = makeButton(content, 170, 22, "", function(self)
+        openCraftStatPicker(self)
+    end)
+    frame.statButton = statButton
 
     local heroButton = makeButton(content, 170, 22, "", function(self)
         openHeroPicker(self, frame.__heroTrees or {})
@@ -3159,10 +3260,22 @@ function UI.Refresh()
 
     sectionTitle:SetText(L["SECTION_" .. section.key])
 
-    -- Die Schluesselstufe gilt fuer die Ausruestung, und nur wenn das
-    -- Spiel die Belohnungstabelle ueberhaupt kennt.
-    frame.levelButton:SetShown(section.key == "gear" and not viewingPlayer
+    -- Die Schluesselstufe gilt fuer alles, was Ausruestung zeigt - auch
+    -- fuer Tier-Set und Handwerk. Vergleichen kann nur, wer beide auf
+    -- derselben Stufe sieht.
+    local gearLike = section.key == "gear" or section.key == "tier"
+        or section.key == "crafted"
+    frame.levelButton:SetShown(gearLike and not viewingPlayer
         and #ns.Compat.RewardTable() > 0)
+
+    -- Die Wertewahl nur beim Handwerk: nur dort ist sie eine Wahl.
+    frame.statButton:SetShown(section.key == "crafted" and not viewingPlayer
+        and #ns.Catalog.CraftStatChoices() > 0)
+    local craftPick = ns.Profile.CraftStats()
+    local craftStats = ns.Catalog.StatsOfBonus(craftPick)
+    frame.statButton.label:SetText(craftStats
+        and (L["STAT_" .. craftStats[1]] .. "  ·  " .. L["STAT_" .. craftStats[2]])
+        or L["CRAFTSTATS_MEASURED"])
     local targetLabel = ns.Profile.TargetLabel()
     if targetLabel then
         frame.levelButton.label:SetText(targetLabel)
@@ -3280,6 +3393,12 @@ function UI.Refresh()
         -- verschiedene Fragen beantworten.
         hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted)
             or L["SHARE_GEAR"])
+    elseif section.key == "embellish" then
+        currentRows, fromSource = withFallback(function(source)
+            return embellishRows(specID, mode, source)
+        end)
+        hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted)
+            or L["EMBELLISH_HINT"])
     elseif section.key == "tier" or section.key == "crafted" then
         local want = section.key == "tier" and "set" or "craft"
         currentRows, fromSource = withFallback(function(source)
@@ -3444,6 +3563,7 @@ function UI.Refresh()
     local edge, gap = -S.space.xl, S.space.sm
     local ROW = {
         { frame.backButton, 175 }, { frame.levelButton, 175 },
+        { frame.statButton, 170 },
         { frame.slotButton, 150 }, { frame.originButton, 170 },
         { frame.heroButton, 170 }, { frame.categoryButton, 170 },
         { frame.dungeonButton, 160 },

@@ -113,6 +113,19 @@ const slug = (text) => String(text).toLowerCase()
     path.join(BASE, 'tools', 'data', 'enchant-map.json'), 'utf8'));
   console.log('  Verzauberungs-IDs: ' + Object.keys(enchantMap).length);
 
+  // Welche Bonus-ID welche Werte setzt, und welche eine Verzierung
+  // anhaengt. Beides steht in den Spieldaten und wird vom Katalog
+  // herausgeschrieben; ohne die Karte zaehlen wir es eben nicht mit.
+  let bonusMap = { stats: {}, embellish: {} };
+  try {
+    bonusMap = JSON.parse(fs.readFileSync(
+      path.join(BASE, 'tools', 'data', 'bonus-map.json'), 'utf8'));
+    console.log('  Werte-Bonuslisten: ' + Object.keys(bonusMap.stats).length
+      + ', Verzierungen: ' + Object.keys(bonusMap.embellish).length);
+  } catch (err) {
+    console.log('  Keine bonus-map.json - Werte und Verzierungen bleiben ungezaehlt.');
+  }
+
   // --- Laeufe einsammeln ---------------------------------------------
   const members = [];
   // Builds aus der LAUFLISTE, nicht aus den Profilen.
@@ -238,6 +251,13 @@ const slug = (text) => String(text).toLowerCase()
       // darin falsch; diese Zeichenkette hat das Problem nie.
       buildText: {},
       maxKey: {}, players: 0,
+      // Was auf den Handwerksstuecken steht.
+      //
+      // Zweimal, weil es zwei Fragen sind: "welche Werte nimmt man auf
+      // DIESEM Stueck" beantwortet itemStats (und daraus wird der Link
+      // gebaut, damit das Tooltip nicht "Zufallswert 1" zeigt), "welche
+      // Werte nimmt man ueberhaupt" beantwortet craftStats.
+      itemStats: {}, craftStats: {}, embellish: {},
       // Talente zaehlen eigene Spieler: die Laufliste, nicht die Profile.
       talentPlayers: 0,
       // Je Held-Baum dasselbe Zaehlwerk noch einmal.
@@ -315,6 +335,9 @@ const slug = (text) => String(text).toLowerCase()
       }
     };
 
+    // Zwei darf man tragen, und welche zwei zusammen - das ist die
+    // Frage. Also erst sammeln, dann als Paar zaehlen.
+    const embellished = new Set();
     for (const [slot, item] of Object.entries((prof.gear && prof.gear.items) || {})) {
       if (!item || !item.item_id) continue;
 
@@ -337,6 +360,21 @@ const slug = (text) => String(text).toLowerCase()
         }
       }
 
+      // Werte und Verzierung stehen in den Bonus-IDs, nicht am
+      // Gegenstand: ein Handwerksstueck traegt am Gegenstand
+      // "Zufallswert 1" und "Zufallswert 2".
+      for (const b of item.bonuses || []) {
+        if (bonusMap.stats[b]) {
+          for (const spec of specs) {
+            const per = spec.itemStats[item.item_id] || (spec.itemStats[item.item_id] = {});
+            per[b] = (per[b] || 0) + 1;
+            spec.craftStats[b] = (spec.craftStats[b] || 0) + 1;
+          }
+        }
+        const reagent = bonusMap.embellish[b];
+        if (reagent) embellished.add(reagent);
+      }
+
       const enchantSlot = ENCHANT_SLOT[slot];
       if (enchantSlot && item.enchant) {
         const itemID = enchantMap[item.enchant];
@@ -345,6 +383,14 @@ const slug = (text) => String(text).toLowerCase()
       for (const gem of item.gems || []) {
         if (gem) bump('gems', gem);
       }
+    }
+
+    // Zwei Verzierungen darf man tragen, und welche zwei ZUSAMMEN, das
+    // ist die Frage - einzeln gezaehlt stuenden zwei Haelften einer
+    // Entscheidung untereinander, als waeren es zwei.
+    if (embellished.size) {
+      const key = [...embellished].sort((a, b) => a - b).join(',');
+      for (const spec of specs) spec.embellish[key] = (spec.embellish[key] || 0) + 1;
     }
 
     // Talente kommen aus der Laufliste (siehe oben), nicht aus dem Profil:
@@ -390,15 +436,56 @@ const slug = (text) => String(text).toLowerCase()
 
       for (const [slotKey, items] of Object.entries(entry.gear)) {
         const rows = Object.entries(items)
-          .map(([id, row]) => ({
-            id: Number(id), ilvl: row.ilvl,
-            pct: Math.round((row.n / players) * 100),
-            maxKey: entry.maxKey[id] || 0,
-          }))
+          .map(([id, row]) => {
+            const out = {
+              id: Number(id), ilvl: row.ilvl,
+              pct: Math.round((row.n / players) * 100),
+              maxKey: entry.maxKey[id] || 0,
+            };
+            // Die haeufigste Wertewahl DIESES Stuecks. Ohne sie zeigt
+            // das Tooltip im Spiel "Zufallswert 1" und "Zufallswert 2",
+            // und die Rangnummern der Zweitwerte fallen weg - es gibt
+            // ja keine Werte, an die man sie haengen koennte.
+            const per = entry.itemStats[out.id];
+            if (per) {
+              const best = Object.entries(per).sort((a, b) => b[1] - a[1])[0];
+              const total = Object.values(per).reduce((a, b) => a + b, 0);
+              out.statBonus = Number(best[0]);
+              out.stats = bonusMap.stats[best[0]];
+              out.statPct = Math.round((best[1] / total) * 100);
+            }
+            return out;
+          })
           .sort((a, b) => b.pct - a.pct)
           .slice(0, 5);
         if (rows.length) out.gear[slotKey] = rows;
       }
+
+      // Welche Werte auf Handwerksstuecken ueberhaupt gewaehlt werden.
+      // Gezaehlt werden STUECKE, nicht Spieler: ein Spieler traegt
+      // mehrere, und jedes ist eine eigene Entscheidung.
+      const statTotal = Object.values(entry.craftStats).reduce((a, b) => a + b, 0);
+      if (statTotal > 0) {
+        out.craftStats = Object.entries(entry.craftStats)
+          .map(([bonus, n]) => ({
+            bonus: Number(bonus), stats: bonusMap.stats[bonus],
+            pct: Math.round((n / statTotal) * 100),
+          }))
+          .filter((r) => r.stats && r.pct > 0)
+          .sort((a, b) => b.pct - a.pct);
+      }
+
+      // Und die Verzierungen, als Paar. Der Nenner sind die gemessenen
+      // Spieler - wer keine traegt, ist Teil der Antwort.
+      const embRows = Object.entries(entry.embellish)
+        .map(([key, n]) => ({
+          ids: key.split(',').map(Number),
+          pct: Math.round((n / players) * 100),
+        }))
+        .filter((r) => r.pct > 0)
+        .sort((a, b) => b.pct - a.pct)
+        .slice(0, 8);
+      if (embRows.length) out.embellish = embRows;
 
       // Talente, Build, Alternativen - fuer die Spec, und dann je Held-Baum.
       // Der Nenner sind die entschluesselten Strings, nicht die Profile.
@@ -476,6 +563,18 @@ const slug = (text) => String(text).toLowerCase()
       const one = pair[1];
       if (one) {
         console.log('  Plaetze mit Verzauberung: ' + Object.keys(one.enchants).join(', '));
+        console.log('  Werte auf Handwerk: ' + ((one.craftStats || [])
+          .map((r) => r.stats.join('+') + ' ' + r.pct + '%').join(', ') || 'keine'));
+        console.log('  Verzierungen: ' + ((one.embellish || [])
+          .map((r) => r.ids.join('+') + ' ' + r.pct + '%').join(', ') || 'keine'));
+        for (const [slot, list] of Object.entries(one.gear || {})) {
+          const hit = (list || []).find((r) => r.statBonus);
+          if (hit) {
+            console.log('  Beispiel ' + slot + ': ' + hit.id + ' -> '
+              + hit.stats.join('+') + ' (' + hit.statPct + '% der Traeger)');
+            break;
+          }
+        }
         console.log('  Steine: ' + (one.gems || []).length
           + ', Ausruestungsplaetze: ' + Object.keys(one.gear).length
           + ', Talente: ' + (one.talents || []).length

@@ -286,6 +286,39 @@ function Catalog.ItemKind(itemID)
     return c and c.kinds and c.kinds[itemID] or nil
 end
 
+---Welche Zweitwerte eine Werte-Bonus-ID setzt.
+---
+---Ein Handwerksstueck bekommt seine Zweitwerte beim Herstellen, ueber
+---eine Bonus-ID. Am Gegenstand selbst steht "Zufallswert 1" und
+---"Zufallswert 2" - und genau das zeigte das Tooltip, solange wir die
+---ID nicht mitgaben.
+---@param bonus number|nil
+---@return table|nil { "crit", "haste" }
+function Catalog.StatsOfBonus(bonus)
+    if not bonus then return nil end
+    local c = data()
+    return c and c.craftStats and c.craftStats[bonus] or nil
+end
+
+---Alle Wertepaare, zur Auswahl.
+---
+---Aus vier Zweitwerten gibt es sechs Paare, und das Spiel fuehrt genau
+---diese sechs. Sortiert wird nach den Namen, damit die Liste bei jedem
+---Oeffnen gleich aussieht.
+---@return table[] { { bonus = 8790, stats = { "crit", "haste" } }, ... }
+function Catalog.CraftStatChoices()
+    local c = data()
+    local out = {}
+    for bonus, keys in pairs((c and c.craftStats) or {}) do
+        out[#out + 1] = { bonus = bonus, stats = keys }
+    end
+    table.sort(out, function(a, b)
+        if a.stats[1] ~= b.stats[1] then return a.stats[1] < b.stats[1] end
+        return (a.stats[2] or "") < (b.stats[2] or "")
+    end)
+    return out
+end
+
 local kindByItem  -- einmal gebaut, dann nachgeschlagen
 
 ---Welche Art von Verbrauchsgut ein Gegenstand ist.

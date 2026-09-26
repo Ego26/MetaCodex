@@ -460,11 +460,28 @@ for (const [mode, bySource] of Object.entries(byMode)) {
             if (g.maxKey) parts.push(`maxKey = ${g.maxKey}`);
             if (g.ilvl) parts.push(`ilvl = ${g.ilvl}`);
             if (g.kind) parts.push(`kind = ${luaString(g.kind)}`);
+            // Die haeufigste Wertewahl dieses Handwerksstuecks: die
+            // Bonus-ID fuer den Link, ihr Anteil fuer die Zeile. Welche
+            // Werte das sind, steht im Katalog - hier steht nur, welche
+            // gemessen wurde.
+            if (g.statBonus) parts.push(`sb = ${g.statBonus}`);
+            if (g.statPct) parts.push(`sbPct = ${g.statPct}`);
             return `{ ${parts.join(", ")} }`;
           })
             .join(', ') + ' },');
         }
         out.push('            },');
+      }
+      // Welche Werte auf Handwerksstuecken ueberhaupt gewaehlt werden,
+      // und welche Verzierungen zusammen getragen werden. Beides zaehlt
+      // der Sammler aus den Bonus-IDs der gemessenen Spieler.
+      if (entry.craftStats && entry.craftStats.length) {
+        out.push('            craftStats = { ' + entry.craftStats
+          .map((r) => `{ bonus = ${r.bonus}, pct = ${r.pct} }`).join(', ') + ' },');
+      }
+      if (entry.embellish && entry.embellish.length) {
+        out.push('            embellish = { ' + entry.embellish
+          .map((r) => `{ ids = { ${r.ids.join(', ')} }, pct = ${r.pct} }`).join(', ') + ' },');
       }
       if (entry.gems && entry.gems.length) {
         out.push('            gems = { ' + entry.gems
