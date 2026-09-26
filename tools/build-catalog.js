@@ -178,7 +178,7 @@ function emitEnchants(groups) {
 
   const [items, gemProps, sieRows, itemEffects, itemLinks, spellEffects, itemClasses,
     chrSpecs, chrClasses, journalItems, journalEncounters, journalInstances, itemSets,
-    craftQualities, craftingData, levelDeltas,
+    maps, craftQualities, craftingData, levelDeltas,
     trackRows, statBonusRows, effectBonusRows, traitDefs, pvpTalents, spellNames,
     traitNodes, traitNodeXEntry, traitEntries, traitLoadouts, subTreesEN, subTreesDE]
     = await Promise.all([
@@ -195,6 +195,19 @@ function emitEnchants(groups) {
       db2('JournalEncounter'),
       db2('JournalInstance'),
       db2('ItemSet'),
+      // Wozu die Karten? Um zu wissen, ob eine Instanz ein Dungeon oder
+      // ein Schlachtzug ist.
+      //
+      // Das Journal sagt es nicht: JournalInstance fuehrt Namen, Bilder
+      // und ein Flag, das beides mischt - "Scarlet Halls" (Dungeon) und
+      // "Dragon Soul" (Schlachtzug) tragen dieselbe Null. Die Karte
+      // dahinter sagt es dagegen klar: Map.InstanceType ist 1 fuer eine
+      // Gruppeninstanz und 2 fuer einen Schlachtzug.
+      //
+      // Gebraucht wird das im Fundort-Waehler: ohne diese Auskunft stand
+      // "Die Zeitgebundene Grotte" unter "Sonstiges", obwohl sie ein
+      // Schlachtzug ist.
+      db2('Map'),
       // Was Berufe herstellen. NICHT ueber den Gegenstand selbst:
       // ItemSparse fuehrt fuer ein Handwerksstueck weder eine
       // Qualitaetsstufe noch einen Beruf - beides kommt erst beim
@@ -697,6 +710,18 @@ function emitEnchants(groups) {
   // Nur Gegenstaende dieser Erweiterung: die Tabelle fuehrt 23977 Zeilen
   // bis zurueck zu den Todesminen, und die will niemand mitladen.
   const encByID = new Map(journalEncounters.map((r) => [Number(r.ID), r]));
+  // Welche Instanz ist was - ueber ihre Karte.
+  const mapType = new Map();
+  for (const row of maps) mapType.set(Number(row.ID), Number(row.InstanceType) || 0);
+  const instKind = {};
+  for (const row of journalInstances) {
+    const kind = mapType.get(Number(row.MapID));
+    if (kind === 1) instKind[Number(row.ID)] = 'dungeon';
+    else if (kind === 2) instKind[Number(row.ID)] = 'raid';
+  }
+  console.log('Instanzen nach Art:', Object.keys(instKind).length,
+    '(' + Object.values(instKind).filter((x) => x === 'raid').length + ' Schlachtzuege)');
+
   const drops = new Map();
   for (const row of journalItems) {
     const itemID = Number(row.ItemID);
@@ -923,6 +948,17 @@ function emitEnchants(groups) {
   }
   out.push('  },');
   out.push('');
+  // Dungeon oder Schlachtzug, je Journal-Instanz. Eine Eigenschaft der
+  // Instanz gehoert in den Katalog, nicht in den Sammler: der Sammler
+  // kennt nur die Instanzen, in denen er gemessen hat, und eine, in der
+  // niemand gemessen hat, fiele damit in "Sonstiges".
+  out.push('  instKind = {');
+  for (const [id, kind] of Object.entries(instKind).sort((a, b) => a[0] - b[0])) {
+    out.push(`    [${id}] = ${luaString(kind)},`);
+  }
+  out.push('  },');
+  out.push('');
+
   out.push('  drops = {');
   for (const [itemID, where] of [...drops.entries()].sort((a, b) => a[0] - b[0])) {
     out.push(`    [${itemID}] = { enc = ${where.enc}, inst = ${where.inst} },`);

@@ -1667,6 +1667,75 @@ do
     check("kein Instanzdrop steht nirgends mehr", none == 0, none .. " Zeilen")
 end
 
+-- ----------------------------------------------- Fundort: Gruppen und Bosse
+
+-- Ein Schlachtzug ist eine Auswahl wie die Dungeons eine sind: acht Bosse,
+-- acht Fragen. Und eine Gruppe mit einem einzigen Eintrag bleibt eine
+-- Gruppe - vorher stand der eine Schlachtzug nackt zwischen "Dungeons" und
+-- "Sonstiges" und sah aus wie eine dritte Art.
+do
+    ns.Profile.SetMode("raid")
+    ns.Profile.SetCategory("gearSource", nil)
+    local all = rowsInSection("gear")
+    local frame = _G.MetaCodexFrame
+    local sources = frame.__sources or {}
+
+    -- Die Gruppe eines Schlachtzugs heisst auch "raid".
+    local raid, groups = nil, {}
+    for _, src in ipairs(sources) do
+        groups[src.group or "other"] = (groups[src.group or "other"] or 0) + 1
+        if src.group == "raid" and #(src.bosses or {}) > (raid and #raid.bosses or 0) then
+            raid = src
+        end
+    end
+    check("im Schlachtzug steht ein Schlachtzug zur Wahl",
+        (groups.raid or 0) > 0, tostring(groups.raid))
+
+    -- Und er traegt seine Bosse.
+    if raid then
+        check("der Schlachtzug zeigt seine Bosse", #raid.bosses > 1,
+            raid.label .. ": " .. #raid.bosses .. " Bosse")
+        -- Jeder Boss ist einzeln waehlbar, und die Liste wird kuerzer.
+        local boss = raid.bosses[1]
+        ns.Profile.SetCategory("gearSource", boss.key)
+        local some = rowsInSection("gear")
+        check("ein einzelner Boss laesst weniger uebrig", some > 0 and some < all,
+            some .. " von " .. all)
+        check("der Knopf nennt den Boss",
+            frame.originButton.label:GetText() == boss.label,
+            tostring(frame.originButton.label:GetText()))
+        -- Und was uebrig bleibt, nennt WIRKLICH diesen Boss - gelesen
+        -- aus dem, was im Fenster steht, nicht aus einem Feld daneben.
+        local fremd, gelesen = 0, 0
+        for _, row in ipairs(wow.rows()) do
+            local text = row:IsShown() and row.detail and row.detail:GetText() or nil
+            if text and text ~= "" then
+                gelesen = gelesen + 1
+                if not text:find(boss.label, 1, true) then fremd = fremd + 1 end
+            end
+        end
+        check("und jede gezeigte Zeile nennt diesen Boss",
+            gelesen > 0 and fremd == 0, fremd .. " von " .. gelesen)
+        ns.Profile.SetCategory("gearSource", nil)
+    end
+
+    -- Die Instanzart kommt aus dem Katalog, nicht aus der Messung: der
+    -- Katalog kennt jede Instanz des Spiels, der Sammler nur die, in
+    -- denen gemessen wurde.
+    local kinds = {}
+    for _, src in ipairs(sources) do
+        if src.key:find("^inst:") then
+            local inst = tonumber(src.key:match("^inst:(%d+)$"))
+            local kind = inst and ns.Catalog.InstanceKind(inst)
+            if kind then kinds[kind] = (kinds[kind] or 0) + 1 end
+        end
+    end
+    check("der Katalog kennt die Art der Instanz",
+        (kinds.raid or 0) + (kinds.dungeon or 0) > 0,
+        tostring(kinds.raid) .. " Schlachtzuege, " .. tostring(kinds.dungeon) .. " Dungeons")
+    ns.Profile.SetMode("mplus")
+end
+
 -- ------------------------------------------------------------ Raid je Boss
 
 -- Die Bosse stehen in derselben Auswahl wie die Dungeons - und heissen

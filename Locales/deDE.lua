@@ -349,6 +349,7 @@ ns.RegisterLocale("deDE", {
     ["ORIGIN_HONOR"]      = "Ehre-Händler",
     ["ORIGIN_PVPCRAFT"]   = "Handwerk (PvP)",
     ["ORIGIN_NONE"]       = "kein Instanzdrop",
+    ["ORIGIN_ALL_BOSSES"] = "Alle Bosse",
     ["ORIGIN_G_dungeon"]    = "Dungeons",
     ["ORIGIN_G_raid"]       = "Schlachtzüge",
     ["ORIGIN_G_other"]      = "Sonstiges",
