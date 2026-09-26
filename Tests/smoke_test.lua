@@ -3064,6 +3064,64 @@ if top then
     end
 end
 
+-- Ein Spieler gehoert zu EINER Rangliste. Wer oben die Aktivitaet oder
+-- die Spec wechselt, will die Besten der neuen Wahl sehen - und nicht
+-- weiter den Spieler aus der alten, der aussieht, als taete der Knopf
+-- nichts. Genau das war der Fehler.
+if top then
+    local function backButton()
+        local found
+        for _, fr in ipairs(wow.frames) do
+            if rawget(fr, "label") and fr.label:GetText() == L["PLAYER_BACK"] then found = fr end
+        end
+        return found
+    end
+    local function openFirst()
+        ns.Profile.SetMode("mplus")
+        rowsInSection("players")
+        for _, row in ipairs(wow.rows()) do
+            if row:IsShown() and row.onClick and row.title:GetText() == top[1].name then
+                row.onClick(row, "LeftButton")
+                return true
+            end
+        end
+        return false
+    end
+
+    local other
+    for _, entry in ipairs(ns.MODES) do
+        if entry.key ~= "mplus" and ns.Recommend.HasMode(entry.key) then
+            other = entry.key
+            break
+        end
+    end
+    if other and openFirst() then
+        local open = backButton()
+        check("Spieler ist offen", open ~= nil and open:IsShown())
+        ns.Profile.SetMode(other)
+        ns.UI.Refresh()
+        local closed = backButton()
+        check("Aktivitaetswechsel fuehrt zurueck in die Liste",
+            closed == nil or not closed:IsShown(), other)
+    end
+
+    -- Und dasselbe fuer die Spec: der Beste seiner Spec ist nicht der
+    -- Beste der naechsten.
+    local mine = ns.Profile.SelectedSpec()
+    if openFirst() then
+        ns.Profile.Select(1, mine == 71 and 72 or 71)
+        ns.UI.Refresh()
+        local closed = backButton()
+        check("Specwechsel fuehrt zurueck in die Liste",
+            closed == nil or not closed:IsShown())
+    end
+    -- Und die Auswahl wieder herstellen, damit die naechsten Pruefungen
+    -- dieselbe Spec sehen wie vorher.
+    local mineClass = ns.Compat.ClassOfSpec(mine)
+    if mineClass then ns.Profile.Select(mineClass, mine) else ns.Profile.SelectActive() end
+    ns.Profile.SetMode("mplus")
+end
+
 -- ------------------------------------------------- Gegenstands-Tooltip
 
 -- Was der Tooltip sagen soll, ohne den Tooltip selbst.

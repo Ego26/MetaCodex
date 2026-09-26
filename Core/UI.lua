@@ -103,7 +103,8 @@ local DUNGEON_SECTIONS = { talents = true, consumables = true, enchants = true }
 
 -- Wessen Profil gerade offen ist, statt eines Abschnitts. Gesetzt vom
 -- Klick auf eine Zeile der Rangliste, geloescht vom Zurueck-Knopf oder
--- vom Wechsel des Abschnitts.
+-- von jedem Wechsel, der die Rangliste austauscht: Abschnitt,
+-- Aktivitaet, Spec. Darum merkt sich der Eintrag, woraus er kam.
 local viewingPlayer
 
 -- Das Fenster der Erinnerung. Eines fuer alle Ansagen, nicht eines je
@@ -2018,6 +2019,12 @@ local function setItemRow(row, data)
             viewingPlayer = {
                 mode = data.mode, specID = data.specID, name = data.name,
                 realm = data.realm, url = data.url, section = activeSection().key,
+                -- Sein Platz, den die Karte traegt.
+                rank = data.rank,
+                -- Und woraus er geoeffnet wurde: Aktivitaet und Spec.
+                -- Nicht data.mode - das ist der Fundort, der bei einer
+                -- Ersatzquelle ein anderer ist als die Auswahl oben.
+                openedIn = ns.Profile.Mode(), openedSpec = data.specID,
             }
             UI.Refresh()
         end
@@ -3077,8 +3084,17 @@ function UI.Refresh()
         return rows or {}, from
     end
 
-    -- Ein Abschnittswechsel schliesst das Profil.
-    if viewingPlayer and viewingPlayer.section ~= section.key then viewingPlayer = nil end
+    -- Ein Wechsel schliesst das Profil.
+    --
+    -- Nicht nur der des Abschnitts: auch Aktivitaet und Spec. Ein
+    -- Spieler steht in genau EINER Rangliste, und wer oben auf Raid
+    -- umstellt, sieht sonst weiter den M+-Spieler und denkt, der Knopf
+    -- sei kaputt. Zurueck geht es in die Liste der neuen Auswahl.
+    if viewingPlayer and (viewingPlayer.section ~= section.key
+        or viewingPlayer.openedIn ~= base
+        or viewingPlayer.openedSpec ~= specID) then
+        viewingPlayer = nil
+    end
     frame.backButton:SetShown(viewingPlayer ~= nil)
 
     local fromSource
