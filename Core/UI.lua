@@ -1667,12 +1667,22 @@ local function buildCard(row)
     f.clip:SetFrameLevel(base + 1)
     if f.clip.SetClipsChildren then pcall(f.clip.SetClipsChildren, f.clip, true) end
     f.art = f.clip:CreateTexture(nil, "BACKGROUND")
-    f.art:SetAlpha(0.40)
-    -- Der Schleier liegt ueber dem Bild, aber im selben Rahmen: er soll
-    -- die Karte faerben, nicht den Text verschlucken.
+    f.art:SetAlpha(0.85)
+
+    -- Der Schleier verlaeuft, statt alles gleich zu decken.
+    --
+    -- Vorher lief das Bild auf 40 Prozent und darueber lag noch ein
+    -- schwarzer Schleier - zusammen blieb vom Drachen kaum etwas uebrig.
+    -- Gebraucht wird die Deckung aber nur links, wo der Text steht.
+    -- Rechts darf das Bild sein, wie es ist. Kennt ein Client den
+    -- Verlauf nicht, deckt der Schleier eben gleichmaessig, nur
+    -- schwaecher als zuvor.
     f.veil = f.clip:CreateTexture(nil, "ARTWORK")
     f.veil:SetAllPoints(f.clip)
-    f.veil:SetColorTexture(0, 0, 0, 0.45)
+    f.veil:SetColorTexture(1, 1, 1, 1)
+    local gradient = f.veil.SetGradient and CreateColor and pcall(f.veil.SetGradient, f.veil,
+        "HORIZONTAL", CreateColor(0, 0, 0, 0.88), CreateColor(0, 0, 0, 0.05))
+    if not gradient then f.veil:SetColorTexture(0, 0, 0, 0.35) end
 
     f.fg = CreateFrame("Frame", nil, f)
     f.fg:SetAllPoints()
