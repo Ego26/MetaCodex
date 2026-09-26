@@ -454,7 +454,21 @@ jobs:
       - name: Which code was released last?
         id: released
         run: |
-          TAG="$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)"
+          # The newest tag BY VERSION, not the nearest one on this branch.
+          #
+          # "git describe" looks for the nearest tag reachable from HEAD.
+          # That is only the same thing while every release sits on main.
+          # On 26 September v1.1.0 sat on a hotfix branch - the verified
+          # code plus one fix to the release script - and from main it was
+          # unreachable. So the night packed the code of v1.0.0 and
+          # uploaded it as "v1.0.0__data_2026-09-26_", long after v1.1.1
+          # had shipped.
+          #
+          # The question is not "which tag is behind me" but "which
+          # version is the newest", and that is exactly what -v:refname
+          # sorts. sed rather than head: head closes the pipe and lets git
+          # die on SIGPIPE - the same small thing that once cost a night.
+          TAG="$(git tag -l 'v*' --sort=-v:refname | sed -n 1p)"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           if [ -z "$TAG" ]; then
             echo "No release tag yet, so nothing goes to CurseForge tonight." >&2
