@@ -1653,24 +1653,37 @@ local function buildCard(row)
     local f = CreateFrame("Frame", nil, row)
     S:Fill(f, "bgRaised")
     S:Border(f, "borderSubtle")
-    -- Der Rahmen schneidet ab, was ueber die Karte hinausragt.
+    -- Drei Ebenen, und die Reihenfolge ist der ganze Trick.
+    --
+    -- Ein Kindrahmen zeichnet UEBER seinem Elternteil, und zwar alles,
+    -- was in ihm liegt. Das Bild sass deshalb ueber der Schrift und hat
+    -- sie abgedunkelt. Also: unten der Rahmen, der abschneidet, mit Bild
+    -- und Schleier darin; darueber ein eigener Rahmen, in dem nur der
+    -- Text liegt.
+    local base = f:GetFrameLevel()
+
     f.clip = CreateFrame("Frame", nil, f)
     f.clip:SetAllPoints()
+    f.clip:SetFrameLevel(base + 1)
     if f.clip.SetClipsChildren then pcall(f.clip.SetClipsChildren, f.clip, true) end
     f.art = f.clip:CreateTexture(nil, "BACKGROUND")
     f.art:SetAlpha(0.40)
-    -- Der Schleier: das Bild soll die Karte faerben, nicht den Text
-    -- verschlucken.
-    f.veil = f:CreateTexture(nil, "BORDER")
-    f.veil:SetAllPoints()
+    -- Der Schleier liegt ueber dem Bild, aber im selben Rahmen: er soll
+    -- die Karte faerben, nicht den Text verschlucken.
+    f.veil = f.clip:CreateTexture(nil, "ARTWORK")
+    f.veil:SetAllPoints(f.clip)
     f.veil:SetColorTexture(0, 0, 0, 0.45)
-    f.title = S:Text(f, "title", "textPrimary")
+
+    f.fg = CreateFrame("Frame", nil, f)
+    f.fg:SetAllPoints()
+    f.fg:SetFrameLevel(base + 2)
+    f.title = S:Text(f.fg, "title", "textPrimary")
     f.title:SetPoint("TOPLEFT", S.space.lg, -S.space.md)
     f.title:SetJustifyH("LEFT")
-    f.note = S:Text(f, "body", "heading")
+    f.note = S:Text(f.fg, "body", "heading")
     f.note:SetPoint("TOPLEFT", S.space.lg, -S.space.md - 24)
     f.note:SetJustifyH("LEFT")
-    f.body = S:Text(f, "caption", "textSecondary")
+    f.body = S:Text(f.fg, "caption", "textSecondary")
     f.body:SetPoint("TOPLEFT", S.space.lg, -S.space.md - 46)
     f.body:SetPoint("RIGHT", -S.space.lg, 0)
     f.body:SetJustifyH("LEFT")
