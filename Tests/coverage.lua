@@ -52,6 +52,11 @@ load(DATA_TOC, "MetaCodex_Data")
 load(DUNGEON_TOC, "MetaCodex_Dungeons")
 load(PLAYERS_TOC, "MetaCodex_Players")
 
+-- Die Ablage anlegen: ohne sie kann nichts eingestellt werden, und
+-- die Pruefung stellt den Modus um.
+_G.MetaCodexDB = {}
+ns.Profile.Init()
+
 -- ------------------------------------------------------------ Erhebung
 
 local gaps = 0
@@ -173,6 +178,56 @@ for _, mode in ipairs(ns.MODES) do
     end
     say("  " .. mode.label)
     say("     " .. table.concat(parts, "   "))
+end
+
+-- Der Tooltip: haette jede Spec dort etwas zu sagen?
+--
+-- Er braucht zweierlei: die Rangfolge der Zweitwerte fuer die Spec, auf
+-- der man steht, und die Ausruestungsliste ihres Platzes. Gefragt wird
+-- ueber denselben Weg wie im Spiel - die aktive Spec wird dafuer
+-- untergeschoben, sonst pruefte man immer dieselbe.
+say("")
+say("Gegenstands-Tooltip (Rangnummern / Platz in der Liste):")
+do
+    local realSpec = ns.Compat.CurrentSpec
+    local realStats = ns.Compat.ItemStats
+    ns.Compat.ItemStats = function()
+        -- Ein Item, das alle vier Zweitwerte traegt: so zeigt sich, ob
+        -- die Rangfolge vollstaendig ist.
+        return {
+            ITEM_MOD_CRIT_RATING_SHORT = 100, ITEM_MOD_HASTE_RATING_SHORT = 100,
+            ITEM_MOD_MASTERY_RATING_SHORT = 100, ITEM_MOD_VERSATILITY = 100,
+        }
+    end
+    for _, mode in ipairs(ns.MODES) do
+        ns.Profile.SetMode(mode.key)
+        local withRanks, withGear = 0, 0
+        local missing = {}
+        for _, spec in ipairs(specs) do
+            ns.Compat.CurrentSpec = function() return spec.id end
+            local ranks = ns.Tooltip.StatRanks("|Hitem:200001|h[Item]|h")
+            local full = ranks ~= nil
+            if full then
+                for _, key in ipairs(ns.SECONDARY) do
+                    if not ranks[key] then full = false end
+                end
+            end
+            if full then withRanks = withRanks + 1 end
+            local gear = ns.Recommend.Gear(spec.id, mode.key, ns.Recommend.ALL)
+            local any = false
+            for _, list in pairs(gear or {}) do if #list > 0 then any = true end end
+            if any then withGear = withGear + 1 end
+            if not full or not any then
+                missing[#missing + 1] = spec.name
+                    .. (not full and " (Rangfolge)" or "") .. (not any and " (Liste)" or "")
+            end
+        end
+        say(("  %-14s Rangnummern %2d/%d   Platz %2d/%d")
+            :format(mode.label, withRanks, #specs, withGear, #specs))
+        for _, line in ipairs(missing) do gap("Tooltip " .. mode.label .. ": " .. line) end
+    end
+    ns.Compat.CurrentSpec = realSpec
+    ns.Compat.ItemStats = realStats
 end
 
 -- Und dasselbe je Dungeon und je Boss: dort waehlt der Spieler, und dort
