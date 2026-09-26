@@ -15,6 +15,8 @@ ns.RegisterLocale("deDE", {
     ["SLOT_gems"]          = "Sockelsteine",
 
     -- Kennwerte
+    ["CARD_MINE"]   = "Dein Build",
+    ["CARD_TARGET"] = "Häufigster Build",
     ["MINE_DIFF"]   = "Du spielst %d Talente anders",
     ["MINE_SAME"]   = "Dein Build ist der häufigste",
     ["MINE_SAME_HINT"] = "Knoten für Knoten derselbe",

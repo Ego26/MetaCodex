@@ -75,6 +75,7 @@ local HEADER, FOOTER = 56, 48
 -- dem Titel nicht mehr passen.
 local HEADER_ROW = 28
 local ROW_HEIGHT = 46
+local CARD_HEIGHT = 96
 -- Zubehoer einer Zeile - Verzauberung, Stein - steht klein darunter.
 local SUB_ROW_HEIGHT = 24
 
@@ -1507,11 +1508,31 @@ local function talentRows(specID, mode, source)
         local own = specID == ns.Compat.CurrentSpec()
         local diff = own and ns.Compare.DiffTo(build) or nil
         if diff then
-            local n = #diff.missing + #diff.extra
+            -- Was auf welche Karte gehoert: links, was du aufgeben
+            -- wuerdest, rechts, was du dafuer bekommst. So liest sich
+            -- der Pfeil dazwischen als Weg und nicht als Verzierung.
+            local function names(list, asNode)
+                local out = {}
+                for _, id in ipairs(list or {}) do
+                    if #out >= 4 then out[#out + 1] = "..." break end
+                    local name
+                    if asNode then
+                        name = ns.Compare.NodeName(id)
+                    else
+                        local info = C_Spell and C_Spell.GetSpellInfo
+                            and C_Spell.GetSpellInfo(id)
+                        name = info and info.name
+                    end
+                    out[#out + 1] = name or ("#" .. id)
+                end
+                return table.concat(out, ", ")
+            end
+            local lack, plus = names(diff.missing), names(diff.extra, true)
             rows[#rows + 1] = {
-                kind = "loadout", specID = specID, nodes = {},
-                mine = true, count = n,
-                missing = diff.missing, extra = diff.extra,
+                kind = "compare", specID = specID,
+                count = #diff.missing + #diff.extra, pct = build.pct,
+                giveUp = plus ~= "" and L["MINE_PLUS"]:format(plus) or nil,
+                gain = lack ~= "" and L["MINE_LACK"]:format(lack) or L["MINE_SAME_HINT"],
                 group = L["TALENT_BUILD"]:format(build.pct or 0),
             }
         end
@@ -1601,6 +1622,75 @@ local function statRows(specID, mode, source)
 end
 
 -- ----------------------------------------------------------------- Zeilen
+
+---Zwei Karten nebeneinander: dein Build und der, auf den es hinauslaeuft.
+---
+---Eine Zeile mit zwei Zahlen beantwortet die Frage "worin unterscheide
+---ich mich" zwar, aber sie sieht nicht danach aus, dass man etwas tun
+---soll. Zwei Karten mit einem Pfeil dazwischen tun das: links, wie du
+---spielst, rechts, wohin es geht, und darunter, was dafuer zu tun ist.
+---
+---Der Hintergrund ist das Bild der Spezialisierung, wie es der Client
+---selbst im Spezialisierungsfenster zeigt. Es liegt als Atlas vor,
+---"spec-thumbnail-<klasse>-<spec>", und zwar fuer alle vierzig - die
+---Namen stehen in den Spieldaten und wurden abgezaehlt. Die
+---Katalog-Bezeichner heissen fast genauso; nur die Bindestriche muessen
+---weg, denn der Atlas kennt "deathknight", nicht "death-knight".
+local function specAtlas(specID)
+    local cls, spec = ns.Catalog.SpecSlug(specID)
+    if not cls or not spec then return nil end
+    return ("spec-thumbnail-%s-%s"):format(cls:gsub("%-", ""), spec:gsub("%-", ""))
+end
+
+---Baut die beiden Karten einmal und haengt sie an die Zeile.
+local function buildCards(row)
+    if row.cards then return row.cards end
+    local cards = {}
+
+    local function card(side)
+        local f = CreateFrame("Frame", nil, row)
+        f:SetHeight(CARD_HEIGHT)
+        S:Fill(f, "bgRaised")
+        S:Border(f, "borderSubtle")
+        -- Das Spec-Bild, verschleiert: es soll die Karte faerben, nicht
+        -- den Text verschlucken.
+        f.art = f:CreateTexture(nil, "BACKGROUND")
+        f.art:SetAllPoints()
+        f.art:SetAlpha(0.35)
+        f.veil = f:CreateTexture(nil, "BORDER")
+        f.veil:SetAllPoints()
+        f.veil:SetColorTexture(0, 0, 0, 0.45)
+        f.title = S:Text(f, "body", "textPrimary")
+        f.title:SetPoint("TOPLEFT", S.space.md, -S.space.sm)
+        f.title:SetPoint("TOPRIGHT", -S.space.md, -S.space.sm)
+        f.title:SetJustifyH("LEFT")
+        f.note = S:Text(f, "caption", "heading")
+        f.note:SetPoint("TOPLEFT", S.space.md, -S.space.sm - 18)
+        f.note:SetPoint("TOPRIGHT", -S.space.md, -S.space.sm - 18)
+        f.note:SetJustifyH("LEFT")
+        f.body = S:Text(f, "caption", "textSecondary")
+        f.body:SetPoint("TOPLEFT", S.space.md, -S.space.sm - 38)
+        f.body:SetPoint("BOTTOMRIGHT", -S.space.md, S.space.sm)
+        f.body:SetJustifyH("LEFT")
+        f.body:SetJustifyV("TOP")
+        f.body:SetWordWrap(true)
+        cards[side] = f
+        return f
+    end
+
+    cards.left = card("left")
+    cards.right = card("right")
+
+    cards.arrow = row:CreateTexture(nil, "OVERLAY")
+    cards.arrow:SetSize(28, 28)
+    if cards.arrow.SetAtlas then
+        local ok = pcall(cards.arrow.SetAtlas, cards.arrow, "common-icon-forwardarrow", true)
+        if not ok then cards.arrow:SetColorTexture(1, 1, 1, 0.6) end
+    end
+
+    row.cards = cards
+    return cards
+end
 
 local function acquireRow(index)
     rows = rows or {}
@@ -1976,6 +2066,55 @@ local function setItemRow(row, data)
         row.share:SetText("")
         row.onClick = nil
         return
+    end
+
+    if data.kind == "compare" then
+        -- Zwei Karten, ein Pfeil: links wie du spielst, rechts wohin.
+        local cards = buildCards(row)
+        row.bg:SetAlpha(0)
+        row.icon:SetTexture(nil)
+        row.title:SetText("")
+        row.detail:SetText("")
+        row.share:SetText("")
+        local atlas = specAtlas(data.specID)
+        local half = math.floor((contentWidth() - S.space.lg * 2 - 36) / 2)
+        cards.left:ClearAllPoints()
+        cards.left:SetPoint("TOPLEFT", S.space.sm, -S.space.sm)
+        cards.left:SetWidth(half)
+        cards.right:ClearAllPoints()
+        cards.right:SetPoint("TOPRIGHT", -S.space.sm, -S.space.sm)
+        cards.right:SetWidth(half)
+        cards.arrow:ClearAllPoints()
+        cards.arrow:SetPoint("CENTER", row, "CENTER", 0, -S.space.sm)
+        for _, side in ipairs({ cards.left, cards.right }) do
+            side:SetHeight(CARD_HEIGHT * (S.fontScale or 1))
+            if atlas and side.art.SetAtlas then
+                local ok = pcall(side.art.SetAtlas, side.art, atlas, false)
+                side.art:SetShown(ok and true or false)
+            else
+                side.art:Hide()
+            end
+            side:Show()
+        end
+        -- Deine Seite ist blasser: sie zeigt, wo du stehst, nicht wohin.
+        cards.left.art:SetAlpha(0.18)
+        cards.right.art:SetAlpha(0.40)
+        cards.arrow:Show()
+
+        cards.left.title:SetText(L["CARD_MINE"])
+        cards.left.note:SetText(data.count == 0 and L["MINE_SAME"]
+            or L["MINE_DIFF"]:format(data.count))
+        cards.left.body:SetText(data.giveUp or "")
+        cards.right.title:SetText(L["CARD_TARGET"])
+        cards.right.note:SetText(L["TALENT_BUILD"]:format(data.pct or 0))
+        cards.right.body:SetText(data.gain or "")
+        row.onClick = nil
+        return
+    end
+    if row.cards then
+        row.cards.left:Hide()
+        row.cards.right:Hide()
+        row.cards.arrow:Hide()
     end
 
     if data.kind == "loadout" then
@@ -3232,6 +3371,8 @@ function UI.Refresh()
             row.title:SetPoint("LEFT", S.space.sm + 58, 0)
             S:ApplyFont(row.title, "caption", "textSecondary")
             place(row, SUB_ROW_HEIGHT * (S.fontScale or 1))
+        elseif data.kind == "compare" then
+            place(row, (CARD_HEIGHT + 16) * (S.fontScale or 1))
         elseif data.kind == "note" then
             -- Eine Notiz ist eine Zeile Text, kein Gegenstand: Symbol
             -- klein, Text daneben auf halber Hoehe.

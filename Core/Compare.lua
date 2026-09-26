@@ -43,11 +43,24 @@ function Compare.Mine()
     local okInfo, info = pcall(C_Traits.GetConfigInfo, configID)
     if not okInfo or type(info) ~= "table" or type(info.treeIDs) ~= "table" then return nil end
 
+    -- Eine Obergrenze, und zwar aus Vorsicht.
+    --
+    -- ipairs ueber etwas, das bei jedem Index wieder etwas zurueckgibt,
+    -- laeuft ewig - und hier haengt das Ergebnis an einer fremden
+    -- Schnittstelle. Ein Baum hat gut hundert Knoten; bei tausend ist
+    -- etwas anderes kaputt, und dann soll das Spiel weiterlaufen.
+    local MAX_TREES, MAX_NODES = 10, 1000
     local nodes, bySpell, any = {}, {}, false
+    local trees = 0
     for _, treeID in ipairs(info.treeIDs) do
+        trees = trees + 1
+        if trees > MAX_TREES then break end
         local okNodes, list = pcall(C_Traits.GetTreeNodes, treeID)
         if okNodes and type(list) == "table" then
+            local seen = 0
             for _, nodeID in ipairs(list) do
+                seen = seen + 1
+                if seen > MAX_NODES then break end
                 local okNode, node = pcall(C_Traits.GetNodeInfo, configID, nodeID)
                 if okNode and type(node) == "table" then
                     -- Alle Eintraege des Knotens, nicht nur der gewaehlte:

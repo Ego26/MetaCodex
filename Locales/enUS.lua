@@ -15,6 +15,8 @@ ns.RegisterLocale("enUS", {
     ["SLOT_gems"]          = "Gems",
 
     -- Kennwerte
+    ["CARD_MINE"]   = "Your build",
+    ["CARD_TARGET"] = "Most common build",
     ["MINE_DIFF"]   = "You play %d talents differently",
     ["MINE_SAME"]   = "Your build is the most common one",
     ["MINE_SAME_HINT"] = "node for node the same",
