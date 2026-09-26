@@ -33,7 +33,11 @@ optional — without it the lists still show, only the handover is missing.
 | **Stat targets** | Measured medians of the best, with your own values as a second bar |
 | **Talents** | The most common build with import string, alternatives as *X instead of Y*, contested talents — per dungeon in M+, per boss in raids |
 | **Top players** | Who is at the top, clickable: talent build with import string and full gear |
+| **Priorities** | What is missing on your character, ordered by how many of the best wear it |
 | **Gear** | Five per slot with drop source; tooltips on the keystone level you pick |
+| **Tier set** | Which set pieces the best wear, and how many of them |
+| **Crafted** | The crafted pieces actually worn, with their stat pair and the item levels they were measured at |
+| **Embellishments** | Which two embellishments are worn together, and how often |
 | **Enchants & Gems** | Against your equipped gear: what is still open |
 | **Consumables** | Grouped by kind, with share, highest key, stock and target |
 | **Reminder** | What is checked before you go in, and the settings for it |

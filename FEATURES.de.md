@@ -79,6 +79,23 @@ Aufwertungspfad wie in KeystoneLoot (Champion / Held / Große Schatzkammer)
 bekämst, mit „Held 3/8" im Tooltip. Was du schon trägst oder dabeihast,
 sagt es — **angelegt** oder **liegt schon im Gepäck**.
 
+**Tier-Set, Handwerk, Verzierungen** — Drei Fragen, die die Ausrüstungs-
+liste allein nicht beantwortet, alle aus denselben Profilen gezählt: welche
+Set-Teile getragen werden und wie viele davon; welche Handwerksstücke
+getragen werden, mit dem Wertepaar, das ihre Träger gewählt haben, und den
+gemessenen Gegenstandsstufen — beides auswählbar, damit man vergleichen
+kann; und welche **zwei** Verzierungen zusammen getragen werden, denn die
+Kombination ist die Entscheidung, und das Tooltip zeigt beide.
+
+**Prioritäten** — Was *diesem* Charakter fehlt, in einer Liste: die
+Verbrauchsgüter gegen die Beutel, die Verzauberungen und Steine gegen die
+angelegte Ausrüstung. Geordnet nach dem gemessenen Anteil der Besten, die
+es tragen — was neun von zehn haben und dir fehlt, steht über dem, was drei
+von zehn haben. Ausdrücklich keine Schadensrechnung: Schaden messen wir
+nicht, und eine erfundene Zahl wäre schlimmer als keine. Die Zahl an der
+Zeile ist genau die, nach der sortiert wird, und über der Liste steht, was
+sie zählt. Die Erinnerung vor dem Start nimmt dieselbe Rangfolge.
+
 **Verzauberungen & Steine** — Was die Besten auf welchem Platz tragen, mit
 zwei Alternativen je Platz und dem besonderen Sockel getrennt. Verglichen
 mit deiner Ausrüstung, und zwar richtig: Ein Platz gilt als erledigt, wenn

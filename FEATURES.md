@@ -78,6 +78,23 @@ right you pick *your* keystone — by upgrade track like KeystoneLoot
 exactly the level you would get, with "Hero 3/8" in the tooltip. A piece
 you already wear or carry says so — **equipped** or **already in your bags**.
 
+**Tier set, Crafted, Embellishments** — Three questions the gear list alone
+does not answer, each counted from the same profiles: which set pieces are
+worn and how many of them; which crafted pieces are worn, with the stat
+pair their wearers chose and the item levels they were measured at, both
+pickable so you can compare; and which **two** embellishments are worn
+together — a combination, because that is the decision, and the tooltip
+shows both.
+
+**Priorities** — What is missing on *this* character, in one list: the
+consumables against your bags, the enchants and gems against your
+equipment. Ordered by the measured share of the best players who wear it,
+so what nine in ten have and you lack stands above what three in ten have.
+It is deliberately not a damage estimate — damage is not something we
+measure, and an invented number would be worse than none. The figure on
+the line is the one it sorts by, and the hint above the list says what it
+counts. The reminder before the pull uses the same ranking.
+
 **Enchants & Gems** — What the best wear on which slot, with two
 alternatives per slot and the special socket kept separate. Compared with
 your gear, and compared properly: a slot counts as done when **the
