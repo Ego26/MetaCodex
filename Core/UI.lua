@@ -1002,10 +1002,18 @@ local function openSourcePickerGear(anchor, sources)
                     sub:CreateRadio(L["ORIGIN_GALL_" .. group], function() return chosen() == all end,
                         function() ns.Profile.SetCategory("gearSource", all); UI.Refresh() end)
                     for _, src in ipairs(list) do
-                        if #(src.bosses or {}) > 1 then
+                        if #(src.bosses or {}) > 0 then
                             -- Ein Schlachtzug ist eine Auswahl wie die
                             -- Dungeons eine sind: acht Bosse, acht
                             -- Fragen. Die Instanz selbst steht oben.
+                            --
+                            -- Auch bei EINEM Boss. Zwei Eintraege, die
+                            -- dasselbe filtern, sehen nach Verschwendung
+                            -- aus - sie sagen aber, wer ihn fallen laesst,
+                            -- und das steht sonst nirgends. Und ein
+                            -- Schlachtzug, der sich mal oeffnet und mal
+                            -- nicht, ist schwerer zu lesen als einer, der
+                            -- es immer tut.
                             local inst = sub:CreateButton(src.label)
                             inst:CreateRadio(L["ORIGIN_ALL_BOSSES"],
                                 function() return chosen() == src.key end,

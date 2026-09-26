@@ -1690,6 +1690,16 @@ do
     end
     check("im Schlachtzug steht ein Schlachtzug zur Wahl",
         (groups.raid or 0) > 0, tostring(groups.raid))
+    -- Jeder Schlachtzug klappt auf, auch der mit einem einzigen Boss:
+    -- zwei Eintraege, die dasselbe filtern, sagen immerhin, WER ihn
+    -- fallen laesst - und einer, der sich mal oeffnet und mal nicht,
+    -- ist schwerer zu lesen als einer, der es immer tut.
+    local stumm = 0
+    for _, src in ipairs(sources) do
+        if src.group == "raid" and #(src.bosses or {}) == 0 then stumm = stumm + 1 end
+    end
+    check("jeder Schlachtzug nennt seine Bosse", stumm == 0,
+        stumm .. " ohne Boss")
 
     -- Und er traegt seine Bosse.
     if raid then
