@@ -39,6 +39,16 @@ on:
           Leer lassen, um frisch zu sammeln."
         required: false
         default: ""
+      only:
+        description: "Nur diese Quellen neu holen, Komma-Liste: catalog,
+          raiderio, murlok, raid, raid-mythic, raid-normal, consumables,
+          keys, bnet, profiles. Zusammen mit reuse: die Ernte jener Nacht
+          wird genommen und NUR diese Quellen frisch geholt. raider.io,
+          murlok und der Katalog kosten kein Stundenkontingent - damit
+          ist eine Aenderung an ihnen in einer halben Stunde drin statt
+          in einer ganzen Nacht."
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -287,7 +297,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: [sources, logs-raid, logs-consumables, logs-keys, blizzard]
     if: ${{ !cancelled() }}
-    timeout-minutes: 120
+    # Mit "only" sammelt dieser Job selbst noch etwas nach; ohne es
+    # rechnet er nur und ist in Minuten fertig.
+    timeout-minutes: 330
     steps:
       - uses: actions/checkout@v4
         with:
@@ -334,6 +346,25 @@ jobs:
           ls -l tools/data | head -80
           test -s tools/data/enchant-map.json
 
+      # Einzelne Quellen nachholen.
+      #
+      # Der teure Teil einer Nacht ist Warcraft Logs, und zwar nur das
+      # Warten am Stundenlimit. raider.io, murlok und die Spieldaten
+      # kosten nichts davon. Wer an einem von ihnen etwas aendert, soll
+      # nicht fuenfeinhalb Stunden auf eine neue Nacht warten muessen:
+      # reuse holt die Ernte von gestern, only holt genau die Quelle neu.
+      - name: Collect just these sources again
+        if: inputs.only != ''
+        env:
+          # Ueber die Umgebung, nicht in die Befehlszeile eingesetzt:
+          # was von aussen kommt, gehoert nicht in eine Shell-Zeile.
+          MC_ONLY: ${{ inputs.only }}
+          WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
+          WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
+          BNET_CLIENT_ID: ${{ secrets.BNET_CLIENT_ID }}
+          BNET_CLIENT_SECRET: ${{ secrets.BNET_CLIENT_SECRET }}
+        run: node tools/collect-all.js . "nur=$MC_ONLY"
+
       # Aus den Rohdaten neu bauen, nicht die alten Tabellen nehmen.
       #
       # Der Katalog wird mitgebaut, weil der Zusammenbau seine
@@ -359,7 +390,7 @@ jobs:
       # Tabellen fest, bevor etwas anderes sie mitreissen kann, und zwar
       # auch dann, wenn der Schritt davor gescheitert ist.
       - name: Keep what was collected
-        if: always() && inputs.reuse == ''
+        if: always() && (inputs.reuse == '' || inputs.only != '')
         uses: actions/upload-artifact@v4
         with:
           name: collected-${{ github.run_id }}
