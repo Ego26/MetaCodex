@@ -179,6 +179,8 @@ ns.RegisterLocale("enUS", {
     ["GROUP_SHOPPING"]     = "Shopping",
     ["GROUP_PREP"]         = "Preparation",
     ["SECTION_all"]        = "Everything",
+    ["SECTION_tier"]       = "Tier set",
+    ["SECTION_crafted"]    = "Crafted",
     ["SECTION_enchants"]   = "Enchants",
     ["SECTION_gems"]       = "Gems",
     ["SECTION_consumables"]= "Consumables",

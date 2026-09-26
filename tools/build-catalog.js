@@ -144,7 +144,8 @@ function emitEnchants(groups) {
   console.log('Erweiterung:', expansion);
 
   const [items, gemProps, sieRows, itemEffects, itemLinks, spellEffects, itemClasses,
-    chrSpecs, chrClasses, journalItems, journalEncounters, journalInstances, itemSets, levelDeltas,
+    chrSpecs, chrClasses, journalItems, journalEncounters, journalInstances, itemSets,
+    craftQualities, craftingData, levelDeltas,
     trackRows, traitDefs, pvpTalents, spellNames,
     traitNodes, traitNodeXEntry, traitEntries, traitLoadouts, subTreesEN, subTreesDE]
     = await Promise.all([
@@ -161,6 +162,15 @@ function emitEnchants(groups) {
       db2('JournalEncounter'),
       db2('JournalInstance'),
       db2('ItemSet'),
+      // Was Berufe herstellen. NICHT ueber den Gegenstand selbst:
+      // ItemSparse fuehrt fuer ein Handwerksstueck weder eine
+      // Qualitaetsstufe noch einen Beruf - beides kommt erst beim
+      // Herstellen ueber Bonus-IDs dazu. Wer am Gegenstand fragt,
+      // bekommt 1188 Treffer, von denen KEIN EINZIGER in den
+      // Ausruestungsdaten vorkommt; genau so stand der Abschnitt
+      // "Handwerk" leer da, obwohl die Besten Handwerk tragen.
+      db2('CraftingDataItemQuality'),
+      db2('CraftingData'),
       db2('ItemBonusListLevelDelta'),
       // Typ 34 ist der Aufwertungspfad: Value_0 der Pfad, Value_1 sein
       // Name als SharedString. Die Liste, an der die Zeile haengt, ist
@@ -542,6 +552,26 @@ function emitEnchants(groups) {
     const id = Number(row.ID);
     if (!kinds.has(id) && Number(row.RequiredSkill) > 0) kinds.set(id, 'craft');
   }
+  // Und das, was die Berufe dieser Erweiterung wirklich herstellen.
+  //
+  // Die beiden Regeln darueber fragen den GEGENSTAND, und moderne
+  // Handwerksruestung sagt am Gegenstand nichts: die Qualitaet haengt
+  // an Bonus-IDs, die erst beim Herstellen dazukommen. Gefragt werden
+  // muss das Rezept, und das steht in CraftingData.
+  let fromRecipes = 0;
+  const craftedIDs = new Set();
+  for (const row of craftQualities) {
+    const id = Number(row.ItemID);
+    if (id) craftedIDs.add(id);
+  }
+  for (const row of craftingData) {
+    const id = Number(row.CraftedItemID);
+    if (id) craftedIDs.add(id);
+  }
+  for (const id of craftedIDs) {
+    if (current.has(id) && !kinds.has(id)) { kinds.set(id, 'craft'); fromRecipes += 1; }
+  }
+  console.log('Handwerk aus Rezepten:', fromRecipes, 'von', craftedIDs.size);
   // Das Set gewinnt: ein Tier-Teil bleibt ein Tier-Teil, auch wenn es
   // nebenbei eine Handwerksstufe traegt.
   for (const row of itemSets) {

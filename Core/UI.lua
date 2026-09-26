@@ -130,6 +130,8 @@ local SECTIONS = {
     { key = "players",     group = "GROUP_KNOW" },
 
     { key = "gear",        group = "GROUP_GEAR" },
+    { key = "tier",        group = "GROUP_GEAR" },
+    { key = "crafted",     group = "GROUP_GEAR" },
     { key = "enchants",    group = "GROUP_GEAR" },
     { key = "consumables", group = "GROUP_GEAR" },
     { key = "remind",      group = "GROUP_GEAR" },
@@ -641,6 +643,60 @@ local function gearRows(specID, mode, source)
             end
         end
     end
+    return rows, from
+end
+
+---Die haeufigsten Stuecke EINER Art: Set-Teile oder Handwerk.
+---
+---Nicht nach Platz, sondern nach Anteil. Die Platzliste beantwortet
+---"was ziehe ich an diesen Platz"; hier ist die Frage eine andere -
+---"welches Set-Teil tragen die Besten ueberhaupt" und "welches
+---Handwerksstueck lohnt sich" -, und darauf antwortet eine Reihenfolge
+---nach Haeufigkeit.
+---
+---Gezaehlt wird nichts neu: die Art steht im Katalog am Gegenstand, die
+---Anteile stehen in denselben Daten, aus denen die Platzliste kommt.
+---@param want string "set" oder "craft"
+---@return table[] rows
+---@return string|nil fromSource
+local function kindRows(specID, mode, source, want)
+    local worn = ns.Compat.EquippedIDs()
+    local gear, from = ns.Recommend.Gear(specID, mode, source)
+    if not gear then return {}, nil end
+
+    local minLevel = ns.Profile.MinItemLevel()
+    local rows, seen = {}, {}
+    for _, slot in ipairs(GEAR_ORDER) do
+        for _, item in ipairs(gear[slot] or {}) do
+            local badge = item.kind or ns.Catalog.ItemKind(item.id)
+            -- Ein Stueck, das an zwei Plaetzen vorkommt - Ringe,
+            -- Schmuckstuecke -, steht einmal da, mit seinem besten Wert.
+            if badge == want and (item.ilvl or 0) >= minLevel and not seen[item.id] then
+                seen[item.id] = true
+                local name, link, icon = ns.Compat.ItemInfo(item.id)
+                if not name then ns.Compat.RequestItem(item.id) end
+                local drop, sourceKey, sourceLabel, sourceGroup = originText(item.id, badge, mode)
+                rows[#rows + 1] = {
+                    kind = "gear", id = item.id, pct = item.pct,
+                    drop = drop, sourceKey = sourceKey, sourceLabel = sourceLabel,
+                    sourceGroup = sourceGroup,
+                    badge = nil,
+                    ilvl = item.ilvl, maxKey = item.maxKey,
+                    name = name or item.name, link = link, icon = icon,
+                    -- Der Platz steht in der Zeile, aber er ordnet sie
+                    -- nicht: gruppiert wird hier nach nichts, sortiert
+                    -- wird nach Anteil.
+                    slotLabel = L["GEARSLOT_" .. slot:gsub("%s", "")],
+                    worn = worn[item.id] == true,
+                    owned = ns.Compat.ItemCount(item.id) > 0,
+                }
+            end
+        end
+    end
+    table.sort(rows, function(a, b)
+        if (a.pct or 0) ~= (b.pct or 0) then return (a.pct or 0) > (b.pct or 0) end
+        return (a.name or "") < (b.name or "")
+    end)
     return rows, from
 end
 
@@ -2436,7 +2492,7 @@ local function setItemRow(row, data)
         -- Set- und Handwerksteile werden benannt. Ohne das sehen Kopf
         -- und Schultern aus, als gaebe es nur Tier - die Alternativen
         -- stehen unkommentiert daneben.
-        local detail = data.group or ""
+        local detail = data.slotLabel or data.group or ""
         if (data.ilvl or 0) > 0 then
             detail = detail .. "  ·  " .. L["ILVL"]:format(data.ilvl)
         end
@@ -3209,6 +3265,13 @@ function UI.Refresh()
         -- Verzauberungen der Anteil am Platz, bei den Steinen der an
         -- allen Steinen. Ohne diesen Satz vergleicht man Zahlen, die
         -- verschiedene Fragen beantworten.
+        hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted)
+            or L["SHARE_GEAR"])
+    elseif section.key == "tier" or section.key == "crafted" then
+        local want = section.key == "tier" and "set" or "craft"
+        currentRows, fromSource = withFallback(function(source)
+            return kindRows(specID, mode, source, want)
+        end)
         hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted)
             or L["SHARE_GEAR"])
     elseif section.key == "stats" then

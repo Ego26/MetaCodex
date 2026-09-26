@@ -179,6 +179,8 @@ ns.RegisterLocale("deDE", {
     ["GROUP_SHOPPING"]     = "Einkauf",
     ["GROUP_PREP"]         = "Vorbereitung",
     ["SECTION_all"]        = "Alles",
+    ["SECTION_tier"]       = "Tier-Set",
+    ["SECTION_crafted"]    = "Handwerk",
     ["SECTION_enchants"]   = "Verzauberungen",
     ["SECTION_gems"]       = "Sockelsteine",
     ["SECTION_consumables"]= "Verbrauchsgüter",

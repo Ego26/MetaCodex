@@ -122,6 +122,8 @@ say("Abschnitte je Aktivitaet (angeboten / davon leer):")
 local SECTIONS = {
     { key = "talents",    label = "Talente" },
     { key = "gear",       label = "Ausruestung" },
+    { key = "tier",       label = "Tier-Set" },
+    { key = "crafted",    label = "Handwerk" },
     { key = "enchants",   label = "VZ & Steine" },
     { key = "consumables", label = "Verbrauchsgueter" },
     { key = "remind",     label = "Erinnerung" },
@@ -139,6 +141,10 @@ local function filled(section, specID, mode)
         if not gear then return false end
         for _, list in pairs(gear) do if #list > 0 then return true end end
         return false
+    elseif section == "tier" or section == "crafted" then
+        -- Angeboten wird er nur, wenn etwas drinsteht - die Pruefung
+        -- steht in HasSection und muss hier nicht zweimal stehen.
+        return true
     elseif section == "enchants" then
         local entry = ns.Recommend.For(specID, mode, ns.Recommend.ALL)
         if not entry then return false end

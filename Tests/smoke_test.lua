@@ -599,6 +599,48 @@ do
     check("ohne Filter sind es wieder alle", rowsInSection("gear") == all)
 end
 
+-- Tier-Set und Handwerk: dieselben Daten, andere Frage.
+--
+-- Nicht "was ziehe ich an diesen Platz", sondern "welches Set-Teil
+-- tragen die Besten ueberhaupt". Also nach Anteil sortiert, jedes
+-- Stueck einmal, und nur Stuecke der jeweiligen Art.
+do
+    -- Die Art steht an zwei Stellen: die Quelle darf sie mitliefern,
+    -- und wo sie schweigt, sagen es die Spieldaten. Geprueft wird
+    -- gegen beide - eine Zeile ist richtig, wenn EINE von beiden sie
+    -- so nennt.
+    local kindOf = {}
+    do
+        local gear = ns.Recommend.Gear(ns.Profile.SelectedSpec(), ns.Profile.Mode(),
+            ns.Recommend.ALL)
+        for _, list in pairs(gear or {}) do
+            for _, item in ipairs(list) do
+                kindOf[item.id] = item.kind or ns.Catalog.ItemKind(item.id)
+            end
+        end
+    end
+    for _, probe in ipairs({ { key = "tier", badge = "set" },
+                             { key = "crafted", badge = "craft" } }) do
+        local n = rowsInSection(probe.key)
+        check("Abschnitt " .. probe.key .. " zeigt Zeilen", n > 0, n .. " Zeilen")
+        local last, fallend, doppelt, fremd = nil, true, 0, 0
+        local seen = {}
+        for _, row in ipairs(wow.rows()) do
+            if row:IsShown() and row.itemID then
+                if seen[row.itemID] then doppelt = doppelt + 1 end
+                seen[row.itemID] = true
+                if kindOf[row.itemID] ~= probe.badge then fremd = fremd + 1 end
+                local pct = tonumber((row.share:GetText() or ""):match("(%d+)%%") or "")
+                if pct and last and pct > last then fallend = false end
+                last = pct or last
+            end
+        end
+        check("  nach Anteil sortiert", fallend)
+        check("  jedes Stueck einmal", doppelt == 0, doppelt .. " doppelt")
+        check("  und nur " .. probe.badge, fremd == 0, fremd .. " fremd")
+    end
+end
+
 check("Verzauberungen zeigen weiter Zeilen", rowsInSection("enchants") > 0)
 -- Hier stand einmal "leerer Abschnitt bleibt leer" und meinte Guides.
 -- Inzwischen ist keiner der sechs Abschnitte mehr leer.

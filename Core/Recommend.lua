@@ -656,6 +656,24 @@ function Recommend.HasSection(specID, mode, source, section)
         return Recommend.Talents(specID, mode, source) ~= nil
     elseif section == "gear" then
         return Recommend.Gear(specID, mode, source) ~= nil
+    elseif section == "tier" or section == "crafted" then
+        -- Ein Abschnitt, der leer waere, wird nicht angeboten - sonst
+        -- steht in der Arena ein Tier-Set im Menue, zu dem es nichts
+        -- gibt. Die Frage kostet einen Durchlauf durch die Platzlisten,
+        -- und die stehen schon im Speicher.
+        local gear = Recommend.Gear(specID, mode, source)
+        if not gear then return false end
+        local want = section == "tier" and "set" or "craft"
+        for _, list in pairs(gear) do
+            for _, item in ipairs(list) do
+                local kind = item.kind
+                if not kind and ns.Catalog and ns.Catalog.ItemKind then
+                    kind = ns.Catalog.ItemKind(item.id)
+                end
+                if kind == want then return true end
+            end
+        end
+        return false
     elseif section == "players" then
         return Recommend.Players(specID, mode, source) ~= nil
     elseif section == "enchants" then
