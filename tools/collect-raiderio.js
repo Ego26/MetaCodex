@@ -240,6 +240,17 @@ const slug = (text) => String(text).toLowerCase()
   // einer eigenen Tabelle: knapp vierzig Kilobyte statt eines
   // Megabyte, wenn jede Zeile sie mitschleppte.
   const bonuses = new Map();   // itemID -> { ilvl, list }
+  // Und dieselben Listen je STUFE.
+  //
+  // Ein Handwerksstueck traegt in seinen Bonus-IDs alles, was es
+  // ausmacht: Qualitaet, Aufwertung, Verzierung, Werte. Eine einzelne
+  // davon in einen Link zu setzen reicht dem Client nicht - dann steht
+  // dort weiter "Zufallswert 1". Und die Stufen eines Handwerksstuecks
+  // kommen nicht aus der Schluesselbelohnung, sondern aus genau diesen
+  // Listen. Wer vergleichen will, was ein Stueck auf 311 und auf 318
+  // kann, braucht beide Listen - also heben wir sie auf, je Stufe die
+  // haeufigste.
+  const byLevel = new Map();   // itemID -> Map(ilvl -> Map(listKey -> n))
   const entryFor = (mode, specID) => {
     const t = tallies[mode] || (tallies[mode] = {});
     return t[specID] || (t[specID] = {
@@ -347,6 +358,12 @@ const slug = (text) => String(text).toLowerCase()
       const known = bonuses.get(item.item_id);
       if ((!known || ilvl > known.ilvl) && Array.isArray(item.bonuses)) {
         bonuses.set(item.item_id, { ilvl, list: item.bonuses });
+      }
+      if (ilvl > 0 && Array.isArray(item.bonuses) && item.bonuses.length) {
+        const levels = byLevel.get(item.item_id) || byLevel.set(item.item_id, new Map()).get(item.item_id);
+        const lists = levels.get(ilvl) || levels.set(ilvl, new Map()).get(ilvl);
+        const key = item.bonuses.slice().sort((a, b) => a - b).join(',');
+        lists.set(key, (lists.get(key) || 0) + 1);
       }
 
       const display = GEAR_SLOT[slot];
@@ -554,6 +571,29 @@ const slug = (text) => String(text).toLowerCase()
       if (hit && hit.list.length) out[id] = hit.list;
     }
     if (Object.keys(out).length) payload.bonuses = out;
+
+    // Und je Stufe die haeufigste Liste - aber nur fuer die Stuecke, bei
+    // denen es einen Unterschied macht: Handwerk. Fuer alles andere
+    // genuegt die Stufendifferenz, die der Katalog fuehrt.
+    const perLevel = {};
+    for (const id of used) {
+      const levels = byLevel.get(id);
+      if (!levels) continue;
+      const rows = [];
+      for (const [ilvl, lists] of levels) {
+        const best = [...lists.entries()].sort((a, b) => b[1] - a[1])[0];
+        const ids = best[0].split(',').map(Number);
+        // Nur wo eine Wertewahl drinsteckt: das sind die Stuecke, deren
+        // Tooltip ohne die volle Liste "Zufallswert 1" zeigt.
+        if (!ids.some((b) => bonusMap.stats[b])) continue;
+        rows.push({ ilvl, n: best[1], ids });
+      }
+      if (rows.length) {
+        rows.sort((a, b) => a.ilvl - b.ilvl);
+        perLevel[id] = rows;
+      }
+    }
+    if (Object.keys(perLevel).length) payload.craftLevels = perLevel;
     if (info.dungeon) payload.dungeon = info.dungeon;
 
     if (DRY) {

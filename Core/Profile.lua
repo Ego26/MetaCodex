@@ -104,6 +104,23 @@ function Profile.Mode()
     return db.mode or ns.MODES[1].key
 end
 
+---Auf welcher Stufe ein Handwerksstueck gezeigt werden soll.
+---
+---Nichts gewaehlt heisst: die hoechste gemessene. Die Stufen kommen aus
+---den Stuecken selbst - ein Handwerksstueck wird nicht mit einem
+---Schluesselstein aufgewertet, und die Belohnungstabelle der Dungeons
+---sagt ueber es nichts.
+---@return number|nil
+function Profile.CraftLevel()
+    local db = MetaCodexDB or {}
+    return db.craftLevel
+end
+
+---@param level number|nil
+function Profile.SetCraftLevel(level)
+    MetaCodexDB.craftLevel = level
+end
+
 ---Welche Werte auf einem Handwerksstueck angezeigt werden sollen.
 ---
 ---Nichts gewaehlt heisst: die gemessene Wahl - was die Besten auf

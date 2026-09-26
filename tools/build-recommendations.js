@@ -44,6 +44,20 @@ const sources = new Set();
 // Liste lesen, nicht Zeichenketten zerlegen. Wer den Trenner aendert,
 // zerbricht sonst stillschweigend die Auswahl.
 const dungeons = {};
+// Je Handwerksstueck: welche Bonus-Listen auf welcher Stufe gemessen
+// wurden.
+//
+// WARUM DIE GANZE LISTE. Ein Handwerksstueck traegt in seinen Bonus-IDs
+// alles, was es ausmacht: die Qualitaetsstufe, die Aufwertung, die
+// Verzierung und die Werte. Setzt man nur EINE davon in einen Link -
+// die Werte zum Beispiel -, zeigt der Client weiter "Zufallswert 1" und
+// "Zufallswert 2". Er braucht die Liste, wie sie am Stueck stand.
+//
+// Und die Stufen: ein Handwerksstueck wird nicht mit einem
+// Schluesselstein aufgewertet, sondern beim Herstellen und mit Mistcrests.
+// Welche Stufen es ueberhaupt gibt, steht also nicht in der
+// Belohnungstabelle der Dungeons - es steht in diesen Listen.
+const craftLevels = {};
 let newest = 0;
 const profileParts = [];
 // Fuer das Spieler-Addon: Modus -> Spec -> Spieler mit Ausruestung.
@@ -73,6 +87,17 @@ for (const name of fs.readdirSync(dir).sort()) {
   const part = JSON.parse(fs.readFileSync(path.join(dir, name), 'utf8'));
   // Profile kommen NACH allen anderen dran: sie ergaenzen, was eine
   // Quelle nicht hat, und dafuer muss die Quelle schon da sein.
+  if (part.craftLevels) {
+    for (const [id, rows] of Object.entries(part.craftLevels)) {
+      const have = craftLevels[id] || (craftLevels[id] = {});
+      for (const row of rows) {
+        // Die Stufe, die mehr Traeger hat, gewinnt: zwei Quellen
+        // koennen dasselbe Stueck verschieden gesehen haben.
+        const old = have[row.ilvl];
+        if (!old || (row.n || 0) > (old.n || 0)) have[row.ilvl] = row;
+      }
+    }
+  }
   if (part.profiles) { profileParts.push(part); continue; }
   if (!part.mode || !part.specs || !part.source) {
     console.log(`  ? ${name}: kein Modus, keine Quelle oder keine Speccs, uebersprungen`);
@@ -164,6 +189,14 @@ for (const part of profileParts) {
         const worn = new Set();
         let any = false;
         for (const item of Object.values(pl.gear || {})) {
+          // Die ganze Liste je Stufe - dieselbe Frage wie bei M+: ohne
+          // sie zeigt das Tooltip eines Handwerksstuecks "Zufallswert 1".
+          if (item.ilvl > 0 && (item.bonuses || []).some((x) => bonusMap.stats[x])) {
+            const have = craftLevels[item.id] || (craftLevels[item.id] = {});
+            const old = have[item.ilvl];
+            if (old) { old.n += 1; }
+            else { have[item.ilvl] = { ilvl: item.ilvl, n: 1, ids: item.bonuses.slice() }; }
+          }
           for (const b of item.bonuses || []) {
             if (bonusMap.stats[b]) {
               craft[b] = (craft[b] || 0) + 1;
@@ -347,6 +380,23 @@ if (Object.keys(dungeons).length) {
     }
   }
   console.log(`  Journal: ${named} Bosse/Instanzen erkannt, ${grouped} Bosse ihrem Raid zugeordnet`);
+
+  // Die Handwerksstuecke mit ihren gemessenen Stufen.
+  {
+    const ids = Object.keys(craftLevels).sort((a, b) => a - b);
+    let rows = 0;
+    out.push('  craftLevels = {');
+    for (const id of ids) {
+      const levels = Object.values(craftLevels[id]).sort((a, b) => a.ilvl - b.ilvl);
+      if (!levels.length) continue;
+      rows += levels.length;
+      out.push(`    [${id}] = { ` + levels
+        .map((r) => `{ ilvl = ${r.ilvl}, n = ${r.n || 0}, ids = { ${r.ids.join(', ')} } }`)
+        .join(', ') + ' },');
+    }
+    out.push('  },');
+    console.log('Handwerksstuecke mit gemessenen Stufen:', ids.length, '(' + rows + ' Stufen)');
+  }
 
   out.push('  dungeons = {');
   for (const [mode, list] of Object.entries(dungeons)) {

@@ -446,6 +446,24 @@ function Recommend.Embellish(specID, mode, source)
     return firstWith(specID, mode, source, "embellish")
 end
 
+---Die gemessenen Stufen eines Handwerksstuecks, mit ihren Bonus-IDs.
+---
+---Ein Handwerksstueck wird nicht mit einem Schluesselstein aufgewertet,
+---sondern beim Herstellen und mit Mistcrests. Welche Stufen es gibt,
+---steht deshalb nicht in der Belohnungstabelle der Dungeons - es steht
+---in den Listen, die wir an den gemessenen Stuecken gesehen haben.
+---
+---Und die ganze Liste, nicht eine ID daraus: sie traegt Qualitaet,
+---Aufwertung, Verzierung und Werte zusammen. Mit nur einer davon zeigt
+---der Client "Zufallswert 1" und "Zufallswert 2".
+---@param itemID number|nil
+---@return table[]|nil { { ilvl = 331, n = 9, ids = { ... } }, ... }
+function Recommend.CraftLevels(itemID)
+    if not itemID then return nil end
+    local d = data()
+    return d and d.craftLevels and d.craftLevels[itemID] or nil
+end
+
 ---Ist diese Instanz ein Dungeon oder ein Schlachtzug?
 ---
 ---Aus den eigenen Daten, nicht aus einer Liste zum Pflegen: die

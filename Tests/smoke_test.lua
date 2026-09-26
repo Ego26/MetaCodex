@@ -777,6 +777,28 @@ do
     check("  und der Link traegt sie mit", mitBonusImLink == mitWerten,
         mitBonusImLink .. " von " .. mitWerten)
 
+    -- Und zwar als GANZE Liste, nicht als einzelne ID.
+    --
+    -- Eine Werte-ID allein reicht dem Client nicht: ein Handwerksstueck
+    -- traegt Qualitaet, Aufwertung und Verzierung in derselben Liste,
+    -- und ohne sie steht im Tooltip weiter "Zufallswert 1". Genau so
+    -- sah es im Spiel aus.
+    local gemessen, voll = 0, 0
+    for _, row in ipairs(wow.rows()) do
+        local id = row:IsShown() and rawget(row, "itemID") or nil
+        local levels = id and ns.Recommend.CraftLevels(id) or nil
+        if levels and #levels > 0 and type(rawget(row, "fullLink")) == "string" then
+            gemessen = gemessen + 1
+            local n = 0
+            for _ in rawget(row, "fullLink"):gmatch(":%d+") do n = n + 1 end
+            -- item:ID plus Anzahl plus die IDs selbst: bei einer
+            -- gemessenen Liste sind das mehr als drei Zahlen.
+            if n > 3 then voll = voll + 1 end
+        end
+    end
+    check("  und zwar als ganze gemessene Liste", gemessen == 0 or voll == gemessen,
+        voll .. " von " .. gemessen)
+
     -- Eine gewaehlte Kombination schlaegt die gemessene.
     local choices = ns.Catalog.CraftStatChoices()
     if #choices > 0 then

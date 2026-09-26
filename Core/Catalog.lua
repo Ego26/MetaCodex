@@ -300,6 +300,19 @@ function Catalog.StatsOfBonus(bonus)
     return c and c.craftStats and c.craftStats[bonus] or nil
 end
 
+---Welche Bonus-IDs ueberhaupt Werte setzen.
+---
+---Gebraucht zum Austauschen: in einer gemessenen Liste steht die
+---Wertewahl des Spielers, der sie trug. Wer eine andere sehen will,
+---ersetzt genau diese eine ID - und laesst alles andere stehen.
+---@return table<number, boolean>
+function Catalog.CraftStatBonuses()
+    local c = data()
+    local out = {}
+    for bonus in pairs((c and c.craftStats) or {}) do out[bonus] = true end
+    return out
+end
+
 ---Alle Wertepaare, zur Auswahl.
 ---
 ---Aus vier Zweitwerten gibt es sechs Paare, und das Spiel fuehrt genau

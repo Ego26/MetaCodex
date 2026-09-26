@@ -647,6 +647,29 @@ local function gearRows(specID, mode, source)
     return rows, from
 end
 
+---Welche Stufen es bei den Handwerksstuecken dieser Spec gibt.
+---
+---Aus den Stuecken selbst, nicht aus den Zeilen: die Knoepfe stehen
+---fest, bevor die Liste gebaut ist, und ein Wert von der vorigen
+---Ansicht waere ein Flackern zwischen zwei Abschnitten.
+---@return number[] aufsteigend
+local function craftLevelsFor(specID, mode, source)
+    local gear = ns.Recommend.Gear(specID, mode, source)
+    local seen, out = {}, {}
+    for _, list in pairs(gear or {}) do
+        for _, item in ipairs(list) do
+            for _, entry in ipairs(ns.Recommend.CraftLevels(item.id) or {}) do
+                if not seen[entry.ilvl] then
+                    seen[entry.ilvl] = true
+                    out[#out + 1] = entry.ilvl
+                end
+            end
+        end
+    end
+    table.sort(out)
+    return out
+end
+
 ---Die haeufigsten Stuecke EINER Art: Set-Teile oder Handwerk.
 ---
 ---Nicht nach Platz, sondern nach Anteil. Die Platzliste beantwortet
@@ -683,6 +706,22 @@ local function kindRows(specID, mode, source, want)
                 -- Gewaehlt schlaegt gemessen: wer oben ein Wertepaar
                 -- gewaehlt hat, will sehen, wie SEIN Stueck aussaehe.
                 local statBonus = pickedStats or item.sb
+                -- Der Link aus der GEMESSENEN Liste, nicht aus einer
+                -- einzelnen Bonus-ID: sie traegt Qualitaet, Aufwertung
+                -- und Verzierung mit. Nur so zeigt das Tooltip, was die
+                -- Besten wirklich tragen, statt "Zufallswert 1".
+                local levels = ns.Recommend.CraftLevels(item.id)
+                local fromLevels, atIlvl = nil, nil
+                if levels and #levels > 0 then
+                    local wanted = ns.Profile.CraftLevel()
+                    local pick = levels[#levels]
+                    for _, row in ipairs(levels) do
+                        if row.ilvl == wanted then pick = row break end
+                    end
+                    atIlvl = pick.ilvl
+                    fromLevels = ns.Compat.LinkWithList(item.id, pick.ids,
+                        pickedStats, ns.Catalog.CraftStatBonuses())
+                end
                 local name, link, icon = ns.Compat.ItemInfo(item.id)
                 if not name then ns.Compat.RequestItem(item.id) end
                 local drop, sourceKey, sourceLabel, sourceGroup = originText(item.id, badge, mode)
@@ -691,7 +730,7 @@ local function kindRows(specID, mode, source, want)
                     drop = drop, sourceKey = sourceKey, sourceLabel = sourceLabel,
                     sourceGroup = sourceGroup,
                     badge = nil,
-                    ilvl = yours or item.ilvl, maxKey = item.maxKey,
+                    ilvl = atIlvl or yours or item.ilvl, maxKey = item.maxKey,
                     -- Die Wertewahl gehoert IN den Link. Ohne sie steht
                     -- im Tooltip "Zufallswert 1" und "Zufallswert 2" -
                     -- ein Handwerksstueck bekommt seine Zweitwerte erst
@@ -699,7 +738,14 @@ local function kindRows(specID, mode, source, want)
                     statBonus = statBonus,
                     stats = ns.Catalog.StatsOfBonus(statBonus),
                     statPct = (not pickedStats) and item.sbPct or nil,
-                    atLevel = ns.Compat.LinkAtLevel(item.id, yours or item.ilvl, statBonus),
+                    atLevel = fromLevels
+                        or ns.Compat.LinkAtLevel(item.id, yours or item.ilvl, statBonus),
+                    -- Der volle Link ersetzt auch die Stufe: sie steht
+                    -- schon drin.
+                    fullLink = fromLevels,
+                    -- Und welche Stufen es zu diesem Stueck ueberhaupt
+                    -- gibt - daraus wird die Auswahl oben gebaut.
+                    levels = levels,
                     wantLevel = yours, wantBonus = yoursBonus,
                     name = name or item.name, link = link, icon = icon,
                     -- Der Platz steht in der Zeile, aber er ordnet sie
@@ -823,6 +869,36 @@ local function sourcesIn(rows)
         return a.label < b.label
     end)
     return out
+end
+
+---Die Stufe eines Handwerksstuecks waehlen.
+---
+---Aus den gemessenen Stufen, nicht aus der Belohnungstabelle der
+---Dungeons: ein Handwerksstueck wird beim Herstellen und mit Mistcrests
+---aufgewertet, und die Tabelle der Schluesselbelohnungen sagt ueber es
+---nichts. Was hier steht, hat jemand wirklich getragen.
+local function openCraftLevelPicker(anchor, levels)
+    local chosen = function() return ns.Profile.CraftLevel() end
+    if MenuUtil and MenuUtil.CreateContextMenu then
+        MenuUtil.CreateContextMenu(anchor, function(_, root)
+            root:CreateTitle(L["LBL_CRAFTLEVEL"])
+            root:CreateRadio(L["CRAFTLEVEL_BEST"], function() return chosen() == nil end,
+                function() ns.Profile.SetCraftLevel(nil); UI.Refresh() end)
+            for i = #levels, 1, -1 do
+                local ilvl = levels[i]
+                root:CreateRadio(L["ILVL"]:format(ilvl), function() return chosen() == ilvl end,
+                    function() ns.Profile.SetCraftLevel(ilvl); UI.Refresh() end)
+            end
+        end)
+        return
+    end
+    local entries = { { key = false, label = L["CRAFTLEVEL_BEST"] } }
+    for i = #levels, 1, -1 do
+        entries[#entries + 1] = { key = levels[i], label = L["ILVL"]:format(levels[i]) }
+    end
+    contextMenu(anchor, L["LBL_CRAFTLEVEL"], entries, function(entry)
+        ns.Profile.SetCraftLevel(entry.key or nil)
+    end)
 end
 
 ---Die Werte eines Handwerksstuecks waehlen.
@@ -2083,6 +2159,15 @@ local function acquireRow(index)
             return
         end
         local link = self.link
+        -- Ein fertiger Link aus gemessenen Bonus-IDs wird NICHT neu
+        -- gebaut: er traegt schon Stufe, Qualitaet, Verzierung und
+        -- Werte, und jeder Nachbau verliert davon etwas.
+        if self.fullLink then
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetHyperlink(self.fullLink)
+            GameTooltip:Show()
+            return
+        end
         if self.itemID and self.wantBonus then
             link = ns.Compat.LinkWith(self.itemID, self.wantBonus, self.statBonus)
         elseif self.itemID and self.wantLevel then
@@ -2133,6 +2218,7 @@ local function resetRow(row)
     -- Und die Wertewahl und die zweite Gegenstands-ID: eine
     -- wiederverwendete Zeile zeigte sonst das Tooltip des Vorgaengers.
     row.statBonus, row.ids = nil, nil
+    row.fullLink = nil
     -- Und den Zauber: eine Talentzeile zeigt sein Tooltip, und eine
     -- wiederverwendete Zeile zeigte sonst den Zauber des Vorgaengers.
     row.spellID = nil
@@ -2614,6 +2700,7 @@ local function setItemRow(row, data)
         row.link = data.atLevel or data.link
         row.itemID, row.wantLevel, row.wantBonus = data.id, data.wantLevel, data.wantBonus
         row.statBonus, row.ids = data.statBonus, data.ids
+        row.fullLink = data.fullLink
         -- Den Gegenstand anfordern, damit er beim Hovern da ist.
         if data.id and C_Item and C_Item.RequestLoadItemDataByID then
             pcall(C_Item.RequestLoadItemDataByID, data.id)
@@ -2908,7 +2995,13 @@ local function build()
     -- Der Stufenfilter gehoert in den Abschnitt, nicht in die ohnehin
     -- volle Kopfzeile: er gilt nur fuer die Ausruestung.
     local levelButton = makeButton(content, 175, 22, "", function(self)
-        openKeyPicker(self)
+        -- Beim Handwerk ist es eine andere Frage: ein Handwerksstueck
+        -- wird nicht mit einem Schluesselstein aufgewertet.
+        if activeSection().key == "crafted" then
+            openCraftLevelPicker(self, rawget(frame, "__craftLevels") or {})
+        else
+            openKeyPicker(self)
+        end
     end)
     levelButton:SetPoint("TOPRIGHT", -S.space.xl, -S.space.lg - 2)
     frame.levelButton = levelButton
@@ -3299,9 +3392,22 @@ function UI.Refresh()
     -- fuer Tier-Set und Handwerk. Vergleichen kann nur, wer beide auf
     -- derselben Stufe sieht.
     local gearLike = section.key == "gear" or section.key == "tier"
-        or section.key == "crafted"
-    frame.levelButton:SetShown(gearLike and not viewingPlayer
-        and #ns.Compat.RewardTable() > 0)
+    local craftLevels = section.key == "crafted"
+        and craftLevelsFor(specID, mode, wanted) or {}
+    frame.__craftLevels = craftLevels
+    frame.levelButton:SetShown(not viewingPlayer and (
+        (gearLike and #ns.Compat.RewardTable() > 0)
+        or (section.key == "crafted" and #craftLevels > 0)))
+    if section.key == "crafted" then
+        local pick = ns.Profile.CraftLevel()
+        local list = craftLevels
+        -- Eine Stufe, die es bei diesen Stuecken nicht gibt, faellt weg.
+        local valid = pick == nil
+        for _, ilvl in ipairs(list) do if ilvl == pick then valid = true end end
+        if not valid then pick = nil; ns.Profile.SetCraftLevel(nil) end
+        frame.levelButton.label:SetText(pick and L["ILVL"]:format(pick)
+            or L["CRAFTLEVEL_BEST"])
+    end
 
     -- Die Wertewahl nur beim Handwerk: nur dort ist sie eine Wahl.
     frame.statButton:SetShown(section.key == "crafted" and not viewingPlayer
@@ -3311,8 +3417,10 @@ function UI.Refresh()
     frame.statButton.label:SetText(craftStats
         and (L["STAT_" .. craftStats[1]] .. "  ·  " .. L["STAT_" .. craftStats[2]])
         or L["CRAFTSTATS_MEASURED"])
-    local targetLabel = ns.Profile.TargetLabel()
-    if targetLabel then
+    local targetLabel = section.key ~= "crafted" and ns.Profile.TargetLabel() or nil
+    if section.key == "crafted" then
+        -- steht schon oben
+    elseif targetLabel then
         frame.levelButton.label:SetText(targetLabel)
     elseif ns.Profile.KeyLevel() then
         local level = ns.Profile.TargetLevel()

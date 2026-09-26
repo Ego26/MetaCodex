@@ -478,6 +478,35 @@ local function trackLink(itemID, bonus)
     return linkWith(itemID, bonus)
 end
 
+---Ein Link aus einer gemessenen Bonus-Liste.
+---
+---Die Liste bleibt, wie sie war - sie traegt Qualitaet, Aufwertung und
+---Verzierung, und jede davon fehlt im Tooltip, wenn man sie wegwirft.
+---Nur die Wertewahl wird ersetzt, und nur wenn eine gewaehlt ist.
+---@param itemID number
+---@param ids number[] die gemessene Liste
+---@param wantStat number|nil die gewuenschte Werte-Bonus-ID
+---@param statSet table<number, boolean>|nil welche IDs Werte setzen
+---@return string
+function Compat.LinkWithList(itemID, ids, wantStat, statSet)
+    if not itemID or type(ids) ~= "table" or #ids == 0 then return nil end
+    local out, replaced = {}, false
+    for _, id in ipairs(ids) do
+        if wantStat and statSet and statSet[id] then
+            if not replaced then
+                out[#out + 1] = wantStat
+                replaced = true
+            end
+        else
+            out[#out + 1] = id
+        end
+    end
+    -- Gewuenscht, aber keine im Stueck: dann kommt sie dazu.
+    if wantStat and not replaced then out[#out + 1] = wantStat end
+    if #out == 0 then return "item:" .. itemID end
+    return ("item:%d::::::::::::%d:%s"):format(itemID, #out, table.concat(out, ":"))
+end
+
 ---Ein Gegenstandslink mit beliebigen Bonus-IDs.
 ---@param itemID number
 ---@param ... number
