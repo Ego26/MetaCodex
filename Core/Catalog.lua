@@ -266,6 +266,24 @@ function Catalog.DropSource(itemID)
     return where.enc, where.inst
 end
 
+---Dungeon oder Schlachtzug?
+---
+---Aus den Spieldaten: die Karte hinter der Instanz fuehrt ihre Art
+---(Map.InstanceType, 1 Gruppeninstanz, 2 Schlachtzug). Das Journal
+---selbst sagt es nicht - sein Flag mischt beides.
+---
+---Warum hier und nicht beim Sammler: der Sammler kennt nur die
+---Instanzen, in denen gemessen wurde. Ein Schlachtzug, aus dem niemand
+---einen Bericht hochgeladen hat, waere fuer ihn kein Schlachtzug - und
+---landete im Waehler unter "Sonstiges".
+---@param inst number|nil Journal-Instanz
+---@return string|nil "dungeon" | "raid"
+function Catalog.InstanceKind(inst)
+    if not inst then return nil end
+    local c = data()
+    return c and c.instKind and c.instKind[inst] or nil
+end
+
 ---PvP-Ware: Eroberung, Ehre oder das Handwerksstueck dazu.
 ---@param itemID number
 ---@return string|nil "conquest" | "honor" | "pvpcraft"

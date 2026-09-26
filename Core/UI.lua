@@ -542,8 +542,21 @@ local function originText(itemID, badge, mode)
         -- Und wohin der Fundort im Waehler gehoert. Unbekannt heisst
         -- "sonstiges", nicht "Dungeon": ein falsch einsortierter
         -- Schlachtzug fuehrt in eine leere Liste.
-        local kind = inst and ns.Recommend.InstanceKind(inst) or nil
-        return text, "inst:" .. tostring(inst or enc), place, kind or "other"
+        -- Erst der Katalog, dann die Messung: der Katalog kennt jede
+        -- Instanz des Spiels, der Sammler nur die, in denen gemessen
+        -- wurde.
+        local kind = inst and (ns.Catalog.InstanceKind(inst)
+            or ns.Recommend.InstanceKind(inst)) or nil
+        -- Und bei einem Schlachtzug auch der Boss: acht Bosse sind acht
+        -- Abende, und die Frage "was faellt bei diesem" ist dieselbe
+        -- Frage wie "was faellt in diesem Dungeon".
+        local bossKey, bossLabel = nil, nil
+        if kind == "raid" and enc then
+            bossKey = "enc:" .. tostring(enc)
+            bossLabel = ns.Compat.DropText(enc, nil)
+        end
+        return text, "inst:" .. tostring(inst or enc), place, kind or "other",
+            bossKey, bossLabel
     end
     -- PvP-Ware, am englischen Namen im Katalog erkannt.
     local origin = ns.Catalog.Origin and ns.Catalog.Origin(itemID)
@@ -614,11 +627,13 @@ local function gearRows(specID, mode, source)
                 -- die 334 sagt.
                 local showLevel = yours or item.ilvl
                 local atLevel = yours and ns.Compat.LinkAtLevel(item.id, yours) or nil
-                local drop, sourceKey, sourceLabel, sourceGroup = originText(item.id, badge, mode)
+                local drop, sourceKey, sourceLabel, sourceGroup, bossKey, bossLabel
+                    = originText(item.id, badge, mode)
                 rows[#rows + 1] = {
                     kind = "gear", id = item.id, pct = item.pct,
                     drop = drop, sourceKey = sourceKey, sourceLabel = sourceLabel,
                     sourceGroup = sourceGroup,
+                    sourceBossKey = bossKey, sourceBossLabel = bossLabel,
                     -- Die Quelle darf es sagen; wenn sie schweigt,
                     -- sagen es die Spieldaten. murlok liefert die Marke
                     -- mit, Warcraft Logs nicht - und ein Set-Teil bleibt
@@ -726,11 +741,13 @@ local function kindRows(specID, mode, source, want)
                 end
                 local name, link, icon = ns.Compat.ItemInfo(item.id)
                 if not name then ns.Compat.RequestItem(item.id) end
-                local drop, sourceKey, sourceLabel, sourceGroup = originText(item.id, badge, mode)
+                local drop, sourceKey, sourceLabel, sourceGroup, bossKey, bossLabel
+                    = originText(item.id, badge, mode)
                 rows[#rows + 1] = {
                     kind = "gear", id = item.id, pct = item.pct,
                     drop = drop, sourceKey = sourceKey, sourceLabel = sourceLabel,
                     sourceGroup = sourceGroup,
+                    sourceBossKey = bossKey, sourceBossLabel = bossLabel,
                     badge = nil,
                     ilvl = atIlvl or yours or item.ilvl, maxKey = item.maxKey,
                     -- Die Wertewahl gehoert IN den Link. Ohne sie steht
@@ -860,6 +877,19 @@ local function sourcesIn(rows)
             out[#out + 1] = {
                 key = row.sourceKey, label = row.sourceLabel or row.sourceKey,
                 group = row.sourceGroup or "other",
+                bosses = {}, bossSeen = {},
+            }
+            seen[row.sourceKey] = out[#out]
+        end
+        -- Die Bosse des Schlachtzugs, in der Reihenfolge, in der sie
+        -- vorkommen. Nur die, aus denen in dieser Liste wirklich etwas
+        -- stammt - ein Boss ohne Beute waere eine leere Auswahl.
+        local at = seen[row.sourceKey]
+        if type(at) == "table" and row.sourceBossKey and not at.bossSeen[row.sourceBossKey] then
+            at.bossSeen[row.sourceBossKey] = true
+            at.bosses[#at.bosses + 1] = {
+                key = row.sourceBossKey,
+                label = row.sourceBossLabel or row.sourceBossKey,
             }
         end
     end
@@ -961,19 +991,33 @@ local function openSourcePickerGear(anchor, sources)
                 function() ns.Profile.SetCategory("gearSource", nil); UI.Refresh() end)
             for _, group in ipairs(ORIGIN_GROUPS) do
                 local list = groups[group]
-                if list and #list == 1 then
-                    -- Ein einzelner Eintrag braucht kein Untermenue.
-                    local src = list[1]
-                    root:CreateRadio(src.label, function() return chosen() == src.key end,
-                        function() ns.Profile.SetCategory("gearSource", src.key); UI.Refresh() end)
-                elseif list then
+                -- Auch eine Gruppe mit einem einzigen Eintrag bleibt eine
+                -- Gruppe. Vorher stand ein einzelner Schlachtzug nackt
+                -- zwischen "Dungeons" und "Sonstiges" - und sah aus wie
+                -- eine dritte Art, nicht wie der eine Schlachtzug, den es
+                -- gerade gibt.
+                if list and #list > 0 then
                     local sub = root:CreateButton(L["ORIGIN_G_" .. group])
                     local all = "group:" .. group
                     sub:CreateRadio(L["ORIGIN_GALL_" .. group], function() return chosen() == all end,
                         function() ns.Profile.SetCategory("gearSource", all); UI.Refresh() end)
                     for _, src in ipairs(list) do
-                        sub:CreateRadio(src.label, function() return chosen() == src.key end,
-                            function() ns.Profile.SetCategory("gearSource", src.key); UI.Refresh() end)
+                        if #(src.bosses or {}) > 1 then
+                            -- Ein Schlachtzug ist eine Auswahl wie die
+                            -- Dungeons eine sind: acht Bosse, acht
+                            -- Fragen. Die Instanz selbst steht oben.
+                            local inst = sub:CreateButton(src.label)
+                            inst:CreateRadio(L["ORIGIN_ALL_BOSSES"],
+                                function() return chosen() == src.key end,
+                                function() ns.Profile.SetCategory("gearSource", src.key); UI.Refresh() end)
+                            for _, boss in ipairs(src.bosses) do
+                                inst:CreateRadio(boss.label, function() return chosen() == boss.key end,
+                                    function() ns.Profile.SetCategory("gearSource", boss.key); UI.Refresh() end)
+                            end
+                        else
+                            sub:CreateRadio(src.label, function() return chosen() == src.key end,
+                                function() ns.Profile.SetCategory("gearSource", src.key); UI.Refresh() end)
+                        end
                     end
                 end
             end
@@ -986,11 +1030,14 @@ local function openSourcePickerGear(anchor, sources)
     local entries = { { key = false, label = L["SOURCE_ANY"] } }
     for _, group in ipairs(ORIGIN_GROUPS) do
         local list = groups[group]
-        if list and #list > 1 then
+        if list and #list > 0 then
             entries[#entries + 1] = { key = "group:" .. group, label = L["ORIGIN_GALL_" .. group] }
         end
         for _, src in ipairs(list or {}) do
             entries[#entries + 1] = { key = src.key, label = src.label }
+            for _, boss in ipairs(src.bosses or {}) do
+                entries[#entries + 1] = { key = boss.key, label = "   " .. boss.label }
+            end
         end
     end
     contextMenu(anchor, L["LBL_ORIGIN"], entries, function(entry)
@@ -3721,6 +3768,14 @@ function UI.Refresh()
         elseif src.key == pickedSource then
             validSource = true
             frame.originButton.label:SetText(src.label)
+        else
+            -- Ein einzelner Boss ist auch eine Wahl.
+            for _, boss in ipairs(src.bosses or {}) do
+                if boss.key == pickedSource then
+                    validSource = true
+                    frame.originButton.label:SetText(boss.label)
+                end
+            end
         end
     end
     if not validSource then
@@ -3733,6 +3788,7 @@ function UI.Refresh()
         for _, row in ipairs(currentRows) do
             local hit = wantGroup and (row.sourceGroup or "other") == wantGroup
                 or row.sourceKey == pickedSource
+                or row.sourceBossKey == pickedSource
             if hit then kept[#kept + 1] = row end
         end
         currentRows = kept
