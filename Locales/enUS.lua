@@ -17,7 +17,6 @@ ns.RegisterLocale("enUS", {
     -- Kennwerte
     ["TIP_TOP"]     = "most worn in this slot (%d%%)",
     ["TIP_RANK"]    = "number %d of %d in this slot (%d%%)",
-    ["TIP_STATS"]   = "The numbers are the measured order for your spec.",
     ["SET_TOOLTIP"] = "Add to item tooltips",
     ["SET_TOOLTIP_HINT"] = "The rank beside each secondary stat, and where the item stands in its slot",
     ["STAT_crit"]          = "Critical Strike",

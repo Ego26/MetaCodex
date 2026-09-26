@@ -122,7 +122,10 @@ local function markStats(tip, ranks)
         if type(text) == "string" and not text:find("|cff", 1, true) then
             for _, entry in ipairs(order) do
                 if ranks[entry.key] and text:find(entry.text, 1, true) then
-                    line:SetText(text .. "  |cff" .. ns.Style:Hex("accent")
+                    -- Hausfarbe, nicht Klassenfarbe: die Nummer soll
+                    -- erkennbar von hier kommen, und der Akzent wandert
+                    -- mit der angesehenen Klasse.
+                    line:SetText(text .. "  |cff" .. ns.Style:Hex("brand")
                         .. "#" .. ranks[entry.key] .. "|r")
                     ranks[entry.key] = nil
                     marked = marked + 1
@@ -189,11 +192,14 @@ function Tooltip.Decorate(tip, link)
             text = L["TIP_RANK"]:format(rank, total or rank, pct or 0)
         end
         tip:AddLine("|cff" .. ns.Style:Hex("brand") .. "MetaCodex|r  " .. text, 1, 1, 1)
-    elseif marked > 0 then
-        -- Woher die Zahlen kommen, gehoert einmal dazugesagt - sonst
-        -- steht da eine Raute, die niemand zuordnen kann.
-        tip:AddLine("|cff" .. ns.Style:Hex("brand") .. "MetaCodex|r  " .. L["TIP_STATS"], 1, 1, 1)
     end
+    -- Wo das Item NICHT in der Liste steht, kommt auch keine Zeile
+    -- dazu.
+    --
+    -- Hier stand ein Satz, der die Rangnummern erklaerte, und der stand
+    -- dann unter jedem Gruenzeug, das man je anfasst. Einmal gelesen
+    -- ist er verstanden, danach ist er Laerm. Die Nummern tragen die
+    -- Hausfarbe, das genuegt als Absender.
     if spare then
         tip:AddLine("|cff" .. ns.Style:Hex("brand") .. "MetaCodex|r  " .. spare, 1, 1, 1)
     end

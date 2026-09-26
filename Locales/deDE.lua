@@ -17,7 +17,6 @@ ns.RegisterLocale("deDE", {
     -- Kennwerte
     ["TIP_TOP"]     = "am häufigsten getragen auf diesem Platz (%d %%)",
     ["TIP_RANK"]    = "Platz %d von %d auf diesem Platz (%d %%)",
-    ["TIP_STATS"]   = "Die Rangnummern sind die gemessene Wertigkeit deiner Spec.",
     ["SET_TOOLTIP"] = "Im Gegenstands-Tooltip ergänzen",
     ["SET_TOOLTIP_HINT"] = "Rangnummer an den Zweitwerten und der Platz auf der Liste",
     ["STAT_crit"]          = "Kritische Trefferwertung",
