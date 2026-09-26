@@ -22,12 +22,17 @@ if (!BASE) {
 
 // ----------------------------------------------------------------- Abruf
 
-function get(url) {
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** Ein Versuch, ohne Geduld. */
+function fetchOnce(url) {
   return new Promise((resolve, reject) => {
     https.get(url, { headers: { 'User-Agent': 'MetaCodex-build-catalog' } }, (res) => {
       if (res.statusCode !== 200) {
         res.resume();
-        return reject(new Error(url + ' -> HTTP ' + res.statusCode));
+        const err = new Error(url + ' -> HTTP ' + res.statusCode);
+        err.status = res.statusCode;
+        return reject(err);
       }
       let body = '';
       res.setEncoding('utf8');
@@ -35,6 +40,34 @@ function get(url) {
       res.on('end', () => resolve(body));
     }).on('error', reject);
   });
+}
+
+/**
+ * Dieselbe Frage, bis zu viermal.
+ *
+ * Die Spieldaten kommen von einem freien Dienst, und ein freier Dienst
+ * hat schlechte Minuten: in der Nacht auf den 26.09. antwortete
+ * SpellEffect mit HTTP 504, und damit fiel der ganze Katalog aus - samt
+ * der Wertekarte, ohne die Handwerksstuecke im Tooltip wieder
+ * "Zufallswert 1" zeigen. Ein Torfehler ist kein Grund, eine Nacht zu
+ * verlieren, also fragen wir noch einmal, mit wachsender Pause. Ein 404
+ * wird nicht wiederholt: der bleibt einer.
+ */
+async function get(url) {
+  let last;
+  for (let attempt = 1; attempt <= 4; attempt += 1) {
+    try {
+      return await fetchOnce(url);
+    } catch (err) {
+      last = err;
+      if (err.status >= 400 && err.status < 500) break;
+      if (attempt < 4) {
+        console.log('  Noch einmal (' + attempt + '/3): ' + err.message);
+        await sleep(attempt * 10000);
+      }
+    }
+  }
+  throw last;
 }
 
 // Ein CSV-Leser statt einer Abhaengigkeit: die Dateien sind gut erzogen,
