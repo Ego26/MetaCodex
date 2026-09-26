@@ -1,3 +1,26 @@
+## v1.1.1 — raids belong under Raids, and they open into their bosses
+
+A small release with one question answered properly.
+
+### Fixed
+
+- **"The Tidebound Grotto" was listed under "Other"** although it is a
+  raid. The kind of an instance came from the measurements, and nobody has
+  uploaded a report from that raid - so to the addon it was nothing, and
+  nothing lands in "Other". The adventure journal does not answer it
+  either: its flag carries the same value for Scarlet Halls (a dungeon)
+  and Dragon Soul (a raid). The map behind the instance does answer it, so
+  the catalog now carries the kind for all 213 instances, 70 of them raids.
+- **A group with a single entry lost its heading.** The one current raid
+  stood bare between "Dungeons" and "Other" and looked like a third kind
+  rather than the one raid there is. A group stays a group now.
+
+### New
+
+- **A raid opens into its bosses.** Eight bosses are eight evenings, and
+  "what drops off this one" is the same question as "what drops in this
+  dungeon". Listed are only the bosses something in the list actually came
+  from - a boss with no loot would be an empty choice.
 ## v1.1.0 — what the best players put on their gear
 
 Four new answers in the window, all of them measured the same way as
