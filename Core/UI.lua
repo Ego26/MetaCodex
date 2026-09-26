@@ -1365,14 +1365,17 @@ local function playerViewRows(who)
     local rows = {}
     local profile, why = ns.Recommend.Player(who.mode, who.specID, who.name, who.realm)
     -- Der Kopf ist dieselbe Karte wie unter Talenten: das Bild der
-    -- Spezialisierung, der Name, der Realm, und ein Klick legt die
-    -- Adresse hin. Eine Ueberschrift mit einer Zeile darunter sah
-    -- daneben aus wie ein Rest.
+    -- Spezialisierung, der Name, der Realm, darunter seine Spec.
+    --
+    -- Sie ist ein Schild, kein Knopf. Was man tun kann, steht als
+    -- Zeile darunter - eine Karte, die heimlich klickbar ist, findet
+    -- niemand, und die Profilzeile war vorher genau dort.
     rows[#rows + 1] = {
-        kind = "buildcard", specID = who.specID, url = who.url,
+        kind = "buildcard", specID = who.specID,
         cardTitle = who.name, cardNote = who.realm or "",
-        cardBody = L["PLAYER_PROFILE"] .. "  " .. L["GUIDE_COPY"],
+        cardBody = ns.Compat.SpecName(who.specID) or "",
     }
+    rows[#rows + 1] = { kind = "link", url = who.url, group = L["SECTION_players"] }
     if not profile then
         rows[#rows + 1] = { kind = "note", text = L[why == "loading" and "PLAYER_LOADING" or "PLAYER_NO_PROFILE"] }
         return rows
