@@ -318,6 +318,8 @@ ns.RegisterLocale("enUS", {
 ns.RegisterLocale("enUS", {
     -- Two groups, because they answer two different questions.
     ["TALENT_BUILD"] = "Most common build  ·  %d%% run exactly this",
+    ["CARD_SHARE"]   = "%d%% run exactly this",
+    ["CARD_RANK"]    = "number %d  ·  %s",
     ["LOADOUT_FROM_BASE"] = "string from %s",
     ["LOADOUT_FROM_SOURCE"] = "string from %s",
     ["TALENT_PICKS"] = "Single talents and how many take them",

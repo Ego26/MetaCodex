@@ -313,6 +313,8 @@ ns.RegisterLocale("deDE", {
 
 ns.RegisterLocale("deDE", {
     ["TALENT_BUILD"] = "Häufigster Build  ·  %d%% spielen genau diesen",
+    ["CARD_SHARE"]   = "%d%% spielen genau diesen",
+    ["CARD_RANK"]    = "Platz %d  ·  %s",
     ["LOADOUT_FROM_BASE"] = "String aus %s",
     ["LOADOUT_FROM_SOURCE"] = "String von %s",
     ["TALENT_PICKS"] = "Einzelne Talente und wie viele sie nehmen",

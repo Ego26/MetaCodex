@@ -1382,8 +1382,10 @@ local function playerViewRows(who)
             kind = "buildcard", text = profile.text, specID = who.specID,
             nodes = {}, count = 0,
             cardTitle = L["PLAYER_LOADOUT"],
-            cardNote = L[profile.verified and "PLAYER_VERIFIED" or "PLAYER_UNVERIFIED"],
-            cardBody = L["LOADOUT_PASTE"],
+            cardNote = who.rank and L["CARD_RANK"]:format(who.rank,
+                ns.Compat.SpecName(who.specID) or "") or ns.Compat.SpecName(who.specID),
+            cardBody = profile.verified and L["LOADOUT_PASTE"]
+                or (L["LOADOUT_PASTE"] .. "  " .. L["PLAYER_UNVERIFIED"]),
             group = L["SECTION_talents"],
         }
     end
@@ -2117,7 +2119,9 @@ local function setItemRow(row, data)
         local h = CARD_HEIGHT * (S.fontScale or 1)
         fitArt(card, wide or small, w, h)
         card.title:SetText(data.cardTitle or L["CARD_TARGET"])
-        card.note:SetText(data.cardNote or L["TALENT_BUILD"]:format(data.pct or 0))
+        -- Der Titel steht schon darueber; die Zeile darunter traegt die
+        -- Zahl, nicht noch einmal den Namen.
+        card.note:SetText(data.cardNote or L["CARD_SHARE"]:format(data.pct or 0))
         -- Ohne Kette waere die Karte ein Knopf, der nichts tut. Dann
         -- sagt sie das, statt zum Klicken einzuladen.
         local ready = data.text ~= nil and data.text ~= ""
