@@ -1,3 +1,63 @@
+## v1.1.0 — what the best players put on their gear
+
+Four new answers in the window, all of them measured the same way as
+everything else: counted off the characters that actually ran the keys
+and killed the bosses.
+
+### New
+
+- **Tier set** and **Crafted** as sections of their own, sorted by how
+  many of the measured players wear each piece. Not "what goes in this
+  slot" but "which set piece do they wear at all" and "which crafted
+  piece is worth making".
+- **Embellishments**, as the pair they are worn as. You may wear two,
+  and which two go together is the question - so the share belongs to
+  the combination, not to one half of it. Hovering a pair shows both
+  tooltips.
+- **Crafted gear the way it really looks.** A crafted piece carries its
+  quality, its upgrade, its embellishment and its stats in one set of
+  bonus IDs, and the tooltip needs all of them - without them it says
+  "random stat 1". The link is now built from the very list the piece
+  was measured with. Two pickers above the list: the item level (from
+  the levels that were actually measured - 288, 305, 318, 331) and the
+  stat pair, in case you are planning something other than what the
+  measured players took.
+- **Stat ranks on every line a tooltip shows.** "Haste #2" now appears
+  wherever the stat does, including the comparison tooltip and on gear
+  whose stats the item interface cannot name.
+
+### Better
+
+- **The gear list is one row per slot.** Sixteen slots with five
+  suggestions each were ninety rows; now each slot shows the piece most
+  of them wear and says "+4 more" behind its name. A click opens that
+  slot.
+- **The origin picker has groups** - dungeons, raids, everything else -
+  and a whole group can be chosen at once. Which instance is a dungeon
+  and which a raid comes from the data, not from a list to maintain.
+- **The talent build and the top players share one card** with the
+  artwork of your specialisation; a click copies the import string.
+- **Switching the activity while a player profile is open** takes you
+  back to the ranking of the new activity instead of leaving the old
+  player on screen.
+- **One colour per kind of line.** Titles white, everything explaining
+  them small and grey - no more grey titles beside white ones.
+
+### Fixed
+
+- Crafted gear was recognised by asking the item, and modern crafted
+  armour says nothing on the item: 1188 items were marked as crafted
+  and not one of them was a piece anyone wears. The recipes know
+  better, so the Crafted section has something in it for all 40
+  specialisations.
+- The verified talent strings of raid players could vanish: eight
+  per-boss files carried the same mode name as the whole raid and
+  overwrote each other, and which one survived was decided by the order
+  a directory happens to be listed in.
+- The rank numbers fell away on crafted gear, exactly where the stats
+  matter most.
+
+---
 ## v1.0.0 — the first release
 
 MetaCodex shows what the best players of your specialisation actually
