@@ -1461,6 +1461,21 @@ do
             views .. " Ansichten, " .. count .. " Listen")
     end
 
+    -- Die Buildkarte bleibt nicht im naechsten Abschnitt stehen.
+    --
+    -- Zeilen werden wiederverwendet. Die Karte hing an einer Zeile, und
+    -- als dieselbe Zeile unter Top-Spielern wieder auftauchte, lag sie
+    -- quer ueber dem Namen.
+    do
+        ns.Profile.SetMode("mplus")
+        rowsInSection("talents")
+        local withCard = ns.UI.VisibleCards()
+        rowsInSection("players")
+        check("die Karte wandert nicht in den naechsten Abschnitt",
+            withCard >= 1 and ns.UI.VisibleCards() == 0,
+            withCard .. " bei Talenten, " .. ns.UI.VisibleCards() .. " bei Top-Spielern")
+    end
+
     ns.Profile.SetMode("mplus")
     rowsInSection("talents")
     check("und in M+ 'Alle Dungeons'",

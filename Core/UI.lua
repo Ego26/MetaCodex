@@ -1829,6 +1829,15 @@ end
 ---Deshalb EINE Stelle statt zweier, die sich auseinanderentwickeln. Wer
 ---hier etwas ergaenzt, ergaenzt es fuer beide Zeilenarten.
 local function resetRow(row)
+    -- Eine Karte gehoert zu genau EINER Art Zeile.
+    --
+    -- Zeilen werden wiederverwendet, und eine vergessene Karte lag sonst
+    -- mitten in einem anderen Abschnitt: unter Top-Spielern stand die
+    -- Buildkarte quer ueber den Namen. Hier ist die eine Stelle, durch
+    -- die jede Zeile laeuft, bevor sie neu gefuellt wird - vorher stand
+    -- das Verstecken im Zeichner, und der kehrt fuer Kennwerte, Notizen
+    -- und Runenschmieden vorher um.
+    if cardOf[row] then cardOf[row]:Hide() end
     row.link = nil
     -- Auch das, woraus der Link beim Hovern entsteht. Eine Zeile wird
     -- wiederverwendet, und eine vergessene Gegenstands-ID zeigte sonst
@@ -2105,8 +2114,6 @@ local function setItemRow(row, data)
         row.onClick = ready and function() UI.ShowLink(data.text) end or nil
         return
     end
-    if cardOf[row] then cardOf[row]:Hide() end
-
     if data.kind == "loadout" then
         row.link = nil
         row.icon:SetTexture("Interface\\Icons\\INV_Misc_Note_01")
@@ -3576,6 +3583,20 @@ function UI.ProvenanceLine(names, specID, mode, source)
     line = line .. "  " .. L["SOURCE_SAMPLE"]:format(sample)
     if from and to then line = line .. " " .. L["SOURCE_KEYS"]:format(from, to) end
     return line
+end
+
+---Wie viele Karten gerade sichtbar sind - fuer die Tests.
+---
+---Eine Karte, die nach dem Abschnittswechsel stehen bleibt, liegt quer
+---ueber der naechsten Liste. Genau das ist passiert, und genau das
+---zaehlt diese Auskunft.
+---@return number
+function UI.VisibleCards()
+    local n = 0
+    for _, card in pairs(cardOf) do
+        if card.IsShown and card:IsShown() then n = n + 1 end
+    end
+    return n
 end
 
 ---Der Zeilenvorrat - nur fuer Tests und /mc probe.
