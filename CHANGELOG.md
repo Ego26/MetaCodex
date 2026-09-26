@@ -6,6 +6,49 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ### Added
 
+- **Priorities** as the first section under Gear: what is missing on this
+  character - consumables against the bags, enchants and gems against the
+  equipment - in one list, ordered by the measured share of the best
+  players who wear it. Deliberately not a damage estimate; the hint above
+  the list says what the number counts. The reminder before the pull takes
+  its order from the same ranking.
+
+## [1.1.0] - 2026-09-26
+
+### Added
+
+- **Tier set**, **Crafted** and **Embellishments** as sections of their
+  own, counted from the profiles already fetched: which set pieces are
+  worn and how many, which crafted pieces with the stat pair their wearers
+  chose, and which two embellishments are worn together.
+- Item level and stat pickers for crafted gear, both built from the levels
+  and choices actually measured - a crafted piece is not upgraded with a
+  keystone, so the dungeon reward table says nothing about it.
+- Stat rankings on every item, everywhere, including crafted pieces and
+  the comparison tooltip.
+
+### Changed
+
+- The gear list folds to one line per slot; a click opens the
+  alternatives. Ninety lines were a sausage, not a list.
+- The source picker is grouped into dungeons, raids and other, and a whole
+  group can be chosen at once.
+- One place decides text size and colour (`Style.role`), so titles no
+  longer differ between sections.
+
+### Fixed
+
+- Crafted items showed "random stat 1 / 2" instead of their stats: the
+  link is now built from the full measured bonus list, per item level.
+- A row with two embellishments shows both tooltips.
+- The player view closes when the activity or the spec changes.
+- Verified raid talent strings were overwritten by M+ ones, because eight
+  per-boss files all claimed the mode "raid".
+
+## [1.0.0] - 2026-09-24
+
+### Added
+
 - **Talents** for every activity: the most common build with a ready-made
   import string, up to six alternatives shown as *which talent instead of
   which*, the contested talents, PvP talents in their own group. Per

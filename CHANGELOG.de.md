@@ -6,6 +6,49 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ### Neu
 
+- **Prioritäten** als erster Abschnitt unter Ausrüstung: was diesem
+  Charakter fehlt - Verbrauchsgüter gegen die Beutel, Verzauberungen und
+  Steine gegen die angelegte Ausrüstung - in einer Liste, geordnet nach
+  dem gemessenen Anteil der Besten, die es tragen. Ausdrücklich keine
+  Schadensrechnung; über der Liste steht, was die Zahl zählt. Die
+  Erinnerung vor dem Start nimmt dieselbe Rangfolge.
+
+## [1.1.0] - 2026-09-26
+
+### Neu
+
+- **Tier-Set**, **Handwerk** und **Verzierungen** als eigene Abschnitte,
+  gezählt aus den Profilen, die ohnehin geholt werden: welche Set-Teile
+  getragen werden und wie viele, welche Handwerksstücke mit dem Wertepaar
+  ihrer Träger, und welche zwei Verzierungen zusammen getragen werden.
+- Auswahl von Gegenstandsstufe und Werten beim Handwerk, beides aus den
+  wirklich gemessenen Stufen und Wahlen - ein Handwerksstück wird nicht
+  mit einem Schlüsselstein aufgewertet, die Belohnungstabelle der Dungeons
+  sagt über es also nichts.
+- Wertungen der Zweitwerte an jedem Gegenstand, überall - auch bei
+  Handwerksstücken und im Vergleichs-Tooltip.
+
+### Geändert
+
+- Die Ausrüstungsliste zeigt je Platz eine Zeile; ein Klick öffnet die
+  Alternativen. Neunzig Zeilen waren eine Wurst, keine Liste.
+- Die Fundort-Auswahl ist nach Dungeons, Schlachtzügen und Sonstigem
+  gegliedert, und eine ganze Gruppe lässt sich auf einmal wählen.
+- Schriftgröße und Farbe entscheidet eine einzige Stelle (`Style.role`).
+
+### Behoben
+
+- Handwerksstücke zeigten "Zufallswert 1 / 2" statt ihrer Werte: der Link
+  wird jetzt aus der ganzen gemessenen Bonus-Liste gebaut, je Stufe.
+- Eine Zeile mit zwei Verzierungen zeigt beide Tooltips.
+- Die Spieleransicht schließt sich beim Wechsel von Aktivität oder Spec.
+- Geprüfte Raid-Talent-Strings wurden von M+-Strings überschrieben, weil
+  acht Bossdateien alle den Modus "raid" trugen.
+
+## [1.0.0] - 2026-09-24
+
+### Neu
+
 - **Talente** für jede Aktivität: der häufigste Build mit fertiger
   Import-String, bis zu sechs Alternativen als *welches Talent statt
   welchem*, die umstrittenen Talente, PvP-Talente in eigener Gruppe. Je
