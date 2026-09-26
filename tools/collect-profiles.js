@@ -209,17 +209,45 @@ function buildsFrom(players) {
   const stamp = Number(today.split('-').join(''));
   const modes = [];
 
+  // Die Datei EINES Bosses traegt denselben Modus wie der ganze Raid.
+  //
+  // Und genau daran ist die Nacht auf den 26.09. gescheitert: acht
+  // Bossdateien heissen alle "raid", keine von ihnen fuehrt eine
+  // Namensliste, und jede schreibt am Ende dieselbe prof-raid.json.
+  // Welche zuletzt schreibt, entscheidet die Reihenfolge, in der das
+  // Dateisystem das Verzeichnis aufzaehlt - die ist nicht sortiert und
+  // auf zwei Rechnern verschieden. Im Lauf stand dann dreissigmal
+  // "0 Speccs, 0 mit verifiziertem Build", und die geprueften Ketten
+  // der Raidspieler waren weg; das Addon lieh sie sich aus M+.
+  //
+  // Der ganze Raid hat die Spieler, der einzelne Boss hat sie nicht.
+  // Also nur der ganze.
+  const wholeOnly = (data) => !data.dungeon;
+
   // murlok: M+ und die fuenf PvP-Klammern. Spieler mit Rang.
   for (const file of fs.readdirSync(DIR)) {
     if (!file.startsWith('murlok-') || !file.endsWith('.json')) continue;
     const data = JSON.parse(fs.readFileSync(path.join(DIR, file), 'utf8'));
+    if (!wholeOnly(data)) continue;
     modes.push({ mode: data.mode || file.slice(7, -5), kind: 'murlok', specs: data.specs });
   }
   // Warcraft Logs: die Raidmodi. Spieler ohne Rang, mit Kampftalenten.
   for (const file of fs.readdirSync(DIR)) {
     if (!file.startsWith('wcl-raid') || !file.endsWith('.json')) continue;
     const data = JSON.parse(fs.readFileSync(path.join(DIR, file), 'utf8'));
+    if (!wholeOnly(data)) continue;
     modes.push({ mode: data.mode || file.slice(4, -5), kind: 'wcl', specs: data.specs });
+  }
+  // Zwei Dateien fuer denselben Modus darf es danach nicht mehr geben.
+  // Wenn doch, ist etwas anderes kaputt, und stilles Ueberschreiben
+  // waere die schlechteste Art, das zu erfahren.
+  const perMode = {};
+  for (const job of modes) {
+    perMode[job.mode] = (perMode[job.mode] || 0) + 1;
+    if (perMode[job.mode] > 1) {
+      console.error('Zwei Quellen fuer denselben Modus: ' + job.mode);
+      process.exit(1);
+    }
   }
 
   for (const job of modes) {
