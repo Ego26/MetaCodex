@@ -3736,10 +3736,16 @@ do
     -- reines ASCII bleibt.
     local koreanisch = "\237\149\156\234\184\128"
     check("Latein braucht keine eigene Schrift", S:ScriptOf("Nettspend") == nil)
-    check("Koreanisch schon", S:ScriptOf(koreanisch) == "cjk",
+    check("Koreanisch schon", S:ScriptOf(koreanisch) == "korean",
         tostring(S:ScriptOf(koreanisch)))
     check("und ein gemischter Text auch",
-        S:ScriptOf("Viness " .. koreanisch) == "cjk")
+        S:ScriptOf("Viness " .. koreanisch) == "korean")
+    -- Chinesisch ist eine EIGENE Frage: die koreanische Schrift zeichnet
+    -- Hangul, aber keine chinesischen Zeichen. In der Rangliste standen
+    -- die Namen von TW und CN deshalb weiter als Kaestchen da.
+    local chinesisch = "\230\136\145\231\154\132"
+    check("Chinesisch ist ein anderes Schriftsystem",
+        S:ScriptOf(chinesisch) == "chinese", tostring(S:ScriptOf(chinesisch)))
 
     local fs2 = S:Text(ns.UI.Frame(), "body", "textPrimary")
     S:SetText(fs2, koreanisch)
