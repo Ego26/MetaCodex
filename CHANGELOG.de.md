@@ -4,6 +4,14 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ## [Unveröffentlicht]
 
+## [1.1.3] - 2026-09-27
+
+### Behoben
+
+- v1.1.2 wurde mit dem Katalog der Nacht gepackt statt mit dem eigenen:
+  der Bau starb an einem fehlenden Verzeichnis, und der Schritt verschluckte
+  den Fehler.
+
 ## [1.1.2] - 2026-09-27
 
 ### Neu

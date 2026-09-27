@@ -4,6 +4,13 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ## [Unreleased]
 
+## [1.1.3] - 2026-09-27
+
+### Fixed
+
+- v1.1.2 was packed with the catalog of the night instead of its own:
+  the build died on a missing directory and the step swallowed the error.
+
 ## [1.1.2] - 2026-09-27
 
 ### Added

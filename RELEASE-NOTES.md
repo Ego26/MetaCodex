@@ -1,3 +1,19 @@
+## v1.1.3 — with the catalog it was built for
+
+v1.1.2 shipped minutes ago with the previous night's catalog instead of
+its own, so two of its three corrections had nothing to read: old content
+stayed under Dungeons and Raids, and a raid still listed only the bosses
+something in the list came from. Everything in the v1.1.2 notes below is
+in this build, and now it works.
+
+### Fixed
+
+- The release builds its own catalog. It died on a missing directory -
+  the one the collectors create - and the step shrugged the error off,
+  then found the night's catalog in place and called it a day. The
+  directory is created now, the step fails loudly, and it checks that the
+  table it needs is really in the file before anything is packed.
+
 ## v1.1.2 — the origin picker says what it means
 
 Three corrections to what the gear list offers you, all of them found by

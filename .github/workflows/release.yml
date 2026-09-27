@@ -69,13 +69,18 @@ jobs:
       # collecting them again would cost hours. Only the catalog, which
       # costs four minutes and no quota at all.
       #
-      # If wago.tools has a bad minute, the catalog of the night stays in
-      # place: it was copied in one step earlier and is only overwritten
-      # on success.
+      # And it fails loudly when it fails. v1.1.2 shipped with the
+      # catalog of the night because this step swallowed its error: the
+      # script died on a missing tools/data directory, "|| echo" turned
+      # that into a shrug, and the test below passed on the file that was
+      # already there. A release that quietly ships a mismatched table is
+      # exactly what this step exists to prevent - so if the catalog
+      # cannot be built, there is no release.
       - name: Rebuild the catalog from this tag
         run: |
-          node tools/build-catalog.js . || echo "Katalog nicht neu gebaut - der aus der Nacht bleibt."
+          node tools/build-catalog.js .
           test -s MetaCodex_Data/Catalog.lua
+          grep -q "instCurrent = {" MetaCodex_Data/Catalog.lua
 
       # Without this the package would be built without the data.
       #

@@ -691,6 +691,14 @@ function emitEnchants(groups) {
 
   // Fuer den Sammler: er liest die Bonus-IDs der Spieler und braucht
   // beide Karten. Fuer das Addon stehen sie weiter unten im Katalog.
+  // Das Verzeichnis anlegen, bevor hineingeschrieben wird.
+  //
+  // tools/data steht nicht im Git - es entsteht beim Sammeln. Wer den
+  // Katalog als ERSTES baut, in einem frischen Verzeichnis, hatte es
+  // also nicht: das Skript starb genau hier, lange bevor es Catalog.lua
+  // schrieb. Im Release ist das frisch ausgecheckt, und deshalb kam
+  // v1.1.2 mit dem Katalog der Nacht statt mit dem eigenen.
+  fs.mkdirSync(path.join(BASE, 'tools', 'data'), { recursive: true });
   fs.writeFileSync(path.join(BASE, 'tools', 'data', 'bonus-map.json'), JSON.stringify({
     stats: Object.fromEntries([...statBonus].map(([k, v]) => [k, v])),
     embellish: Object.fromEntries([...embellish]),
