@@ -284,6 +284,31 @@ function Catalog.InstanceKind(inst)
     return c and c.instKind and c.instKind[inst] or nil
 end
 
+---Gehoert diese Instanz zum laufenden Inhalt?
+---
+---Gemeint ist: steht sie im Journal unter der laufenden Erweiterung oder
+---im Pool der laufenden Schluesselsteinsaison. Beides zusammen, weil
+---drei der acht Saisondungeons aus aelteren Erweiterungen stammen.
+---
+---Gebraucht wird das im Fundort-Waehler. Die Feuerlande liefen vorige
+---Woche als Zeitwanderung, jemand traegt seitdem ein Stueck von dort -
+---gemessen ist das, aber unter "Schlachtzuege" sucht es niemand. Es
+---steht deshalb unter "Sonstiges", mit seinem Namen.
+---Drei Antworten, nicht zwei: true, false und "weiss nicht".
+---
+---Ohne die Tabelle - ein Katalog von gestern, gebaut bevor es sie gab -
+---darf die Frage nicht mit "nein" beantwortet werden. Dann landete
+---jeder Dungeon unter "Sonstiges", und aus einer Verbesserung waere
+---ueber Nacht ein Schaden geworden.
+---@param inst number|nil
+---@return boolean|nil
+function Catalog.InstanceCurrent(inst)
+    if not inst then return nil end
+    local c = data()
+    if not (c and c.instCurrent) then return nil end
+    return c.instCurrent[inst] and true or false
+end
+
 ---Die Bosse eines Schlachtzugs, in der Reihenfolge des Journals.
 ---
 ---ALLE, nicht nur die, von denen wir etwas gemessen haben. Ein

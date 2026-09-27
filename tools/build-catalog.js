@@ -178,7 +178,7 @@ function emitEnchants(groups) {
 
   const [items, gemProps, sieRows, itemEffects, itemLinks, spellEffects, itemClasses,
     chrSpecs, chrClasses, journalItems, journalEncounters, journalInstances, itemSets,
-    maps, craftQualities, craftingData, levelDeltas,
+    maps, journalTiers, tierXInstance, craftQualities, craftingData, levelDeltas,
     trackRows, statBonusRows, effectBonusRows, traitDefs, pvpTalents, spellNames,
     traitNodes, traitNodeXEntry, traitEntries, traitLoadouts, subTreesEN, subTreesDE]
     = await Promise.all([
@@ -208,6 +208,15 @@ function emitEnchants(groups) {
       // "Die Zeitgebundene Grotte" unter "Sonstiges", obwohl sie ein
       // Schlachtzug ist.
       db2('Map'),
+      // Und wozu die Journal-Abschnitte? Um "aktuell" nicht zu raten.
+      //
+      // Das Journal ordnet jede Instanz einem Abschnitt zu: einer je
+      // Erweiterung, dazu "Current Season" fuer den laufenden
+      // Schluesselstein-Pool. Was dort nicht steht, ist alter Inhalt -
+      // die Feuerlande zum Beispiel, die letzte Woche als Zeitwanderung
+      // liefen und deren Beute deshalb wirklich gemessen wurde.
+      db2('JournalTier'),
+      db2('JournalTierXInstance'),
       // Was Berufe herstellen. NICHT ueber den Gegenstand selbst:
       // ItemSparse fuehrt fuer ein Handwerksstueck weder eine
       // Qualitaetsstufe noch einen Beruf - beides kommt erst beim
@@ -713,6 +722,46 @@ function emitEnchants(groups) {
   // Welche Instanz ist was - ueber ihre Karte.
   const mapType = new Map();
   for (const row of maps) mapType.set(Number(row.ID), Number(row.InstanceType) || 0);
+  // Welche Instanzen zum laufenden Inhalt gehoeren.
+  //
+  // Zwei Abschnitte zaehlen: der der laufenden Erweiterung (seine
+  // Nummer ist die Erweiterung mal hundert - dieselbe, die oben aus
+  // ItemSparse kam) und "Current Season", der Pool der Schluesselsteine.
+  // Der zweite ist noetig, weil drei der acht Saisondungeons aus
+  // aelteren Erweiterungen stammen; ohne ihn faenden sie sich unter
+  // "Sonstiges" wieder.
+  // Der Abschnitt "Current Season" - erkennbar an einer Erweiterungs-
+  // nummer, die keine ist: 9000.
+  let seasonTier = 0;
+  for (const row of journalTiers) {
+    if ((Number(row.Expansion) || 0) >= 9000) seasonTier = Number(row.ID);
+  }
+
+  // Und in ihm: die Eintraege der LAUFENDEN Saison.
+  //
+  // Der Abschnitt fuehrt mehrere Saisons nebeneinander, jede mit ihrer
+  // eigenen Verfuegbarkeitsbedingung. Der Client prueft sie und zeigt
+  // nur die aktive; wir koennen sie nicht pruefen - aber die hoechste
+  // Nummer ist die zuletzt hinzugefuegte, und das ist die laufende.
+  // Nachgesehen am 27.09.: Bedingung 156363 fuehrt die acht
+  // Saisondungeons, den Giftigen Abgrund und die Gezeitengebundene
+  // Grotte; 149388 die Instanzen der Saison davor, darunter die
+  // Leerenspitze. Genau diese Trennung fehlte, als beide unter
+  // "Schlachtzuege" standen.
+  let newest = 0;
+  for (const row of tierXInstance) {
+    if (Number(row.JournalTierID) !== seasonTier) continue;
+    newest = Math.max(newest, Number(row.AvailabilityCondition) || 0);
+  }
+  const instCurrent = {};
+  for (const row of tierXInstance) {
+    if (Number(row.JournalTierID) !== seasonTier) continue;
+    if ((Number(row.AvailabilityCondition) || 0) !== newest) continue;
+    instCurrent[Number(row.JournalInstanceID)] = true;
+  }
+  console.log('Laufende Saison:', Object.keys(instCurrent).length,
+    'Instanzen (Abschnitt', seasonTier + ', Bedingung', newest + ')');
+
   const instKind = {};
   // Und die Bosse je Schlachtzug, in der Reihenfolge des Journals.
   //
@@ -735,7 +784,7 @@ function emitEnchants(groups) {
   // Liste ohne eine neue Antwort.
   for (const row of journalEncounters) {
     const inst = Number(row.JournalInstanceID) || 0;
-    if (instKind[inst] !== 'raid') continue;
+    if (instKind[inst] !== 'raid' || !instCurrent[inst]) continue;
     (bossesOf[inst] = bossesOf[inst] || []).push({
       id: Number(row.ID), order: Number(row.OrderIndex) || 0,
     });
@@ -973,6 +1022,14 @@ function emitEnchants(groups) {
   // Instanz gehoert in den Katalog, nicht in den Sammler: der Sammler
   // kennt nur die Instanzen, in denen er gemessen hat, und eine, in der
   // niemand gemessen hat, fiele damit in "Sonstiges".
+  // Was zum laufenden Inhalt gehoert.
+  out.push('  instCurrent = {');
+  for (const id of Object.keys(instCurrent).sort((a, b) => a - b)) {
+    out.push(`    [${id}] = true,`);
+  }
+  out.push('  },');
+  out.push('');
+
   // Die Bosse je Schlachtzug, in der Reihenfolge des Journals.
   out.push('  bosses = {');
   for (const [inst, list] of Object.entries(bossesOf).sort((a, b) => a[0] - b[0])) {

@@ -6,6 +6,19 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ### Added
 
+- The origin picker shows **every boss** of a raid, not only the ones
+  something in the current list came from. Picking one nobody wears
+  anything from says so in one line instead of showing an empty window.
+
+### Fixed
+
+- The chosen gear slot was deleted by the generic category check, which
+  kept its pick under the same key. Picking Trinkets showed the
+  trinkets once; the next click showed everything again.
+- Old content stays out of Dungeons and Raids: Firelands ran as
+  Timewalking last week and someone still wears a piece from it, so the
+  source is real - but it belongs under Other, not under Raids.
+
 ## [1.1.1] - 2026-09-26
 
 ### Fixed

@@ -545,6 +545,12 @@ local function originText(itemID, badge, mode)
         -- wurde.
         local kind = inst and (ns.Catalog.InstanceKind(inst)
             or ns.Recommend.InstanceKind(inst)) or nil
+        -- Aber nur, solange es laufender Inhalt ist. Eine Zeitwanderung
+        -- in den Feuerlanden ist ein gemessener Fundort und gehoert in
+        -- die Liste - unter "Schlachtzuege" sucht sie aber niemand.
+        if kind and ns.Catalog.InstanceCurrent(inst) == false then
+            kind = nil
+        end
         -- Und bei einem Schlachtzug auch der Boss: acht Bosse sind acht
         -- Abende, und die Frage "was faellt bei diesem" ist dieselbe
         -- Frage wie "was faellt in diesem Dungeon".

@@ -1765,6 +1765,21 @@ do
             if kind then kinds[kind] = (kinds[kind] or 0) + 1 end
         end
     end
+    -- Und nur laufender Inhalt steht unter Dungeons oder Schlachtzuegen.
+    --
+    -- Die Feuerlande liefen vorige Woche als Zeitwanderung, jemand
+    -- traegt seitdem ein Stueck von dort. Gemessen ist das - unter
+    -- "Schlachtzuege" sucht es aber niemand.
+    local alt = {}
+    for _, src in ipairs(sources) do
+        local inst = tostring(src.key):match("^inst:(%d+)$")
+        if inst and (src.group == "raid" or src.group == "dungeon")
+            and not ns.Catalog.InstanceCurrent(tonumber(inst)) then
+            alt[#alt + 1] = src.label
+        end
+    end
+    check("unter Dungeons und Schlachtzuegen steht nur laufender Inhalt",
+        #alt == 0, table.concat(alt, ", "))
     check("der Katalog kennt die Art der Instanz",
         (kinds.raid or 0) + (kinds.dungeon or 0) > 0,
         tostring(kinds.raid) .. " Schlachtzuege, " .. tostring(kinds.dungeon) .. " Dungeons")

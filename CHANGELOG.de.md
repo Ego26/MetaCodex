@@ -6,6 +6,20 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ### Neu
 
+- Der Fundort-Wähler zeigt **alle Bosse** eines Schlachtzugs, nicht nur
+  die, von denen in der gezeigten Liste etwas stammt. Wählt man einen, von
+  dem niemand etwas trägt, steht dort ein Satz statt eines leeren Fensters.
+
+### Behoben
+
+- Der gewählte Ausrüstungsplatz wurde von der allgemeinen Kategorie-
+  Prüfung gelöscht, die ihre Wahl unter demselben Schlüssel ablegt. Nach
+  Schmuck sah man einmal den Schmuck, beim nächsten Klick wieder alles.
+- Alter Inhalt bleibt aus Dungeons und Schlachtzügen heraus: die
+  Feuerlande liefen vorige Woche als Zeitwanderung, jemand trägt seitdem
+  ein Stück von dort - der Fundort ist echt, gehört aber unter
+  Sonstiges.
+
 ## [1.1.1] - 2026-09-26
 
 ### Behoben
