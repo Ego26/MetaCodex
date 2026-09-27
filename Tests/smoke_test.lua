@@ -3725,5 +3725,34 @@ do
     ns.Profile.SetGearSlot(nil)
 end
 
+-- Ein Name aus Korea braucht eine Schrift, die Korea kann.
+--
+-- In der Rangliste stehen koreanische Namen neben europaeischen. Die
+-- Standardschrift des Clients zeichnet die einen als leere Kaestchen -
+-- die Zeichen sind richtig angekommen, die Schrift kann sie nur nicht.
+do
+    local S = ns.Style
+    -- "Hangul" auf Koreanisch, als Bytes geschrieben, damit diese Datei
+    -- reines ASCII bleibt.
+    local koreanisch = "\237\149\156\234\184\128"
+    check("Latein braucht keine eigene Schrift", S:ScriptOf("Nettspend") == nil)
+    check("Koreanisch schon", S:ScriptOf(koreanisch) == "cjk",
+        tostring(S:ScriptOf(koreanisch)))
+    check("und ein gemischter Text auch",
+        S:ScriptOf("Viness " .. koreanisch) == "cjk")
+
+    local fs2 = S:Text(ns.UI.Frame(), "body", "textPrimary")
+    S:SetText(fs2, koreanisch)
+    local pfad = fs2:GetFont()
+    check("der Text bekommt die Schrift, die ihn zeichnen kann",
+        tostring(pfad):find("2002", 1, true) ~= nil, tostring(pfad))
+    -- Und die Zeile wird wiederverwendet: die naechste ist lateinisch.
+    S:SetText(fs2, "Felphis")
+    local zurueck = fs2:GetFont()
+    check("und gibt sie wieder her",
+        tostring(zurueck):find("2002", 1, true) == nil, tostring(zurueck))
+    check("der Text steht trotzdem da", fs2:GetText() == "Felphis")
+end
+
 say(fails == 0 and "\nalles gruen" or ("\n" .. fails .. " Fehler"))
 os.exit(fails == 0 and 0 or 1)

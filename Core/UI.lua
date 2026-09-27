@@ -2443,11 +2443,14 @@ local function setItemRow(row, data)
     if data.kind == "player" then
         row.link = nil
         row.icon:SetTexture("Interface\\Icons\\Achievement_PVP_A_A")
-        row.title:SetText(data.name or "?")
+        -- Ueber S:SetText, nicht direkt: in dieser Liste stehen Namen
+        -- aus Korea neben Namen aus Europa, und die Standardschrift
+        -- zeichnet die einen als leere Kaestchen.
+        S:SetText(row.title, data.name or "?")
         row.detail:ClearAllPoints()
         row.detail:SetPoint("TOPLEFT", S.space.sm + 38, -S.space.sm - 16)
         -- Der Realm traegt die Region schon: "Trollbane (EU)".
-        row.detail:SetText((data.realm or "") .. "  \194\183  " .. L["PLAYER_COPY"])
+        S:SetText(row.detail, (data.realm or "") .. "  \194\183  " .. L["PLAYER_COPY"])
         -- Der Platz steht rechts, wo sonst der Anteil steht: beides
         -- ist die Zahl, nach der die Zeile sortiert ist.
         -- Battle.net traegt die Wertung: dann steht sie neben dem Platz.
@@ -3608,7 +3611,9 @@ function UI.Refresh()
         fromSource = frame.__fromSource
     elseif viewingPlayer then
         currentRows = playerViewRows(viewingPlayer)
-        sectionTitle:SetText(viewingPlayer.name)
+        -- Auch die Ueberschrift: der Name, dessen Profil offen ist,
+        -- kann aus jedem Land kommen.
+        S:SetText(sectionTitle, viewingPlayer.name)
         hintText:SetText(L["PLAYER_VIEW_HINT"])
     elseif section.key == "gear" then
         currentRows, fromSource = withFallback(function(source)

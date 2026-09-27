@@ -214,6 +214,65 @@ function Style:SetFontScale(scale)
     end
 end
 
+-- Schriften fuer andere Schriftsysteme.
+--
+-- Die Standardschrift des Clients kann kein Koreanisch: ein Name aus
+-- KR steht als Reihe leerer Kaestchen da. Die Zeichen sind richtig
+-- angekommen - die Schrift kann sie nur nicht zeichnen. Der Client
+-- bringt fuer jede Sprache eine eigene mit, und zwar in jeder Fassung:
+-- ein deutscher Client hat die koreanische Schrift an Bord, er benutzt
+-- sie nur nicht.
+local SCRIPT_FONTS = {
+    -- 2002.TTF deckt Hangul UND die chinesisch-japanischen Zeichen ab;
+    -- die chinesische Schrift deckt Hangul nicht ab. Eine reicht also,
+    -- und im Zweifel ist es diese.
+    cjk = "Fonts\\2002.TTF",
+}
+
+---Welches Schriftsystem ein Text braucht - oder nil fuer das eigene.
+---
+---Gelesen an den Bytes, nicht an der Sprache des Spielers: in derselben
+---Liste stehen "Nettspend" und ein koreanischer Name nebeneinander, und
+---jede Zeile entscheidet fuer sich. In UTF-8 beginnt jedes Zeichen aus
+---dem chinesisch-japanisch-koreanischen Bereich mit einem Byte zwischen
+---0xE3 und 0xED; Latein und Kyrillisch liegen darunter und bleiben bei
+---der Standardschrift.
+---@param text string|nil
+---@return string|nil
+function Style:ScriptOf(text)
+    if type(text) ~= "string" then return nil end
+    return text:find("[\227-\237]") and "cjk" or nil
+end
+
+---Setzt einen Text und, wenn noetig, eine Schrift, die ihn zeichnen kann.
+---
+---Immer beides: eine Zeile wird wiederverwendet, und die koreanische
+---Schrift darf am naechsten lateinischen Namen nicht haengenbleiben.
+---@param fontString table
+---@param text string|nil
+function Style:SetText(fontString, text)
+    text = text or ""
+    local want = SCRIPT_FONTS[Style:ScriptOf(text) or ""]
+    if want ~= fontString.__scriptFont then
+        local points = fontString.__fontPoints or Style.font.body
+        local r, g, b = Style:Color(fontString.__token or "textPrimary")
+        local outline = (0.2126 * r + 0.7152 * g + 0.0722 * b) > 0.5
+        local size = Style:Pixel(points * (Style.fontScale or 1))
+        local flags = outline and "OUTLINE" or ""
+        local ok = fontString:SetFont(want or STANDARD_TEXT_FONT
+            or "Fonts\\FRIZQT__.TTF", size, flags)
+        -- Kennt der Client die Schrift nicht, bleibt es bei den
+        -- Kaestchen - aber die Zeile behaelt ihre Groesse und Farbe.
+        if ok == false and want then
+            fontString:SetFont(STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF",
+                size, flags)
+            want = nil
+        end
+        fontString.__scriptFont = want
+    end
+    fontString:SetText(text)
+end
+
 function Style:ApplyFont(fontString, size, token)
     local points = type(size) == "string" and Style.font[size] or size or Style.font.body
     local r, g, b = Style:Color(token or "textPrimary")
@@ -227,6 +286,9 @@ function Style:ApplyFont(fontString, size, token)
     fontString.__fontPoints = points
     fontString.__size = points
     fontString.__token = token or "textPrimary"
+    -- Die Groesse hat sich geaendert, also gilt auch die Schriftwahl
+    -- nicht mehr: der naechste Text setzt sie neu.
+    fontString.__scriptFont = nil
     texts[fontString] = true
 
     fontString:SetFont(path, Style:Pixel(points * (Style.fontScale or 1)),
