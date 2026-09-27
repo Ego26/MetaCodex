@@ -6,13 +6,6 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ### Added
 
-- **Priorities** as the first section under Gear: what is missing on this
-  character - consumables against the bags, enchants and gems against the
-  equipment - in one list, ordered by the measured share of the best
-  players who wear it. Deliberately not a damage estimate; the hint above
-  the list says what the number counts. The reminder before the pull takes
-  its order from the same ranking.
-
 ## [1.1.1] - 2026-09-26
 
 ### Fixed

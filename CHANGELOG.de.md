@@ -6,13 +6,6 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ### Neu
 
-- **Prioritäten** als erster Abschnitt unter Ausrüstung: was diesem
-  Charakter fehlt - Verbrauchsgüter gegen die Beutel, Verzauberungen und
-  Steine gegen die angelegte Ausrüstung - in einer Liste, geordnet nach
-  dem gemessenen Anteil der Besten, die es tragen. Ausdrücklich keine
-  Schadensrechnung; über der Liste steht, was die Zahl zählt. Die
-  Erinnerung vor dem Start nimmt dieselbe Rangfolge.
-
 ## [1.1.1] - 2026-09-26
 
 ### Behoben

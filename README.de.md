@@ -35,7 +35,6 @@ fällt weg.
 | **Zielwerte** | Gemessene Mediane der Besten, deine Werte als zweiter Balken |
 | **Talente** | Der häufigste Build mit Import-String, Alternativen als *X statt Y*, umstrittene Talente — je Dungeon in M+, je Boss im Raid |
 | **Top-Spieler** | Wer oben steht, klickbar: Talentbuild mit Import-String und komplette Ausrüstung |
-| **Prioritäten** | Was deinem Charakter fehlt, geordnet nach dem Anteil der Besten, die es tragen |
 | **Ausrüstung** | Fünf je Platz mit Fundort; Tooltips auf der Schlüsselstufe, die du wählst |
 | **Tier-Set** | Welche Set-Teile die Besten tragen, und wie viele davon |
 | **Handwerk** | Die Handwerksstücke, die wirklich getragen werden, mit ihrem Wertepaar und den gemessenen Gegenstandsstufen |
