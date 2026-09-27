@@ -130,7 +130,6 @@ local SECTIONS = {
     { key = "players",     group = "GROUP_KNOW" },
 
     { key = "priority",    group = "GROUP_GEAR" },
-    { key = "priority",    group = "GROUP_GEAR" },
     { key = "gear",        group = "GROUP_GEAR" },
     { key = "tier",        group = "GROUP_GEAR" },
     { key = "crafted",     group = "GROUP_GEAR" },
