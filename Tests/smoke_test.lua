@@ -3762,5 +3762,44 @@ do
         wuchs .. " von " .. geprueft)
 end
 
+-- Der Platz-Filter darf sich nicht selbst wegraeumen.
+--
+-- Zwei Waehler lagen auf demselben Schluessel: der Platz speicherte unter
+-- "gear", und die allgemeine Kategorie-Pruefung sah genau dort nach,
+-- fand in einem Abschnitt ohne Kategorien nichts und loeschte die Wahl.
+-- Sichtbar wurde das erst beim naechsten Auffrischen: der Knopf sagte
+-- wieder "Alle Plaetze", und die gefaltete Zeile erschien, obwohl ein
+-- Platz gewaehlt war.
+do
+    ns.Profile.SetMode("mplus")
+    ns.Profile.SetCategory("gearSource", nil)
+    ns.Profile.SetGearSlot(nil)
+    local alle = rowsInSection("gear")
+    local frame = _G.MetaCodexFrame
+    ns.Profile.SetGearSlot("Trinkets")
+    local erst = rowsInSection("gear")
+    check("ein Platz laesst weniger uebrig", erst > 0 and erst < alle,
+        erst .. " von " .. alle)
+    check("und der Knopf nennt ihn",
+        frame.slotButton.label:GetText() == ns.L["GEARSLOT_Trinkets"],
+        tostring(frame.slotButton.label:GetText()))
+    -- Und jetzt noch einmal auffrischen, ohne irgendetwas zu aendern.
+    local nochmal = rowsInSection("gear")
+    check("der Platz ueberlebt das naechste Auffrischen",
+        ns.Profile.GearSlot() == "Trinkets",
+        tostring(ns.Profile.GearSlot()))
+    check("und die Liste bleibt gefiltert", nochmal == erst,
+        erst .. " -> " .. nochmal)
+    -- Mit gewaehltem Platz wird nicht gefaltet: wer "Schmuck" sagt, hat
+    -- schon gesagt, dass er den Schmuck sehen will.
+    local gefaltet = 0
+    for _, row in ipairs(wow.rows()) do
+        local t = row:IsShown() and row.title and row.title:GetText() or nil
+        if t and row.onClick and t:find("|cff", 1, true) then gefaltet = gefaltet + 1 end
+    end
+    check("und nichts ist zusammengeklappt", gefaltet == 0, gefaltet .. " Zeilen")
+    ns.Profile.SetGearSlot(nil)
+end
+
 say(fails == 0 and "\nalles gruen" or ("\n" .. fails .. " Fehler"))
 os.exit(fails == 0 and 0 or 1)

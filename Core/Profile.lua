@@ -677,13 +677,21 @@ end
 ---fuenfundachtzig Zeilen, und wer wissen will, welcher Schmuck oben
 ---steht, scrollt daran vorbei.
 ---@return string|nil
+-- Ein EIGENER Schluessel, nicht der des Abschnitts.
+--
+-- Der Platz lag unter "gear" - und damit dort, wo die allgemeine
+-- Kategoriewahl jedes Abschnitts ihre Wahl ablegt. Die Ausruestung hat
+-- keine Kategorien (sie hat ihren eigenen Platzwaehler), die Pruefung
+-- fand also nichts, was zur gespeicherten Wahl passte, und raeumte sie
+-- weg. Ergebnis: man waehlte "Schmuck", sah einmal den Schmuck - und
+-- beim naechsten Klick war alles wieder da.
 function Profile.GearSlot()
-    return Profile.Category("gear")
+    return Profile.Category("gearSlot")
 end
 
 ---@param slot string|nil
 function Profile.SetGearSlot(slot)
-    Profile.SetCategory("gear", slot)
+    Profile.SetCategory("gearSlot", slot)
 end
 
 ---Welchen Schluesselstein man selbst laeuft.

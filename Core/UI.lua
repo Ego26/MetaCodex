@@ -3750,12 +3750,17 @@ function UI.Refresh()
     -- Die Kategorien kommen aus den Zeilen selbst, also erst hier. Ein
     -- Waehler, der Plaetze anbietet, die es in dieser Spec nicht gibt,
     -- fuehrt in leere Listen.
-    local categories = (section.key ~= "gear" and section.key ~= "remind")
-        and categoriesIn(section, currentRows) or {}
+    -- Zwei Abschnitte haben keine Kategorien: die Ausruestung hat ihren
+    -- eigenen Platzwaehler, die Erinnerung ihre festen Gruppen. Sie
+    -- laufen deshalb GAR NICHT durch diesen Block - auch nicht durch
+    -- seine Pruefung. Sie hat hier einmal eine Wahl geloescht, die einem
+    -- anderen Waehler gehoerte.
+    local hasCategories = section.key ~= "gear" and section.key ~= "remind"
+    local categories = hasCategories and categoriesIn(section, currentRows) or {}
     frame.__categories = categories
     frame.categoryButton:SetShown(#categories > 1)
 
-    local picked = ns.Profile.Category(section.key)
+    local picked = hasCategories and ns.Profile.Category(section.key) or nil
     local validCat = picked == nil
     for _, cat in ipairs(categories) do
         if cat.key == picked then
