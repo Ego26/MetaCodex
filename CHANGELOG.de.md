@@ -4,6 +4,8 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ## [Unveröffentlicht]
 
+## [1.1.2] - 2026-09-27
+
 ### Neu
 
 - Der Fundort-Wähler zeigt **alle Bosse** eines Schlachtzugs, nicht nur

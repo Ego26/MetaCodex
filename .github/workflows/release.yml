@@ -51,6 +51,32 @@ jobs:
             cp -r "/tmp/nightly/$addon/." "$GITHUB_WORKSPACE/$addon/"
           done
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # The catalog is rebuilt here, from the code of this very tag.
+      #
+      # It is not a measurement. It is read straight out of the game
+      # data, and what it must contain is decided by the addon code -
+      # which changed three times on 27 September alone: the kind of an
+      # instance, the boss list of a raid, which content is current.
+      # Each time the code shipped with a catalog that did not know
+      # about it yet, and each time the fix was a manual data run before
+      # the tag. Code and the table it reads belong to the same version.
+      #
+      # The measurements are NOT rebuilt - they come from the night, and
+      # collecting them again would cost hours. Only the catalog, which
+      # costs four minutes and no quota at all.
+      #
+      # If wago.tools has a bad minute, the catalog of the night stays in
+      # place: it was copied in one step earlier and is only overwritten
+      # on success.
+      - name: Rebuild the catalog from this tag
+        run: |
+          node tools/build-catalog.js . || echo "Katalog nicht neu gebaut - der aus der Nacht bleibt."
+          test -s MetaCodex_Data/Catalog.lua
+
       # Without this the package would be built without the data.
       #
       # The packager asks git which files are untracked and ignores exactly

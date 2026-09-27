@@ -1,3 +1,29 @@
+## v1.1.2 — the origin picker says what it means
+
+Three corrections to what the gear list offers you, all of them found by
+looking at the game data rather than guessing.
+
+### Fixed
+
+- **The chosen gear slot vanished.** Pick "Trinkets", see the trinkets,
+  click anything - and everything was back. Two pickers kept their choice
+  under the same key, and the check that clears a stale category took the
+  slot with it. That one line also explains why "+4 more" appeared
+  although a slot was chosen: the folding step read the value that had
+  just been cleared.
+- **Old content sat under Dungeons and Raids.** Firelands ran as
+  Timewalking last week, so a piece from it really is worn - the source is
+  measured and stays in the list, but under "Other", where old content
+  belongs. Which content is current comes from the journal's current
+  season: eight dungeons and two raids, exactly as the game shows them.
+
+### New
+
+- **Every boss of a raid** is offered, not only the ones something in the
+  list came from. A raid that shows six bosses one day and eight the next
+  is not a choice, it is a riddle. Picking a boss nobody wears anything
+  from says so in one line instead of showing an empty window.
+
 ## v1.1.1 — raids belong under Raids, and they open into their bosses
 
 A small release with one question answered properly.

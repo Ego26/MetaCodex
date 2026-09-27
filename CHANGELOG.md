@@ -4,6 +4,8 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-09-27
+
 ### Added
 
 - The origin picker shows **every boss** of a raid, not only the ones
