@@ -1988,6 +1988,12 @@ local function statRows(specID, mode, source)
             kind = "stat", statKey = key, rank = rank,
             pct = value and value.pct or nil,
             rating = target,
+            -- Wie weit die Gemessenen auseinanderliegen: das mittlere
+            -- Viertel unter und ueber der Mitte. Ohne diese Spanne ist
+            -- eine Zielzahl eine Behauptung ueber alle.
+            low = value and value.low or nil,
+            high = value and value.high or nil,
+            players = stats.players,
             mine = mine,
             -- Der Massstab ist fuer alle Zeilen derselbe, sonst
             -- vergleichen die Balken nichts miteinander.
@@ -2432,7 +2438,12 @@ local function setItemRow(row, data)
             row.own:Show()
         end
 
-        row.detail:SetText(L["STAT_SHARE"]:format(data.pct or 0))
+        local satz = L["STAT_SHARE"]:format(data.pct or 0)
+        -- Die Spanne der Gemessenen, wenn wir sie haben.
+        if data.low and data.high then
+            satz = satz .. "  \194\183  " .. L["STAT_RANGE"]:format(data.low, data.high)
+        end
+        row.detail:SetText(satz)
 
         -- Rechts steht, was zaehlt: was fehlt. Dort stand der Rang, und
         -- der ist die kleinere Auskunft - die Rangfolge liest man an der
@@ -3690,7 +3701,16 @@ function UI.Refresh()
         currentRows, fromSource = withFallback(function(source)
             return statRows(specID, mode, source)
         end)
-        hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted) or "")
+        -- Was die Zahl IST, gehoert ueber die Zahl.
+        --
+        -- Hier stand nichts, und ohne Erklaerung liest sich eine
+        -- Zielzahl als Vorschrift. Sie ist die Mitte der Gemessenen je
+        -- Wert - nicht der Build eines bestimmten Spielers, und die vier
+        -- zusammen traegt so vermutlich niemand. Wer das weiss, weiss
+        -- auch, wie er sie zu lesen hat.
+        local n = currentRows[1] and currentRows[1].players
+        hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted)
+            or (n and L["STAT_HINT_N"]:format(n) or L["STAT_HINT"]))
     elseif section.key == "consumables" then
         currentRows, fromSource = withFallback(function(source)
             return consumableRows(specID, mode, source)

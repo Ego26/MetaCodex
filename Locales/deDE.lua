@@ -440,6 +440,9 @@ ns.RegisterLocale("deDE", {
 
 
 ns.RegisterLocale("deDE", {
+    ["STAT_RANGE"] = "die mittlere Hälfte liegt bei %d bis %d",
+    ["STAT_HINT"]  = "Die Mitte der gemessenen Spieler, je Wert einzeln. Kein Build eines bestimmten Spielers: die vier Zahlen zusammen trägt so vermutlich niemand. Die Spanne dahinter sagt, wie einig sich die Gemessenen sind.",
+    ["STAT_HINT_N"] = "Die Mitte aus %d gemessenen Spielern, je Wert einzeln. Kein Build eines bestimmten Spielers: die vier Zahlen zusammen trägt so vermutlich niemand. Die Spanne dahinter sagt, wie einig sich die Gemessenen sind.",
     ["STAT_SHARE"] = "%d%% des Gesamtwerts",
     ["STAT_YOURS"] = "du hast %d von %d",
     ["STAT_GAP"] = "−%d",

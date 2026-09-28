@@ -466,6 +466,9 @@ ns.RegisterLocale("enUS", {
     -- What is missing belongs on the right, where the eye lands.
     -- The rank sat there and was the smaller answer: the order already
     -- shows it.
+    ["STAT_RANGE"] = "the middle half sits between %d and %d",
+    ["STAT_HINT"]  = "The middle of the measured players, one stat at a time. Not any one player's build: the four numbers together are probably worn by nobody. The range behind each says how much the measured players agree.",
+    ["STAT_HINT_N"] = "The middle of %d measured players, one stat at a time. Not any one player's build: the four numbers together are probably worn by nobody. The range behind each says how much the measured players agree.",
     ["STAT_SHARE"] = "%d%% of the budget",
     ["STAT_YOURS"] = "you have %d of %d",
     ["STAT_GAP"] = "−%d",

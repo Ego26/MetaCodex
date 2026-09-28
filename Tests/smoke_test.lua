@@ -3992,5 +3992,55 @@ do
     check("ohne Empfehlung zaehlen die leeren", fehlt4 == 1, tostring(fehlt4))
 end
 
+-- Die Zielwerte sagen, was sie sind - und wie einig die Gemessenen sind.
+--
+-- "Die hat von den Top-Spielern keiner" stimmt, und deshalb steht es
+-- jetzt dabei: vier Mediane nebeneinander sind kein Build eines
+-- Spielers. Jede Zahl fuer sich ist die Mitte der Gemessenen, und die
+-- Spanne dahinter sagt, wie weit sie auseinanderliegen.
+do
+    ns.Profile.SetMode("mplus")
+    rowsInSection("stats")
+    local hinweis = ns.UI.Frame().hintText:GetText() or ""
+    check("ueber den Zielwerten steht, was sie sind", hinweis ~= "", hinweis)
+    check("und dass es kein Build eines Spielers ist",
+        hinweis:find(ns.L["STAT_HINT"]:sub(1, 20), 1, true) ~= nil
+            or hinweis:find("%d") ~= nil, hinweis)
+
+    -- Die Spanne steht an der Zeile, wenn sie gemessen wurde.
+    local echt = ns.Recommend.Stats
+    ns.Recommend.Stats = function()
+        return {
+            players = 40,
+            priority = { "crit", "haste" },
+            values = {
+                crit = { pct = 30, rating = 1000, low = 900, high = 1100 },
+                haste = { pct = 25, rating = 800 },
+            },
+        }, "warcraftlogs"
+    end
+    rowsInSection("stats")
+    local mitSpanne, ohneSpanne = 0, 0
+    for _, row in ipairs(wow.rows()) do
+        local text = row:IsShown() and row.detail and row.detail:GetText() or nil
+        if text and text ~= "" then
+            if text:find("900", 1, true) and text:find("1100", 1, true) then
+                mitSpanne = mitSpanne + 1
+            else
+                ohneSpanne = ohneSpanne + 1
+            end
+        end
+    end
+    check("die gemessene Spanne steht an der Zeile", mitSpanne == 1,
+        mitSpanne .. " Zeilen")
+    check("und ohne Messung steht dort keine", ohneSpanne >= 1,
+        ohneSpanne .. " Zeilen")
+    local mitZahl = ns.UI.Frame().hintText:GetText() or ""
+    check("der Hinweis nennt die Zahl der Gemessenen",
+        mitZahl:find("40", 1, true) ~= nil, mitZahl)
+    ns.Recommend.Stats = echt
+    rowsInSection("stats")
+end
+
 say(fails == 0 and "\nalles gruen" or ("\n" .. fails .. " Fehler"))
 os.exit(fails == 0 and 0 or 1)

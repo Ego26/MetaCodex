@@ -515,7 +515,11 @@ for (const [mode, bySource] of Object.entries(byMode)) {
           ? `players = ${entry.stats.players}, ` : '';
         out.push(`            stats = { ${players}priority = { ${priority} }, values = {`);
         for (const [key, value] of Object.entries(entry.stats.values || {})) {
-          out.push(`              ${key} = { pct = ${value.pct}, rating = ${value.rating} },`);
+          // Die Spanne nur, wenn sie gemessen wurde: aelterer Bestand
+          // hat sie nicht, und eine erfundene waere schlimmer als keine.
+          const spanne = (value.low && value.high)
+            ? `, low = ${value.low}, high = ${value.high}` : '';
+          out.push(`              ${key} = { pct = ${value.pct}, rating = ${value.rating}${spanne} },`);
         }
         out.push('            } },');
       }

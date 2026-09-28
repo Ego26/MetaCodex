@@ -1349,14 +1349,30 @@ Haeufigste nicht zugeordnete Auren (${missedAuras.size} verschiedene):`);
       // Haelfte auf Tempo und die Haelfte auf Meisterschaft spielt,
       // haette im Durchschnitt von beidem die Haelfte - einen Wert, den
       // niemand traegt. Der Median nennt wenigstens einen echten.
+      //
+      // UND DIE SPANNE DAZU. Vier Mediane nebeneinander ergeben eine
+      // Kombination, die so vermutlich kein einzelner Spieler traegt -
+      // dieselbe Falle wie beim Durchschnitt, nur eine Stufe spaeter.
+      // Gefragt wird im Spiel aber nicht "welchen Build hat Spieler X",
+      // sondern "wo liege ich", und darauf antwortet die Mitte je Wert.
+      //
+      // Damit man weiss, wie fest diese Antwort ist, steht die Spanne
+      // dabei: das mittlere Viertel unter und ueber dem Median. Liegen
+      // sie eng beieinander, sind sich die Gemessenen einig; liegen sie
+      // weit auseinander, ist der Median eine Mitte zwischen zwei
+      // Schulen, und das soll man sehen.
       if (entry.ratings && entry.ratings.length >= 5) {
-        const middle = (key) => {
-          const values = entry.ratings.map((r) => r[key]).sort((a, b) => a - b);
-          return values[Math.floor(values.length / 2)];
-        };
+        const sorted = (key) => entry.ratings.map((r) => r[key]).sort((a, b) => a - b);
+        const at = (values, anteil) =>
+          values[Math.min(values.length - 1, Math.floor(values.length * anteil))];
         const values = {};
         for (const key of ['crit', 'haste', 'mastery', 'vers']) {
-          values[key] = { rating: middle(key) };
+          const list = sorted(key);
+          values[key] = {
+            rating: at(list, 0.5),
+            low: at(list, 0.25),
+            high: at(list, 0.75),
+          };
         }
         const total = Object.values(values).reduce((a, b) => a + b.rating, 0) || 1;
         for (const key of Object.keys(values)) {
