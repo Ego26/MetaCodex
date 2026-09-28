@@ -230,7 +230,14 @@ function Compat.ConsumableKind(itemID)
     if not itemID then return nil end
     local get = C_Item and C_Item.GetItemInfoInstant or GetItemInfoInstant
     if type(get) ~= "function" then return nil end
-    local ok, _, _, _, _, classID, subclassID = pcall(get, itemID)
+    -- GetItemInfoInstant gibt SIEBEN Werte zurueck, und die Klasse
+    -- steht an sechster Stelle:
+    --
+    --   itemID, itemType, itemSubType, itemEquipLoc, icon, classID, subClassID
+    --
+    -- Ich hatte eine Stelle zu wenig gezaehlt und las das Symbol als
+    -- Klasse. Im Spiel kam dabei nie ein Verbrauchsgut heraus.
+    local ok, _, _, _, _, _, classID, subclassID = pcall(get, itemID)
     if not ok then return nil end
     -- Klasse 0 ist "Verbrauchbar". Alles andere ist kein Verbrauchsgut,
     -- egal was in der Unterklasse steht.

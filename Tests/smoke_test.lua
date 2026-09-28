@@ -4087,12 +4087,18 @@ do
     }
     local echtesInstant = C_Item.GetItemInfoInstant
     C_Item.GetItemInfoInstant = function(id)
+        -- SO antwortet der Client, mit allen sieben Werten:
+        --   itemID, itemType, itemSubType, itemEquipLoc, icon, classID, subClassID
+        -- Die Attrappe MUSS dieselbe Form haben. Sie hatte einen Wert
+        -- zu wenig - und bestaetigte damit genau den Zaehlfehler im
+        -- Addon, statt ihn zu finden.
+        --
         -- Klasse 0 ist "Verbrauchbar", Unterklasse 8 die Sammelklasse
         -- fuer Runen, Oele und Schleifsteine.
-        if id == alteRune then return id, "", "", "", 0, 8 end
+        if id == alteRune then return id, "Verbrauchbar", "Sonstiges", "", 1, 0, 8 end
         -- Und ein Ruestungsteil, damit klar ist, dass nicht alles
         -- aus dem Beutel in der Liste landet.
-        if id == 200001 then return id, "", "", "INVTYPE_HEAD", 4, 1 end
+        if id == 200001 then return id, "Ruestung", "Stoff", "INVTYPE_HEAD", 1, 4, 1 end
         return echtesInstant(id)
     end
 
