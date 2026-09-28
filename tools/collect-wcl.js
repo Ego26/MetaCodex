@@ -138,13 +138,23 @@ const FOLIO = [
   { row: 4, spell: 1287771, table: 'Buffs' },       // Masterful Cunning
   { row: 4, spell: 1287772, table: 'Buffs' },       // Critical Power
   { row: 4, spell: 1287774, table: 'Buffs' },       // Burning Haste
-  // Echos, alle drei Wirkungen. Eine seltene Rune braucht jede Spur,
-  // die sie hinterlaesst - mit nur einer der drei stand sie auf Null.
-  // Sie zaehlen auf DIESELBE Rune: gezaehlt wird der Spieler, nicht
-  // das Ereignis, darum kann hier nichts doppelt werden.
+  // Echos, alle drei Wirkungen - und jede in IHRER Tabelle.
+  //
+  // Erst standen hier alle drei unter den Auren, weil die erste dort
+  // stand. Nachgemessen ueber 40 Berichte:
+  //
+  //     1289063  Buffs        10 Eintraege, alle Spieler
+  //     1303048  DamageDone    2
+  //     1303071  Healing       2
+  //
+  // Zwei von dreien haetten also nie etwas gefunden - derselbe Fehler
+  // wie bei Unleashed Fire, nur eine Ebene tiefer.
+  //
+  // Sie zaehlen auf DIESELBE Rune: gezaehlt wird der Spieler, nicht das
+  // Ereignis, darum kann hier nichts doppelt werden.
   { row: 5, spell: 1289063, table: 'Buffs', as: 1279616 },
-  { row: 5, spell: 1303048, table: 'Buffs', as: 1279616 },
-  { row: 5, spell: 1303071, table: 'Buffs', as: 1279616 },
+  { row: 5, spell: 1303048, table: 'DamageDone', as: 1279616 },
+  { row: 5, spell: 1303071, table: 'Healing', as: 1279616 },
 ];
 // Die Tabellen haengen an der Abfrage, die ohnehin je Kampf laeuft -
 // als Aliase, nicht als eigene Anfragen. Gemessen: 16 Punkte statt 3,34
