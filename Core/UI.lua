@@ -1586,7 +1586,7 @@ local function openAddOwnItem(anchor)
         UI.Refresh()
     end
     local function ueberID()
-        UI.AskNumber(L["OWN_ADD_ID"], 0, nimm, 8)
+        UI.AskNumber(L["OWN_ADD_ID"], 0, nimm, 8, L["OWN_ADD_HINT"], true)
     end
     if not (MenuUtil and MenuUtil.CreateContextMenu) then
         ueberID()
@@ -4911,46 +4911,117 @@ local numberFrame
 ---@param title string
 ---@param current number
 ---@param accept function(number)
-function UI.AskNumber(title, current, accept, stellen)
+---@param hinweis string|nil Ein Satz unter dem Titel
+---@param alsGegenstand boolean|nil Zeigt, welcher Gegenstand die Zahl ist
+function UI.AskNumber(title, current, accept, stellen, hinweis, alsGegenstand)
     if not numberFrame then
         numberFrame = CreateFrame("Frame", "MetaCodexNumber", UIParent)
-        numberFrame:SetSize(280, 120)
+        numberFrame:SetSize(380, 190)
         numberFrame:SetPoint("CENTER")
         numberFrame:SetFrameStrata("FULLSCREEN_DIALOG")
         numberFrame:SetToplevel(true)
         numberFrame:EnableMouse(true)
+        -- Ziehbar wie jedes andere Fenster hier: es geht in der Mitte
+        -- auf, und dort steht manchmal genau das, was man ablesen will.
+        numberFrame:SetMovable(true)
+        numberFrame:RegisterForDrag("LeftButton")
+        numberFrame:SetScript("OnDragStart", numberFrame.StartMoving)
+        numberFrame:SetScript("OnDragStop", numberFrame.StopMovingOrSizing)
         S:Fill(numberFrame, "bgBase")
         S:Border(numberFrame, "borderStrong")
 
-        numberFrame.title = S:Text(numberFrame, "title", "textPrimary")
-        numberFrame.title:SetPoint("TOPLEFT", S.space.lg, -S.space.lg)
+        -- Eigene Kopfzeile, wie beim Erinnerungsfenster.
+        local head = CreateFrame("Frame", nil, numberFrame)
+        head:SetPoint("TOPLEFT")
+        head:SetPoint("TOPRIGHT")
+        head:SetHeight(34)
+        S:Fill(head, "bgRaised")
+        S:Border(head, "borderSubtle", 1, { bottom = true })
+        numberFrame.title = S:Text(head, "title", "textPrimary")
+        numberFrame.title:SetPoint("LEFT", S.space.lg, 0)
+        numberFrame.close = makeButton(head, 22, 22, "X", function() numberFrame:Hide() end)
+        numberFrame.close:SetPoint("RIGHT", -S.space.sm, 0)
+
+        numberFrame.hint = S:Text(numberFrame, "caption", "textSecondary")
+        numberFrame.hint:SetPoint("TOPLEFT", S.space.lg, -44)
+        numberFrame.hint:SetPoint("TOPRIGHT", -S.space.lg, -44)
+        numberFrame.hint:SetJustifyH("LEFT")
+        numberFrame.hint:SetWordWrap(true)
 
         local box = CreateFrame("EditBox", nil, numberFrame)
         box:SetAutoFocus(true)
         box:SetNumeric(true)
         box:SetMaxLetters(8)
         box:SetFontObject("GameFontHighlightLarge")
-        box:SetSize(80, 24)
-        box:SetPoint("TOPLEFT", S.space.lg, -S.space.lg - 30)
+        box:SetHeight(30)
+        box:SetTextInsets(S.space.sm, S.space.sm, 0, 0)
         S:Fill(box, "bgOverlay")
         S:Border(box, "borderSubtle")
         box:SetScript("OnEscapePressed", function() numberFrame:Hide() end)
         box:SetScript("OnEnterPressed", function() numberFrame.ok:Click() end)
         numberFrame.box = box
 
-        numberFrame.ok = makeButton(numberFrame, 90, 24, L["NUMBER_OK"], function()
+        -- Wer eine Gegenstands-ID eintippt, sieht beim Tippen, was es
+        -- ist. Eine sechsstellige Zahl blind zu bestaetigen ist keine
+        -- Auswahl, sondern ein Versuch.
+        local vorschau = CreateFrame("Frame", nil, numberFrame)
+        vorschau:SetHeight(38)
+        S:Fill(vorschau, "bgRaised")
+        S:Border(vorschau, "borderSubtle")
+        vorschau.icon = vorschau:CreateTexture(nil, "ARTWORK")
+        vorschau.icon:SetSize(26, 26)
+        vorschau.icon:SetPoint("LEFT", S.space.sm, 0)
+        vorschau.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        vorschau.text = S:Text(vorschau, "body", "textPrimary")
+        vorschau.text:SetPoint("LEFT", vorschau.icon, "RIGHT", S.space.sm, 0)
+        vorschau.text:SetPoint("RIGHT", -S.space.sm, 0)
+        vorschau.text:SetJustifyH("LEFT")
+        numberFrame.vorschau = vorschau
+
+        box:SetScript("OnTextChanged", function(self)
+            if not numberFrame.zeigtGegenstand then return end
+            local id = tonumber(self:GetText())
+            if not id or id <= 0 then
+                vorschau.icon:SetTexture(nil)
+                S:SetText(vorschau.text, L["OWN_ADD_NONE"])
+                S:Recolor(vorschau.text, "textMuted")
+                return
+            end
+            local name, _, icon = ns.Compat.ItemInfo(id)
+            if not name then ns.Compat.RequestItem(id) end
+            vorschau.icon:SetTexture(icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+            S:SetText(vorschau.text, name or L["OWN_ADD_WAIT"])
+            S:Recolor(vorschau.text, name and "textPrimary" or "textMuted")
+        end)
+
+        numberFrame.ok = makeButton(numberFrame, 110, 26, L["NUMBER_OK"], function()
             local value = tonumber(numberFrame.box:GetText())
             numberFrame:Hide()
             if value and numberFrame.accept then numberFrame.accept(math.max(0, math.floor(value))) end
             UI.Refresh()
         end)
-        numberFrame.ok:SetPoint("BOTTOMRIGHT", -S.space.lg, S.space.md)
-        numberFrame.cancel = makeButton(numberFrame, 90, 24, L["LINK_CLOSE"], function()
+        numberFrame.ok:SetPoint("BOTTOMRIGHT", -S.space.lg, S.space.lg)
+        numberFrame.cancel = makeButton(numberFrame, 110, 26, L["LINK_CLOSE"], function()
             numberFrame:Hide()
         end)
         numberFrame.cancel:SetPoint("BOTTOMRIGHT", numberFrame.ok, "BOTTOMLEFT", -S.space.sm, 0)
     end
+
     numberFrame.title:SetText(title)
+    numberFrame.zeigtGegenstand = alsGegenstand == true
+    numberFrame.hint:SetText(hinweis or "")
+    local oben = (hinweis and hinweis ~= "")
+        and (44 + math.max(14, numberFrame.hint:GetStringHeight() or 14) + S.space.sm)
+        or 48
+    numberFrame.box:ClearAllPoints()
+    numberFrame.box:SetPoint("TOPLEFT", S.space.lg, -oben)
+    numberFrame.box:SetPoint("TOPRIGHT", -S.space.lg, -oben)
+    numberFrame.vorschau:ClearAllPoints()
+    numberFrame.vorschau:SetPoint("TOPLEFT", S.space.lg, -oben - 38)
+    numberFrame.vorschau:SetPoint("TOPRIGHT", -S.space.lg, -oben - 38)
+    numberFrame.vorschau:SetShown(numberFrame.zeigtGegenstand)
+    numberFrame:SetHeight(oben + 30 + (numberFrame.zeigtGegenstand and 46 or 8) + 26 + S.space.lg * 2)
+
     -- Mengen sind kurz, Gegenstands-IDs sechsstellig. Ohne das hier
     -- schnitt das Feld eine ID nach vier Ziffern ab.
     numberFrame.box:SetMaxLetters(stellen or 4)

@@ -4600,5 +4600,39 @@ do
     rowsInSection("consumables")
 end
 
+-- Das Eingabefenster zeigt, WAS die Zahl ist.
+--
+-- Eine sechsstellige Zahl blind zu bestaetigen ist keine Auswahl,
+-- sondern ein Versuch. Beim Tippen steht deshalb Symbol und Name daneben
+-- - und wenn der Client den Gegenstand nicht kennt, steht das auch da
+-- statt eines leeren Feldes.
+do
+    ns.Profile.SetLanguage("de")
+    local genommen
+    local f = ns.UI.AskNumber(ns.L["OWN_ADD_ID"], 0,
+        function(v) genommen = v end, 8, ns.L["OWN_ADD_HINT"], true)
+    check("das Fenster steht da", f ~= nil and f:IsShown())
+    check("der Hinweis steht darunter",
+        (f.hint:GetText() or "") == ns.L["OWN_ADD_HINT"], tostring(f.hint:GetText()))
+    check("die Vorschau ist sichtbar", f.vorschau:IsShown())
+    check("und das Feld nimmt acht Stellen", f.box.__maxLetters == 8
+        or f.box:GetMaxLetters() == 8, tostring(f.box.__maxLetters))
+
+    -- Eine Zahl eintippen: die Vorschau sagt, was es ist.
+    f.box:SetText("240892")
+    if f.box:GetScript("OnTextChanged") then
+        f.box:GetScript("OnTextChanged")(f.box)
+    end
+    local gezeigt = f.vorschau.text:GetText() or ""
+    check("die Vorschau nennt den Gegenstand", gezeigt ~= "" ,
+        gezeigt)
+
+    -- Bei einer Zielmenge bleibt es ein schlichtes Zahlenfeld.
+    local g = ns.UI.AskNumber("Menge", 2, function() end)
+    check("ohne Gegenstand keine Vorschau", not g.vorschau:IsShown())
+    g:Hide()
+    ns.Profile.SetLanguage("auto")
+end
+
 say(fails == 0 and "\nalles gruen" or ("\n" .. fails .. " Fehler"))
 os.exit(fails == 0 and 0 or 1)

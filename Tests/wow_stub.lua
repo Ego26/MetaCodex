@@ -61,6 +61,11 @@ end
 Mock.methods.GetFont = function(self) return self.__fontPath, self.__fontSize, self.__fontFlags end
 Mock.methods.SetText = function(self, text) self.__text = text end
 Mock.methods.GetText = function(self) return self.__text end
+-- Die Feldlaenge merkt sich der Stub, weil genau sie einmal falsch war:
+-- vier Stellen fuer eine sechsstellige Gegenstands-ID, und die Eingabe
+-- brach ab, ohne dass jemand sah, warum.
+Mock.methods.SetMaxLetters = function(self, n) self.__maxLetters = n end
+Mock.methods.GetMaxLetters = function(self) return self.__maxLetters end
 Mock.methods.Show = function(self) self.__shown = true end
 Mock.methods.Hide = function(self) self.__shown = false end
 Mock.methods.IsShown = function(self) return self.__shown == true end
