@@ -2745,7 +2745,7 @@ local function setItemRow(row, data)
         end
         row.detail:SetText(table.concat(parts, "  \194\183  "))
         row.share:SetText(data.pct and (data.pct .. "%") or "")
-        S:Recolor(row.share, (data.pct or 0) >= 50 and "accent" or "textMuted")
+        S:Recolor(row.share, data.top and "accent" or "textMuted")
         row.onClick = nil
         return
     end
@@ -2770,7 +2770,7 @@ local function setItemRow(row, data)
         if data.pct then parts[#parts + 1] = L["TALENT_SHARE"]:format(data.pct) end
         row.detail:SetText(table.concat(parts, "  \194\183  "))
         row.share:SetText(data.pct and (data.pct .. "%") or "")
-        S:Recolor(row.share, (data.pct or 0) >= 50 and "accent" or "textMuted")
+        S:Recolor(row.share, data.top and "accent" or "textMuted")
         row.onClick = nil
         return
     end
@@ -2817,7 +2817,7 @@ local function setItemRow(row, data)
         row.icon:SetAlpha(data.alt and 0.6 or 1)
 
         row.share:SetText(data.pct and (data.pct .. "%") or "")
-        S:Recolor(row.share, (data.pct or 0) >= 50 and "accent" or "textMuted")
+        S:Recolor(row.share, data.top and "accent" or "textMuted")
         -- Nur die Speisenzeile fragt zurueck. Ein Flaeschchen ist
         -- gemessen; daran gibt es nichts zu waehlen.
         -- Zu waehlen ist nur noch die Menge. Was benutzt wird, ist
@@ -2913,7 +2913,7 @@ local function setItemRow(row, data)
         -- Ohne Anteil (das Stueck EINES Spielers) steht rechts nichts -
         -- "0 %" waere eine Aussage, die niemand gemessen hat.
         row.share:SetText(data.pct and (data.pct .. "%") or "")
-        S:Recolor(row.share, (data.pct or 0) >= 50 and "accent" or "textMuted")
+        S:Recolor(row.share, data.top and "accent" or "textMuted")
         -- Der Hinweis steht IM Titel und nicht in der Unterzeile: die
         -- ist mit Stufe, Marke, Fundort und "angelegt" schon voll, und
         -- was man anklicken soll, gehoert nach vorn.
@@ -2956,7 +2956,7 @@ local function setItemRow(row, data)
     -- mitlaufend waere er nur ein weiteres Wort.
     if data.pct then
         row.share:SetText(data.pct .. "%")
-        S:Recolor(row.share, data.pct >= 50 and "accent" or "textMuted")
+        S:Recolor(row.share, data.top and "accent" or "textMuted")
     else
         row.share:SetText("")
     end
@@ -4020,6 +4020,38 @@ function UI.Refresh()
         row:SetHeight(height)
         row:Show()
         offset = offset + height
+    end
+
+    -- Wer in seiner Gruppe vorn liegt.
+    --
+    -- Hervorgehoben wurde bisher ab 50 %. Diese Schwelle kennen die
+    -- Daten nicht: ein Stueck mit 48 % ist genauso das meistgetragene
+    -- wie eines mit 51 %. Und bei einem breiten Feld - 31, 24, 19, 14 -
+    -- bliebe die ganze Liste grau, obwohl es sehr wohl einen
+    -- Spitzenreiter gibt. Die Spieler- und die Talentliste gehen
+    -- laengst nach Rang; jetzt geht das Fenster ueberall so vor.
+    --
+    -- Je Gruppe, nicht je Liste: unter "Alle Plaetze" stehen mehrere
+    -- Ueberschriften untereinander, und jede hat ihren eigenen ersten
+    -- Platz. Derselbe Schluessel wie fuer die Ueberschrift, sonst
+    -- leuchtet die Zeile in der falschen Gruppe.
+    --
+    -- Gleichstand hebt beide hervor: welcher von zwei Zeilen mit
+    -- demselben Anteil der erste ist, sagt die Messung nicht.
+    do
+        local best = {}
+        for _, data in ipairs(shown) do
+            -- Unterzeilen nicht: eine Verzauberung ist Zubehoer der
+            -- Zeile darueber und steht in keinem Wettbewerb.
+            if data.pct and not data.sub then
+                local key = data.group or (data.slot and L["SLOT_" .. data.slot]) or ""
+                if not best[key] or data.pct > best[key] then best[key] = data.pct end
+            end
+        end
+        for _, data in ipairs(shown) do
+            local key = data.group or (data.slot and L["SLOT_" .. data.slot]) or ""
+            data.top = data.pct ~= nil and not data.sub and data.pct == best[key]
+        end
     end
 
     for _, data in ipairs(shown) do

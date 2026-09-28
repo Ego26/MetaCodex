@@ -4190,5 +4190,58 @@ do
     ns.Recommend.Embellish = echt
 end
 
+-- Hervorgehoben wird der erste Platz, nicht die 50 %.
+--
+-- Diese Schwelle kannten die Daten nicht. Ein Stueck mit 48 % ist
+-- genauso das meistgetragene wie eines mit 51 % - und bei einem breiten
+-- Feld blieb die ganze Liste grau, obwohl es sehr wohl einen
+-- Spitzenreiter gab. Genau so sah es im Bild aus: 48, 36, 9, 4, 3, und
+-- keine einzige Zahl hob sich ab.
+do
+    local echt = ns.Recommend.Embellish
+    local function hervorgehoben()
+        local wie_viele, erste = 0, nil
+        for _, row in ipairs(wow.rows()) do
+            if row:IsShown() and type(rawget(row, "ids")) == "table"
+                and rawget(row.share, "__token") == "accent" then
+                wie_viele = wie_viele + 1
+                erste = erste or row.share:GetText()
+            end
+        end
+        return wie_viele, erste
+    end
+
+    ns.Recommend.Embellish = function()
+        return {
+            { ids = { 240166 }, pct = 48 },
+            { ids = { 273059 }, pct = 36 },
+            { ids = { 251490 }, pct = 16 },
+        }, "raider.io"
+    end
+    ns.Profile.SetMode("mplus")
+    rowsInSection("embellish")
+    local wie_viele, erste = hervorgehoben()
+    check("der erste Platz steht vorn, auch unter 50 %",
+        wie_viele == 1 and erste == "48%",
+        wie_viele .. " hervorgehoben, " .. tostring(erste))
+
+    -- Gleichstand: welche von zwei gleichen Zahlen die erste ist, sagt
+    -- die Messung nicht - also stehen beide vorn.
+    ns.Recommend.Embellish = function()
+        return {
+            { ids = { 240166 }, pct = 40 },
+            { ids = { 273059 }, pct = 40 },
+            { ids = { 251490 }, pct = 20 },
+        }, "raider.io"
+    end
+    rowsInSection("embellish")
+    local gleich = hervorgehoben()
+    check("bei Gleichstand stehen beide vorn", gleich == 2,
+        gleich .. " hervorgehoben")
+
+    ns.Recommend.Embellish = echt
+    rowsInSection("embellish")
+end
+
 say(fails == 0 and "\nalles gruen" or ("\n" .. fails .. " Fehler"))
 os.exit(fails == 0 and 0 or 1)
