@@ -22,6 +22,7 @@
 const fs = require('fs');
 const path = require('path');
 const bnet = require('./bnet');
+const { share } = require('./lib/share');
 
 const BASE = process.argv[2];
 if (!BASE) {
@@ -206,7 +207,7 @@ function matchesHeatmap(spells, talents) {
 
 function pctRows(counter, denom) {
   return Object.entries(counter)
-    .map(([k, n]) => ({ key: k, pct: Math.round((n / Math.max(1, denom)) * 100) }))
+    .map(([k, n]) => ({ key: k, pct: share(n, denom) }))
     .filter((r) => r.pct > 0)
     .sort((a, b) => b.pct - a.pct);
 }
@@ -223,7 +224,7 @@ function buildsFrom(players) {
   const sorted = [...byText.entries()].sort((a, b) => b[1].n - a[1].n);
   const top = sorted[0];
   const build = {
-    pct: Math.round((top[1].n / verified.length) * 100),
+    pct: share(top[1].n, verified.length),
     text: top[0], nodes: top[1].spells, players: verified.length,
   };
   const topSet = new Set(top[1].spells.map((s) => s.spell));
@@ -233,7 +234,7 @@ function buildsFrom(players) {
     const added = info.spells.filter((s) => !topSet.has(s.spell)).map((s) => s.spell);
     const removed = top[1].spells.filter((s) => !set.has(s.spell)).map((s) => s.spell);
     if (!added.length && !removed.length) continue;
-    builds.push({ pct: Math.round((info.n / verified.length) * 100), text, added, removed });
+    builds.push({ pct: share(info.n, verified.length), text, added, removed });
     if (builds.length >= 6) break;
   }
   return { build, builds };
@@ -275,7 +276,7 @@ function summarise(players) {
     const t = {};
     for (const p of mine) for (const s of p.spells) { const k = s.spell + '|' + s.rank; t[k] = (t[k] || 0) + 1; }
     hero[sub] = {
-      players: mine.length, pct: Math.round((mine.length / verified.length) * 100),
+      players: mine.length, pct: share(mine.length, verified.length),
       talents: pctRows(t, mine.length).map((r) => { const [spell, rank] = r.key.split('|'); return { spell: Number(spell), rank: Number(rank), pct: r.pct }; }),
       ...buildsFrom(mine),
     };

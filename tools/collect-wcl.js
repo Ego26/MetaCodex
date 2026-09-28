@@ -26,6 +26,7 @@ const path = require('path');
 const https = require('https');
 // Die Zaehlregel fuer Verbrauchsgueter - eigene Datei, eigener Test.
 const { countsForThisFight } = require('./lib/consumable-window');
+const { share } = require('./lib/share');
 
 const BASE = process.argv[2];
 if (!BASE) {
@@ -1309,7 +1310,7 @@ Haeufigste nicht zugeordnete Auren (${missedAuras.size} verschiedene):`);
       for (const [slot, counts] of Object.entries(entry.enchants)) {
         const total = Object.values(counts).reduce((a, b) => a + b, 0);
         out.enchants[slot] = Object.entries(counts)
-          .map(([id, n]) => ({ id: Number(id), pct: Math.round((n / total) * 100),
+          .map(([id, n]) => ({ id: Number(id), pct: share(n, total),
             maxKey: entry.maxKey[id] || 0 }))
           .sort((a, b) => b.pct - a.pct);
       }
@@ -1320,7 +1321,7 @@ Haeufigste nicht zugeordnete Auren (${missedAuras.size} verschiedene):`);
         const rows = Object.entries(items)
           .map(([id, row]) => ({
             id: Number(id), ilvl: row.ilvl,
-            pct: Math.round((row.n / Math.max(1, entry.players)) * 100),
+            pct: share(row.n, entry.players),
             maxKey: entry.maxKey[id] || 0,
             name: (consumables.names.get(Number(id)) || {}).name || null,
           }))
@@ -1332,7 +1333,7 @@ Haeufigste nicht zugeordnete Auren (${missedAuras.size} verschiedene):`);
       const conTotal = Object.values(entry.consumables || {}).reduce((a, b) => a + b, 0);
       if (conTotal) {
         out.consumables = Object.entries(entry.consumables)
-          .map(([id, n]) => ({ id: Number(id), pct: Math.round((n / Math.max(1, entry.players)) * 100),
+          .map(([id, n]) => ({ id: Number(id), pct: share(n, entry.players),
             kind: consumables.kindOf.get(Number(id)) || 'other',
             maxKey: entry.maxKey[id] || 0,
             name: (consumables.names.get(Number(id)) || {}).name || null }))
@@ -1391,7 +1392,7 @@ Haeufigste nicht zugeordnete Auren (${missedAuras.size} verschiedene):`);
           const parts = key.split('|');
           return {
             spell: Number(parts[0]), rank: Number(parts[1]),
-            pct: Math.round((n / Math.max(1, entry.players)) * 100),
+            pct: share(n, entry.players),
           };
         })
         .filter((row) => row.pct > 0)
@@ -1405,16 +1406,16 @@ Haeufigste nicht zugeordnete Auren (${missedAuras.size} verschiedene):`);
         out.hero = {};
         for (const [sub, h] of Object.entries(entry.hero)) {
           const denom = Math.max(1, h.players);
-          const ho = { players: h.players, pct: Math.round((h.players / Math.max(1, entry.players)) * 100) };
+          const ho = { players: h.players, pct: share(h.players, entry.players) };
           const rows = Object.entries(h.talents).map(([key, n]) => {
             const parts = key.split('|');
-            return { spell: Number(parts[0]), rank: Number(parts[1]), pct: Math.round((n / denom) * 100) };
+            return { spell: Number(parts[0]), rank: Number(parts[1]), pct: share(n, denom) };
           }).filter((r) => r.pct > 0).sort((a, b) => b.pct - a.pct);
           if (rows.length) ho.talents = rows;
           const hb = Object.entries(h.builds).sort((a, b) => b[1] - a[1]);
           if (hb.length) {
             ho.build = {
-              pct: Math.round((hb[0][1] / denom) * 100),
+              pct: share(hb[0][1], denom),
               nodes: hb[0][0].split(',').map((part) => { const b = part.split(':'); return { spell: Number(b[0]), rank: Number(b[1]) }; }),
             };
           }
@@ -1425,7 +1426,7 @@ Haeufigste nicht zugeordnete Auren (${missedAuras.size} verschiedene):`);
       const builds = Object.entries(entry.builds || {}).sort((a, b) => b[1] - a[1]);
       if (builds.length) {
         out.build = {
-          pct: Math.round((builds[0][1] / Math.max(1, entry.players)) * 100),
+          pct: share(builds[0][1], entry.players),
           nodes: builds[0][0].split(',').map((part) => {
             const bits = part.split(':');
             return { spell: Number(bits[0]), rank: Number(bits[1]) };
@@ -1436,7 +1437,7 @@ Haeufigste nicht zugeordnete Auren (${missedAuras.size} verschiedene):`);
       const gemTotal = Object.values(entry.gems).reduce((a, b) => a + b, 0);
       if (gemTotal) {
         out.gems = Object.entries(entry.gems)
-          .map(([id, n]) => ({ id: Number(id), pct: Math.round((n / gemTotal) * 100),
+          .map(([id, n]) => ({ id: Number(id), pct: share(n, gemTotal),
             maxKey: entry.maxKey[id] || 0 }))
           .sort((a, b) => b.pct - a.pct);
       }
@@ -1494,8 +1495,8 @@ Probelauf ${mode}, ${Object.keys(specs).length} Speccs, Spec ${id}:`);
           for (const [itemID, extra] of Object.entries(entry.conOld)) {
             const now = entry.consumables[itemID] || 0;
             const before = now + extra;
-            const pNow = Math.round((now / base) * 100);
-            const pBefore = Math.round((before / base) * 100);
+            const pNow = share(now, base);
+            const pBefore = share(before, base);
             if (pNow === pBefore) continue;
             const info = consumables.names.get(Number(itemID)) || {};
             lines.push(`      ${String(pBefore).padStart(3)}% -> ${String(pNow).padStart(3)}%  ${info.name || itemID}`);

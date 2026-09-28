@@ -21,6 +21,7 @@ const path = require('path');
 const https = require('https');
 const zlib = require('zlib');
 const Loadout = require('./loadout');
+const { share } = require('./lib/share');
 
 const BASE = process.argv[2];
 if (!BASE) {
@@ -448,7 +449,7 @@ const slug = (text) => String(text).toLowerCase()
         const total = Object.values(counts).reduce((a, b) => a + b, 0);
         out.enchants[slotKey] = Object.entries(counts)
           .map(([id, n]) => ({
-            id: Number(id), pct: Math.round((n / total) * 100),
+            id: Number(id), pct: share(n, total),
             maxKey: entry.maxKey[id] || 0,
           }))
           .sort((a, b) => b.pct - a.pct);
@@ -458,7 +459,7 @@ const slug = (text) => String(text).toLowerCase()
       if (gemTotal) {
         out.gems = Object.entries(entry.gems)
           .map(([id, n]) => ({
-            id: Number(id), pct: Math.round((n / gemTotal) * 100),
+            id: Number(id), pct: share(n, gemTotal),
             maxKey: entry.maxKey[id] || 0,
           }))
           .sort((a, b) => b.pct - a.pct);
@@ -469,7 +470,7 @@ const slug = (text) => String(text).toLowerCase()
           .map(([id, row]) => {
             const out = {
               id: Number(id), ilvl: row.ilvl,
-              pct: Math.round((row.n / players) * 100),
+              pct: share(row.n, players),
               maxKey: entry.maxKey[id] || 0,
             };
             // Die haeufigste Wertewahl DIESES Stuecks. Ohne sie zeigt
@@ -482,7 +483,7 @@ const slug = (text) => String(text).toLowerCase()
               const total = Object.values(per).reduce((a, b) => a + b, 0);
               out.statBonus = Number(best[0]);
               out.stats = bonusMap.stats[best[0]];
-              out.statPct = Math.round((best[1] / total) * 100);
+              out.statPct = share(best[1], total);
             }
             return out;
           })
@@ -499,7 +500,7 @@ const slug = (text) => String(text).toLowerCase()
         out.craftStats = Object.entries(entry.craftStats)
           .map(([bonus, n]) => ({
             bonus: Number(bonus), stats: bonusMap.stats[bonus],
-            pct: Math.round((n / statTotal) * 100),
+            pct: share(n, statTotal),
           }))
           .filter((r) => r.stats && r.pct > 0)
           .sort((a, b) => b.pct - a.pct);
@@ -510,7 +511,7 @@ const slug = (text) => String(text).toLowerCase()
       const embRows = Object.entries(entry.embellish)
         .map(([key, n]) => ({
           ids: key.split(',').map(Number),
-          pct: Math.round((n / players) * 100),
+          pct: share(n, players),
         }))
         .filter((r) => r.pct > 0)
         .sort((a, b) => b.pct - a.pct)
@@ -525,7 +526,7 @@ const slug = (text) => String(text).toLowerCase()
         const rows = Object.entries(src.talents || {})
           .map(([key, n]) => {
             const parts = key.split('|');
-            return { spell: Number(parts[0]), rank: Number(parts[1]), pct: Math.round((n / denom) * 100) };
+            return { spell: Number(parts[0]), rank: Number(parts[1]), pct: share(n, denom) };
           })
           .filter((r) => r.pct > 0)
           .sort((a, b) => b.pct - a.pct);
@@ -538,7 +539,7 @@ const slug = (text) => String(text).toLowerCase()
         if (builds.length) {
           const topNodes = asNodes(builds[0][0]);
           res.build = {
-            pct: Math.round((builds[0][1] / denom) * 100),
+            pct: share(builds[0][1], denom),
             text: src.buildText[builds[0][0]] || null,
             nodes: topNodes,
           };
@@ -551,7 +552,7 @@ const slug = (text) => String(text).toLowerCase()
             const removed = topNodes.filter((n) => !set.has(n.spell)).map((n) => n.spell);
             if (!added.length && !removed.length) continue;
             if (others.length >= 6) break;
-            others.push({ pct: Math.round((count / denom) * 100), text: src.buildText[signature] || null, added, removed });
+            others.push({ pct: share(count, denom), text: src.buildText[signature] || null, added, removed });
           }
           if (others.length) res.builds = others;
         }
@@ -562,7 +563,7 @@ const slug = (text) => String(text).toLowerCase()
         const total = Math.max(1, entry.talentPlayers || 0);
         out.hero = {};
         for (const [sub, h] of Object.entries(entry.hero)) {
-          out.hero[sub] = { players: h.talentPlayers || 0, pct: Math.round(((h.talentPlayers || 0) / total) * 100), ...talentOut(h) };
+          out.hero[sub] = { players: h.talentPlayers || 0, pct: share(h.talentPlayers || 0, total), ...talentOut(h) };
         }
       }
       specs[specID] = out;

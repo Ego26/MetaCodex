@@ -13,6 +13,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { share } = require('./lib/share');
 
 const BASE = process.argv[2];
 if (!BASE) {
@@ -222,12 +223,12 @@ for (const part of profileParts) {
       const statTotal = Object.values(craft).reduce((a, b) => a + b, 0);
       if (statTotal > 0) {
         spec.craftStats = Object.entries(craft)
-          .map(([bonus, n]) => ({ bonus: Number(bonus), pct: Math.round((n / statTotal) * 100) }))
+          .map(([bonus, n]) => ({ bonus: Number(bonus), pct: share(n, statTotal) }))
           .filter((r) => r.pct > 0)
           .sort((a, b) => b.pct - a.pct);
       }
       const embRows = Object.entries(emb)
-        .map(([key, n]) => ({ ids: key.split(',').map(Number), pct: Math.round((n / players) * 100) }))
+        .map(([key, n]) => ({ ids: key.split(',').map(Number), pct: share(n, players) }))
         .filter((r) => r.pct > 0)
         .sort((a, b) => b.pct - a.pct)
         .slice(0, 8);
@@ -245,7 +246,7 @@ for (const part of profileParts) {
             const best = Object.entries(per).sort((a, b) => b[1] - a[1])[0];
             const total = Object.values(per).reduce((a, b) => a + b, 0);
             row.statBonus = Number(best[0]);
-            row.statPct = Math.round((best[1] / total) * 100);
+            row.statPct = share(best[1], total);
           }
         }
       }

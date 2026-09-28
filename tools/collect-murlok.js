@@ -26,6 +26,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { share } = require('./lib/share');
 const https = require('https');
 
 const BASE = process.argv[2];
@@ -362,7 +363,7 @@ function parseTalents(html, specID, tmap) {
     if (hit.length !== 1) { unresolved += 1; continue; }
     out.push({
       spell: hit[0], rank: 1,
-      pct: Math.round((t.count / sample) * 100),
+      pct: share(t.count, sample),
       pvp: t.group === 'pvp' || undefined,
     });
   }
@@ -398,7 +399,7 @@ function parseStats(html) {
 function shares(list) {
   const total = list.reduce((sum, e) => sum + (e.count || 0), 0);
   if (!total) return list.map(() => 0);
-  return list.map((e) => Math.round(((e.count || 0) / total) * 100));
+  return list.map((e) => share(e.count || 0, total));
 }
 
 function luaString(s) {

@@ -27,6 +27,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { share } = require('./lib/share');
 const https = require('https');
 const zlib = require('zlib');
 
@@ -184,7 +185,7 @@ function buildsFrom(players) {
   const sorted = [...byText.entries()].sort((a, b) => b[1].n - a[1].n);
   const top = sorted[0];
   const build = {
-    pct: Math.round((top[1].n / verified.length) * 100),
+    pct: share(top[1].n, verified.length),
     text: top[0],
     nodes: top[1].spells,
     players: verified.length,
@@ -196,7 +197,7 @@ function buildsFrom(players) {
     const added = info.spells.filter((s) => !topSet.has(s.spell)).map((s) => s.spell);
     const removed = top[1].spells.filter((s) => !set.has(s.spell)).map((s) => s.spell);
     if (!added.length && !removed.length) continue;
-    builds.push({ pct: Math.round((info.n / verified.length) * 100), text, added, removed });
+    builds.push({ pct: share(info.n, verified.length), text, added, removed });
     if (builds.length >= 6) break;
   }
   return { build, builds };
@@ -303,7 +304,7 @@ function buildsFrom(players) {
       for (const sub of new Set(verifiedAll.map((x) => x.subTree).filter(Boolean))) {
         const mine = verifiedAll.filter((x) => x.subTree === sub);
         const d = buildsFrom(mine);
-        if (d.build) hero[sub] = { players: mine.length, pct: Math.round((mine.length / verifiedAll.length) * 100), ...d };
+        if (d.build) hero[sub] = { players: mine.length, pct: share(mine.length, verifiedAll.length), ...d };
       }
       out[specID] = { players: players.slice(0, MAX_RAID), ...derived, hero: Object.keys(hero).length ? hero : undefined };
       process.stdout.write(derived.build ? '+' : '.');
