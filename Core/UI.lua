@@ -4976,6 +4976,26 @@ function UI.AskNumber(title, current, accept, stellen, hinweis, alsGegenstand)
         vorschau.text:SetPoint("LEFT", vorschau.icon, "RIGHT", S.space.sm, 0)
         vorschau.text:SetPoint("RIGHT", -S.space.sm, 0)
         vorschau.text:SetJustifyH("LEFT")
+        -- Und der Zeiger zeigt das ganze Tooltip.
+        --
+        -- Name und Symbol sagen, DASS es der richtige Gegenstand ist;
+        -- ob man ihn haben will, sagt erst das Tooltip - Wirkung, Stufe,
+        -- Stapelgroesse. Wer eine Zahl von Wowhead abtippt, will genau
+        -- das nachsehen koennen, bevor er sie bestaetigt.
+        vorschau:EnableMouse(true)
+        vorschau:SetScript("OnEnter", function(self)
+            if not numberFrame.zeigtGegenstand then return end
+            local id = tonumber(numberFrame.box:GetText())
+            if not id or id <= 0 then return end
+            -- Nur wenn der Client den Gegenstand wirklich kennt: ein
+            -- Tooltip zu einer Zahl, die es nicht gibt, bleibt leer
+            -- stehen und sieht aus wie ein Fehler.
+            if not ns.Compat.ItemInfo(id) then return end
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetHyperlink("item:" .. id)
+            GameTooltip:Show()
+        end)
+        vorschau:SetScript("OnLeave", function() GameTooltip:Hide() end)
         numberFrame.vorschau = vorschau
 
         box:SetScript("OnTextChanged", function(self)

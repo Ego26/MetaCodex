@@ -4510,15 +4510,29 @@ do
         ns.Compat.SelfWeaponBuff(262) == true)
     check("der Magier nicht", ns.Compat.SelfWeaponBuff(62) == false)
 
-    local function oelZeilen(spec)
+    local function oelZeilen(spec, modus)
         local n = 0
-        for _, row in ipairs(ns.Remind.Status("mplus", spec)) do
+        for _, row in ipairs(ns.Remind.Status(modus or "mplus", spec)) do
             if row.kind == "oil" then n = n + 1 end
         end
         return n
     end
-    check("beim Schamanen steht kein Oel auf der Erinnerung",
-        oelZeilen(262) == 0, oelZeilen(262) .. " Zeilen")
+
+    -- Erst einen Modus suchen, in dem es ueberhaupt Oele gibt. Ohne das
+    -- prueft die Frage nichts: 0 Zeilen sind auch dann 0, wenn die
+    -- Sperre gar nicht greift - und genau so ist mir der Fehler einmal
+    -- durchgerutscht.
+    local modus, beiAnderen
+    for _, m in ipairs({ "mplus", "raid", "mplus-keys" }) do
+        local n = oelZeilen(105, m)
+        if n > 0 then modus, beiAnderen = m, n break end
+    end
+    check("es gibt einen Modus mit Oelen", modus ~= nil,
+        tostring(modus) .. ": " .. tostring(beiAnderen))
+    if modus then
+        check("beim Schamanen steht kein Oel auf der Erinnerung",
+            oelZeilen(262, modus) == 0, oelZeilen(262, modus) .. " Zeilen")
+    end
 end
 
 -- Eigene Posten: was in keiner Messung steht, kann man selbst dazunehmen.
@@ -4626,6 +4640,30 @@ do
     local gezeigt = f.vorschau.text:GetText() or ""
     check("die Vorschau nennt den Gegenstand", gezeigt ~= "" ,
         gezeigt)
+
+    -- Der Zeiger zeigt das ganze Tooltip.
+    --
+    -- Name und Symbol sagen, DASS es der richtige Gegenstand ist; ob man
+    -- ihn haben will, sagt erst die Wirkung.
+    rawset(_G.GameTooltip, "__link", nil)
+    if f.vorschau:GetScript("OnEnter") then
+        f.vorschau:GetScript("OnEnter")(f.vorschau)
+    end
+    local gezeigtesItem = rawget(_G.GameTooltip, "__link")
+    check("der Zeiger zeigt das Tooltip",
+        (gezeigtesItem or ""):find("item:240892", 1, true) ~= nil,
+        tostring(gezeigtesItem))
+
+    -- Aber nicht zu einer Zahl, die es nicht gibt: ein leeres Tooltip
+    -- sieht aus wie ein Fehler.
+    rawset(_G.GameTooltip, "__link", nil)
+    f.box:SetText("0")
+    if f.vorschau:GetScript("OnEnter") then
+        f.vorschau:GetScript("OnEnter")(f.vorschau)
+    end
+    check("und zu einer leeren Eingabe keines",
+        rawget(_G.GameTooltip, "__link") == nil,
+        tostring(rawget(_G.GameTooltip, "__link")))
 
     -- Bei einer Zielmenge bleibt es ein schlichtes Zahlenfeld.
     local g = ns.UI.AskNumber("Menge", 2, function() end)

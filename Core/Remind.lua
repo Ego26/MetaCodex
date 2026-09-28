@@ -99,7 +99,15 @@ function Remind.Status(mode, forSpec)
 
     local gesehen = {}
     for _, kind in ipairs(KIND_ORDER) do
-        local entry = (kind == "oil" and eigenerBuff) and nil or bestOfKind[kind]
+        -- Ausdruecklich als Verzweigung, nicht als "und ... oder".
+        --
+        -- Hier stand `(kind == "oil" and eigenerBuff) and nil or
+        -- bestOfKind[kind]`, und das ergibt in Lua NIEMALS nil: sobald
+        -- der linke Teil nil wird, greift das "or" und liefert doch den
+        -- Eintrag. Die Zeile sah richtig aus und tat nichts - der
+        -- Schamane bekam sein Oel weiter angeboten.
+        local entry = bestOfKind[kind]
+        if kind == "oil" and eigenerBuff then entry = nil end
         -- Die eigene Wahl schlaegt die Messung: gezaehlt wird, was man
         -- benutzt, nicht was die Besten benutzen.
         local own = (not (kind == "oil" and eigenerBuff))

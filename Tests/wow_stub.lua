@@ -66,6 +66,9 @@ Mock.methods.GetText = function(self) return self.__text end
 -- brach ab, ohne dass jemand sah, warum.
 Mock.methods.SetMaxLetters = function(self, n) self.__maxLetters = n end
 Mock.methods.GetMaxLetters = function(self) return self.__maxLetters end
+-- Und was ein Tooltip zeigen soll. Sonst laesst sich nicht pruefen, ob
+-- der Zeiger wirklich den Gegenstand zeigt oder nur so tut.
+Mock.methods.SetHyperlink = function(self, link) self.__link = link end
 Mock.methods.Show = function(self) self.__shown = true end
 Mock.methods.Hide = function(self) self.__shown = false end
 Mock.methods.IsShown = function(self) return self.__shown == true end
