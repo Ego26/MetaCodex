@@ -211,7 +211,12 @@ local rows = ns.List.Build(scan)
 local only = bySlot(rows)
 check("Filter laesst die Brust weg", only.chest == nil)
 check("Filter zaehlt nur den offenen Ring", only.ring and only.ring.need == 1)
-check("Filter zaehlt nur leere Sockel", only.gems and only.gems.need == 2,
+-- Im Kopf sitzt ein fremder Stein (111). Er fuellt den Sockel, aber er
+-- ist nicht der empfohlene - und damit ist dort noch etwas zu tun.
+-- Frueher zaehlten nur die leeren, und die Zeile sagte "bereits drauf",
+-- waehrend in den Sockeln etwas ganz anderes sass.
+check("Filter zaehlt die Sockel ohne den empfohlenen Stein",
+    only.gems and only.gems.need == 3,
     only.gems and tostring(only.gems.need))
 -- ------------------------------------------------------- Empfehlungen
 
@@ -429,7 +434,7 @@ check("Liste uebergeben", ok, ok and (written .. " Eintraege") or tostring(listN
 check("Praefix eingehalten", ok and listName:find("^MetaCodex: ") ~= nil, tostring(listName))
 check("callerID gesetzt", handed and handed.caller == "MetaCodex")
 check("exakte Suche", handed and handed.terms[1]:find('^"') ~= nil, handed and handed.terms[1])
-check("Stueckzahl uebergeben", handed and handed.terms[1]:find(";2$") ~= nil,
+check("Stueckzahl uebergeben", handed and handed.terms[1]:find(";3$") ~= nil,
     handed and handed.terms[1])
 
 -- Die Suche braucht ein offenes Auktionshaus.
@@ -3952,6 +3957,39 @@ do
     check("und gibt es wieder her", uebrig == 0, uebrig .. " Zeilen")
     C_TradeSkillUI = nil
     C_Texture = nil
+end
+
+-- "Bereits drauf" heisst: DER empfohlene Stein sitzt drin.
+--
+-- Gezaehlt wurden frueher nur die leeren Sockel. Wer einen fremden
+-- Stein trug, bekam "bereits drauf" - und die Zeile log ueber genau die
+-- Ausruestung, die sie beschreiben sollte.
+do
+    local dreiSockel = {
+        totalSockets = 3, emptySockets = 1,
+        gems = { [222] = 1, [111] = 1 },
+    }
+    local fehlt, gesamt, anderer = ns.Gear.GemsMissing(dreiSockel, 222, {}, nil)
+    check("ein leerer und ein fremder Sockel fehlen", fehlt == 2 and gesamt == 3,
+        fehlt .. " von " .. gesamt)
+    check("und der fremde Stein wird benannt", anderer == 111, tostring(anderer))
+
+    -- Eine andere Qualitaetsstufe ist derselbe Stein.
+    local fehlt2, _, anderer2 = ns.Gear.GemsMissing(dreiSockel, 222, { 111 }, nil)
+    check("eine andere Stufe desselben Steins zaehlt als drin", fehlt2 == 1,
+        tostring(fehlt2))
+    check("dann gibt es auch keinen fremden", anderer2 == nil, tostring(anderer2))
+
+    -- Der Stein des besonderen Sockels gehoert nicht in diese Zeile: er
+    -- hat seine eigene, und zweimal gezaehlt waere er zweimal zu kaufen.
+    local istMeta = function(id) return id == 111 end
+    local fehlt3 = ns.Gear.GemsMissing(dreiSockel, 222, {}, istMeta)
+    check("der besondere Stein zaehlt hier nicht mit", fehlt3 == 1,
+        tostring(fehlt3))
+
+    -- Ohne Empfehlung bleibt es bei der alten Frage: wie viele sind leer.
+    local fehlt4 = ns.Gear.GemsMissing(dreiSockel, nil, nil, nil)
+    check("ohne Empfehlung zaehlen die leeren", fehlt4 == 1, tostring(fehlt4))
 end
 
 say(fails == 0 and "\nalles gruen" or ("\n" .. fails .. " Fehler"))

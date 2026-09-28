@@ -155,15 +155,31 @@ function List.Build(scan)
             gem = p.cheap and Catalog.CheapGem(p.main, p.second or p.main)
                 or Catalog.Gem(p.main, p.second or p.main)
         end
+        -- Steine des besonderen Sockels zaehlen hier nicht mit.
+        local isMeta = function(id)
+            local g = Catalog.GemByID(id)
+            return g ~= nil and g.major == "primary"
+        end
+        -- Andere Qualitaetsstufen desselben Steins sind derselbe Stein.
+        local sameGem = {}
+        if gem then
+            local lower, higher = Catalog.Tiers(gem.id)
+            for _, id in ipairs(lower or {}) do sameGem[#sameGem + 1] = id end
+            for _, id in ipairs(higher or {}) do sameGem[#sameGem + 1] = id end
+        end
+        local gemMissing, gemTotal, gemOther =
+            ns.Gear.GemsMissing(scan, gem and gem.id or nil, sameGem, isMeta)
         -- Ohne Haken bei "nur was fehlt" zaehlen alle Sockel, nicht nur die
         -- leeren: die Frage ist dann "welcher Stein gehoert hier rein",
         -- nicht "wie viele muss ich noch kaufen".
-        local sockets = p.onlyMissing and scan.emptySockets or scan.totalSockets
+        local sockets = p.onlyMissing and gemMissing or gemTotal
         if gem and not foreign and (sockets or 0) > 0 then
             rows[#rows + 1] = fill({
                 kind = "gem", slot = "gems", id = gem.id,
                 stat = gem.major, minor = gem.minor, pct = pct,
-                fallback = gem.name, need = sockets, missing = scan.emptySockets,
+                fallback = gem.name, need = sockets, missing = gemMissing,
+                -- Was stattdessen drinsitzt - wie bei den Verzauberungen.
+                other = gemOther,
             })
             -- Auch hier die naechsthaeufigsten.
             local shown = 0
@@ -192,12 +208,16 @@ function List.Build(scan)
         -- richtig: eigener Platz, eigene Auswahl.
         local metaPick = ns.Recommend.MetaGem(rec)
         local meta = metaPick and Catalog.GemByID(metaPick.id)
-        -- Sitzt schon einer? Jeder Stein mit Hauptattribut zaehlt, nicht
-        -- nur der empfohlene: der Sockel ist dann nicht leer.
-        local metaSet = 0
+        -- Sitzt DER empfohlene drin? Ein anderer Stein mit Hauptattribut
+        -- fuellt den Sockel zwar - aber "bereits drauf" hiesse dann, es
+        -- sei nichts mehr zu tun, und das stimmt nicht.
+        local metaSet, metaOther = 0, nil
         for gemID, count in pairs(scan.gems or {}) do
             local g = Catalog.GemByID(gemID)
-            if g and g.major == "primary" then metaSet = metaSet + count end
+            if g and g.major == "primary" then
+                if meta and gemID == meta.id then metaSet = metaSet + count
+                else metaOther = metaOther or gemID end
+            end
         end
         local metaMissing = metaSet > 0 and 0 or 1
         if meta and not foreign and not (p.onlyMissing and metaMissing == 0) then
@@ -206,6 +226,7 @@ function List.Build(scan)
                 stat = meta.major, minor = meta.minor, pct = metaPick.pct,
                 maxKey = metaPick.maxKey,
                 fallback = meta.name, need = 1, missing = metaMissing,
+                other = metaMissing > 0 and metaOther or nil,
             })
             -- Auch der besondere Sockel hat eine Auswahl. Archon zeigt
             -- dort drei, und der Abstand zwischen 42 % und 7 % ist

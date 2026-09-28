@@ -44,7 +44,17 @@ end
 ---@return number
 local function socketCount(link)
     local stats = ns.Compat.ItemStats(link)
-    if not stats then return 0 end
+    if not stats then
+        -- Der Client kennt das Stueck noch nicht - frisch angelegt,
+        -- gerade erst gesockelt. Dann liefert er keine Sockel, und
+        -- ohne Nachfrage bliebe die Zeile auf diesem Stand stehen:
+        -- "0 Sockel" und damit "bereits drauf", obwohl niemand das
+        -- geprueft hat. Also anfordern - sein GET_ITEM_INFO_RECEIVED
+        -- laesst das Fenster gleich noch einmal rechnen.
+        local id = tonumber(tostring(link):match("item:(%d+)"))
+        if id and ns.Compat.RequestItem then ns.Compat.RequestItem(id) end
+        return 0
+    end
     local total = 0
     for key, value in pairs(stats) do
         if type(key) == "string" and key:find("EMPTY_SOCKET", 1, true) then
@@ -129,6 +139,44 @@ function Gear.Scan()
     end
 
     return { slots = slots, emptySockets = empty, totalSockets = total, gems = socketed }
+end
+
+---Wie viele Sockel NICHT den empfohlenen Stein tragen.
+---
+---Dieselbe Regel wie bei den Verzauberungen, und aus demselben Grund:
+---ein Sockel ist fertig, wenn DER empfohlene Stein drinsitzt - nicht,
+---wenn irgendeiner drinsitzt. Gezaehlt wurden bisher nur die leeren,
+---und deshalb stand "bereits drauf" auch dann da, wenn in den Sockeln
+---etwas ganz anderes sass.
+---
+---Gelesen wird am angelegten Gegenstand, bei jedem Mal neu: was der
+---Charakter JETZT traegt, ist die Antwort.
+---@param scan table
+---@param wanted number|nil Gegenstands-ID des empfohlenen Steins
+---@param same number[]|nil andere Qualitaetsstufen desselben Steins
+---@param isMeta fun(id: number): boolean|nil Steine des besonderen Sockels
+---@return number missing
+---@return number total
+---@return number|nil other  der Stein, der stattdessen drinsitzt
+function Gear.GemsMissing(scan, wanted, same, isMeta)
+    local total = scan.totalSockets or 0
+    local empty = scan.emptySockets or 0
+    if not wanted then return empty, total, nil end
+
+    local ok = { [wanted] = true }
+    for _, id in ipairs(same or {}) do ok[id] = true end
+
+    local wrong, other, most = 0, nil, 0
+    for gem, count in pairs(scan.gems or {}) do
+        -- Ein Stein des besonderen Sockels gehoert nicht hierher: er hat
+        -- seine eigene Zeile, und zweimal gezaehlt waere er zweimal zu
+        -- kaufen.
+        if not ok[gem] and not (isMeta and isMeta(gem)) then
+            wrong = wrong + count
+            if count > most then other, most = gem, count end
+        end
+    end
+    return empty + wrong, total, other
 end
 
 ---Wie viele Plaetze eines Katalogschluessels noch unverzaubert sind.
