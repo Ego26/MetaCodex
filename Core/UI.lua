@@ -1460,6 +1460,25 @@ local function consumableRows(specID, mode, source)
     local eigenerBuff = ns.Compat.SelfWeaponBuff(specID)
 
     local rows = {}
+
+    -- Was die Klasse selbst auf die Waffe legt.
+    --
+    -- Gemessen wie alles andere: in den Berichten steht es an der Waffe
+    -- unter "temporaryEnchant", genau dort, wo bei anderen das Oel
+    -- steht. Nur gibt es dazu nichts zu kaufen - also ist es keine
+    -- Einkaufszeile, sondern eine Auskunft. Archon fuehrt es unter
+    -- "Weapon Buff", und dort gehoert es auch hin.
+    local rec = ns.Recommend.For(specID, mode, source)
+    local buff = rec and ns.Recommend.Enchant(rec, "weaponbuff")
+    local buffSpell = buff and ns.Catalog.WeaponBuffSpell(buff.id)
+    if buffSpell then
+        rows[#rows + 1] = {
+            kind = "runeforge", slot = "weapon", spell = buffSpell,
+            pct = buff.pct, need = 0, missing = 0, buy = 0,
+            group = L["CONSUM_oil"],
+        }
+    end
+
     for _, kind in ipairs(CONSUM_ORDER) do
         if not (kind == "oil" and eigenerBuff) then
         -- Nur das haeufigste je Art ist ein Posten; der Rest sind

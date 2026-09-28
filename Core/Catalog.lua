@@ -229,6 +229,20 @@ end
 ---Zauber-ID, den Namen holt der Client.
 ---@param enchantID number|nil
 ---@return number|nil spellID
+---Der Zauber hinter einem zeitweiligen Waffenbuff - oder nil.
+---
+---Ein Oel kann man kaufen, Flammenzunge nicht: der Schamane legt sie
+---selbst auf, der Schurke sein Gift. In den Berichten steht beides an
+---derselben Stelle, nur gibt es zum einen einen Gegenstand und zum
+---anderen nur einen Zauber. Den Namen holt der Client.
+---@param enchantID number|nil
+---@return number|nil spellID
+function Catalog.WeaponBuffSpell(enchantID)
+    if not enchantID then return nil end
+    local c = data()
+    return c and c.weaponBuff and c.weaponBuff[enchantID] or nil
+end
+
 function Catalog.RuneforgeSpell(enchantID)
     if not enchantID then return nil end
     local c = data()

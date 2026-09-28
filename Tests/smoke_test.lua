@@ -4564,5 +4564,41 @@ do
     ns.Profile.SetLanguage("auto")
 end
 
+-- Was die Klasse selbst auf die Waffe legt, steht unter Waffenbuffs.
+--
+-- Beim Schamanen ist das Flammenzunge, beim Schurken sein Gift. In den
+-- Berichten steht es an derselben Stelle wie ein Oel - im Waffenteil
+-- unter "temporaryEnchant" -, nur gibt es dazu nichts zu kaufen. Bisher
+-- fiel es heraus, und die Spalte blieb leer, obwohl 96 % der Gemessenen
+-- etwas drauf haben.
+--
+-- Die Zahlen kommen aus dem naechsten Sammellauf; geprueft wird hier der
+-- Weg vom gemessenen Wert bis in die Zeile.
+do
+    check("der Katalog kennt Flammenzunge",
+        ns.Catalog.WeaponBuffSpell(5400) == 319778,
+        tostring(ns.Catalog.WeaponBuffSpell(5400)))
+    check("und eine erfundene Kennung ergibt nichts",
+        ns.Catalog.WeaponBuffSpell(999999) == nil)
+
+    local echt = ns.Recommend.Enchant
+    ns.Recommend.Enchant = function(entry, slot)
+        if slot == "weaponbuff" then return { id = 5400, pct = 96 } end
+        return echt(entry, slot)
+    end
+    ns.Profile.SetMode("mplus")
+    rowsInSection("consumables")
+    local gefunden
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() and rawget(row, "spellID") == 319778 then
+            gefunden = row.share:GetText()
+        end
+    end
+    check("der gemessene Waffenbuff steht als Zeile", gefunden == "96%",
+        tostring(gefunden))
+    ns.Recommend.Enchant = echt
+    rowsInSection("consumables")
+end
+
 say(fails == 0 and "\nalles gruen" or ("\n" .. fails .. " Fehler"))
 os.exit(fails == 0 and 0 or 1)

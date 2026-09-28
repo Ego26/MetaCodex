@@ -845,6 +845,12 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
     runeforgeMap = JSON.parse(fs.readFileSync(
       path.join(BASE, 'tools', 'data', 'runeforge-map.json'), 'utf8'));
   } catch (e) { /* ohne Karte zaehlt nur, was gekauft wird */ }
+  // Und die Waffenbuffs, die man nicht kauft: Flammenzunge, Gifte.
+  let weaponBuffMap = {};
+  try {
+    weaponBuffMap = JSON.parse(fs.readFileSync(
+      path.join(BASE, 'tools', 'data', 'weaponbuff-map.json'), 'utf8'));
+  } catch (e) { /* dann zaehlen nur die Oele */ }
   const consumables = await readConsumableItems(gameBuild, catalog.expansion);
   const talentSpells = await readTalentSpells(gameBuild);
   // Held-Baum je Talenteintrag - aus der Baumkarte,
@@ -1002,6 +1008,19 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
           const oilID = enchantMap[piece.temporaryEnchant];
           // Einmal je Spieler, auch bei zwei Waffen. Sonst stand "200 %".
           if (oilID && !oiled.has(oilID)) { oiled.add(oilID); bump(specID, 'consumables', oilID); }
+          // Kein Gegenstand, aber sehr wohl ein Waffenbuff.
+          //
+          // Der Schamane legt Flammenzunge auf, der Schurke sein Gift -
+          // und beides belegt denselben Platz wie ein Oel. Bisher fiel
+          // es hier heraus, weil es dazu nichts zu kaufen gibt: beim
+          // Schamanen stand dann ein Oel mit "5 fehlen", das er nie
+          // benutzen kann, und was er wirklich auflegt, stand nirgends.
+          const buffSpell = !oilID && weaponBuffMap[piece.temporaryEnchant];
+          const marke = 'b' + piece.temporaryEnchant;
+          if (buffSpell && !oiled.has(marke)) {
+            oiled.add(marke);
+            bump(specID, 'weaponbuff', Number(piece.temporaryEnchant));
+          }
         }
         const slot = SLOT_BY_INDEX[index];
         if (slot && piece.permanentEnchant) {

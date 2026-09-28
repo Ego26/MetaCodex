@@ -368,6 +368,27 @@ function emitEnchants(groups) {
   }
   console.log('Runenschmiede:', Object.keys(runeforges).length);
 
+  // Was zeitweilig auf der Waffe liegt.
+  //
+  // Ein Oel, ein Wetzstein - und bei manchen Klassen etwas, das man gar
+  // nicht kaufen kann: der Schamane legt Flammenzunge auf, der Schurke
+  // sein Gift. Beides belegt denselben Platz, und in den Berichten steht
+  // beides an derselben Stelle: gear[].temporaryEnchant.
+  //
+  // Erkannt an der DAUER, nicht am Namen. Eine feste Verzauberung hat
+  // Duration 0, eine zeitweilige eine Zahl - das ist der Unterschied,
+  // und er steht in den Spieldaten.
+  //
+  // Gespeichert wird die Zauber-ID: zu einer Klassenfaehigkeit gibt es
+  // keinen Gegenstand, und der Name kommt ohnehin vom Client.
+  const weaponBuffs = {};
+  for (const e of sieRows) {
+    if (!(Number(e.Duration) > 0)) continue;
+    const spell = Number(e.EffectArg_0) || 0;
+    if (spell > 0) weaponBuffs[Number(e.ID)] = spell;
+  }
+  console.log('Waffenbuffs auf Zeit:', Object.keys(weaponBuffs).length);
+
   // Verzauberungs-ID -> kaufbare Rolle. Nicht fuer das Addon, sondern
   // fuer die Sammler: die Logs melden IDs, gekauft wird ein Gegenstand.
   const enchantMap = {};
@@ -1230,6 +1251,13 @@ function emitEnchants(groups) {
   out.push('  },');
   out.push('');
 
+  out.push('  weaponBuff = {');
+  for (const [enchID, spellID] of Object.entries(weaponBuffs)) {
+    out.push(`    [${enchID}] = ${spellID},`);
+  }
+  out.push('  },');
+  out.push('');
+
   out.push('  enchantItem = {');
   for (const [enchID, itemID] of Object.entries(enchantMap)) {
     out.push(`    [${enchID}] = ${itemID},`);
@@ -1347,6 +1375,10 @@ function emitEnchants(groups) {
   // Waffe sitzt.
   fs.writeFileSync(path.join(mapDir, 'runeforge-map.json'),
     JSON.stringify(runeforges, null, 1), 'utf8');
+  // Und was zeitweilig darauf liegt, ohne dass man es kaufen kann:
+  // Flammenzunge, Windfury, die Gifte des Schurken.
+  fs.writeFileSync(path.join(mapDir, 'weaponbuff-map.json'),
+    JSON.stringify(weaponBuffs, null, 1), 'utf8');
   console.log('geschrieben: ' + mapFile + ' (' + Object.keys(enchantMap).length + ' IDs)');
 
   const count = Object.values(enchants).reduce((n, l) => n + l.length, 0);
