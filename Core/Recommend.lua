@@ -446,6 +446,28 @@ function Recommend.Embellish(specID, mode, source)
     return firstWith(specID, mode, source, "embellish")
 end
 
+---Der Omnium-Foliant: je Reihe die Runen und ihre Anteile.
+---
+---WARUM HIER EIN "seen" STEHT UND SONST NIRGENDS.
+---
+---Die Runen stehen nicht in den Kampfdaten, die jeden anderen Abschnitt
+---speisen - Warcraft Logs fuehrt sie dort nicht, und ein Entwickler hat
+---das bestaetigt. Erkannt werden sie an ihrer WIRKUNG: wer Feuer
+---entfesselt, macht Schaden, und dieser Schaden traegt ihren Namen.
+---
+---Das hat einen Preis. Wer die Rune traegt, sie in einem kurzen Kampf
+---aber nie ausloest, wird nicht gezaehlt. Gemessen werden so rund vier
+---von fuenf Spielern, und `seen` sagt, wie viele es diesmal waren. Der
+---Anteil ruht auf dieser Zahl, nicht auf allen Spielern der Spec - und
+---das Fenster schreibt sie dazu, statt sie zu verschweigen.
+---@param specID number
+---@param mode string
+---@param source string|nil
+---@return table[]|nil { { row = 1, seen = 812, picks = { { spell, pct } } } }
+function Recommend.Folio(specID, mode, source)
+    return firstWith(specID, mode, source, "folio")
+end
+
 ---Die gemessenen Stufen eines Handwerksstuecks, mit ihren Bonus-IDs.
 ---
 ---Ein Handwerksstueck wird nicht mit einem Schluesselstein aufgewertet,
@@ -718,6 +740,8 @@ function Recommend.HasSection(specID, mode, source, section)
         return Recommend.Consumables(specID, mode, source) ~= nil
     elseif section == "talents" then
         return Recommend.Talents(specID, mode, source) ~= nil
+    elseif section == "folio" then
+        return Recommend.Folio(specID, mode, source) ~= nil
     elseif section == "gear" then
         return Recommend.Gear(specID, mode, source) ~= nil
     elseif section == "embellish" then

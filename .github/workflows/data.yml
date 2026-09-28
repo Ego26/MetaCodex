@@ -61,6 +61,17 @@ on:
           in einer ganzen Nacht."
         required: false
         default: ""
+      sample:
+        description: "Stichprobe statt Vollerhebung: eine Seite je
+          Rangliste und zwei Begegnungen. Aus fuenfeinhalb Stunden werden
+          rund fuenfzehn Minuten. Gedacht zum Pruefen einer AENDERUNG am
+          Sammler, nicht fuer Zahlen - die Anteile ruhen dann auf ein
+          paar Dutzend Spielern statt auf Tausenden. Ein solcher Lauf
+          veroeffentlicht NICHTS: kein nightly, kein CurseForge. Das Zip
+          haengt am Lauf selbst und wird von Hand geladen."
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -144,6 +155,11 @@ jobs:
         env:
           WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
           WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
+          # Leer heisst: die Vorgaben des Sammlers. Eine leere
+          # Zeichenkette ist in "process.env.X || 3" falsch, also greift
+          # dort wieder die 3 - kein Sonderfall noetig.
+          MC_PAGES: ${{ inputs.sample && '1' || '' }}
+          MC_ENCOUNTERS: ${{ inputs.sample && '2' || '' }}
         run: node tools/collect-all.js . nur=raid,raid-mythic,raid-normal
       - name: Hand it on
         if: always()
@@ -190,6 +206,8 @@ jobs:
         env:
           WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
           WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
+          MC_PAGES: ${{ inputs.sample && '1' || '' }}
+          MC_ENCOUNTERS: ${{ inputs.sample && '2' || '' }}
         run: node tools/collect-all.js . nur=consumables
       - name: Hand it on
         if: always()
@@ -235,6 +253,12 @@ jobs:
         env:
           WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
           WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
+          # Hier zaehlen keine Seiten, sondern Schluesselstufen: eine
+          # Seite JE Stufe von +7 bis +21. Fuer eine Stichprobe bleiben
+          # die beiden obersten - der Rest ist dieselbe Schleife.
+          MC_ENCOUNTERS: ${{ inputs.sample && '2' || '' }}
+          MC_KEY_FROM: ${{ inputs.sample && '20' || '' }}
+          MC_KEY_TO: ${{ inputs.sample && '21' || '' }}
         run: node tools/collect-all.js . nur=keys
       - name: Hand it on
         if: always()
@@ -444,7 +468,25 @@ jobs:
           echo "ymd=$YMD" >> "$GITHUB_OUTPUT"
           echo "date=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
 
+      # A sample run keeps its zip to itself.
+      #
+      # The whole point of "sample" is a run that finishes in fifteen
+      # minutes, and it buys that with a sample of a few dozen players
+      # instead of a few thousand. Such numbers must never reach the
+      # nightly release or CurseForge: they would look exactly like the
+      # real ones and be wrong by a wide margin. The file hangs on the
+      # run instead, to be downloaded by hand and unpacked over a copy
+      # of the addon.
+      - name: Keep the sample build on the run
+        if: ${{ inputs.sample }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: sample-addon-${{ steps.pack.outputs.ymd }}
+          path: dist/MetaCodex-${{ steps.pack.outputs.stamp }}.zip
+          retention-days: 3
+
       - name: Update the "nightly" release
+        if: ${{ !inputs.sample }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: nightly
@@ -489,7 +531,7 @@ jobs:
           fi
 
       - name: Take the released code, keep tonight's data
-        if: steps.released.outputs.tag != ''
+        if: ${{ !inputs.sample && steps.released.outputs.tag != '' }}
         run: |
           # The data files are untracked, so the checkout leaves them where
           # they are. Staging them afterwards is what makes the packager
@@ -503,7 +545,7 @@ jobs:
           mv /tmp/notes.md RELEASE-NOTES.md
 
       - name: Upload to CurseForge
-        if: steps.released.outputs.tag != ''
+        if: ${{ !inputs.sample && steps.released.outputs.tag != '' }}
         uses: BigWigsMods/packager@v2
         env:
           # From the CurseForge account under "API Tokens". No token, no

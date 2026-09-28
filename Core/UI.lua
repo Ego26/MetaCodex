@@ -99,7 +99,10 @@ local SHOPPING = { enchants = true, consumables = true, remind = true }
 -- Warcraft Logs je Dungeon UND ueber alle - wie Archon es auch zeigt.
 -- Die Vorgabe ist ueberall "Alle Dungeons"; der Dungeon beantwortet die
 -- engere Frage, wenn jemand sie stellt.
-local DUNGEON_SECTIONS = { talents = true, consumables = true, enchants = true }
+local DUNGEON_SECTIONS = { talents = true, consumables = true, enchants = true,
+    -- Der Foliant gehoert dazu: er wird in denselben Kaempfen gemessen
+    -- und je Dungeon mitgezaehlt, ohne eine einzige Abfrage mehr.
+    folio = true }
 
 -- Wessen Profil gerade offen ist, statt eines Abschnitts. Gesetzt vom
 -- Klick auf eine Zeile der Rangliste, geloescht vom Zurueck-Knopf oder
@@ -127,6 +130,12 @@ local SECTIONS = {
     { key = "guides",      group = "GROUP_KNOW" },
     { key = "stats",       group = "GROUP_KNOW" },
     { key = "talents",     group = "GROUP_KNOW" },
+    -- Der Foliant haengt unter den Talenten, weil er einer ist: fuenf
+    -- Reihen, je Reihe eine Wahl. Eigener Eintrag statt eines Reiters
+    -- innerhalb der Talente, weil er aus einer anderen Messung stammt
+    -- und eine eigene Grundlage ausweist - das gehoert nicht in eine
+    -- Seite, auf der jede andere Zahl auf allen Spielern ruht.
+    { key = "folio",       group = "GROUP_KNOW", sub = "talents" },
     { key = "players",     group = "GROUP_KNOW" },
 
     { key = "gear",        group = "GROUP_GEAR" },
@@ -2222,6 +2231,53 @@ local function talentRows(specID, mode, source)
     return rows, from
 end
 
+---Der Omnium-Foliant: fuenf Reihen, je Reihe eine Wahl.
+---
+---VIER REIHEN STEHEN HIER, DIE FUENFTE NICHT - und das ist keine
+---Nachlaessigkeit, sondern das Ergebnis.
+---
+---Die Runen stehen nicht in den Kampfdaten, aus denen jeder andere
+---Abschnitt lebt. Erkannt werden sie an ihrer Wirkung. Fuer die Reihen
+---eins bis vier geht das: nachgemessen wurden vier von fuenf Spielern.
+---Fuer Reihe fuenf geht es nicht - keine ihrer drei Runen hinterlaesst
+---irgendeine Spur, auch nicht im rohen Kampflog.
+---
+---Man koennte sie ausrechnen: wer in einer Reihe mit drei Wahlmoeglich-
+---keiten bei keiner der beiden sichtbaren auftaucht, hat die dritte.
+---Das waere eine Zahl, die wie eine Messung aussieht und keine ist -
+---wer seine Rune traegt und nie ausloest, faellt in denselben Topf.
+---Also steht dort ein Satz statt einer Zahl.
+---@return table[] rows
+---@return string|nil fromSource
+local function folioRows(specID, mode, source)
+    local rows, from = ns.Recommend.Folio(specID, mode, source)
+    if not rows then return {}, nil end
+
+    local out = {}
+    for _, row in ipairs(rows) do
+        -- Die Grundlage steht im Gruppenkopf, nicht im Kleingedruckten:
+        -- wer den Anteil liest, soll im selben Blick sehen, worauf er
+        -- ruht.
+        local group = L["FOLIO_ROW"]:format(row.row or 0, row.seen or 0)
+        for _, pick in ipairs(row.picks or {}) do
+            out[#out + 1] = {
+                kind = "talent", spell = pick.spell, pct = pick.pct,
+                group = group,
+            }
+        end
+    end
+    if #out == 0 then return {}, nil end
+
+    -- Und die fuenfte Reihe, benannt statt verschwiegen. Eine Luecke,
+    -- die niemand erklaert, halten die Leute fuer einen Fehler - und
+    -- fragen danach, zu Recht.
+    out[#out + 1] = {
+        kind = "note", text = L["FOLIO_ROW5_TEXT"],
+        group = L["FOLIO_ROW5"],
+    }
+    return out, from
+end
+
 ---Zielwerte als Rangfolge mit den beobachteten Zahlen.
 ---@return table[] rows
 ---@return string|nil fromSource
@@ -3428,8 +3484,12 @@ local function build()
         button.marker:SetVertexColor(S:Color("accent"))
         button.marker:Hide()
         button.label = S:Text(button, "body", "textSecondary")
-        button.label:SetPoint("LEFT", S.space.md, 0)
-        button.label:SetText(L["SECTION_" .. section.key])
+        -- Ein Untereintrag rueckt ein und traegt einen Haken davor.
+        -- Ohne beides sieht er aus wie ein gleichrangiger Punkt, und
+        -- dann ist die Ordnung, die er ausdruecken soll, nicht zu sehen.
+        button.label:SetPoint("LEFT", S.space.md + (section.sub and 14 or 0), 0)
+        button.label:SetText((section.sub and "\194\183 " or "")
+            .. L["SECTION_" .. section.key])
         button.section = section
         button:SetScript("OnEnter", function(self) self.bg:SetAlpha(0.6) end)
         button:SetScript("OnLeave", function(self) self.bg:SetAlpha(self.__active and 1 or 0) end)
@@ -4038,6 +4098,12 @@ function UI.Refresh()
             return talentRows(specID, mode, source)
         end)
         hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted) or "")
+    elseif section.key == "folio" then
+        currentRows, fromSource = withFallback(function(source)
+            return folioRows(specID, mode, source)
+        end)
+        hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted)
+            or L["FOLIO_HINT"])
     elseif section.key == "players" then
         currentRows, fromSource = withFallback(function(source)
             return playerRows(specID, mode, source)

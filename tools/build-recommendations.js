@@ -600,6 +600,33 @@ for (const [mode, bySource] of Object.entries(byMode)) {
         }
         out.push("            },");
       }
+      // Der Omnium-Foliant, Reihe fuer Reihe.
+      //
+      // "seen" ist kein Beiwerk, sondern der Nenner: die Runen werden an
+      // ihrer Wirkung erkannt, und wer in einem kurzen Kampf nichts
+      // ausloest, ist nicht gemessen. Gemessen sind rund vier von fuenf
+      // Spielern - das Fenster sagt es dazu, statt es zu verschweigen.
+      if (entry.folio && entry.folio.length) {
+        // Erst sammeln, dann schreiben: eine Reihe ohne Runen ueber 1 %
+        // faellt weg, und faellt jede weg, darf auch der Abschnitt nicht
+        // dastehen. Ein leeres "folio = {}" hiesse im Fenster "es gibt
+        // Daten" - und dann waere die Seite leer.
+        const zeilen = [];
+        for (const row of entry.folio) {
+          const picks = (row.picks || [])
+            // Unter einem Prozent ist Rauschen, hier wie ueberall.
+            .filter((p) => (p.pct || 0) >= 1)
+            .map((p) => `{ spell = ${p.spell}, pct = ${p.pct} }`);
+          if (!picks.length) continue;
+          zeilen.push(`              { row = ${row.row}, seen = ${row.seen || 0}, `
+            + 'picks = { ' + picks.join(', ') + ' } },');
+        }
+        if (zeilen.length) {
+          out.push('            folio = {');
+          for (const zeile of zeilen) out.push(zeile);
+          out.push('            },');
+        }
+      }
       // Die Spieler, die die Quelle oben fuehrt.
       //
       // Nur Name, Realm und Region - genug fuer die Adresse. Die Seite

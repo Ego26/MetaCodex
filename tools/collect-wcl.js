@@ -68,6 +68,54 @@ const PER_DUNGEON = !!process.env.MC_DUNGEONS;
 const slug = (name) => String(name).toLowerCase()
   .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
+// --- Der Omnium-Foliant ------------------------------------------------
+//
+// Dreizehn Runen in fuenf Reihen, je Reihe eine Wahl. Sie stehen NICHT
+// in CombatantInfo - ein Entwickler von Warcraft Logs hat das bestaetigt:
+// "its not included in combatant info". Was bleibt, ist, sie an ihrer
+// WIRKUNG zu erkennen, und genau das tut Archon auch ("we derive it
+// based on events seen during combat").
+//
+// Jede Rune steht in genau EINER Tabelle, und welche das ist, laesst
+// sich nicht raten. Nachgemessen an einem echten Bericht (13 Kaempfe,
+// 60 Spieler):
+//
+//     Rune                  Buffs  DamageDone  Healing
+//     Unleashed Fire            0          48        0
+//     Self-Mending              0           0       35
+//     Void-Touched Orbs         3           0        0
+//     Critical Power           28           0        0
+//
+// Wer alles unter den Auren sucht, haelt Unleashed Fire fuer unsichtbar
+// und meldet eine blinde Reihe, die gar nicht blind ist. Deshalb steht
+// die Tabelle hier je Rune dabei und wird nicht erraten.
+//
+// REIHE 5 IST NICHT MESSBAR. Keine ihrer drei Runen hinterlaesst in
+// irgendeiner der drei Tabellen eine Spur - auch nicht im rohen
+// Kampflog, wo "Rune der Ueberladung" ueber 628 MB kein einziges Mal
+// vorkommt. Sie wird darum gar nicht erst abgefragt und im Fenster als
+// nicht messbar ausgewiesen, statt eine Zahl zu erfinden.
+const FOLIO_ROWS = 4;
+const FOLIO = [
+  { row: 1, spell: 1286970, table: 'DamageDone' },  // Unleashed Fire
+  { row: 1, spell: 1287425, table: 'Buffs' },       // Void-Touched Orbs
+  { row: 2, spell: 1287908, table: 'Healing' },     // Self-Mending
+  { row: 2, spell: 1287955, table: 'Buffs' },       // Void-Tainted Shell
+  { row: 2, spell: 1287978, table: 'Buffs' },       // Lynxlike Reflexes
+  { row: 3, spell: 1287665, table: 'Buffs' },       // Lingering
+  { row: 4, spell: 1287770, table: 'Buffs' },       // Versatile Warrior
+  { row: 4, spell: 1287771, table: 'Buffs' },       // Masterful Cunning
+  { row: 4, spell: 1287772, table: 'Buffs' },       // Critical Power
+  { row: 4, spell: 1287774, table: 'Buffs' },       // Burning Haste
+];
+// Die Tabellen haengen an der Abfrage, die ohnehin je Kampf laeuft -
+// als Aliase, nicht als eigene Anfragen. Gemessen: 16 Punkte statt 3,34
+// und 26 ms mehr je Kampf. Zehn eigene Anfragen waeren zehn Gaenge
+// gewesen und haetten die Nacht um Stunden verlaengert.
+const FOLIO_QUERY = FOLIO.map((r, i) =>
+  `            f${i}: table(dataType: ${r.table}, fightIDs: [$fight], abilityID: ${r.spell})`)
+  .join('\n');
+
 const BASE_MODE = KIND === 'mplus'
   ? (KEY_RANGE ? 'mplus-keys' : 'mplus')
   : (RAID_NAME[DIFFICULTY] || `raid-${DIFFICULTY}`);
@@ -890,6 +938,12 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
       talents: {}, builds: {}, ratings: [], maxKey: {}, players: 0,
       names: [],
       hero: {},
+      // Je Reihe: wieviele Spieler dieser Spec wir ueberhaupt zuordnen
+      // konnten, und wie sich diese auf die Runen verteilen. Die
+      // Grundlage steht dabei, weil der Anteil OHNE sie eine Falle ist:
+      // die Reihe misst nie alle Spieler, und ein Prozentwert, der
+      // vorgibt es zu tun, waere erfunden.
+      folio: {},
     });
   };
   // Welche Zaehlwerke der gerade gelesene Kampf fuettert.
@@ -902,7 +956,7 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
     for (const mode of active) {
       const spec = entryFor(mode, specID);
       if (currentKey > (spec.maxKey[id] || 0)) spec.maxKey[id] = currentKey;
-      if (bucket === 'gems' || bucket === 'consumables') {
+      if (bucket === 'gems' || bucket === 'consumables' || bucket === 'folio') {
         spec[bucket][id] = (spec[bucket][id] || 0) + 1;
       } else {
         const slot = spec.enchants[bucket] || (spec.enchants[bucket] = {});
@@ -949,6 +1003,7 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
             fights(fightIDs: [$fight]) { startTime endTime }
             masterData { actors(type: "Player") { id name server } }
             region { slug }
+${FOLIO_QUERY}
           } }
         }`, { code, fight: fightID });
     } catch (err) {
@@ -1150,6 +1205,45 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
       }
     }
 
+
+    // --- Der Foliant -------------------------------------------------
+    //
+    // Erst hier, nach der Spielerschleife: die Tabellen tragen nur eine
+    // Akteursnummer, und welche Spec dahintersteckt, weiss erst
+    // specBySource - das die Schleife gerade erst gefuellt hat.
+    //
+    // Gezaehlt wird je Reihe zweierlei: wer eine Rune dieser Reihe trug,
+    // UND wie viele Spieler der Spec wir in dieser Reihe ueberhaupt
+    // zuordnen konnten. Das zweite ist der Nenner. Ohne ihn waere jeder
+    // Anteil eine stille Luege - er stuende auf allen Spielern, gemessen
+    // wurden aber nur vier von fuenf.
+    {
+      const gesehen = new Map();   // specID -> Map(row -> Set(sourceID))
+      for (const [i, rune] of FOLIO.entries()) {
+        const tabelle = report && report['f' + i];
+        const daten = (tabelle && tabelle.data) || {};
+        // Auren heissen "auras", Schaden und Heilung heissen "entries".
+        for (const eintrag of (daten.auras || daten.entries || [])) {
+          const quelle = Number(eintrag.id);
+          const specID = specBySource.get(quelle);
+          if (!specID) continue;
+          bump(specID, 'folio', rune.row + ':' + rune.spell);
+          if (!gesehen.has(specID)) gesehen.set(specID, new Map());
+          const proReihe = gesehen.get(specID);
+          if (!proReihe.has(rune.row)) proReihe.set(rune.row, new Set());
+          proReihe.get(rune.row).add(quelle);
+        }
+      }
+      for (const [specID, proReihe] of gesehen) {
+        for (const [row, wer] of proReihe) {
+          for (const mode of active) {
+            const spec = entryFor(mode, specID);
+            spec.folioSeen = spec.folioSeen || {};
+            spec.folioSeen[row] = (spec.folioSeen[row] || 0) + wer.size;
+          }
+        }
+      }
+    }
 
     //
     // Speisen, Traenke und Heiltraenke stehen NICHT in den Auren beim
@@ -1440,6 +1534,34 @@ Haeufigste nicht zugeordnete Auren (${missedAuras.size} verschiedene):`);
           }
           out.hero[sub] = ho;
         }
+      }
+
+      // Der Foliant: je Reihe die Runen mit ihrem Anteil, und daneben,
+      // auf wie vielen Spielern dieser Anteil ruht.
+      //
+      // Reihe 5 steht hier nicht, weil sie nicht gemessen werden kann -
+      // siehe FOLIO oben. Sie fehlt lieber ganz, als mit einer Zahl
+      // dazustehen, die aus dem Rest gerechnet waere.
+      {
+        const reihen = [];
+        for (let row = 1; row <= FOLIO_ROWS; row++) {
+          const vorsatz = row + ':';
+          const runen = Object.entries(entry.folio || {})
+            .filter(([key]) => key.indexOf(vorsatz) === 0);
+          const gesehen = (entry.folioSeen || {})[row] || 0;
+          if (!runen.length || !gesehen) continue;
+          reihen.push({
+            row,
+            seen: gesehen,
+            picks: runen
+              .map(([key, n]) => ({
+                spell: Number(key.split(':')[1]),
+                pct: share(n, gesehen),
+              }))
+              .sort((a, b) => b.pct - a.pct),
+          });
+        }
+        if (reihen.length) out.folio = reihen;
       }
 
       const builds = Object.entries(entry.builds || {}).sort((a, b) => b[1] - a[1]);

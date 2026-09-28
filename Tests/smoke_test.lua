@@ -4672,5 +4672,71 @@ do
     ns.Profile.SetLanguage("auto")
 end
 
+-- ---------------------------------------------------- Der Omnium-Foliant
+--
+-- Die Daten dafuer entstehen erst im naechsten Nachtlauf, also bekommt
+-- der Zugriff hier fuer einen Moment eine gemessene Antwort. Geprueft
+-- wird nicht, DASS Zahlen da sind - das waere eine Pruefung der
+-- Attrappe -, sondern was das Fenster aus ihnen macht.
+do
+    local echterFoliant = ns.Recommend.Folio
+    ns.Recommend.Folio = function()
+        return {
+            { row = 1, seen = 812, picks = {
+                { spell = 1286970, pct = 71 }, { spell = 1287425, pct = 29 } } },
+            { row = 4, seen = 790, picks = {
+                { spell = 1287772, pct = 58 }, { spell = 1287774, pct = 26 },
+                { spell = 1287771, pct = 16 } } },
+        }, "warcraftlogs.com"
+    end
+
+    local gezeigt = rowsInSection("folio")
+    check("der Foliant zeigt Zeilen", gezeigt >= 5, gezeigt .. " Zeilen")
+
+    -- Gruppenkoepfe sind selbst Zeilen, keine Beschriftung an einer
+    -- anderen - deshalb steht hier alles Sichtbare in einem Topf.
+    local texte, anteile = {}, 0
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() then
+            if row.title and row.title:GetText() then
+                texte[#texte + 1] = row.title:GetText()
+            end
+            local s = row.share and row.share:GetText()
+            if s and s ~= "" then anteile = anteile + 1 end
+        end
+    end
+    local alleTexte = table.concat(texte, " | ")
+
+    -- Die Grundlage muss dastehen. Ein Anteil ohne sie laedt zum
+    -- falschen Vergleich ein: die Reihe misst nie alle Spieler.
+    check("die Reihe nennt ihre Grundlage",
+        alleTexte:find("812", 1, true) ~= nil, alleTexte:sub(1, 60))
+
+    -- Und die fuenfte Reihe steht da, ohne eine Zahl zu behaupten.
+    -- Gross geschrieben: Gruppenkoepfe stehen in Versalien, der
+    -- Sprachschluessel nicht. Verglichen wird darum in einer Schreibung.
+    check("Reihe 5 wird benannt",
+        alleTexte:upper():find(ns.L["FOLIO_ROW5"]:upper(), 1, true) ~= nil)
+    local satz = ns.L["FOLIO_ROW5_TEXT"]
+    check("und sagt, dass sie nicht messbar ist",
+        alleTexte:find(satz:sub(1, 20), 1, true) ~= nil)
+
+    -- Der eigentliche Punkt: genau so viele Anteile, wie gemessen
+    -- wurden. Fuenf Runen gefuettert, fuenf Prozentwerte - eine
+    -- sechste Zahl waere aus dem Rest gerechnet und keine Messung.
+    check("nur gemessene Anteile, kein erfundener fuer Reihe 5",
+        anteile == 5, anteile .. " Anteile")
+
+    -- Ohne Daten darf der Punkt gar nicht erst im Menueband stehen -
+    -- sonst fuehrt er in eine leere Seite.
+    ns.Recommend.Folio = function() return nil end
+    check("ohne Messung kein Menuepunkt",
+        ns.UI.SectionHasData("folio") == false)
+
+    ns.Recommend.Folio = echterFoliant
+    MetaCodexDB.section = "talents"
+    ns.UI.Refresh()
+end
+
 say(fails == 0 and "\nalles gruen" or ("\n" .. fails .. " Fehler"))
 os.exit(fails == 0 and 0 or 1)
