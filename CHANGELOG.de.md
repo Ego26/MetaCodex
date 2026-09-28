@@ -4,6 +4,55 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ## [Unveröffentlicht]
 
+### Neu
+
+- Der Omnium-Foliant, als Untereintrag bei den Talenten: welche Rune die
+  besten Spieler in jeder Reihe nehmen. Warcraft Logs führt den Folianten
+  nicht in den Kampfdaten – ein Entwickler von dort hat es bestätigt –,
+  also werden die Runen an ihrer Wirkung erkannt, so wie Archon es tut.
+- Vier der fünf Reihen sind damit messbar, an rund vier von fünf Spielern.
+  Jede Reihe nennt im Kopf, auf wie vielen Spielern ihre Anteile ruhen:
+  diese Zahl ist kleiner als die Stichprobe der Spec, und ein Anteil, der
+  sie verschweigt, lädt zum falschen Vergleich ein.
+- Reihe 5 bekommt einen Satz statt einer Zahl. Keine ihrer drei Runen
+  hinterlässt eine Spur, auch nicht in einem 628 MB großen Kampflog. Man
+  könnte sie aus dem errechnen, was die anderen übrig lassen – sie sähe
+  aus wie eine Messung, ohne eine zu sein.
+- Der Waffenbuff, den eine Klasse selbst auflegt, wird gemessen und
+  gezeigt: Flammenzunge des Schamanen und das Gift des Schurken stehen
+  dort, wo sonst ein Öl stünde.
+- Alles unter „Sonstiges" auf der Erinnerung hat eine eigene Menge.
+  Trommeln, Reparaturhammer und Vantusrune sind nicht eine Entscheidung.
+- Gegenstände, die niemand gemessen hat, lassen sich über ihre ID auf die
+  Erinnerung setzen – mit Vorschau und dem Tooltip des Spiels.
+- Eine Ignorieren-Liste: eine Zeile, von der man nichts mehr hören will,
+  verschwindet über ein Menü und kommt genauso wieder zurück.
+- Der Tageslauf lässt sich als Stichprobe starten – eine Seite je
+  Rangliste, zwei Begegnungen. Fünfzehn Minuten statt fünfeinhalb Stunden,
+  gedacht zum Prüfen einer Änderung am Sammler. Ein solcher Lauf
+  veröffentlicht nichts: seine Zahlen ruhen auf Dutzenden Spielern, nicht
+  auf Tausenden.
+
+### Geändert
+
+- Der Tageslauf beginnt um 00:05 UTC statt 04:30, damit die frischen
+  Tabellen vor dem Frühstück auf CurseForge stehen und nicht nach dem
+  Mittagessen. Die alte Zeit wartete auf eine tägliche Ranglisten-
+  Rücksetzung, von der hier nichts abhängt.
+- Fehlende Verzauberungen und Steine werden benannt, nicht gezählt. „Zwei
+  Steine fehlen" sagt nicht, welche zwei.
+- Ein Sockel mit einem Stein darin heißt nicht mehr leer. Tempo und
+  Vielseitigkeit mit Absicht zu tragen ist eine Entscheidung, kein
+  Versäumnis.
+
+### Behoben
+
+- Ein Schamane sollte Öl kaufen. Die Zeile, die das verhindern sollte,
+  konnte nie wirken: in Lua ergibt `cond and nil or x` immer `x` – der
+  Zweig, der richtig aussah, tat nichts.
+- Der Anteil neben einem Talent-Build sagt jetzt, wessen fünfzig Prozent
+  das sind.
+
 ## [1.1.5] - 2026-09-28
 
 ### Neu

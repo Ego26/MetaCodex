@@ -4,6 +4,51 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ## [Unreleased]
 
+### Added
+
+- The Omnium Folio, as a sub-entry under Talents: which rune the best
+  players take in each row. Warcraft Logs does not carry the folio in the
+  combatant data - one of their developers confirmed it - so the runes are
+  recognised by their effect, the way Archon does it.
+- Four of the five rows are measurable that way, at about four players in
+  five. Each row header says how many players its percentages rest on,
+  because that number is smaller than the spec's full sample and a share
+  that hides it invites the wrong comparison.
+- Row five gets a sentence instead of a number. None of its three runes
+  leaves a trace in any table, nor in a 628 MB raw combat log. It could be
+  derived from what the other options leave over - that number would look
+  like a measurement without being one.
+- The weapon buff a class puts on itself is measured and shown, so a
+  shaman's Flametongue and a rogue's poison appear where an oil would.
+- Anything under "Other" in the reminder carries its own amount. Drums, a
+  repair hammer and a Vantus rune are not one decision, and one quantity
+  for all three was the wrong shape.
+- Items nobody measured can be added to the reminder by ID, with a live
+  preview and the game's own tooltip on hover.
+- An ignore list: a row you do not want to hear about again goes away
+  through a menu, and comes back the same way.
+- A daily run can be started as a sample - one page per ranking, two
+  encounters. Fifteen minutes instead of five and a half hours, for
+  checking a change to the collector. Such a run publishes nothing: its
+  numbers rest on dozens of players, not thousands.
+
+### Changed
+
+- The daily run starts at 00:05 UTC instead of 04:30, so the fresh tables
+  are on CurseForge before breakfast rather than after lunch. The old time
+  waited for a daily leaderboard reset that nothing here depends on.
+- Missing enchants and gems are named, not counted. "Two gems missing"
+  does not say which two.
+- A socket holding a gem is no longer called empty. Wearing haste and
+  versatility on purpose is a decision, not an omission.
+
+### Fixed
+
+- A shaman was told to buy oil. The line meant to suppress it could never
+  work: in Lua `cond and nil or x` always yields `x`, so the branch that
+  looked right did nothing.
+- The share next to a talent build said whose fifty percent it is.
+
 ## [1.1.5] - 2026-09-28
 
 ### Added
