@@ -2180,6 +2180,14 @@ local function acquireRow(index)
     row.icon:SetPoint("LEFT", S.space.sm, 0)
     row.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
+    -- Die Handwerksstufe, unten links auf dem Symbol - dort, wo der
+    -- Beutel sie auch zeigt. Wer drei Sorten Heiltrank im Fenster
+    -- stehen hat, unterscheidet sie sonst nur am Prozentwert.
+    row.quality = row:CreateTexture(nil, "OVERLAY")
+    row.quality:SetSize(14, 14)
+    row.quality:SetPoint("BOTTOMLEFT", row.icon, "BOTTOMLEFT", -3, -3)
+    row.quality:Hide()
+
     row.title = S:Text(row, S.role.title.size, S.role.title.token)
     row.title:SetPoint("TOPLEFT", S.space.sm + 38, -S.space.sm)
     row.title:SetWidth(contentWidth() - 140)
@@ -2295,6 +2303,22 @@ end
 ---
 ---Deshalb EINE Stelle statt zweier, die sich auseinanderentwickeln. Wer
 ---hier etwas ergaenzt, ergaenzt es fuer beide Zeilenarten.
+---Setzt das Qualitaetszeichen auf das Symbol einer Zeile - oder raeumt
+---es ab. Beides immer: eine Zeile wird wiederverwendet, und das Zeichen
+---des Vorgaengers auf einem anderen Gegenstand waere eine Luege.
+---@param row table
+---@param itemID number|nil
+local function setQuality(row, itemID)
+    if not row.quality then return end
+    local atlas = ns.Compat.QualityAtlas(ns.Compat.CraftQuality(itemID))
+    if atlas and row.quality.SetAtlas then
+        row.quality:SetAtlas(atlas)
+        row.quality:Show()
+    else
+        row.quality:Hide()
+    end
+end
+
 local function resetRow(row)
     -- Eine Karte gehoert zu genau EINER Art Zeile.
     --
@@ -2322,6 +2346,7 @@ local function resetRow(row)
     -- koreanischer Schrift - zu breit und mit seltsamen Abstaenden.
     S:ClearScript(row.title)
     S:ClearScript(row.detail)
+    if row.quality then row.quality:Hide() end
     row.barTrack:Hide()
     row.barTarget:Hide()
     row.barMine:Hide()
@@ -2493,6 +2518,7 @@ local function setItemRow(row, data)
     if data.kind == "remind" then
         row.link = data.link
         row.icon:SetTexture(data.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+        setQuality(row, data.id)
         row.title:SetText(data.name or ("#" .. tostring(data.id)))
         row.detail:ClearAllPoints()
         row.detail:SetPoint("TOPLEFT", S.space.sm + 38, -S.space.sm - 16)
@@ -2731,6 +2757,7 @@ local function setItemRow(row, data)
     if data.kind == "consumable" then
         row.link = data.link
         row.icon:SetTexture(data.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+        setQuality(row, data.id)
         row.title:SetText(data.name or ("#" .. tostring(data.id)))
         row.detail:ClearAllPoints()
         row.detail:SetPoint("TOPLEFT", S.space.sm + 38, -S.space.sm - 16)

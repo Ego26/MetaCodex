@@ -3887,5 +3887,72 @@ do
     ns.Profile.SetMode("mplus")
 end
 
+-- Die Handwerksstufe am Symbol, wie im Beutel.
+--
+-- Drei Sorten Heiltrank stehen mit demselben Namen untereinander; ohne
+-- das Zeichen unterscheidet sie nur der Prozentwert.
+do
+    -- Der Client kennt die Stufen: was er sagt, gilt.
+    C_TradeSkillUI = { GetItemCraftedQualityByItemInfo = function(id)
+        return id == 4242 and 3 or 0
+    end }
+    C_Texture = { GetAtlasInfo = function(name)
+        return tostring(name):find("Tier", 1, true) and { name = name } or nil
+    end }
+
+    check("der Client sagt die Stufe", ns.Compat.CraftQuality(4242) == 3,
+        tostring(ns.Compat.CraftQuality(4242)))
+    local atlas = ns.Compat.QualityAtlas(3)
+    check("und es gibt ein Zeichen dazu",
+        type(atlas) == "string" and atlas:find("Tier3", 1, true) ~= nil,
+        tostring(atlas))
+    check("ohne Stufe kein Zeichen", ns.Compat.QualityAtlas(nil) == nil)
+    check("und keine erfundene Stufe", ns.Compat.QualityAtlas(9) == nil)
+
+    -- Schweigt der Client, zaehlt der Katalog die Stufen derselben Ware.
+    C_TradeSkillUI = nil
+    local mitStufen
+    ns.Profile.SetMode("mplus")
+    for _, eintrag in ipairs(ns.Recommend.Consumables(ns.Profile.SelectedSpec(),
+        "mplus", ns.Recommend.ALL) or {}) do
+        if eintrag.id and not mitStufen then
+            local lower, higher = ns.Catalog.Tiers(eintrag.id)
+            if #(lower or {}) + #(higher or {}) > 0 then mitStufen = eintrag.id end
+        end
+    end
+    check("es gibt Ware mit mehreren Stufen", mitStufen ~= nil,
+        tostring(mitStufen))
+    if mitStufen then
+        check("ohne Client zaehlt der Katalog die Stufen",
+            type(ns.Compat.CraftQuality(mitStufen)) == "number",
+            tostring(ns.Compat.CraftQuality(mitStufen)))
+    end
+
+    -- Und im Fenster steht es wirklich an den Zeilen.
+    C_TradeSkillUI = { GetItemCraftedQualityByItemInfo = function() return 2 end }
+    rowsInSection("consumables")
+    local mitZeichen = 0
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() and row.quality and row.quality:IsShown() then
+            mitZeichen = mitZeichen + 1
+        end
+    end
+    check("die Zeilen tragen das Zeichen", mitZeichen > 0, mitZeichen .. " Zeilen")
+
+    -- Eine wiederverwendete Zeile traegt es nicht weiter: das Zeichen
+    -- des Vorgaengers auf einem anderen Gegenstand waere eine Luege.
+    C_TradeSkillUI = { GetItemCraftedQualityByItemInfo = function() return 0 end }
+    rowsInSection("gear")
+    local uebrig = 0
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() and row.quality and row.quality:IsShown() then
+            uebrig = uebrig + 1
+        end
+    end
+    check("und gibt es wieder her", uebrig == 0, uebrig .. " Zeilen")
+    C_TradeSkillUI = nil
+    C_Texture = nil
+end
+
 say(fails == 0 and "\nalles gruen" or ("\n" .. fails .. " Fehler"))
 os.exit(fails == 0 and 0 or 1)

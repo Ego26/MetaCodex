@@ -340,6 +340,51 @@ function Compat.DropText(encounterID, instanceID)
     return boss or place
 end
 
+---Die Handwerksqualitaet eines Gegenstands: 1 bis 5, oder nil.
+---
+---Zuerst der Client: er fuehrt sie am Gegenstand selbst, und was er
+---sagt, gilt. Schweigt er - eine aeltere Fassung, ein Gegenstand ohne
+---Stufen -, zaehlt der Katalog: er kennt die Stufen derselben Ware, und
+---wie viele davon unter dieser liegen, ist ihre Nummer.
+---@param itemID number|nil
+---@return number|nil
+function Compat.CraftQuality(itemID)
+    if not itemID then return nil end
+    if C_TradeSkillUI and C_TradeSkillUI.GetItemCraftedQualityByItemInfo then
+        local ok, quality = pcall(C_TradeSkillUI.GetItemCraftedQualityByItemInfo, itemID)
+        if ok and type(quality) == "number" and quality > 0 then return quality end
+    end
+    if ns.Catalog and ns.Catalog.Tiers then
+        local lower, higher = ns.Catalog.Tiers(itemID)
+        local unten, oben = #(lower or {}), #(higher or {})
+        if unten + oben > 0 then return unten + 1 end
+    end
+    return nil
+end
+
+---Das Zeichen zu einer Qualitaetsstufe - der Name eines Atlas, oder nil.
+---
+---Blizzard fuehrt mehrere Saetze davon, und welcher in dieser Fassung
+---des Spiels existiert, weiss nur der Client. Also wird er gefragt,
+---statt einen Namen zu raten: ein Atlas, den es nicht gibt, zeichnet
+---nichts, und niemand erfaehrt warum.
+---@param quality number|nil
+---@return string|nil
+function Compat.QualityAtlas(quality)
+    if type(quality) ~= "number" or quality < 1 or quality > 5 then return nil end
+    local namen = {
+        ("Professions-Icon-Quality-Tier%d-Small"):format(quality),
+        ("Professions-ChatIcon-Quality-Tier%d"):format(quality),
+        ("Professions-Icon-Quality-Tier%d"):format(quality),
+    }
+    if not (C_Texture and C_Texture.GetAtlasInfo) then return namen[2] end
+    for _, name in ipairs(namen) do
+        local ok, info = pcall(C_Texture.GetAtlasInfo, name)
+        if ok and info then return name end
+    end
+    return nil
+end
+
 ---Ein Datumsstempel als Datum.
 ---
 ---Die Sammler schreiben 20260923, weil sich das sortieren laesst. Im
