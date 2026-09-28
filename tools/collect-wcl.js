@@ -158,15 +158,21 @@ const FOLIO_OVERLOAD = 1279614;
 const FOLIO_RESIDUAL = 1279615;
 const FOLIO = [
   // Die Kernrune. Sie zaehlt fuer Reihe 1 - und ihr Schaden JE TREFFER
-  // entscheidet ausserdem Reihe 5, siehe FOLIO_CORE weiter unten.
+  // entscheidet ausserdem Reihe 5, siehe FOLIO_CORE_THRESHOLD oben.
   { row: 1, spell: 1286970, table: 'DamageDone', core: true },  // Unleashed Fire
   { row: 1, spell: 1287425, table: 'Buffs' },       // Void-Touched Orbs
-  // Void-Touched Orbs noch einmal als Schaden: wer die Kugeln statt des
-  // Feuers nimmt, hat dieselbe Kernrune und muss fuer Reihe 5 genauso
-  // gewogen werden. Als Aura zaehlt sie schon oben - doppelt wird
-  // nichts, weil Reihe 1 nur die Aura nimmt und diese Zeile nur den
-  // Schaden je Treffer.
-  { row: 0, spell: 1287425, table: 'DamageDone', core: true },
+  // NUR Unleashed Fire wiegt fuer Reihe 5, nicht die Kugeln.
+  //
+  // Beide sind Kernrunen, aber nur eine taugt als Massstab. Der
+  // Zaubertext sagt warum: Unleashed Fire macht "$<fireDmg> Fire
+  // damage", einen festen Wert - Void-Touched Orbs dagegen "$<voidDmg>
+  // Cosmic damage PER ORB", und wie viele Kugeln aufgelaufen sind,
+  // wechselt von Treffer zu Treffer. Ein Schnitt daraus schwankt aus
+  // sich heraus und wuerde die Verdopplung verwischen, die wir suchen.
+  //
+  // Wer die Kugeln spielt, faellt damit aus Reihe 5 heraus - nach den
+  // gemessenen Anteilen sind das rund fuenf von hundert. Sie fehlen in
+  // der Grundlage, die ueber der Reihe steht, statt sie zu trueben.
   { row: 2, spell: 1287908, table: 'Healing' },     // Self-Mending
   { row: 2, spell: 1287955, table: 'Buffs' },       // Void-Tainted Shell
   { row: 2, spell: 1287978, table: 'Buffs' },       // Lynxlike Reflexes
