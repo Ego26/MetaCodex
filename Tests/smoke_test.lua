@@ -4687,6 +4687,11 @@ do
             { row = 4, seen = 790, picks = {
                 { spell = 1287772, pct = 58 }, { spell = 1287774, pct = 26 },
                 { spell = 1287771, pct = 16 } } },
+            -- Reihe 5, so wie sie wirklich aussieht: Echos gemessen,
+            -- und der Rest als EINE Zahl fuer zwei Runen.
+            { row = 5, seen = 812, picks = {
+                { spells = { 1279614, 1279615 }, pct = 96, derived = true },
+                { spell = 1279616, pct = 4 } } },
         }, "warcraftlogs.com"
     end
 
@@ -4712,20 +4717,35 @@ do
     check("die Reihe nennt ihre Grundlage",
         alleTexte:find("812", 1, true) ~= nil, alleTexte:sub(1, 60))
 
-    -- Und die fuenfte Reihe steht da, ohne eine Zahl zu behaupten.
-    -- Gross geschrieben: Gruppenkoepfe stehen in Versalien, der
-    -- Sprachschluessel nicht. Verglichen wird darum in einer Schreibung.
-    check("Reihe 5 wird benannt",
-        alleTexte:upper():find(ns.L["FOLIO_ROW5"]:upper(), 1, true) ~= nil)
-    local satz = ns.L["FOLIO_ROW5_TEXT"]
-    check("und sagt, dass sie nicht messbar ist",
-        alleTexte:find(satz:sub(1, 20), 1, true) ~= nil)
+    -- Die gerechnete Zeile nennt BEIDE Runen. Nur eine zu nennen waere
+    -- eine Behauptung: welche der beiden es war, sagt niemand.
+    local paar
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() and row.detail and row.detail:GetText() == ns.L["FOLIO_DERIVED"] then
+            paar = row
+        end
+    end
+    check("die gerechnete Zeile steht da", paar ~= nil)
+    if paar then
+        local titel = paar.title:GetText() or ""
+        local a = (C_Spell.GetSpellInfo(1279614) or {}).name or "#1279614"
+        local b = (C_Spell.GetSpellInfo(1279615) or {}).name or "#1279615"
+        check("sie nennt Ueberladung", titel:find(a, 1, true) ~= nil, titel)
+        check("und Restenergie", titel:find(b, 1, true) ~= nil, titel)
+        check("und sie sagt, dass sie gerechnet ist",
+            (paar.detail:GetText() or ""):find(ns.L["FOLIO_DERIVED"], 1, true) ~= nil)
+    end
 
-    -- Der eigentliche Punkt: genau so viele Anteile, wie gemessen
-    -- wurden. Fuenf Runen gefuettert, fuenf Prozentwerte - eine
-    -- sechste Zahl waere aus dem Rest gerechnet und keine Messung.
-    check("nur gemessene Anteile, kein erfundener fuer Reihe 5",
-        anteile == 5, anteile .. " Anteile")
+    -- Und der Satz, der erklaert, wie diese Zahl entsteht.
+    local satz = ns.L["FOLIO_DERIVED_TEXT"]
+    check("der Satz dazu steht darunter",
+        alleTexte:find(satz:sub(1, 24), 1, true) ~= nil)
+
+    -- Der eigentliche Punkt: sieben Anteile fuer sieben Zeilen. Die
+    -- gerechnete zaehlt als EINE - waere sie auf zwei Runen aufgeteilt,
+    -- stuenden hier acht, und zwei davon waeren erfunden.
+    check("die Differenz bleibt eine Zahl, nicht zwei",
+        anteile == 7, anteile .. " Anteile")
 
     -- Ohne Daten darf der Punkt gar nicht erst im Menueband stehen -
     -- sonst fuehrt er in eine leere Seite.

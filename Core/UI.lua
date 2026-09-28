@@ -2254,27 +2254,43 @@ local function folioRows(specID, mode, source)
     if not rows then return {}, nil end
 
     local out = {}
+    -- Die Gruppe, in der die gerechnete Zeile steht: der Satz dazu
+    -- gehoert darunter, nicht ans Ende der Seite.
+    local gerechneteGruppe
     for _, row in ipairs(rows) do
         -- Die Grundlage steht im Gruppenkopf, nicht im Kleingedruckten:
         -- wer den Anteil liest, soll im selben Blick sehen, worauf er
         -- ruht.
         local group = L["FOLIO_ROW"]:format(row.row or 0, row.seen or 0)
         for _, pick in ipairs(row.picks or {}) do
-            out[#out + 1] = {
-                kind = "talent", spell = pick.spell, pct = pick.pct,
-                group = group,
-            }
+            if pick.derived and pick.spells then
+                -- Zwei Runen, eine Zahl. Beide Namen stehen da, denn
+                -- welche der beiden es war, weiss niemand - und eine
+                -- Zeile, die nur eine nennt, waere eine Behauptung.
+                gerechneteGruppe = group
+                out[#out + 1] = {
+                    kind = "talentpair", spells = pick.spells,
+                    pct = pick.pct, derived = true, group = group,
+                }
+            else
+                out[#out + 1] = {
+                    kind = "talent", spell = pick.spell, pct = pick.pct,
+                    group = group,
+                }
+            end
         end
     end
     if #out == 0 then return {}, nil end
 
-    -- Und die fuenfte Reihe, benannt statt verschwiegen. Eine Luecke,
-    -- die niemand erklaert, halten die Leute fuer einen Fehler - und
-    -- fragen danach, zu Recht.
-    out[#out + 1] = {
-        kind = "note", text = L["FOLIO_ROW5_TEXT"],
-        group = L["FOLIO_ROW5"],
-    }
+    -- Und dazu der Satz, der die gerechnete Zeile erklaert. Eine Zahl,
+    -- die anders entsteht als alle anderen im Fenster, muss das sagen -
+    -- sonst liest sie sich wie eine Messung.
+    if gerechneteGruppe then
+        out[#out + 1] = {
+            kind = "note", text = L["FOLIO_DERIVED_TEXT"],
+            group = gerechneteGruppe,
+        }
+    end
     return out, from
 end
 
@@ -3107,6 +3123,38 @@ local function setItemRow(row, data)
         row.detail:SetText(table.concat(parts, "  \194\183  "))
         row.share:SetText(data.pct and (data.pct .. "%") or "")
         S:Recolor(row.share, data.top and "accent" or "textMuted")
+        row.onClick = nil
+        return
+    end
+
+    -- Zwei Runen, eine Zahl.
+    --
+    -- Es gibt keine Zeile fuer "Ueberladung" und keine fuer
+    -- "Restenergie", weil keine der beiden im Kampf eine Spur
+    -- hinterlaesst. Was es gibt, ist die Gewissheit, dass ein Spieler
+    -- ohne sichtbare Rune in dieser Reihe eine der beiden gewaehlt hat.
+    -- Also stehen beide Namen in EINER Zeile, und die Zeile sagt, dass
+    -- sie gerechnet ist.
+    if data.kind == "talentpair" then
+        row.link = nil
+        row.spellID = nil
+        local namen = {}
+        local symbol
+        for _, spell in ipairs(data.spells or {}) do
+            local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(spell)
+            namen[#namen + 1] = (info and info.name) or ("#" .. tostring(spell))
+            if not symbol then symbol = info and info.iconID end
+        end
+        row.icon:SetTexture(symbol or "Interface\\Icons\\INV_Misc_QuestionMark")
+        row.title:SetText(table.concat(namen, L["FOLIO_OR"]))
+        row.detail:ClearAllPoints()
+        row.detail:SetPoint("TOPLEFT", S.space.sm + 38, -S.space.sm - 16)
+        row.detail:SetText(L["FOLIO_DERIVED"])
+        row.share:SetText(data.pct and (data.pct .. "%") or "")
+        -- Bewusst nie in der Akzentfarbe, auch wenn es die groesste Zahl
+        -- der Reihe ist: die Auszeichnung gehoert dem, was gemessen
+        -- wurde.
+        S:Recolor(row.share, "textMuted")
         row.onClick = nil
         return
     end

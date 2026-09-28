@@ -90,12 +90,43 @@ const slug = (name) => String(name).toLowerCase()
 // und meldet eine blinde Reihe, die gar nicht blind ist. Deshalb steht
 // die Tabelle hier je Rune dabei und wird nicht erraten.
 //
-// REIHE 5 IST NICHT MESSBAR. Keine ihrer drei Runen hinterlaesst in
-// irgendeiner der drei Tabellen eine Spur - auch nicht im rohen
-// Kampflog, wo "Rune der Ueberladung" ueber 628 MB kein einziges Mal
-// vorkommt. Sie wird darum gar nicht erst abgefragt und im Fenster als
-// nicht messbar ausgewiesen, statt eine Zahl zu erfinden.
-const FOLIO_ROWS = 4;
+// DER BAUM, WIE DIE SPIELDATEN IHN AUSWEISEN. Baum 1186, fuenf Knoten,
+// dreizehn Eintraege. Ein Talent steht im Log NIE - dort steht der
+// Zauber, den es auslegt, und der traegt dieselbe Bezeichnung. Beides
+// zu verwechseln kostete mich einen halben Tag: fuer Reihe 5 suchte ich
+// nach Talentnummern, fuer die Reihen darueber nach Wirkungsnummern -
+// und hielt Reihe 5 darum fuer blind.
+//
+//   Reihe   Talent     Wirkung im Log
+//   1       1279596    1287425 u.a.   Void-Touched Orbs
+//   1       1279599    1286970        Unleashed Fire
+//   2       1279603    1287908        Self-Mending
+//   2       1279604    1287955        Void-Tainted Shell
+//   2       1279605    1287978        Lynxlike Reflexes
+//   3       1287555    1287665        Lingering
+//   4       1279609    1287772        Critical Power
+//   4       1279610    1287774        Burning Haste
+//   4       1279612    1287771        Masterful Cunning
+//   4       1279613    1287770        Versatile Warrior
+//   5       1279614    KEINE          Overload
+//   5       1279615    KEINE          Residual Energy
+//   5       1279616    1289063, 1303048, 1303071   Echoes
+//
+// REIHE 5: EINE VON DREI IST SICHTBAR. Das ist kein Suchfehler mehr,
+// sondern die Auskunft der Spieldaten: unter 414 027 Zaubern traegt
+// KEIN einziger den Namen "Rune of Overload" oder "Rune of Residual
+// Energy" ausser dem Talent selbst. Jede Rune der Reihen 1 bis 4 hat
+// einen solchen Wirkungszauber, diese beiden haben keinen.
+//
+// Darum steht fuer Reihe 5 eine Zahl fuer ZWEI Runen: was uebrig
+// bleibt, wenn man die Traeger von Echos abzieht, ist "Ueberladung oder
+// Restenergie". Auseinanderhalten laesst sich das nicht, und es wird
+// auch nicht so getan - die Zeile nennt beide.
+const FOLIO_ROWS = 5;
+// Die Reihe, die nur noch aus der Differenz entsteht, und die beiden
+// Runen, die sich darin verstecken.
+const FOLIO_REST_ROW = 5;
+const FOLIO_REST = [1279614, 1279615];
 const FOLIO = [
   { row: 1, spell: 1286970, table: 'DamageDone' },  // Unleashed Fire
   { row: 1, spell: 1287425, table: 'Buffs' },       // Void-Touched Orbs
@@ -107,6 +138,13 @@ const FOLIO = [
   { row: 4, spell: 1287771, table: 'Buffs' },       // Masterful Cunning
   { row: 4, spell: 1287772, table: 'Buffs' },       // Critical Power
   { row: 4, spell: 1287774, table: 'Buffs' },       // Burning Haste
+  // Echos, alle drei Wirkungen. Eine seltene Rune braucht jede Spur,
+  // die sie hinterlaesst - mit nur einer der drei stand sie auf Null.
+  // Sie zaehlen auf DIESELBE Rune: gezaehlt wird der Spieler, nicht
+  // das Ereignis, darum kann hier nichts doppelt werden.
+  { row: 5, spell: 1289063, table: 'Buffs', as: 1279616 },
+  { row: 5, spell: 1303048, table: 'Buffs', as: 1279616 },
+  { row: 5, spell: 1303071, table: 'Buffs', as: 1279616 },
 ];
 // Die Tabellen haengen an der Abfrage, die ohnehin je Kampf laeuft -
 // als Aliase, nicht als eigene Anfragen. Gemessen: 16 Punkte statt 3,34
@@ -1245,7 +1283,13 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
     // Anteil eine stille Luege - er stuende auf allen Spielern, gemessen
     // wurden aber nur vier von fuenf.
     {
-      const gesehen = new Map();   // specID -> Map(row -> Set(sourceID))
+      // Erst sammeln, dann zaehlen - und zwar SPIELER, nicht Ereignisse.
+      //
+      // Echos hat drei Wirkungen. Wer alle drei auslegt, stuende sonst
+      // dreimal in der Zaehlung und die Reihe kaeme auf ueber hundert
+      // Prozent. Ein Satz je Rune loest das an der Wurzel.
+      const proRune = new Map();   // "spec|row|rune" -> Set(sourceID)
+      const proReihe = new Map();  // "spec|row"      -> Set(sourceID)
       for (const [i, rune] of FOLIO.entries()) {
         const tabelle = report && report['f' + i];
         const daten = (tabelle && tabelle.data) || {};
@@ -1254,20 +1298,48 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
           const quelle = Number(eintrag.id);
           const specID = specBySource.get(quelle);
           if (!specID) continue;
-          bump(specID, 'folio', rune.row + ':' + rune.spell);
-          if (!gesehen.has(specID)) gesehen.set(specID, new Map());
-          const proReihe = gesehen.get(specID);
-          if (!proReihe.has(rune.row)) proReihe.set(rune.row, new Set());
-          proReihe.get(rune.row).add(quelle);
+          // Mehrere Wirkungen derselben Rune tragen dieselbe Kennung.
+          const welche = rune.as || rune.spell;
+          const a = specID + '|' + rune.row + '|' + welche;
+          if (!proRune.has(a)) proRune.set(a, new Set());
+          proRune.get(a).add(quelle);
+          const b = specID + '|' + rune.row;
+          if (!proReihe.has(b)) proReihe.set(b, new Set());
+          proReihe.get(b).add(quelle);
         }
       }
-      for (const [specID, proReihe] of gesehen) {
-        for (const [row, wer] of proReihe) {
-          for (const mode of active) {
-            const spec = entryFor(mode, specID);
-            spec.folioSeen = spec.folioSeen || {};
-            spec.folioSeen[row] = (spec.folioSeen[row] || 0) + wer.size;
-          }
+      for (const [key, wer] of proRune) {
+        const [specID, row, welche] = key.split('|');
+        for (let n = 0; n < wer.size; n++) {
+          bump(Number(specID), 'folio', row + ':' + welche);
+        }
+      }
+      for (const [key, wer] of proReihe) {
+        const [specID, row] = key.split('|');
+        for (const mode of active) {
+          const spec = entryFor(mode, Number(specID));
+          spec.folioSeen = spec.folioSeen || {};
+          spec.folioSeen[row] = (spec.folioSeen[row] || 0) + wer.size;
+        }
+      }
+      // Wie viele Spieler dieser Spec den Folianten UEBERHAUPT haben.
+      //
+      // Das ist der Nenner fuer die Differenzrechnung in Reihe 5, und er
+      // wird gemessen statt angenommen: wer in irgendeiner Reihe mit
+      // einer Rune gesehen wurde, hat den Folianten nachweislich. Ihn
+      // einfach auf alle Spieler zu setzen hiesse zu unterstellen, dass
+      // jeder ihn freigeschaltet hat - eine Annahme, die wir nicht
+      // brauchen, weil die Messung sie ersetzt.
+      const mitFoliant = new Map();  // specID -> Set(sourceID)
+      for (const [key, wer] of proReihe) {
+        const specID = key.split('|')[0];
+        if (!mitFoliant.has(specID)) mitFoliant.set(specID, new Set());
+        for (const q of wer) mitFoliant.get(specID).add(q);
+      }
+      for (const [specID, wer] of mitFoliant) {
+        for (const mode of active) {
+          const spec = entryFor(mode, Number(specID));
+          spec.folioPlayers = (spec.folioPlayers || 0) + wer.size;
         }
       }
     }
@@ -1598,11 +1670,57 @@ Haeufigste nicht zugeordnete Auren (${missedAuras.size} verschiedene):`);
       // dazustehen, die aus dem Rest gerechnet waere.
       {
         const reihen = [];
+        // Wer den Folianten nachweislich hat. Siehe oben: gemessen, nicht
+        // angenommen.
+        const mitFoliant = entry.folioPlayers || 0;
         for (let row = 1; row <= FOLIO_ROWS; row++) {
           const vorsatz = row + ':';
           const runen = Object.entries(entry.folio || {})
             .filter(([key]) => key.indexOf(vorsatz) === 0);
           const gesehen = (entry.folioSeen || {})[row] || 0;
+
+          // Reihe 5: die beiden Runen ohne Wirkung sind nur als
+          // Differenz zu haben.
+          //
+          // Wer den Folianten hat und in dieser Reihe mit nichts
+          // auffaellt, hat eine der beiden gewaehlt - eine Reihe laesst
+          // sich nicht leer lassen. WELCHE der beiden, sagt niemand:
+          // dafuer muesste man sie unterscheiden koennen, und genau das
+          // geht nicht. Die Zeile nennt darum beide.
+          //
+          // Die bekannte Schwaeche: wer Echos traegt und in einem kurzen
+          // Kampf nie ausloest, faellt in diese Differenz. Das bleibt
+          // klein, solange Echos klein ist - und wenn es gross wuerde,
+          // wuerde die Differenz kleiner, nicht groesser. Der Fehler
+          // geht also zu Lasten der Differenz, nicht zu Lasten einer
+          // gemessenen Zahl.
+          if (row === FOLIO_REST_ROW && mitFoliant > 0) {
+            const gesehene = runen.reduce((a, [, n]) => a + n, 0);
+            const rest = Math.max(0, mitFoliant - gesehene);
+            const picks = runen
+              .map(([key, n]) => ({
+                spell: Number(key.split(':')[1]),
+                pct: share(n, mitFoliant),
+              }));
+            if (rest > 0) {
+              picks.push({
+                spells: FOLIO_REST.slice(),
+                pct: share(rest, mitFoliant),
+                // Das Kennzeichen, an dem das Fenster diese Zeile
+                // anders beschriftet: sie ist gerechnet, nicht gesehen.
+                derived: true,
+              });
+            }
+            const brauchbar = picks.filter((p) => p.pct > 0);
+            if (brauchbar.length) {
+              reihen.push({
+                row, seen: mitFoliant,
+                picks: brauchbar.sort((a, b) => b.pct - a.pct),
+              });
+            }
+            continue;
+          }
+
           if (!runen.length || !gesehen) continue;
           reihen.push({
             row,
