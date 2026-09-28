@@ -969,6 +969,10 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
   // genau daran haette man den enchantID-Fehler sofort gesehen.
   const missedEnchants = new Set();
   let players = 0, unknownSpec = 0;
+  // Einmal sagen, nicht tausendmal: wenn die Runen-Tabellen abgelehnt
+  // werden, soll das im Protokoll stehen - aber als eine Zeile, nicht
+  // als eine je Bericht.
+  let folioBroken = false;
   // Ein Abruf je Kampf, und darin steht alles.
   //
   // Die Summary-Tabelle davor lieferte Ausruestung, aber keine Auren -
@@ -994,22 +998,45 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
       active.push(name);
       meta[name] = { mode: BASE_MODE, dungeon: info.dungeon, raid: info.raid || null };
     }
-    let data;
-    try {
-      data = await gql(`
+    // Der Foliant haengt hier dran, aber er haftet nicht fuer das Ganze.
+    //
+    // Alles in EINER Abfrage zu holen spart den zweiten Gang - es legt
+    // aber auch alles in einen Korb. Ginge eine der zehn Runen-Tabellen
+    // kaputt, weil eine Kennung nach einem Patch nicht mehr gilt, dann
+    // scheiterte die ganze Abfrage; und der Fang unten ueberspringt bei
+    // einem Fehler den Bericht. Aus einem falschen Zauber wuerde so eine
+    // Nacht ohne eine einzige Messung - und gemerkt haetten wir es erst
+    // am Morgen.
+    //
+    // Deshalb zweimal: erst mit, und wenn das schiefgeht, noch einmal
+    // ohne. Der Foliant fehlt dann, der Rest kommt an. Das kostet einen
+    // zweiten Gang nur in dem Fall, den es zu ueberleben gilt.
+    const KOPF = `
         query ($code: String!, $fight: Int!) {
           reportData { report(code: $code) {
             events(dataType: CombatantInfo, fightIDs: [$fight], limit: 60) { data }
             fights(fightIDs: [$fight]) { startTime endTime }
             masterData { actors(type: "Player") { id name server } }
-            region { slug }
-${FOLIO_QUERY}
+            region { slug }`;
+    const FUSS = `
           } }
-        }`, { code, fight: fightID });
+        }`;
+    let data;
+    try {
+      data = await gql(KOPF + '\n' + FOLIO_QUERY + FUSS, { code, fight: fightID });
     } catch (err) {
-      process.stdout.write('!');
-      await sleep(250);
-      continue;
+      try {
+        data = await gql(KOPF + FUSS, { code, fight: fightID });
+        if (!folioBroken) {
+          folioBroken = true;
+          console.log('\n  ! Foliant-Abfrage abgelehnt, sammle ohne ihn weiter: '
+            + String(err.message).slice(0, 120));
+        }
+      } catch (zweiter) {
+        process.stdout.write('!');
+        await sleep(250);
+        continue;
+      }
     }
 
     const report = data.reportData.report;
