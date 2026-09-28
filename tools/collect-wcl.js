@@ -159,6 +159,7 @@ const FOLIO_CORE_THRESHOLD = 0.75;
 // der als Rest uebrig bleibt.
 const FOLIO_OVERLOAD = 1279614;
 const FOLIO_RESIDUAL = 1279615;
+const FOLIO_ECHOES = 1279616;
 const FOLIO = [
   // Die Kernrune. Sie zaehlt fuer Reihe 1 - und ihr Schaden JE TREFFER
   // entscheidet ausserdem Reihe 5, siehe FOLIO_CORE_THRESHOLD oben.
@@ -1404,12 +1405,28 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
           }
         }
       }
+      // Wer in Reihe 5 Echos traegt - je SPIELER, nicht als Zahl.
+      //
+      // Das ist der Punkt, an dem die Reihe sonst ueber hundert Prozent
+      // kommt: Ueberladung wird an den Kernrunen-Treffern gezaehlt,
+      // Echos an seinem eigenen Zauber. Zwei verschiedene Mengen, und
+      // ihre Summe kann groesser sein als jede von beiden. Deshalb
+      // wandert die Echos-Auskunft HIER an denselben Spieler, aus dem
+      // auch der Treffer stammt.
+      const mitEchos = new Set();
+      for (const [i, rune] of FOLIO.entries()) {
+        if (rune.row !== FOLIO_REST_ROW) continue;
+        const daten = ((report && report['f' + i]) || {}).data || {};
+        for (const e of (daten.auras || daten.entries || [])) mitEchos.add(Number(e.id));
+      }
       for (const [quelle, wert] of kernTreffer) {
         const specID = specBySource.get(quelle);
         if (!specID) continue;
         for (const mode of active) {
           const spec = entryFor(mode, specID);
-          (spec.coreHits || (spec.coreHits = [])).push(wert);
+          (spec.coreHits || (spec.coreHits = [])).push({
+            v: wert, echos: mitEchos.has(quelle),
+          });
         }
       }
 
@@ -1879,19 +1896,28 @@ Haeufigste nicht zugeordnete Auren (${missedAuras.size} verschiedene):`);
             // Kernrune normalerweise trifft. Ueber alle Speccs gemittelt
             // waere er sinnlos - ein Waechter trifft anders als ein
             // Magier.
-            const werte = (entry.coreHits || []).slice().sort((a, b) => a - b);
-            // Unter zehn Beobachtungen ist die Mitte kein Massstab,
-            // sondern ein Zufallswert. Dann lieber keine Reihe 5.
-            if (werte.length < 10) continue;
+            // EINE Menge Spieler, dreimal aufgeteilt - nie drei Mengen
+            // nebeneinander gezaehlt.
+            //
+            // Genau daran kam die Reihe vorher auf 101 %: Ueberladung
+            // wurde an den Kernrunen-Treffern gezaehlt, Echos an seinem
+            // eigenen Zauber, und beides addiert. Jetzt traegt jeder
+            // Spieler seine Echos-Auskunft selbst mit sich, und die drei
+            // Zahlen ergeben zusammen genau die Grundlage.
+            const leute = (entry.coreHits || []).slice();
+            if (leute.length < 10) continue;
+            const werte = leute.map((p) => p.v).sort((a, b) => a - b);
             const mitte = werte[Math.floor(werte.length / 2)];
             if (!(mitte > 0)) continue;
             const schwelle = mitte * FOLIO_CORE_THRESHOLD;
-            const mitUeberladung = werte.filter((v) => v >= schwelle).length;
+            const grundlage = leute.length;
 
-            // Echos steht fuer sich - es hat einen eigenen Zauber und
-            // wird nicht gerechnet.
-            const echos = runen.reduce((a, [, n]) => a + n, 0);
-            const grundlage = werte.length;
+            // Echos zuerst: es ist direkt gemessen und schlaegt jede
+            // Ableitung. Wer Echos traegt, hat keine Ueberladung - dann
+            // waere es ja eine andere Reihe-5-Rune.
+            const echos = leute.filter((p) => p.echos).length;
+            const mitUeberladung = leute.filter(
+              (p) => !p.echos && p.v >= schwelle).length;
             // Und Restenergie ist, was bleibt. Die kleinste der drei
             // Zahlen traegt die Unsicherheit, nicht die groesste.
             const rest = Math.max(0, grundlage - mitUeberladung - echos);
@@ -1900,8 +1926,8 @@ Haeufigste nicht zugeordnete Auren (${missedAuras.size} verschiedene):`);
             if (mitUeberladung > 0) {
               picks.push({ spell: FOLIO_OVERLOAD, pct: share(mitUeberladung, grundlage) });
             }
-            for (const [key, n] of runen) {
-              picks.push({ spell: Number(key.split(':')[1]), pct: share(n, grundlage) });
+            if (echos > 0) {
+              picks.push({ spell: FOLIO_ECHOES, pct: share(echos, grundlage) });
             }
             if (rest > 0) {
               picks.push({
