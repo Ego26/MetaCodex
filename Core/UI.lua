@@ -1450,8 +1450,18 @@ local function consumableRows(specID, mode, source)
         end
     end
 
+    -- Wer seinen Waffenbuff selbst auflegt, sieht keine Oele.
+    --
+    -- Flammenzunge und Gifte belegen denselben Platz wie ein Oel. Eine
+    -- Zeile "Ziel 5, 5 fehlen" unter einem Gegenstand, den diese Klasse
+    -- nie benutzen kann, ist keine Auskunft, sondern ein Auftrag ins
+    -- Leere. Was die Klasse STATTDESSEN auflegt, steht in den Pull-Auren
+    -- der Berichte - das ist eine Messung fuer sich und keine hier.
+    local eigenerBuff = ns.Compat.SelfWeaponBuff(specID)
+
     local rows = {}
     for _, kind in ipairs(CONSUM_ORDER) do
+        if not (kind == "oil" and eigenerBuff) then
         -- Nur das haeufigste je Art ist ein Posten; der Rest sind
         -- Alternativen.
         --
@@ -1524,6 +1534,7 @@ local function consumableRows(specID, mode, source)
             }
             first = false
         end
+        end
     end
     return rows, from
 end
@@ -1534,6 +1545,57 @@ end
 ---Einstellungen, die es gibt. Die Zeilen tragen Gegenstand und
 ---Fehlmenge, deshalb funktionieren die beiden Einkaufsknoepfe unten
 ---hier genauso wie unter Verbrauchsguetern.
+---Einen Gegenstand selbst auf die Erinnerung setzen.
+---
+---Nicht alles, was man vor dem Pull dabeihaben will, steht in einer
+---Messung: ein Reparaturhammer, eine Vantusrune, das Kabel fuer den
+---Kampf-Res. Benutzt werden sie, gemessen sind sie nicht - und "nicht
+---gemessen" heisst nicht "gibt es nicht".
+---
+---Zwei Wege hinein: die Gegenstands-ID, oder ein Griff in die eigenen
+---Taschen. Was so dazukommt, steht ohne Prozentwert da; eine Zahl
+---daneben waere erfunden.
+---@param anchor table
+local function openAddOwnItem(anchor)
+    local function nimm(id)
+        if not id or id <= 0 then return end
+        ns.Profile.SetOwnItem(id, true)
+        if not ns.Profile.ItemTarget(id) then
+            ns.Profile.SetConsumableTarget("other", 1, id)
+        end
+        ns.Compat.RequestItem(id)
+        UI.Refresh()
+    end
+    local function ueberID()
+        UI.AskNumber(L["OWN_ADD_ID"], 0, nimm, 8)
+    end
+    if not (MenuUtil and MenuUtil.CreateContextMenu) then
+        ueberID()
+        return
+    end
+    MenuUtil.CreateContextMenu(anchor, function(_, root)
+        root:CreateTitle(L["OWN_ADD"])
+        root:CreateButton(L["OWN_ADD_ID"], ueberID)
+        -- Und was gerade im Beutel liegt. Nur Verbrauchsgueter: eine
+        -- Liste aus hundert Gegenstaenden waere kein Menue mehr.
+        local ausDemBeutel = {}
+        for _, id in ipairs(ns.Compat.BagItems()) do
+            if ns.Compat.ConsumableKind(id) and not ns.Profile.IsOwnItem(id) then
+                local name = ns.Compat.ItemInfo(id)
+                if name then ausDemBeutel[#ausDemBeutel + 1] = { id = id, name = name } end
+            end
+        end
+        table.sort(ausDemBeutel, function(a, b) return a.name < b.name end)
+        if #ausDemBeutel > 0 then
+            local beutel = root:CreateButton(L["CONSUM_FROM_BAGS"])
+            for i, eintrag in ipairs(ausDemBeutel) do
+                if i > 40 then break end
+                beutel:CreateButton(eintrag.name, function() nimm(eintrag.id) end)
+            end
+        end
+    end)
+end
+
 ---Was an einer Zeile der Erinnerung einzustellen ist.
 ---
 ---Mit Auswahl, nicht mit einem Klick, der sofort etwas tut. Ein Klick,
@@ -1560,8 +1622,13 @@ local function openRemindMenu(anchor, data)
         return
     end
     local name = (id and ns.Compat.ItemInfo(id)) or data.name or data.fallback
+    -- Ein selbst gesetzter Posten traegt seine Menge immer am
+    -- Gegenstand: er steht fuer sich und nicht als eine von mehreren
+    -- Wahlmoeglichkeiten einer Art.
+    local amGegenstand = data.ownItem
+        or (data.ckind and ns.Profile.KindIsList(data.ckind)) or false
     local function zielDavon()
-        if data.ckind and ns.Profile.KindIsList(data.ckind) then
+        if amGegenstand then
             return ns.Profile.ItemTarget(id) or 0
         end
         return data.ckind and ns.Profile.ConsumableTarget(data.ckind) or 0
@@ -1574,11 +1641,25 @@ local function openRemindMenu(anchor, data)
             for _, count in ipairs({ 0, 1, 2, 3, 5, 10, 20, 40 }) do
                 amount:CreateRadio(tostring(count),
                     function() return zielDavon() == count end,
-                    function() ns.Profile.SetConsumableTarget(data.ckind, count, id) UI.Refresh() end)
+                    function()
+                        ns.Profile.SetConsumableTarget(data.ckind, count,
+                            amGegenstand and id or nil)
+                        UI.Refresh()
+                    end)
             end
             amount:CreateButton(L["CONSUM_TARGET_OWN"], function()
                 UI.AskNumber(L["CONSUM_" .. data.ckind], zielDavon(),
-                    function(value) ns.Profile.SetConsumableTarget(data.ckind, value, id) end)
+                    function(value)
+                        ns.Profile.SetConsumableTarget(data.ckind, value,
+                            amGegenstand and id or nil)
+                    end)
+            end)
+        end
+        -- Einen selbst gesetzten Posten wieder loswerden.
+        if id and ns.Profile.IsOwnItem(id) then
+            root:CreateButton(L["OWN_REMOVE"], function()
+                ns.Profile.SetOwnItem(id, false)
+                UI.Refresh()
             end)
         end
         if id then
@@ -1641,6 +1722,32 @@ local function remindRows(mode)
     -- Eigener Abschnitt, damit nichts spurlos verschwindet: wer etwas
     -- ignoriert hat, findet es hier wieder und kann es zurueckholen.
     -- Eine Einstellung, die man nicht mehr sieht, ist eine Falle.
+    -- Was jemand selbst dazugenommen hat.
+    --
+    -- Ohne Prozentwert: gemessen hat das niemand, und eine Zahl daneben
+    -- waere erfunden. Dass es eine eigene Wahl ist, steht an der Zeile.
+    for _, id in ipairs(ns.Profile.OwnItems()) do
+        local name, link, icon = ns.Compat.ItemInfo(id)
+        if not name then ns.Compat.RequestItem(id) end
+        local target = ns.Profile.ItemTarget(id) or 1
+        local owned = ns.Compat.ItemCount(id)
+        rows[#rows + 1] = {
+            kind = "consumable", ckind = ns.Compat.ConsumableKind(id) or "other",
+            id = id, name = name or ("#" .. tostring(id)), link = link, icon = icon,
+            own = true, pct = nil,
+            need = target, owned = owned, ownedLower = 0, ownedHigher = 0,
+            buy = math.max(0, target - owned),
+            group = L["REMIND_GROUP_OWN"],
+            remindMenu = true, ownItem = true,
+        }
+    end
+    -- Und die Zeile, mit der man einen dazunimmt.
+    rows[#rows + 1] = {
+        kind = "option", label = L["OWN_ADD"], value = "",
+        toggle = function() end, addOwn = true,
+        group = L["REMIND_GROUP_OWN"],
+    }
+
     for _, id in ipairs(ns.Profile.IgnoredList()) do
         local name, link, icon = ns.Compat.ItemInfo(id)
         if not name then ns.Compat.RequestItem(id) end
@@ -4257,7 +4364,9 @@ function UI.Refresh()
         --
         -- Danach, nicht davor: die Zeilenarten setzen ihren eigenen
         -- Klick, und hier zaehlt, wo die Zeile steht, nicht was sie ist.
-        if data.remindMenu then
+        if data.addOwn then
+            row.onClick = function(self) openAddOwnItem(self) end
+        elseif data.remindMenu then
             row.onClick = function(self) openRemindMenu(self, data) end
         end
         -- Eine Unterzeile ist halb so hoch und rueckt ein; die volle
@@ -4783,7 +4892,7 @@ local numberFrame
 ---@param title string
 ---@param current number
 ---@param accept function(number)
-function UI.AskNumber(title, current, accept)
+function UI.AskNumber(title, current, accept, stellen)
     if not numberFrame then
         numberFrame = CreateFrame("Frame", "MetaCodexNumber", UIParent)
         numberFrame:SetSize(280, 120)
@@ -4800,7 +4909,7 @@ function UI.AskNumber(title, current, accept)
         local box = CreateFrame("EditBox", nil, numberFrame)
         box:SetAutoFocus(true)
         box:SetNumeric(true)
-        box:SetMaxLetters(4)
+        box:SetMaxLetters(8)
         box:SetFontObject("GameFontHighlightLarge")
         box:SetSize(80, 24)
         box:SetPoint("TOPLEFT", S.space.lg, -S.space.lg - 30)
@@ -4823,6 +4932,9 @@ function UI.AskNumber(title, current, accept)
         numberFrame.cancel:SetPoint("BOTTOMRIGHT", numberFrame.ok, "BOTTOMLEFT", -S.space.sm, 0)
     end
     numberFrame.title:SetText(title)
+    -- Mengen sind kurz, Gegenstands-IDs sechsstellig. Ohne das hier
+    -- schnitt das Feld eine ID nach vier Ziffern ab.
+    numberFrame.box:SetMaxLetters(stellen or 4)
     numberFrame.accept = accept
     numberFrame.box:SetText(tostring(current or 0))
     numberFrame.box:HighlightText()

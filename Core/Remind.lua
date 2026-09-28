@@ -89,12 +89,21 @@ function Remind.Status(mode, forSpec)
         }
     end
 
+    -- Wer seinen Waffenbuff selbst auflegt, braucht kein Oel.
+    --
+    -- Beim Schamanen stand "Thalassisches Phoenixoel - 0 von 5 - leer",
+    -- und die Einkaufsliste wollte fuenf Oele, die er nie benutzen kann:
+    -- Flammenzunge belegt denselben Platz. Dieselbe Sorte Frage wie die
+    -- Waffenverzauberung des Todesritters, und dieselbe Antwort.
+    local eigenerBuff = ns.Compat.SelfWeaponBuff(specID)
+
     local gesehen = {}
     for _, kind in ipairs(KIND_ORDER) do
-        local entry = bestOfKind[kind]
+        local entry = (kind == "oil" and eigenerBuff) and nil or bestOfKind[kind]
         -- Die eigene Wahl schlaegt die Messung: gezaehlt wird, was man
         -- benutzt, nicht was die Besten benutzen.
-        local own = ns.Profile.OwnConsumable(kind)
+        local own = (not (kind == "oil" and eigenerBuff))
+            and ns.Profile.OwnConsumable(kind) or nil
         if own then
             local name = ns.Compat.ItemInfo(own)
             entry = { id = own, name = name, pct = nil, own = true }

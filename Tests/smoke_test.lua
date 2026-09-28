@@ -4498,5 +4498,71 @@ do
     ns.Profile.SetConsumableTarget("other", 0, b)
 end
 
+-- Wer seinen Waffenbuff selbst auflegt, wird nicht nach Oel gefragt.
+--
+-- Beim Schamanen stand "Thalassisches Phoenixoel - 0 von 5 - leer", und
+-- die Einkaufsliste wollte fuenf Oele, die er nie benutzen kann:
+-- Flammenzunge belegt denselben Platz. Dieselbe Sorte Frage wie die
+-- Waffenverzauberung des Todesritters, und dieselbe Antwort.
+do
+    ns.Profile.SetMode("mplus")
+    check("der Schamane bringt seinen Waffenbuff mit",
+        ns.Compat.SelfWeaponBuff(262) == true)
+    check("der Magier nicht", ns.Compat.SelfWeaponBuff(62) == false)
+
+    local function oelZeilen(spec)
+        local n = 0
+        for _, row in ipairs(ns.Remind.Status("mplus", spec)) do
+            if row.kind == "oil" then n = n + 1 end
+        end
+        return n
+    end
+    check("beim Schamanen steht kein Oel auf der Erinnerung",
+        oelZeilen(262) == 0, oelZeilen(262) .. " Zeilen")
+end
+
+-- Eigene Posten: was in keiner Messung steht, kann man selbst dazunehmen.
+--
+-- Ein Reparaturhammer, eine Vantusrune, das Kabel fuer den Kampf-Res:
+-- benutzt werden sie, gemessen sind sie nicht. "Nicht gemessen" heisst
+-- nicht "gibt es nicht" - es heisst nur, dass niemand es beobachtet hat.
+do
+    -- Bewusst eine ID, die in KEINER Messung steht: genau das ist der
+    -- Fall, um den es geht. Ein gemessener Gegenstand haette eine
+    -- zweite Zeile im Fenster, und die Pruefung haette die erwischt.
+    local eigenes = 999001
+    ns.Profile.SetOwnItem(eigenes, true)
+    ns.Profile.SetConsumableTarget("other", 3, eigenes)
+    check("es gilt als selbst gesetzt", ns.Profile.IsOwnItem(eigenes) == true)
+
+    local dabei
+    for _, row in ipairs(ns.Remind.Status("mplus")) do
+        if row.id == eigenes then dabei = row end
+    end
+    check("die Erinnerung nimmt es auf", dabei ~= nil and dabei.need == 3,
+        dabei and tostring(dabei.need) or "fehlt")
+
+    -- Und im Reiter steht es in einem eigenen Abschnitt, ohne Prozent.
+    ns.Profile.SetLanguage("de")
+    rowsInSection("remind")
+    local wieHeisst = ns.Compat.ItemInfo(eigenes) or ("#" .. eigenes)
+    local zeile, mitProzent = false, false
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() and (row.title:GetText() or "") == wieHeisst then
+            zeile = true
+            if (row.share:GetText() or ""):find("%%") then mitProzent = true end
+        end
+    end
+    check("es steht als eigene Zeile im Reiter", zeile)
+    check("und ohne Prozentwert - gemessen hat das niemand", not mitProzent)
+
+    -- Entfernen nimmt die Menge mit: kein unsichtbarer Bedarf.
+    ns.Profile.SetOwnItem(eigenes, false)
+    check("entfernen loescht auch die Menge",
+        not ns.Profile.IsOwnItem(eigenes) and ns.Profile.ItemTarget(eigenes) == nil,
+        tostring(ns.Profile.ItemTarget(eigenes)))
+    ns.Profile.SetLanguage("auto")
+end
+
 say(fails == 0 and "\nalles gruen" or ("\n" .. fails .. " Fehler"))
 os.exit(fails == 0 and 0 or 1)

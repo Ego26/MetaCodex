@@ -104,6 +104,25 @@ ns.SLOT_COUNT = {
     ring = 2, weapon = 1,
 }
 
+-- Wer seinen Waffenbuff selbst mitbringt.
+--
+-- Der Schamane legt Flammenzunge oder Windfury auf die Waffe, der
+-- Schurke seine Gifte. Beides belegt DENSELBEN Platz wie ein Oel oder
+-- ein Wetzstein - wer den einen hat, kann den anderen nicht haben.
+--
+-- Ohne das hier stand beim Schamanen "Thalassisches Phoenixoel - 0 von
+-- 5 - leer, 5 fehlen", und die Einkaufsliste wollte fuenf Oele, die er
+-- nie benutzen kann. Dieselbe Sorte Frage wie die Waffenverzauberung
+-- des Todesritters, und dieselbe Antwort: sie wird nicht gestellt.
+--
+-- Was die Klasse stattdessen auflegt, ist eine eigene Frage. Sie steht
+-- in den Pull-Auren der Berichte und nicht in einem Gegenstand, also
+-- wird sie dort gemessen und nicht hier geraten.
+ns.SELF_WEAPON_BUFF = {
+    SHAMAN = true,
+    ROGUE = true,
+}
+
 -- Alle Plaetze, die einen Sockel tragen koennen - also praktisch alle.
 -- Gesockelt wird nicht nach Katalog, sondern nach dem, was am Charakter
 -- tatsaechlich leer ist.

@@ -139,6 +139,21 @@ function Compat.ClassOfSpec(specID)
     return nil
 end
 
+---Bringt diese Spec ihren Waffenbuff selbst mit?
+---
+---Der Schamane legt Flammenzunge oder Windfury auf die Waffe, der
+---Schurke seine Gifte - und beides belegt denselben Platz wie ein Oel.
+---Wer den einen hat, kann den anderen nicht haben, also ist die Frage
+---"wie viele Oele willst du" fuer ihn unbeantwortbar. Genau wie die
+---Waffenverzauberung beim Todesritter: sie wird nicht gestellt.
+---@param specID number|nil
+---@return boolean
+function Compat.SelfWeaponBuff(specID)
+    if not specID then return false end
+    local _, classFile = Compat.ClassOfSpec(specID)
+    return classFile ~= nil and ns.SELF_WEAPON_BUFF[classFile] == true
+end
+
 ---Die Spezialisierungen einer Klasse, in der Reihenfolge des Spiels.
 ---@param classID number
 ---@return table[] { { id, name, icon }, ... }

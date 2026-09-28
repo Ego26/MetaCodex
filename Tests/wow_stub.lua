@@ -226,12 +226,22 @@ function M.install(opts)
     -- prueft die Auswahl, nicht Blizzards Datenbank.
     local classes = opts.classes or {
         [1]  = { className = "Warrior", classFile = "WARRIOR", classID = 1 },
+        -- Der Schamane ist dabei, weil er eine eigene Frage stellt: er
+        -- legt seinen Waffenbuff selbst auf und darf deshalb nicht nach
+        -- Oel gefragt werden. Ohne ihn im Stub laesst sich das nicht
+        -- pruefen - und genau das war der Fall, als es im Spiel schieflief.
+        [7]  = { className = "Shaman", classFile = "SHAMAN", classID = 7 },
         [11] = { className = "Druid", classFile = "DRUID", classID = 11 },
     }
     local specs = opts.specs or {
         [1] = {
             { id = 71, name = "Arms", primary = 1 },
             { id = 73, name = "Protection", primary = 1 },
+        },
+        [7] = {
+            { id = 262, name = "Elemental", primary = 4 },
+            { id = 263, name = "Enhancement", primary = 2 },
+            { id = 264, name = "Restoration", primary = 4 },
         },
         [11] = {
             { id = 102, name = "Balance", primary = 4 },

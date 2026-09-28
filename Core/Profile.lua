@@ -316,6 +316,50 @@ function Profile.ItemTarget(itemID)
     return itemID and db.itemTargets and db.itemTargets[itemID] or nil
 end
 
+---Gegenstaende, die jemand SELBST auf die Erinnerung gesetzt hat.
+---
+---Nicht alles, was man vor dem Pull dabeihaben will, steht in einer
+---Messung. Ein Reparaturhammer, eine Vantusrune, das Kabel fuer den
+---Kampf-Res: benutzt werden sie, gemessen sind sie nicht. Bisher hiess
+---das "gibt es nicht" - dabei ist es nur "hat niemand beobachtet".
+---
+---Was hier steht, ist eine Entscheidung und wird auch so gezeigt: ohne
+---Prozentwert. Eine Zahl daneben waere erfunden, denn gemessen hat das
+---niemand.
+---
+---Je Charakter, wie die eigene Speise.
+---@param itemID number
+---@param on boolean
+function Profile.SetOwnItem(itemID, on)
+    if not itemID then return end
+    MetaCodexDB.ownItems = MetaCodexDB.ownItems or {}
+    MetaCodexDB.ownItems[who()] = MetaCodexDB.ownItems[who()] or {}
+    MetaCodexDB.ownItems[who()][itemID] = on and true or nil
+    if not on then
+        -- Die Menge geht mit: ein entfernter Posten soll nicht als
+        -- unsichtbarer Bedarf weiterleben.
+        if MetaCodexDB.itemTargets then MetaCodexDB.itemTargets[itemID] = nil end
+    end
+end
+
+---@param itemID number|nil
+---@return boolean
+function Profile.IsOwnItem(itemID)
+    local db = MetaCodexDB or {}
+    local mine = db.ownItems and db.ownItems[who()]
+    return (itemID and mine and mine[itemID]) == true
+end
+
+---@return number[] itemIDs
+function Profile.OwnItems()
+    local db = MetaCodexDB or {}
+    local mine = db.ownItems and db.ownItems[who()] or {}
+    local out = {}
+    for id in pairs(mine) do out[#out + 1] = id end
+    table.sort(out)
+    return out
+end
+
 ---Alle Gegenstaende, denen jemand selbst eine Menge gegeben hat.
 ---
 ---Gebraucht von der Erinnerung: eine gesetzte Menge gilt, auch wenn der
