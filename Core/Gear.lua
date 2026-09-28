@@ -176,7 +176,13 @@ function Gear.GemsMissing(scan, wanted, same, isMeta)
             if count > most then other, most = gem, count end
         end
     end
-    return empty + wrong, total, other
+    -- Leer und anders belegt getrennt zurueck.
+    --
+    -- Zusammengezaehlt heissen beide "fehlt", und das stimmt fuer den
+    -- Einkauf: ein Sockel mit dem falschen Stein braucht denselben Kauf
+    -- wie ein leerer. Fuer den SATZ daneben stimmt es nicht - der nannte
+    -- einen belegten Sockel "leer".
+    return empty + wrong, total, other, empty
 end
 
 ---Wie viele Plaetze eines Katalogschluessels noch unverzaubert sind.

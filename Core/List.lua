@@ -167,7 +167,7 @@ function List.Build(scan)
             for _, id in ipairs(lower or {}) do sameGem[#sameGem + 1] = id end
             for _, id in ipairs(higher or {}) do sameGem[#sameGem + 1] = id end
         end
-        local gemMissing, gemTotal, gemOther =
+        local gemMissing, gemTotal, gemOther, gemEmpty =
             ns.Gear.GemsMissing(scan, gem and gem.id or nil, sameGem, isMeta)
         -- Ohne Haken bei "nur was fehlt" zaehlen alle Sockel, nicht nur die
         -- leeren: die Frage ist dann "welcher Stein gehoert hier rein",
@@ -178,6 +178,10 @@ function List.Build(scan)
                 kind = "gem", slot = "gems", id = gem.id,
                 stat = gem.major, minor = gem.minor, pct = pct,
                 fallback = gem.name, need = sockets, missing = gemMissing,
+                -- Wie viele davon WIRKLICH leer sind. "missing" ist leer
+                -- plus falsch belegt, und als "leer" ausgegeben nannte es
+                -- einen Sockel leer, in dem ein Stein sitzt.
+                empty = gemEmpty,
                 -- Was stattdessen drinsitzt - wie bei den Verzauberungen.
                 other = gemOther,
             })

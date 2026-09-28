@@ -161,6 +161,8 @@ ns.RegisterLocale("deDE", {
 
 ns.RegisterLocale("deDE", {
     ["SOCKETS"] = "%d Sockel, davon %d leer",
+    ["SOCKETS_OTHER"] = "%d Sockel · %d anders belegt",
+    ["SOCKETS_BOTH"] = "%d Sockel · %d leer · %d anders belegt",
     ["IN_BAGS"] = "liegt schon in der Tasche",
 })
 

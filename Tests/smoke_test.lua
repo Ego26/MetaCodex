@@ -4077,6 +4077,19 @@ do
     -- Ohne Empfehlung bleibt es bei der alten Frage: wie viele sind leer.
     local fehlt4 = ns.Gear.GemsMissing(dreiSockel, nil, nil, nil)
     check("ohne Empfehlung zaehlen die leeren", fehlt4 == 1, tostring(fehlt4))
+
+    -- Leer und anders belegt kommen getrennt heraus.
+    --
+    -- Zusammengezaehlt heissen beide "fehlt" - richtig fuer den Einkauf,
+    -- falsch fuer den Satz daneben. Der setzte die Summe in "davon %d
+    -- leer" ein und nannte damit einen Sockel leer, in dem ein Stein
+    -- sitzt. Wer zwei Sockel bewusst anders besetzt hat, las von zwei
+    -- leeren Sockeln.
+    local _, _, _, wirklichLeer = ns.Gear.GemsMissing(dreiSockel, 222, {}, nil)
+    check("die wirklich leeren werden einzeln gemeldet", wirklichLeer == 1,
+        tostring(wirklichLeer))
+    check("und die Fehlmenge bleibt die Summe", fehlt == wirklichLeer + 1,
+        fehlt .. " = " .. wirklichLeer .. " + 1")
 end
 
 -- Die Zielwerte sagen, was sie sind - und wie einig die Gemessenen sind.

@@ -3004,7 +3004,21 @@ local function setItemRow(row, data)
 
     local parts = { L["SLOT_" .. data.slot] }
     if data.kind == "gem" then
-        parts[#parts + 1] = L["SOCKETS"]:format(data.need, data.missing or 0)
+        -- Leer und anders belegt sind zweierlei.
+        --
+        -- Hier stand die Fehlmenge als "davon %d leer" - und die ist leer
+        -- PLUS falsch belegt. Wer zwei Sockel bewusst anders besetzt hat,
+        -- las von zwei leeren Sockeln. Fuer den Einkauf bleibt es
+        -- dieselbe Zahl; der Satz sagt jetzt, woraus sie besteht.
+        local leer = data.empty or data.missing or 0
+        local anders = math.max(0, (data.missing or 0) - leer)
+        if leer > 0 and anders > 0 then
+            parts[#parts + 1] = L["SOCKETS_BOTH"]:format(data.need, leer, anders)
+        elseif anders > 0 then
+            parts[#parts + 1] = L["SOCKETS_OTHER"]:format(data.need, anders)
+        else
+            parts[#parts + 1] = L["SOCKETS"]:format(data.need, leer)
+        end
     else
         parts[#parts + 1] = slotCount(data.need)
     end

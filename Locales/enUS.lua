@@ -161,6 +161,8 @@ ns.RegisterLocale("enUS", {
 
 ns.RegisterLocale("enUS", {
     ["SOCKETS"] = "%d sockets, %d empty",
+    ["SOCKETS_OTHER"] = "%d sockets · %d with a different gem",
+    ["SOCKETS_BOTH"] = "%d sockets · %d empty · %d with a different gem",
     ["IN_BAGS"] = "already in your bags",
 })
 
