@@ -1411,6 +1411,33 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
 
   console.log(`\n\nSpieler ausgewertet: ${players}`
     + (unknownSpec ? `, ${unknownSpec} ohne erkennbare Spec` : ''));
+  // Wie gut der Foliant erfasst wurde.
+  //
+  // Diese Zeile ist KEINE Pruefung, die den Lauf scheitern laesst - und
+  // das mit Absicht. Eine Nacht ist schon einmal an einer Pruefung
+  // gestorben, die eigentlich nur etwas mitteilen wollte. Sie steht im
+  // Protokoll, damit ein Ausfall am Morgen zu sehen ist, ohne die
+  // Ernte mitzunehmen.
+  {
+    let gesehen = 0, moeglich = 0, speccs = 0;
+    for (const tally of Object.values(tallies)) {
+      for (const entry of Object.values(tally)) {
+        const proReihe = entry.folioSeen || {};
+        const reihen = Object.keys(proReihe);
+        if (!reihen.length) continue;
+        speccs++;
+        for (const row of reihen) gesehen += proReihe[row];
+        moeglich += (entry.players || 0) * reihen.length;
+      }
+    }
+    if (!speccs) {
+      console.log('Foliant: keine Rune gesehen'
+        + (folioBroken ? ' (die Abfrage wurde abgelehnt)' : ''));
+    } else {
+      const pct = moeglich ? Math.round(gesehen * 100 / moeglich) : 0;
+      console.log(`Foliant: ${speccs} Zaehlwerke, ${pct} % der Spieler je Reihe zugeordnet`);
+    }
+  }
   if (missedEnchants.size) {
     console.log(`Nicht zugeordnete Verzauberungen: ${missedEnchants.size}`);
     for (const name of [...missedEnchants].slice(0, 8)) console.log(`  ? ${name}`);
