@@ -1720,23 +1720,55 @@ do
         -- Ein Boss, von dem niemand etwas traegt, ist erlaubt - dann
         -- steht dort ein Satz und kein leeres Fenster.
         --
-        -- Gesucht wird das in M+: im Schlachtzug selbst traegt die
-        -- Spitze von jedem Boss etwas, in hohen Schluesseln nicht.
-        ns.Profile.SetMode("mplus")
-        local leer
-        for _, boss in ipairs(raid.bosses) do
-            ns.Profile.SetCategory("gearSource", boss.key)
-            rowsInSection("gear")
-            for _, row in ipairs(wow.rows()) do
-                local t = row:IsShown() and row.title and row.title:GetText() or nil
-                if t == ns.L["ORIGIN_EMPTY"] then leer = boss.label end
-            end
+        -- Geprueft wird das an einem Boss, von dem nichts stammen KANN,
+        -- und nicht mehr an einem, von dem gerade zufaellig nichts
+        -- stammt. Vorher suchte die Pruefung einen solchen Boss in den
+        -- Daten; in der Nacht auf den 28.09. gab es keinen, die Pruefung
+        -- schlug fehl, und mit ihr der ganze Lauf - fuenfeinhalb Stunden
+        -- Sammelarbeit kamen nirgends an. Was hier gelten soll, ist eine
+        -- Eigenschaft des Fensters und keine der Messung.
+        --
+        -- Der Waehler nimmt seine Bossliste aus dem Katalog, also
+        -- bekommt der Katalog fuer einen Moment einen Boss mehr. Damit
+        -- ist die Wahl gueltig - sonst wuerfe das Fenster sie weg - und
+        -- kein Gegenstand kann von ihm kommen.
+        local echteBosse = ns.Catalog.Bosses
+        local erfunden = 9999999
+        ns.Catalog.Bosses = function(id)
+            local list = echteBosse(id)
+            if id ~= inst or type(list) ~= "table" then return list end
+            local mehr = {}
+            for i = 1, #list do mehr[i] = list[i] end
+            mehr[#mehr + 1] = erfunden
+            return mehr
         end
+        ns.Profile.SetCategory("gearSource", "enc:" .. erfunden)
+        rowsInSection("gear")
+        local leer
+        for _, row in ipairs(wow.rows()) do
+            local t = row:IsShown() and row.title and row.title:GetText() or nil
+            if t == ns.L["ORIGIN_EMPTY"] then leer = t end
+        end
+        ns.Catalog.Bosses = echteBosse
         ns.Profile.SetCategory("gearSource", nil)
-        check("ein Boss ohne Messung sagt es", leer ~= nil,
-            tostring(leer))
+        check("ein Boss ohne Messung sagt es", leer ~= nil, tostring(leer))
+
         -- Jeder Boss ist einzeln waehlbar, und die Liste wird kuerzer.
+        --
+        -- Genommen wird einer, von dem wirklich etwas stammt. Welcher
+        -- das ist, sagen die Daten - fest auf den ersten zu zeigen hiesse
+        -- wieder hoffen.
         local boss = raid.bosses[1]
+        for _, b in ipairs(raid.bosses) do
+            ns.Profile.SetCategory("gearSource", b.key)
+            rowsInSection("gear")
+            local echte = 0
+            for _, row in ipairs(wow.rows()) do
+                local text = row:IsShown() and row.detail and row.detail:GetText() or nil
+                if text and text ~= "" then echte = echte + 1 end
+            end
+            if echte > 0 then boss = b break end
+        end
         ns.Profile.SetCategory("gearSource", boss.key)
         local some = rowsInSection("gear")
         check("ein einzelner Boss laesst weniger uebrig", some > 0 and some < all,
