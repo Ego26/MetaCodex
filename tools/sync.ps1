@@ -49,6 +49,32 @@ if (-not (Test-Path $catalog)) {
     Write-Host "    node tools\build-catalog.js ." -ForegroundColor Yellow
 }
 
+# Warnen, wenn eine Quelle alt ist.
+#
+# Dieser Sync spielt die LOKALEN Daten ins Spiel, und lokal wird meist
+# nur an einer Quelle gearbeitet. Am 28.09. hat er frische M+-Zahlen
+# hineingespielt und dabei Raid-Daten vom 23. mitgenommen - im Spiel
+# fehlten danach ein Boss und zwei ganze Bosslisten, die vorher da
+# waren. Der Nachtlauf hatte alles richtig; der Sync hat es
+# ueberschrieben.
+#
+# Das laesst sich nicht verhindern, aber es laesst sich sagen.
+$rohdaten = Join-Path $RepoRoot "tools\data"
+if (Test-Path $rohdaten) {
+    $alt = Get-ChildItem -Path $rohdaten -Filter "wcl-*.json" -File |
+        Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-2) }
+    if ($alt) {
+        Write-Host ""
+        Write-Host "ACHTUNG: diese gesammelten Daten sind aelter als zwei Tage." -ForegroundColor Yellow
+        Write-Host "Sie werden trotzdem ins Spiel gespielt und ueberschreiben dort Neueres:" -ForegroundColor Yellow
+        foreach ($f in ($alt | Sort-Object LastWriteTime)) {
+            Write-Host ("    {0,-34} {1:dd.MM. HH:mm}" -f $f.Name, $f.LastWriteTime) -ForegroundColor Yellow
+        }
+        Write-Host "Frische Daten holt der Nachtlauf; sein Zip haengt am Release 'nightly'." -ForegroundColor Yellow
+        Write-Host ""
+    }
+}
+
 # Sicherheitsnetz: /MIR loescht im Ziel. Nur eigene Ordner zulassen.
 function Assert-SafeTarget {
     param([string]$Target)
