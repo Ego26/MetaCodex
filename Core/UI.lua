@@ -3922,13 +3922,26 @@ function UI.Refresh()
     -- Ein einzeln gewaehlter Platz bleibt offen. Wer oben "Ring" sagt,
     -- hat schon gesagt, dass er die Ringe sehen will.
     if section.key == "gear" and not viewingPlayer and not ns.Profile.GearSlot() then
-        local kept, head = {}, nil
+        local kept, head, offen = {}, nil, 0
         for _, row in ipairs(currentRows) do
             if head and head.slot == row.slot then
-                head.more = (head.more or 0) + 1
-                if gearUnfolded[row.slot] then kept[#kept + 1] = row end
+                -- So viele, wie man davon traegt.
+                --
+                -- Bei Ringen und Schmuck ist die zweitbeste Wahl keine
+                -- Alternative, sondern das zweite Stueck: man traegt
+                -- beide gleichzeitig. Eine einzelne Zeile mit "+4
+                -- weitere" verlangte, den zweiten Ring hinter einem Klick
+                -- zu suchen, als waere er ein Ersatz.
+                if offen < (GEAR_SLOTS[row.slot] or 1) then
+                    offen = offen + 1
+                    kept[#kept + 1] = row
+                else
+                    head.more = (head.more or 0) + 1
+                    if gearUnfolded[row.slot] then kept[#kept + 1] = row end
+                end
             else
                 head = row.slot and row or nil
+                offen = 1
                 if head then head.open = gearUnfolded[row.slot] == true end
                 kept[#kept + 1] = row
             end

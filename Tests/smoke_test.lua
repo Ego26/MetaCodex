@@ -4283,6 +4283,29 @@ do
     end
     check("keine kleinen Umlaute in den Ueberschriften", klein == 0,
         klein .. " Ueberschriften")
+
+    -- Und es stehen auch zwei da.
+    --
+    -- Gefaltet wurde auf EINE Zeile je Platz. Bei Ringen und Schmuck
+    -- versteckte das den zweiten Ring hinter "+4 weitere", als waere er
+    -- ein Ersatz - er ist aber das zweite Stueck, das man gleichzeitig
+    -- traegt.
+    local function zeilenMit(anfang)
+        local n = 0
+        for _, row in ipairs(wow.rows()) do
+            if row:IsShown() and not rawget(row, "__header") then
+                local text = row.detail and row.detail:GetText() or ""
+                if text:sub(1, #anfang) == anfang then n = n + 1 end
+            end
+        end
+        return n
+    end
+    check("bei den Ringen stehen zwei Zeilen", zeilenMit(ns.L["GEARSLOT_Rings"]) == 2,
+        zeilenMit(ns.L["GEARSLOT_Rings"]) .. " Zeilen")
+    check("beim Schmuck auch", zeilenMit(ns.L["GEARSLOT_Trinkets"]) == 2,
+        zeilenMit(ns.L["GEARSLOT_Trinkets"]) .. " Zeilen")
+    check("und bei den Beinen nur eine", zeilenMit(ns.L["GEARSLOT_Legs"]) == 1,
+        zeilenMit(ns.L["GEARSLOT_Legs"]) .. " Zeilen")
     ns.Profile.SetLanguage("auto")
 end
 
