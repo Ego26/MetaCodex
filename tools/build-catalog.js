@@ -716,6 +716,51 @@ function emitEnchants(groups) {
     [...kinds.values()].filter((k) => k === 'set').length, 'Set,',
     [...kinds.values()].filter((k) => k === 'craft').length, 'Handwerk');
 
+  // Und welches davon das Tier-Set DIESER Saison ist.
+  //
+  // "In einem Set" ist zu weit gefasst: unter den Sets dieser
+  // Erweiterung stehen die Klassensets der laufenden Saison, die der
+  // vorigen, die PvP-Ruestungen und kleine Schmucksets aus den
+  // Dungeons. Im Reiter "Tier-Set" standen sie alle - samt einem Ring.
+  //
+  // Zwei Fragen trennen sie, und beide beantworten die Spieldaten:
+  //
+  //   Ist es ein KLASSENset? Ein Tier-Teil ist auf eine Klasse
+  //   beschraenkt (AllowableClass traegt ihre Maske). Die PvP-Ruestung
+  //   und die Schmucksets stehen jedem offen: -1.
+  //
+  //   Ist es das AKTUELLE? Blizzard vergibt die Set-IDs aufsteigend,
+  //   also gewinnt je Klasse die hoechste. Nachgesehen am 28.09.:
+  //   2055-2067 sind die Sets dieser Saison, 1978-1990 die der vorigen.
+  const forClass = new Map(items.map((r) => [Number(r.ID), Number(r.AllowableClass)]));
+  const bestOfClass = new Map();   // Klassenmaske -> { setID, ids }
+  for (const row of itemSets) {
+    const setID = Number(row.ID);
+    const ids = [];
+    let mask = null, einig = true;
+    for (const [column, value] of Object.entries(row)) {
+      if (!column.startsWith('ItemID_')) continue;
+      const id = Number(value);
+      if (!id || !current.has(id)) continue;
+      ids.push(id);
+      const m = forClass.get(id);
+      if (m === undefined) continue;
+      if (mask === null) mask = m;
+      else if (mask !== m) einig = false;
+    }
+    // Kein Klassenset: offen fuer alle (-1), oder die Teile widersprechen
+    // einander.
+    if (!ids.length || !einig || mask === null || mask <= 0) continue;
+    const known = bestOfClass.get(mask);
+    if (!known || setID > known.setID) bestOfClass.set(mask, { setID, ids });
+  }
+  const tierNow = new Set();
+  for (const entry of bestOfClass.values()) {
+    for (const id of entry.ids) tierNow.add(id);
+  }
+  console.log('Tier-Sets dieser Saison:', bestOfClass.size, 'Klassen,',
+    tierNow.size, 'Teile');
+
   // --- Woher ein Gegenstand kommt ---------------------------------------
   //
   // Das Abenteuerjournal fuehrt je Gegenstand die Begegnung, und die
@@ -1049,6 +1094,14 @@ function emitEnchants(groups) {
   out.push('  instKind = {');
   for (const [id, kind] of Object.entries(instKind).sort((a, b) => a[0] - b[0])) {
     out.push(`    [${id}] = ${luaString(kind)},`);
+  }
+  out.push('  },');
+  out.push('');
+
+  // Die Teile des laufenden Tier-Sets.
+  out.push('  tierNow = {');
+  for (const id of [...tierNow].sort((a, b) => a - b)) {
+    out.push(`    [${id}] = true,`);
   }
   out.push('  },');
   out.push('');

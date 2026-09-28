@@ -266,6 +266,21 @@ function Catalog.DropSource(itemID)
     return where.enc, where.inst
 end
 
+---Gehoert dieses Stueck zum Tier-Set der laufenden Saison?
+---
+---"Set-Teil" ist die weitere Frage und bleibt, was sie ist: der
+---Gegenstand gehoert IRGENDEINEM Set an. Diese hier ist die engere -
+---und sie ist die, die der Reiter "Tier-Set" stellt. Dort standen sonst
+---das Set der vorigen Saison, die PvP-Ruestung und ein Ring aus einem
+---Schmuckset daneben.
+---@param itemID number|nil
+---@return boolean
+function Catalog.IsCurrentTier(itemID)
+    if not itemID then return false end
+    local c = data()
+    return (c and c.tierNow and c.tierNow[itemID]) and true or false
+end
+
 ---Dungeon oder Schlachtzug?
 ---
 ---Aus den Spieldaten: die Karte hinter der Instanz fuehrt ihre Art

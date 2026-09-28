@@ -736,7 +736,12 @@ function Recommend.HasSection(specID, mode, source, section)
                 if not kind and ns.Catalog and ns.Catalog.ItemKind then
                     kind = ns.Catalog.ItemKind(item.id)
                 end
-                if kind == want then return true end
+                -- Dieselbe Enge wie in der Liste: ein Reiter, der nur
+                -- das laufende Tier-Set zeigt, darf nicht aufmachen,
+                -- weil irgendwo ein altes Set-Teil liegt.
+                if kind == want and (want ~= "set"
+                    or (ns.Catalog and ns.Catalog.IsCurrentTier
+                        and ns.Catalog.IsCurrentTier(item.id))) then return true end
             end
         end
         return false

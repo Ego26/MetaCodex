@@ -3839,5 +3839,53 @@ do
     end
 end
 
+-- Im Reiter "Tier-Set" steht nur das Set DIESER Saison.
+--
+-- "Set-Teil" heisst nur: gehoert irgendeinem Set an. Unter den Sets
+-- dieser Erweiterung stehen auch das Klassenset der vorigen Saison, die
+-- PvP-Ruestungen und kleine Schmucksets aus den Dungeons - und so
+-- standen sie alle im Reiter, ein Ring mittendrin.
+do
+    local gezeigt, fremd, ringe = 0, 0, 0
+    for _, aktivitaet in ipairs({ "raid", "raid-normal", "mplus", "3v3" }) do
+        ns.Profile.SetMode(aktivitaet)
+        rowsInSection("tier")
+        for _, row in ipairs(wow.rows()) do
+            local text = row:IsShown() and row.title and row.title:GetText() or nil
+            if text and text ~= "" then gezeigt = gezeigt + 1 end
+        end
+        -- Und an den Zeilen selbst: jede traegt ihre Gegenstands-ID.
+        for _, row in ipairs(wow.rows()) do
+            local id = row:IsShown() and rawget(row, "itemID") or nil
+            if type(id) == "number" then
+                gezeigt = gezeigt + 1
+                if not ns.Catalog.IsCurrentTier(id) then fremd = fremd + 1 end
+            end
+        end
+    end
+    check("der Reiter zeigt Zeilen", gezeigt > 0, gezeigt .. " Zeilen")
+    check("und keine davon ist aus einem fremden Set", fremd == 0,
+        fremd .. " fremde")
+
+    -- Die engere Frage beantwortet der Katalog, und sie ist WIRKLICH
+    -- enger: es gibt Set-Teile, die nicht zum laufenden Tier gehoeren.
+    local set, tier = 0, 0
+    local gear = ns.Recommend.Gear(ns.Profile.SelectedSpec(), "raid", ns.Recommend.ALL)
+    for _, liste in pairs(gear or {}) do
+        for _, item in ipairs(liste) do
+            local kind = item.kind or ns.Catalog.ItemKind(item.id)
+            if kind == "set" then
+                set = set + 1
+                if ns.Catalog.IsCurrentTier(item.id) then tier = tier + 1 end
+            end
+        end
+    end
+    if set > 0 then
+        check("das laufende Tier ist ein TEIL der Set-Teile",
+            tier > 0 and tier < set, tier .. " von " .. set)
+    end
+    ns.Profile.SetMode("mplus")
+end
+
 say(fails == 0 and "\nalles gruen" or ("\n" .. fails .. " Fehler"))
 os.exit(fails == 0 and 0 or 1)

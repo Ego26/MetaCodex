@@ -720,9 +720,19 @@ local function kindRows(specID, mode, source, want)
     for _, slot in ipairs(GEAR_ORDER) do
         for _, item in ipairs(gear[slot] or {}) do
             local badge = item.kind or ns.Catalog.ItemKind(item.id)
+            -- Im Reiter "Tier-Set" steht nur das Set DIESER Saison.
+            --
+            -- "Set-Teil" heisst nur: gehoert irgendeinem Set an. Das
+            -- sind auch das Set der vorigen Saison, die PvP-Ruestung und
+            -- die kleinen Schmucksets aus den Dungeons - und so standen
+            -- sie alle in der Liste, ein Ring mittendrin.
+            local passt = badge == want
+            if want == "set" and passt then
+                passt = ns.Catalog.IsCurrentTier(item.id)
+            end
             -- Ein Stueck, das an zwei Plaetzen vorkommt - Ringe,
             -- Schmuckstuecke -, steht einmal da, mit seinem besten Wert.
-            if badge == want and (item.ilvl or 0) >= minLevel and not seen[item.id] then
+            if passt and (item.ilvl or 0) >= minLevel and not seen[item.id] then
                 seen[item.id] = true
                 -- Gewaehlt schlaegt gemessen: wer oben ein Wertepaar
                 -- gewaehlt hat, will sehen, wie SEIN Stueck aussaehe.
