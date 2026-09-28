@@ -1343,6 +1343,17 @@ end
 ---@param id number|nil Gegenstand DIESER Zeile
 local function openConsumableMenu(anchor, kind, id)
     local own = ns.Profile.OwnConsumable(kind)
+    -- Welche Menge diese Zeile gerade hat.
+    --
+    -- Bei einer Liste steht sie am Gegenstand, sonst an der Art. Vorher
+    -- stand sie immer an der Art: wer an den Trommeln "2" einstellte,
+    -- stellte damit die Verstaerkungsrune auf 2.
+    local function ziel()
+        if ns.Profile.KindIsList(kind) then
+            return ns.Profile.ItemTarget(id) or 0
+        end
+        return ns.Profile.ConsumableTarget(kind)
+    end
     if not (MenuUtil and MenuUtil.CreateContextMenu) then
         openTargetPicker(anchor, kind)
         return
@@ -1354,13 +1365,13 @@ local function openConsumableMenu(anchor, kind, id)
         local amount = root:CreateButton(L["CONSUM_TARGET_MENU"])
         for _, count in ipairs({ 0, 1, 2, 3, 5, 10, 20, 40 }) do
             amount:CreateRadio(tostring(count),
-                function() return ns.Profile.ConsumableTarget(kind) == count end,
-                function() ns.Profile.SetConsumableTarget(kind, count) UI.Refresh() end)
+                function() return ziel() == count end,
+                function() ns.Profile.SetConsumableTarget(kind, count, id) UI.Refresh() end)
         end
         -- Und eine eigene Zahl, fuer alles dazwischen.
         amount:CreateButton(L["CONSUM_TARGET_OWN"], function()
-            UI.AskNumber(L["CONSUM_" .. kind], ns.Profile.ConsumableTarget(kind),
-                function(value) ns.Profile.SetConsumableTarget(kind, value) end)
+            UI.AskNumber(L["CONSUM_" .. kind], ziel(),
+                function(value) ns.Profile.SetConsumableTarget(kind, value, id) end)
         end)
 
         -- Diese Zeile als eigene Wahl.
@@ -1447,6 +1458,14 @@ local function consumableRows(specID, mode, source)
         -- Vorher stand unter jedem Flaeschchen "Ziel 2 - 2 fehlen", auch
         -- unter denen, die man gar nicht will. Drei Flaeschchen je zwei
         -- Stueck ist nicht, was jemand einkauft - man nimmt EINES.
+        -- Eine Liste ist keine Wahl.
+        --
+        -- Unter "Sonstiges" steht nebeneinander, was man nebeneinander
+        -- traegt: eine Verstaerkungsrune UND Trommeln UND einen
+        -- Reparaturhammer. Die Regel "nur das Haeufigste ist ein Posten"
+        -- machte daraus eine Rune mit Menge und zwei Alternativen ohne -
+        -- die Trommeln standen da, waren aber nicht zu kaufen.
+        local alsListe = ns.Profile.KindIsList(kind)
         local first = true
         for _, entry in ipairs(byKind[kind] or {}) do
             -- Speisen brauchen hier keine Sonderbehandlung mehr.
@@ -1457,7 +1476,23 @@ local function consumableRows(specID, mode, source)
             -- Wirkung statt ueber die Aura. Damit ist eine Speise eine
             -- Zeile wie ein Flaeschchen, und der Notbehelf faellt weg.
             local id = entry.id
-            local target = ns.Profile.ConsumableTarget(kind)
+            local istPosten = alsListe or first
+            -- Die Menge haengt bei einer Liste am GEGENSTAND.
+            --
+            -- Sie hing an der Art, und die Art hat nur eine Zahl: wer an
+            -- den Trommeln "2" einstellte, stellte damit die Rune auf 2.
+            --
+            -- Vorgeschlagen wird eine Menge nur fuer den, den die
+            -- Gemessenen wirklich meist nehmen. Bei den uebrigen steht
+            -- keine, bis jemand eine setzt - wie viele Trommeln jemand
+            -- mitnimmt, hat niemand gemessen.
+            local target
+            if alsListe then
+                target = ns.Profile.ItemTarget(id)
+                    or (first and ns.Profile.ConsumableTarget(kind) or 0)
+            else
+                target = ns.Profile.ConsumableTarget(kind)
+            end
             local owned = id and ns.Compat.ItemCount(id) or 0
             -- Dieselbe Ware in anderer Qualitaet, wie bei Steinen und
             -- Verzauberungen: Gold deckt Silber, Silber steht nur dabei.
@@ -1477,7 +1512,7 @@ local function consumableRows(specID, mode, source)
             local group = L["CONSUM_" .. kind]
             rows[#rows + 1] = {
                 kind = "consumable", ckind = kind,
-                alt = not first or nil, own = entry.own,
+                alt = not istPosten or nil, own = entry.own,
                 id = id, pct = entry.pct,
                 name = name or entry.name,
                 link = link, icon = icon,
@@ -1525,6 +1560,12 @@ local function openRemindMenu(anchor, data)
         return
     end
     local name = (id and ns.Compat.ItemInfo(id)) or data.name or data.fallback
+    local function zielDavon()
+        if data.ckind and ns.Profile.KindIsList(data.ckind) then
+            return ns.Profile.ItemTarget(id) or 0
+        end
+        return data.ckind and ns.Profile.ConsumableTarget(data.ckind) or 0
+    end
     MenuUtil.CreateContextMenu(anchor, function(_, root)
         root:CreateTitle(name or L["REMIND_WINDOW_TITLE"])
         -- Bei einem Verbrauchsgut bleibt die Zielmenge, wo sie war.
@@ -1532,12 +1573,12 @@ local function openRemindMenu(anchor, data)
             local amount = root:CreateButton(L["CONSUM_TARGET_MENU"])
             for _, count in ipairs({ 0, 1, 2, 3, 5, 10, 20, 40 }) do
                 amount:CreateRadio(tostring(count),
-                    function() return ns.Profile.ConsumableTarget(data.ckind) == count end,
-                    function() ns.Profile.SetConsumableTarget(data.ckind, count) UI.Refresh() end)
+                    function() return zielDavon() == count end,
+                    function() ns.Profile.SetConsumableTarget(data.ckind, count, id) UI.Refresh() end)
             end
             amount:CreateButton(L["CONSUM_TARGET_OWN"], function()
-                UI.AskNumber(L["CONSUM_" .. data.ckind], ns.Profile.ConsumableTarget(data.ckind),
-                    function(value) ns.Profile.SetConsumableTarget(data.ckind, value) end)
+                UI.AskNumber(L["CONSUM_" .. data.ckind], zielDavon(),
+                    function(value) ns.Profile.SetConsumableTarget(data.ckind, value, id) end)
             end)
         end
         if id then

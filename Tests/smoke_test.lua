@@ -4443,5 +4443,60 @@ do
     ns.Profile.SetLanguage("auto")
 end
 
+-- Eine Liste ist keine Wahl: unter "Sonstiges" hat jeder seine Menge.
+--
+-- Die Zielmenge hing an der ART. Wer an den Trommeln "2" einstellte,
+-- stellte damit die Verstaerkungsrune auf 2 - und umgekehrt. Und weil
+-- nur das Haeufigste je Art ein Posten war, standen die Trommeln als
+-- "Alternative" da, ohne Menge und ohne Nachkauf, obwohl man sie NEBEN
+-- der Rune traegt und nicht statt ihrer.
+do
+    ns.Profile.SetMode("mplus")
+    check("Sonstiges ist eine Liste", ns.Profile.KindIsList("other") == true)
+    check("Flaeschchen sind eine Wahl", ns.Profile.KindIsList("flask") == false)
+
+    -- Zwei Gegenstaende derselben Art, zwei verschiedene Mengen.
+    local a, b = 244639, 259085
+    ns.Profile.SetConsumableTarget("other", 2, a)
+    ns.Profile.SetConsumableTarget("other", 7, b)
+    check("jeder Gegenstand behaelt seine eigene Menge",
+        ns.Profile.ItemTarget(a) == 2 and ns.Profile.ItemTarget(b) == 7,
+        tostring(ns.Profile.ItemTarget(a)) .. " / " .. tostring(ns.Profile.ItemTarget(b)))
+    check("und die Art selbst bleibt unberuehrt",
+        ns.Profile.ConsumableTarget("other") ~= 2 or ns.Profile.ConsumableTarget("other") ~= 7)
+
+    -- Bei einer Wahl bleibt es bei der Art: drei Flaeschchen sind ein
+    -- Einkauf, nicht drei.
+    ns.Profile.SetConsumableTarget("flask", 3, 999999)
+    check("bei einer Wahl zaehlt weiter die Art",
+        ns.Profile.ConsumableTarget("flask") == 3 and ns.Profile.ItemTarget(999999) == nil,
+        tostring(ns.Profile.ConsumableTarget("flask")))
+
+    -- Und die Erinnerung prueft die zweite Menge wirklich.
+    local gefunden = {}
+    for _, row in ipairs(ns.Remind.Status("mplus")) do
+        if row.id == a or row.id == b then gefunden[row.id] = row.need end
+    end
+    check("die Erinnerung kennt beide Mengen",
+        gefunden[a] == 2 and gefunden[b] == 7,
+        tostring(gefunden[a]) .. " / " .. tostring(gefunden[b]))
+
+    -- Und ohne eigene Menge steht nur der oberste auf der Liste.
+    --
+    -- Das ist die Regel: vorgeschlagen wird, was die Gemessenen meist
+    -- nehmen. Alles andere kommt erst dazu, wenn jemand es sagt.
+    ns.Profile.SetConsumableTarget("other", 0, a)
+    ns.Profile.SetConsumableTarget("other", 0, b)
+    local nurEiner = 0
+    for _, row in ipairs(ns.Remind.Status("mplus")) do
+        if row.kind == "other" then nurEiner = nurEiner + 1 end
+    end
+    check("ohne eigene Menge steht nur einer auf der Liste", nurEiner <= 1,
+        nurEiner .. " Posten")
+
+    ns.Profile.SetConsumableTarget("other", 0, a)
+    ns.Profile.SetConsumableTarget("other", 0, b)
+end
+
 say(fails == 0 and "\nalles gruen" or ("\n" .. fails .. " Fehler"))
 os.exit(fails == 0 and 0 or 1)

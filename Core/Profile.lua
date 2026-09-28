@@ -287,6 +287,47 @@ local TARGETS = {
     other = 5,
 }
 
+-- Welche Arten eine Wahl SIND und welche eine Liste.
+--
+-- Von drei Flaeschchen nimmt man eines: sie sind Alternativen, und eine
+-- Zielmenge je Flaeschchen waere dreimal derselbe Einkauf. Unter
+-- "Sonstiges" steht dagegen nebeneinander, was man nebeneinander traegt
+-- - eine Verstaerkungsrune UND Trommeln UND einen Reparaturhammer. Dort
+-- ist jede Zeile ein eigener Posten mit eigener Menge.
+local EINZELN = { other = true, vantus = true }
+
+---@param kind string
+---@return boolean
+function Profile.KindIsList(kind)
+    return EINZELN[kind] == true
+end
+
+---Die Zielmenge, die fuer EINEN Gegenstand gesetzt wurde - oder nil.
+---
+---Nur was der Spieler selbst gesagt hat. Ohne Eintrag gibt es hier keine
+---Vorgabe: wie viele Trommeln jemand mitnimmt, hat niemand gemessen, und
+---eine erfundene Zahl unter eine Zeile zu schreiben, die sonst nur
+---Gemessenes traegt, waere genau die Luege, die dieses Addon sich nicht
+---leisten kann.
+---@param itemID number|nil
+---@return number|nil
+function Profile.ItemTarget(itemID)
+    local db = MetaCodexDB or {}
+    return itemID and db.itemTargets and db.itemTargets[itemID] or nil
+end
+
+---Alle Gegenstaende, denen jemand selbst eine Menge gegeben hat.
+---
+---Gebraucht von der Erinnerung: eine gesetzte Menge gilt, auch wenn der
+---Gegenstand fuer diese Spec gar nicht gemessen ist. Wer sagt, dass er
+---zwei Trommeln mitnehmen will, hat das gesagt - ob die Spitze sie
+---benutzt, ist eine andere Frage und steht woanders.
+---@return table<number, number> itemID -> Menge
+function Profile.ItemTargets()
+    local db = MetaCodexDB or {}
+    return db.itemTargets or {}
+end
+
 ---@param kind string
 ---@return number
 function Profile.ConsumableTarget(kind)
@@ -366,9 +407,18 @@ end
 
 ---@param kind string
 ---@param count number
-function Profile.SetConsumableTarget(kind, count)
+function Profile.SetConsumableTarget(kind, count, itemID)
+    count = math.max(0, math.floor(count or 0))
+    -- Bei den Listen haengt die Menge am Gegenstand: wer sich zwei
+    -- Trommeln vornimmt, will damit nicht auch zwei Verstaerkungsrunen
+    -- bestellt haben.
+    if itemID and EINZELN[kind] then
+        MetaCodexDB.itemTargets = MetaCodexDB.itemTargets or {}
+        MetaCodexDB.itemTargets[itemID] = count
+        return
+    end
     MetaCodexDB.targets = MetaCodexDB.targets or {}
-    MetaCodexDB.targets[kind] = math.max(0, math.floor(count or 0))
+    MetaCodexDB.targets[kind] = count
 end
 
 ---Die Erinnerung: warnt beim Betreten von Schlachtzug oder Schluesselstein,

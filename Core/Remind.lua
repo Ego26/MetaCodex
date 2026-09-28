@@ -50,13 +50,46 @@ function Remind.Status(mode, forSpec)
     if not list then return out end
 
     local bestOfKind = {}
+    -- Und bei den Listen auch die uebrigen.
+    --
+    -- Unter "Sonstiges" steht nebeneinander, was man nebeneinander
+    -- traegt. Wer sich zwei Trommeln vornimmt, will vor dem Pull hoeren,
+    -- dass sie fehlen - und nicht nur, dass die Verstaerkungsrune da ist.
+    local weitere = {}
     for _, entry in ipairs(list) do
         local kind = (entry.id and ns.Catalog.ConsumableKind(entry.id)) or entry.kind or "other"
         local known = bestOfKind[kind]
         if not known or (entry.pct or 0) > (known.pct or 0) then bestOfKind[kind] = entry end
+        if ns.Profile.KindIsList(kind) and (ns.Profile.ItemTarget(entry.id) or 0) > 0 then
+            weitere[#weitere + 1] = { kind = kind, entry = entry }
+        end
     end
 
     local below = ns.Profile.WarnBelow()
+
+    ---Ein Posten, gegen den Beutel gehalten.
+    ---@param kind string
+    ---@param entry table|nil
+    ---@param need number
+    local function pruefe(kind, entry, need)
+        if not (entry and entry.id) or (need or 0) <= 0 then return end
+        -- Hoehere Qualitaet deckt den Bedarf; niedrigere steht dabei.
+        local lowerIDs, higherIDs = ns.Catalog.Tiers(entry.id)
+        local owned, lower = ns.Compat.ItemCount(entry.id), 0
+        for _, other in ipairs(higherIDs) do owned = owned + ns.Compat.ItemCount(other) end
+        for _, other in ipairs(lowerIDs) do lower = lower + ns.Compat.ItemCount(other) end
+        local state = "ok"
+        if owned == 0 then state = lower > 0 and "low" or "none"
+        elseif owned < need * below then state = "low" end
+        out[#out + 1] = {
+            kind = kind, id = entry.id, own = entry.own,
+            name = ns.Compat.ItemInfo(entry.id)
+                or ns.Catalog.ItemName(entry.id) or entry.name,
+            owned = owned, lower = lower, need = need, state = state, pct = entry.pct,
+        }
+    end
+
+    local gesehen = {}
     for _, kind in ipairs(KIND_ORDER) do
         local entry = bestOfKind[kind]
         -- Die eigene Wahl schlaegt die Messung: gezaehlt wird, was man
@@ -66,24 +99,34 @@ function Remind.Status(mode, forSpec)
             local name = ns.Compat.ItemInfo(own)
             entry = { id = own, name = name, pct = nil, own = true }
         end
-        if entry and entry.id then
-            local need = ns.Profile.ConsumableTarget(kind)
-            -- Hoehere Qualitaet deckt den Bedarf; niedrigere steht dabei.
-            local lowerIDs, higherIDs = ns.Catalog.Tiers(entry.id)
-            local owned, lower = ns.Compat.ItemCount(entry.id), 0
-            for _, other in ipairs(higherIDs) do owned = owned + ns.Compat.ItemCount(other) end
-            for _, other in ipairs(lowerIDs) do lower = lower + ns.Compat.ItemCount(other) end
-            local state = "ok"
-            if owned == 0 then state = lower > 0 and "low" or "none"
-            elseif owned < need * below then state = "low" end
-            if need > 0 then
-                out[#out + 1] = {
-                    kind = kind, id = entry.id, own = entry.own,
-                    name = ns.Compat.ItemInfo(entry.id)
-                        or ns.Catalog.ItemName(entry.id) or entry.name,
-                    owned = owned, lower = lower, need = need, state = state, pct = entry.pct,
-                }
-            end
+        local need = ns.Profile.ConsumableTarget(kind)
+        if entry and ns.Profile.KindIsList(kind) then
+            need = ns.Profile.ItemTarget(entry.id) or need
+        end
+        if entry and entry.id then gesehen[entry.id] = true end
+        pruefe(kind, entry, need)
+    end
+
+    -- Und die uebrigen Posten der Listen: jeder, dem jemand eine Menge
+    -- gegeben hat. Ohne sie waere "zwei Trommeln" eine Einstellung, die
+    -- vor dem Pull niemand prueft.
+    for _, w in ipairs(weitere) do
+        if not gesehen[w.entry.id] then
+            gesehen[w.entry.id] = true
+            pruefe(w.kind, w.entry, ns.Profile.ItemTarget(w.entry.id) or 0)
+        end
+    end
+
+    -- Auch das, was fuer DIESE Spec gar nicht gemessen ist.
+    --
+    -- Eine gesetzte Menge ist eine Entscheidung, keine Beobachtung. Wer
+    -- zwei Trommeln mitnehmen will, will vor dem Pull hoeren, dass sie
+    -- fehlen - auch wenn die gemessene Spitze seiner Spec keine benutzt.
+    for id, menge in pairs(ns.Profile.ItemTargets()) do
+        if not gesehen[id] and (menge or 0) > 0 then
+            gesehen[id] = true
+            local kind = ns.Catalog.ConsumableKind(id) or "other"
+            pruefe(kind, { id = id, name = ns.Catalog.ItemName(id) }, menge)
         end
     end
     return out
