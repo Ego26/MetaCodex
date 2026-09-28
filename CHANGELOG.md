@@ -10,14 +10,21 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
   players take in each row. Warcraft Logs does not carry the folio in the
   combatant data - one of their developers confirmed it - so the runes are
   recognised by their effect, the way Archon does it.
-- Four of the five rows are measurable that way, at about four players in
-  five. Each row header says how many players its percentages rest on,
-  because that number is smaller than the spec's full sample and a share
-  that hides it invites the wrong comparison.
-- Row five gets a sentence instead of a number. None of its three runes
-  leaves a trace in any table, nor in a 628 MB raw combat log. It could be
-  derived from what the other options leave over - that number would look
-  like a measurement without being one.
+- Each row header says how many players its percentages rest on, because
+  that number is smaller than the spec's full sample and a share that
+  hides it invites the wrong comparison.
+- Row five took three tries. Overload and Residual Energy have no spell of
+  their own - of 414027 spells in the game, not one carries either name
+  apart from the talent - and they are not in the combat log either. What
+  they do instead is double something that already exists, and that is
+  where they can be caught: Overload doubles the Core Rune, and the Core
+  Rune's damage per hit falls into one tight cluster with single players
+  at exactly half. Those are the ones without it.
+- Residual Energy stays derived, because Lingering, which it doubles,
+  spreads far too unevenly to separate. So it is what remains once
+  Overload and Echoes are counted - which makes the smallest of the three
+  numbers the uncertain one rather than the largest. Its row says "worked
+  out, not seen" and never takes the accent colour.
 - The weapon buff a class puts on itself is measured and shown, so a
   shaman's Flametongue and a rogue's poison appear where an oil would.
 - Anything under "Other" in the reminder carries its own amount. Drums, a

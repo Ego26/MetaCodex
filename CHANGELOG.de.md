@@ -10,14 +10,21 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
   besten Spieler in jeder Reihe nehmen. Warcraft Logs führt den Folianten
   nicht in den Kampfdaten – ein Entwickler von dort hat es bestätigt –,
   also werden die Runen an ihrer Wirkung erkannt, so wie Archon es tut.
-- Vier der fünf Reihen sind damit messbar, an rund vier von fünf Spielern.
-  Jede Reihe nennt im Kopf, auf wie vielen Spielern ihre Anteile ruhen:
+- Jede Reihe nennt im Kopf, auf wie vielen Spielern ihre Anteile ruhen:
   diese Zahl ist kleiner als die Stichprobe der Spec, und ein Anteil, der
   sie verschweigt, lädt zum falschen Vergleich ein.
-- Reihe 5 bekommt einen Satz statt einer Zahl. Keine ihrer drei Runen
-  hinterlässt eine Spur, auch nicht in einem 628 MB großen Kampflog. Man
-  könnte sie aus dem errechnen, was die anderen übrig lassen – sie sähe
-  aus wie eine Messung, ohne eine zu sein.
+- Reihe 5 hat drei Anläufe gebraucht. Überladung und Restenergie haben
+  keinen eigenen Zauber – von 414 027 Zaubern im Spiel trägt keiner ihren
+  Namen außer dem Talent –, und im Kampflog stehen sie auch nicht. Was sie
+  tun, ist etwas Vorhandenes zu verdoppeln, und genau daran sind sie zu
+  fassen: Überladung verdoppelt die Kernrune, und deren Schaden je Treffer
+  liegt in einem dichten Haufen, aus dem einzelne Spieler bei genau der
+  Hälfte herausfallen. Das sind die ohne sie.
+- Restenergie bleibt gerechnet, weil Lingering, das sie verdoppelt, viel
+  zu ungleich streut. Sie ist also das, was übrig bleibt, wenn Überladung
+  und Echos gezählt sind – damit trägt die kleinste der drei Zahlen die
+  Unsicherheit und nicht die größte. Ihre Zeile sagt „Gerechnet, nicht
+  gesehen" und bekommt nie die Akzentfarbe.
 - Der Waffenbuff, den eine Klasse selbst auflegt, wird gemessen und
   gezeigt: Flammenzunge des Schamanen und das Gift des Schurken stehen
   dort, wo sonst ein Öl stünde.
