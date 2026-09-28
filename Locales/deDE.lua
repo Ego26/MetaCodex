@@ -307,6 +307,8 @@ ns.RegisterLocale("deDE", {
     ["REMIND_GROUP_ENCHANTS"] = "Verzauberungen & Steine, die noch fehlen",
     ["REMIND_ENCHANTS_OK"] = "Alles verzaubert und gesockelt",
     ["REMIND_ENCHANTS"] = "%d Verzauberungen oder Steine offen",
+    ["REMIND_ENCHANTS_MORE"] = "und %d weitere Verzauberungen oder Steine",
+    ["REMIND_WIN_GEAR"] = "noch offen",
     ["OPTION_PICK"]    = "klicken zum Auswählen",
     ["OPTION_CLICK"]   = "Klick zum Umschalten",
     ["OPTION_ON"]      = "An",

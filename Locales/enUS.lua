@@ -309,6 +309,8 @@ ns.RegisterLocale("enUS", {
     ["REMIND_GROUP_ENCHANTS"] = "Enchants & gems still missing",
     ["REMIND_ENCHANTS_OK"] = "Everything enchanted and socketed",
     ["REMIND_ENCHANTS"] = "%d enchants or gems open",
+    ["REMIND_ENCHANTS_MORE"] = "and %d more enchants or gems",
+    ["REMIND_WIN_GEAR"] = "still open",
     ["OPTION_CLICK"]   = "click to toggle",
     ["OPTION_PICK"]    = "click to choose",
     ["OPTION_ON"]      = "On",

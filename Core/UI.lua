@@ -4596,7 +4596,11 @@ function UI.ShowReminder(text, list)
         -- Eigene Schluessel fuer das Fenster. Sie hiessen einmal wie die
         -- des Reiters, und weil Lua bei doppelten Schluesseln den letzten
         -- nimmt, stand im Reiter "%d von %d" statt "knapp".
-        if entry.owned > 0 then
+        if entry.gear then
+            -- Eine offene Verzauberung ist nicht "nichts in der Tasche":
+            -- sie gehoert auf ein Ausruestungsstueck, nicht in den Beutel.
+            row.state:SetText(L["REMIND_WIN_GEAR"])
+        elseif entry.owned > 0 then
             row.state:SetText(L["REMIND_WIN_LOW"]:format(entry.owned, entry.need))
         elseif (entry.lower or 0) > 0 then
             row.state:SetText(L["REMIND_WIN_LOWER"]:format(entry.lower))

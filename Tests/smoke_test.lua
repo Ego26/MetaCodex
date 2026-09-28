@@ -1610,11 +1610,25 @@ do
     end
     check("offene Verzauberungen stehen im Reiter", ns.List.BuyCount(ns.List.Build(ns.Gear.Scan())) > 0
         and enchantRows > #status, enchantRows .. " Zeilen mit Fehlmenge")
-    -- Und die Chatzeile beim Betreten nennt sie mit.
+    -- Und die Chatzeile beim Betreten nennt sie mit - beim NAMEN.
+    --
+    -- Hier stand einmal "1 Verzauberungen oder Steine offen", und die
+    -- Pruefung suchte nach dem Wort "offen". Eine Zahl sagt nicht, was
+    -- fehlt; im Erinnerungsfenster war sie ausserdem ein blosser Satz
+    -- ohne Symbol und ohne Tooltip, zwischen Zeilen, die beides haben.
     wow.printed = {}
     ns.Remind.Announce("raid")
     local said = table.concat(wow.printed, " ")
-    check("Chatzeile nennt offene Verzauberungen", said:find("offen") ~= nil or said:find("open") ~= nil, said:sub(1, 120))
+    local offen
+    for _, row in ipairs(ns.List.Build(ns.Gear.Scan())) do
+        if not row.pending and not row.alt and (row.buy or 0) > 0 then
+            offen = row.id
+            break
+        end
+    end
+    check("die Chatzeile nennt die offene Verzauberung beim Namen",
+        offen ~= nil and said:find(tostring(offen), 1, true) ~= nil,
+        tostring(offen) .. " gesucht in " .. #said .. " Zeichen")
 end
 check("Erinnerung fehlt bei PvP", not ns.UI.SectionHasData("remind", "2v2"))
 
@@ -2913,6 +2927,25 @@ do
             end
             check("es zeigt die Gegenstaende als Zeilen", lines > 0 and named == lines,
                 lines .. " Zeilen, " .. named .. " benannt")
+
+            -- Auch die offene Verzauberung ist eine Zeile mit Symbol.
+            --
+            -- Sie war ein Satz: "1 Verzauberungen oder Steine offen" -
+            -- kein Symbol, kein Tooltip, kein Shift-Klick, und sie sagte
+            -- nicht, WAS fehlt. Eine Zahl kann man nicht kaufen.
+            local offen
+            for _, row in ipairs(ns.List.Build(ns.Gear.Scan())) do
+                if not row.pending and not row.alt and (row.buy or 0) > 0 then
+                    offen = row.id
+                    break
+                end
+            end
+            local alsZeile = false
+            for _, r in ipairs(ns.UI.ReminderRows()) do
+                if r:IsShown() and rawget(r, "itemID") == offen then alsZeile = true end
+            end
+            check("die offene Verzauberung steht als eigene Zeile", alsZeile,
+                tostring(offen) .. " unter " .. lines .. " Zeilen")
             -- Der Titel braucht eine rechte Kante.
             --
             -- Ohne sie nimmt er sich die ganze Zeile, und

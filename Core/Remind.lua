@@ -111,6 +111,32 @@ function Remind.Check(mode)
         end
     end
     table.sort(out, function(a, b) return a.owned < b.owned end)
+
+    -- Und was an der Ausruestung offen ist - mit Namen, nicht als Zahl.
+    --
+    -- Hier stand am Ende ein Satz: "1 Verzauberungen oder Steine offen".
+    -- Im Fenster war das eine Zeile ohne Symbol, ohne Tooltip und ohne
+    -- Shift-Klick, zwischen Zeilen, die alles drei haben - und sie sagte
+    -- nicht, WAS fehlt. Eine Zahl kann man nicht kaufen.
+    --
+    -- Erst hier, nach dem Sortieren: die Verbrauchsgueter stehen nach
+    -- Knappheit, und eine offene Verzauberung ist keine knappe Sache,
+    -- sondern eine offene. Sie gehoert darunter, nicht dazwischen.
+    if ns.Profile.Complete() and not ns.Profile.IsForeignClass() then
+        for _, row in ipairs(ns.List.Build(ns.Gear.Scan())) do
+            if not row.pending and not row.alt and (row.buy or 0) > 0 then
+                out[#out + 1] = {
+                    id = row.id,
+                    name = ns.Compat.ItemInfo(row.id) or row.fallback
+                        or ("#" .. tostring(row.id)),
+                    owned = 0, need = row.buy, lower = 0,
+                    -- Damit das Fenster den richtigen Stand daneben
+                    -- schreibt und der Chat weiss, was er kuerzen darf.
+                    gear = true,
+                }
+            end
+        end
+    end
     return out
 end
 
@@ -126,7 +152,15 @@ end
 ---@param mode string
 ---@param linked boolean|nil Gegenstandslinks statt blosser Namen
 function Remind.Lines(mode, linked)
-    local parts = {}
+    -- Das Fenster ist eine Liste, der Chat ein Satz.
+    --
+    -- Jede offene Verzauberung bekommt im Fenster ihre eigene Zeile mit
+    -- Symbol - dort ist Platz und man kann etwas anklicken. Im Chat und
+    -- in der Schlachtzugswarnung waere eine Wand aus vierzehn Zeilen
+    -- keine Hilfe: dort stehen die ersten vier mit Namen und der Rest
+    -- als Zahl.
+    local NAMED = 4
+    local parts, genannt, weitere = {}, 0, 0
     for _, row in ipairs(Remind.Check(mode)) do
         -- Im Chat der echte Gegenstandslink: dann haengt das Tooltip
         -- daran, Shift-Klick setzt ihn in die Suche, und man muss den
@@ -144,16 +178,18 @@ function Remind.Lines(mode, linked)
         -- eine Frage, die im Chat niemand stellt: dort will man wissen,
         -- WAS fehlt, nicht wie knapp es ist. Der Stand steht im
         -- Erinnerungsfenster und im Reiter, wo Platz dafuer ist.
-        parts[#parts + 1] = label
+        if not row.gear then
+            parts[#parts + 1] = label
+        elseif genannt < NAMED then
+            genannt = genannt + 1
+            parts[#parts + 1] = label
+        else
+            weitere = weitere + 1
+        end
     end
-    -- Auch die offenen Verzauberungen und Steine - gezaehlt gegen
-    -- die Ausruestung, wie im Reiter. Vor dem Pull ist der letzte
-    -- Moment, an dem man das noch aendern kann.
-    local open = 0
-    if ns.Profile.Complete() and not ns.Profile.IsForeignClass() then
-        open = ns.List.BuyCount(ns.List.Build(ns.Gear.Scan()))
+    if weitere > 0 then
+        parts[#parts + 1] = L["REMIND_ENCHANTS_MORE"]:format(weitere)
     end
-    if open > 0 then parts[#parts + 1] = L["REMIND_ENCHANTS"]:format(open) end
     return parts
 end
 
