@@ -2263,14 +2263,13 @@ local function folioRows(specID, mode, source)
         -- ruht.
         local group = L["FOLIO_ROW"]:format(row.row or 0, row.seen or 0)
         for _, pick in ipairs(row.picks or {}) do
-            if pick.derived and pick.spells then
-                -- Zwei Runen, eine Zahl. Beide Namen stehen da, denn
-                -- welche der beiden es war, weiss niemand - und eine
-                -- Zeile, die nur eine nennt, waere eine Behauptung.
+            if pick.derived then
+                -- Diese eine Rune hinterlaesst im Kampf nichts. Ihre
+                -- Zahl ist der Rest - und die Zeile sagt es.
                 gerechneteGruppe = group
                 out[#out + 1] = {
-                    kind = "talentpair", spells = pick.spells,
-                    pct = pick.pct, derived = true, group = group,
+                    kind = "talent", spell = pick.spell, pct = pick.pct,
+                    derived = true, group = group,
                 }
             else
                 out[#out + 1] = {
@@ -3119,42 +3118,15 @@ local function setItemRow(row, data)
         -- der Ueberschrift: "82 % der Besten nehmen es".
         local parts = {}
         if (data.rank or 1) > 1 then parts[#parts + 1] = L["TALENT_RANK"]:format(data.rank) end
-        if data.pct then parts[#parts + 1] = L["TALENT_SHARE"]:format(data.pct) end
+        -- Eine gerechnete Zahl sagt das an ihrer Zeile, nicht im
+        -- Kleingedruckten am Seitenende.
+        if data.derived then parts[#parts + 1] = L["FOLIO_DERIVED"]
+        elseif data.pct then parts[#parts + 1] = L["TALENT_SHARE"]:format(data.pct) end
         row.detail:SetText(table.concat(parts, "  \194\183  "))
         row.share:SetText(data.pct and (data.pct .. "%") or "")
-        S:Recolor(row.share, data.top and "accent" or "textMuted")
-        row.onClick = nil
-        return
-    end
-
-    -- Zwei Runen, eine Zahl.
-    --
-    -- Es gibt keine Zeile fuer "Ueberladung" und keine fuer
-    -- "Restenergie", weil keine der beiden im Kampf eine Spur
-    -- hinterlaesst. Was es gibt, ist die Gewissheit, dass ein Spieler
-    -- ohne sichtbare Rune in dieser Reihe eine der beiden gewaehlt hat.
-    -- Also stehen beide Namen in EINER Zeile, und die Zeile sagt, dass
-    -- sie gerechnet ist.
-    if data.kind == "talentpair" then
-        row.link = nil
-        row.spellID = nil
-        local namen = {}
-        local symbol
-        for _, spell in ipairs(data.spells or {}) do
-            local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(spell)
-            namen[#namen + 1] = (info and info.name) or ("#" .. tostring(spell))
-            if not symbol then symbol = info and info.iconID end
-        end
-        row.icon:SetTexture(symbol or "Interface\\Icons\\INV_Misc_QuestionMark")
-        row.title:SetText(table.concat(namen, L["FOLIO_OR"]))
-        row.detail:ClearAllPoints()
-        row.detail:SetPoint("TOPLEFT", S.space.sm + 38, -S.space.sm - 16)
-        row.detail:SetText(L["FOLIO_DERIVED"])
-        row.share:SetText(data.pct and (data.pct .. "%") or "")
-        -- Bewusst nie in der Akzentfarbe, auch wenn es die groesste Zahl
-        -- der Reihe ist: die Auszeichnung gehoert dem, was gemessen
-        -- wurde.
-        S:Recolor(row.share, "textMuted")
+        -- Die Auszeichnung gehoert dem, was gemessen wurde - auch wenn
+        -- die gerechnete Zahl groesser waere.
+        S:Recolor(row.share, (data.top and not data.derived) and "accent" or "textMuted")
         row.onClick = nil
         return
     end

@@ -4687,11 +4687,13 @@ do
             { row = 4, seen = 790, picks = {
                 { spell = 1287772, pct = 58 }, { spell = 1287774, pct = 26 },
                 { spell = 1287771, pct = 16 } } },
-            -- Reihe 5, so wie sie wirklich aussieht: Echos gemessen,
-            -- und der Rest als EINE Zahl fuer zwei Runen.
+            -- Reihe 5, so wie sie wirklich aussieht: Ueberladung am
+            -- verdoppelten Treffer gemessen, Echos an ihrem Zauber -
+            -- und nur Restenergie als Rest.
             { row = 5, seen = 812, picks = {
-                { spells = { 1279614, 1279615 }, pct = 96, derived = true },
-                { spell = 1279616, pct = 4 } } },
+                { spell = 1279614, pct = 92 },
+                { spell = 1279615, pct = 5, derived = true },
+                { spell = 1279616, pct = 3 } } },
         }, "warcraftlogs.com"
     end
 
@@ -4717,35 +4719,46 @@ do
     check("die Reihe nennt ihre Grundlage",
         alleTexte:find("812", 1, true) ~= nil, alleTexte:sub(1, 60))
 
-    -- Die gerechnete Zeile nennt BEIDE Runen. Nur eine zu nennen waere
-    -- eine Behauptung: welche der beiden es war, sagt niemand.
-    local paar
+    -- Genau EINE Zeile ist gerechnet - die Restenergie. Waere die
+    -- Ueberladung auch gekennzeichnet, stuende die groesste Zahl der
+    -- Reihe als Schaetzung da, obwohl sie gemessen ist.
+    local gerechnet, gemessen = {}, {}
     for _, row in ipairs(wow.rows()) do
-        if row:IsShown() and row.detail and row.detail:GetText() == ns.L["FOLIO_DERIVED"] then
-            paar = row
+        if row:IsShown() and row.detail then
+            local t = row.detail:GetText() or ""
+            if t:find(ns.L["FOLIO_DERIVED"], 1, true) then
+                gerechnet[#gerechnet + 1] = row.title:GetText() or "?"
+            elseif row.share and (row.share:GetText() or "") ~= "" then
+                gemessen[#gemessen + 1] = row.title:GetText() or "?"
+            end
         end
     end
-    check("die gerechnete Zeile steht da", paar ~= nil)
-    if paar then
-        local titel = paar.title:GetText() or ""
-        local a = (C_Spell.GetSpellInfo(1279614) or {}).name or "#1279614"
-        local b = (C_Spell.GetSpellInfo(1279615) or {}).name or "#1279615"
-        check("sie nennt Ueberladung", titel:find(a, 1, true) ~= nil, titel)
-        check("und Restenergie", titel:find(b, 1, true) ~= nil, titel)
-        check("und sie sagt, dass sie gerechnet ist",
-            (paar.detail:GetText() or ""):find(ns.L["FOLIO_DERIVED"], 1, true) ~= nil)
+    check("genau eine gerechnete Zeile", #gerechnet == 1,
+        table.concat(gerechnet, " | "))
+    if #gerechnet == 1 then
+        local rest = (C_Spell.GetSpellInfo(1279615) or {}).name or "#1279615"
+        check("und es ist die Restenergie",
+            gerechnet[1]:find(rest, 1, true) ~= nil, gerechnet[1])
     end
 
-    -- Und der Satz, der erklaert, wie diese Zahl entsteht.
+    -- Die Ueberladung dagegen ist gemessen und muss es auch sagen.
+    local ueber = (C_Spell.GetSpellInfo(1279614) or {}).name or "#1279614"
+    local ueberGemessen = false
+    for _, t in ipairs(gemessen) do
+        if t:find(ueber, 1, true) then ueberGemessen = true end
+    end
+    check("die Ueberladung steht als gemessen da", ueberGemessen,
+        table.concat(gemessen, " | "))
+
+    -- Und der Satz, der erklaert, wie die eine Zahl entsteht.
     local satz = ns.L["FOLIO_DERIVED_TEXT"]
     check("der Satz dazu steht darunter",
         alleTexte:find(satz:sub(1, 24), 1, true) ~= nil)
 
-    -- Der eigentliche Punkt: sieben Anteile fuer sieben Zeilen. Die
-    -- gerechnete zaehlt als EINE - waere sie auf zwei Runen aufgeteilt,
-    -- stuenden hier acht, und zwei davon waeren erfunden.
-    check("die Differenz bleibt eine Zahl, nicht zwei",
-        anteile == 7, anteile .. " Anteile")
+    -- Acht Anteile fuer acht Runen - keine Zeile ohne Zahl und keine
+    -- Zahl ohne Zeile.
+    check("jede Rune traegt genau einen Anteil",
+        anteile == 8, anteile .. " Anteile")
 
     -- Ohne Daten darf der Punkt gar nicht erst im Menueband stehen -
     -- sonst fuehrt er in eine leere Seite.

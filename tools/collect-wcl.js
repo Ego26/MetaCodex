@@ -123,13 +123,50 @@ const slug = (name) => String(name).toLowerCase()
 // Restenergie". Auseinanderhalten laesst sich das nicht, und es wird
 // auch nicht so getan - die Zeile nennt beide.
 const FOLIO_ROWS = 5;
-// Die Reihe, die nur noch aus der Differenz entsteht, und die beiden
-// Runen, die sich darin verstecken.
 const FOLIO_REST_ROW = 5;
-const FOLIO_REST = [1279614, 1279615];
+
+// --- Reihe 5 am Schaden je Treffer ------------------------------------
+//
+// Ueberladung verdoppelt den Schaden der Kernrune. Das ist nicht in der
+// SUMME zu sehen - die haengt an Kampflaenge und Zielzahl -, wohl aber
+// im einzelnen Treffer. Nachgemessen ueber 195 Spieler aus 40
+// Berichten, Schaden je Treffer geteilt durch die Gegenstandsstufe
+// hoch drei, bezogen auf die Mitte der jeweiligen Spec:
+//
+//   Warrior-Arms  n=30   0.52 | 0.90 0.90 0.92 ... 1.05
+//   Paladin-Holy  n=22   0.49  0.50 | 0.94 0.95 ... 1.06
+//   Shaman-Ele    n=23          0.94 ............. 1.04
+//   DK-Blood      n=18          0.91 ............. 1.02
+//
+// Ein dichter Haufen, und darunter einzelne bei genau der Haelfte. Die
+// mit Ueberladung sind der Haufen; die bei 0,5 haben sie nicht.
+//
+// Lingering, das Restenergie verdoppelt, trennt NICHT: dort liegen die
+// Werte zwischen 0,41 und 2,49 ohne erkennbare Luecke. Ein Strich ueber
+// die Zeit verteilt sich zu ungleich. Restenergie wird darum nicht
+// gemessen, sondern ist, was nach Ueberladung und Echos uebrig bleibt -
+// und das ist die kleinste der drei Zahlen, nicht die groesste.
+//
+// Die Schwelle liegt in der Mitte zwischen halb und ganz. Bei einem
+// Abstand von 2 zu 1 ist das reichlich Luft; ein Spieler, dessen
+// Kernrune knapp darunter liegt, wird trotzdem falsch einsortiert, und
+// dagegen hilft nur die Stichprobe.
+const FOLIO_CORE_THRESHOLD = 0.75;
+// Der Zauber, der als "Ueberladung gemessen" gezaehlt wird, und der,
+// der als Rest uebrig bleibt.
+const FOLIO_OVERLOAD = 1279614;
+const FOLIO_RESIDUAL = 1279615;
 const FOLIO = [
-  { row: 1, spell: 1286970, table: 'DamageDone' },  // Unleashed Fire
+  // Die Kernrune. Sie zaehlt fuer Reihe 1 - und ihr Schaden JE TREFFER
+  // entscheidet ausserdem Reihe 5, siehe FOLIO_CORE weiter unten.
+  { row: 1, spell: 1286970, table: 'DamageDone', core: true },  // Unleashed Fire
   { row: 1, spell: 1287425, table: 'Buffs' },       // Void-Touched Orbs
+  // Void-Touched Orbs noch einmal als Schaden: wer die Kugeln statt des
+  // Feuers nimmt, hat dieselbe Kernrune und muss fuer Reihe 5 genauso
+  // gewogen werden. Als Aura zaehlt sie schon oben - doppelt wird
+  // nichts, weil Reihe 1 nur die Aura nimmt und diese Zeile nur den
+  // Schaden je Treffer.
+  { row: 0, spell: 1287425, table: 'DamageDone', core: true },
   { row: 2, spell: 1287908, table: 'Healing' },     // Self-Mending
   { row: 2, spell: 1287955, table: 'Buffs' },       // Void-Tainted Shell
   { row: 2, spell: 1287978, table: 'Buffs' },       // Lynxlike Reflexes
@@ -1300,7 +1337,36 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
       // Prozent. Ein Satz je Rune loest das an der Wurzel.
       const proRune = new Map();   // "spec|row|rune" -> Set(sourceID)
       const proReihe = new Map();  // "spec|row"      -> Set(sourceID)
+      // Der Schaden je Treffer der Kernrune, je Spieler das Beste aus
+      // den beiden moeglichen Kernrunen. Daraus wird spaeter Reihe 5.
+      const kernTreffer = new Map();   // sourceID -> Wert
       for (const [i, rune] of FOLIO.entries()) {
+        if (!rune.core) continue;
+        const daten = ((report && report['f' + i]) || {}).data || {};
+        for (const e of (daten.entries || [])) {
+          const treffer = (Number(e.hitCount) || 0) + (Number(e.tickCount) || 0);
+          const summe = Number(e.total) || 0;
+          const stufe = Number(e.itemLevel) || 0;
+          // Unter fuenf Treffern ist der Schnitt Zufall, und ohne
+          // Gegenstandsstufe fehlt der Massstab.
+          if (treffer < 5 || summe <= 0 || stufe <= 0) continue;
+          const wert = (summe / treffer) / Math.pow(stufe, 3);
+          const quelle = Number(e.id);
+          if (wert > (kernTreffer.get(quelle) || 0)) kernTreffer.set(quelle, wert);
+        }
+      }
+      for (const [quelle, wert] of kernTreffer) {
+        const specID = specBySource.get(quelle);
+        if (!specID) continue;
+        for (const mode of active) {
+          const spec = entryFor(mode, specID);
+          (spec.coreHits || (spec.coreHits = [])).push(wert);
+        }
+      }
+
+      for (const [i, rune] of FOLIO.entries()) {
+        // Die reinen Messzeilen fuer den Treffer gehoeren in keine Reihe.
+        if (!rune.row) continue;
         const tabelle = report && report['f' + i];
         const daten = (tabelle && tabelle.data) || {};
         // Auren heissen "auras", Schaden und Heilung heissen "entries".
@@ -1680,9 +1746,6 @@ Haeufigste nicht zugeordnete Auren (${missedAuras.size} verschiedene):`);
       // dazustehen, die aus dem Rest gerechnet waere.
       {
         const reihen = [];
-        // Wer den Folianten nachweislich hat. Siehe oben: gemessen, nicht
-        // angenommen.
-        const mitFoliant = entry.folioPlayers || 0;
         for (let row = 1; row <= FOLIO_ROWS; row++) {
           const vorsatz = row + ':';
           const runen = Object.entries(entry.folio || {})
@@ -1704,18 +1767,38 @@ Haeufigste nicht zugeordnete Auren (${missedAuras.size} verschiedene):`);
           // wuerde die Differenz kleiner, nicht groesser. Der Fehler
           // geht also zu Lasten der Differenz, nicht zu Lasten einer
           // gemessenen Zahl.
-          if (row === FOLIO_REST_ROW && mitFoliant > 0) {
-            const gesehene = runen.reduce((a, [, n]) => a + n, 0);
-            const rest = Math.max(0, mitFoliant - gesehene);
-            const picks = runen
-              .map(([key, n]) => ({
-                spell: Number(key.split(':')[1]),
-                pct: share(n, mitFoliant),
-              }));
+          if (row === FOLIO_REST_ROW) {
+            // Der Massstab ist die Mitte DIESER Spec: wie hart ihre
+            // Kernrune normalerweise trifft. Ueber alle Speccs gemittelt
+            // waere er sinnlos - ein Waechter trifft anders als ein
+            // Magier.
+            const werte = (entry.coreHits || []).slice().sort((a, b) => a - b);
+            // Unter zehn Beobachtungen ist die Mitte kein Massstab,
+            // sondern ein Zufallswert. Dann lieber keine Reihe 5.
+            if (werte.length < 10) continue;
+            const mitte = werte[Math.floor(werte.length / 2)];
+            if (!(mitte > 0)) continue;
+            const schwelle = mitte * FOLIO_CORE_THRESHOLD;
+            const mitUeberladung = werte.filter((v) => v >= schwelle).length;
+
+            // Echos steht fuer sich - es hat einen eigenen Zauber und
+            // wird nicht gerechnet.
+            const echos = runen.reduce((a, [, n]) => a + n, 0);
+            const grundlage = werte.length;
+            // Und Restenergie ist, was bleibt. Die kleinste der drei
+            // Zahlen traegt die Unsicherheit, nicht die groesste.
+            const rest = Math.max(0, grundlage - mitUeberladung - echos);
+
+            const picks = [];
+            if (mitUeberladung > 0) {
+              picks.push({ spell: FOLIO_OVERLOAD, pct: share(mitUeberladung, grundlage) });
+            }
+            for (const [key, n] of runen) {
+              picks.push({ spell: Number(key.split(':')[1]), pct: share(n, grundlage) });
+            }
             if (rest > 0) {
               picks.push({
-                spells: FOLIO_REST.slice(),
-                pct: share(rest, mitFoliant),
+                spell: FOLIO_RESIDUAL, pct: share(rest, grundlage),
                 // Das Kennzeichen, an dem das Fenster diese Zeile
                 // anders beschriftet: sie ist gerechnet, nicht gesehen.
                 derived: true,
@@ -1724,7 +1807,7 @@ Haeufigste nicht zugeordnete Auren (${missedAuras.size} verschiedene):`);
             const brauchbar = picks.filter((p) => p.pct > 0);
             if (brauchbar.length) {
               reihen.push({
-                row, seen: mitFoliant,
+                row, seen: grundlage,
                 picks: brauchbar.sort((a, b) => b.pct - a.pct),
               });
             }

@@ -617,13 +617,11 @@ for (const [mode, bySource] of Object.entries(byMode)) {
             // Unter einem Prozent ist Rauschen, hier wie ueberall.
             .filter((p) => (p.pct || 0) >= 1)
             .map((p) => {
-              // Eine Zeile fuer zwei Runen: die Differenz aus Reihe 5.
-              // Sie traegt beide Zauber und ein Kennzeichen, damit das
-              // Fenster sie als gerechnet und nicht als gesehen
+              // Die gerechnete Zeile traegt ein Kennzeichen, damit
+              // das Fenster sie als Rest und nicht als Messung
               // beschriften kann.
-              if (p.derived && p.spells) {
-                return '{ spells = { ' + p.spells.join(', ') + ' }, pct = '
-                  + p.pct + ', derived = true }';
+              if (p.derived) {
+                return `{ spell = ${p.spell}, pct = ${p.pct}, derived = true }`;
               }
               return `{ spell = ${p.spell}, pct = ${p.pct} }`;
             });
