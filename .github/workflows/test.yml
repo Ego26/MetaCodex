@@ -34,7 +34,9 @@ jobs:
       # keinen Lua-Stapel. Sie laeuft zuerst, weil sie in Sekunden sagt,
       # ob die Prozente im Fenster noch bedeuten, was sie behaupten.
       - name: Counting rules
-        run: node tools/tests/consumable-window.test.js
+        run: |
+          node tools/tests/consumable-window.test.js
+          node tools/tests/share.test.js
 
       - name: Fetch the data from the latest nightly
         id: data

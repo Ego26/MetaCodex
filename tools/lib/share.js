@@ -41,4 +41,67 @@ function share(n, total) {
   return pct;
 }
 
-module.exports = { share };
+// Mehrere Anteile, die zusammen genau hundert ergeben.
+//
+// share() rundet jede Zahl fuer sich, und das reicht, solange die Zeilen
+// nichts miteinander zu tun haben. Beim Folianten haben sie: jeder
+// Spieler waehlt in einer Reihe GENAU EINE Rune, die Anteile teilen also
+// dieselbe Menge auf. Dann darf ihre Summe nicht 99 oder 101 sein -
+// gemessen an 22 Speccs kam beides vor.
+//
+// Verteilt wird nach dem groessten Rest: erst alle abrunden, dann die
+// fehlenden Punkte an die Zeilen mit dem groessten abgeschnittenen Rest.
+// Das ist das uebliche Verfahren fuer Sitzverteilungen und hat die
+// Eigenschaft, die hier zaehlt - es erfindet nichts, es entscheidet nur,
+// wer den Rundungspunkt bekommt.
+//
+// Die beiden Regeln von share() gelten weiter: 100 nur, wenn es wirklich
+// alle sind, 0 nur, wenn es wirklich keiner ist. Wo das Verfahren
+// dagegen stossen wuerde, wird der Punkt eine Zeile weitergereicht.
+//
+// @param {number[]} zahlen die Zaehlungen, zusammen hoechstens `total`
+// @param {number} total    die Menge, die sie aufteilen
+// @returns {number[]} ganze Prozent in derselben Reihenfolge
+function shares(zahlen, total) {
+  const oben = Number(total) || 0;
+  const roh = zahlen.map((x) => Number(x) || 0);
+  if (oben <= 0) return roh.map(() => 0);
+
+  const genau = roh.map((n) => (n / oben) * 100);
+  const unten = genau.map((x) => Math.floor(x));
+  // Nur verteilen, wenn die Zaehlungen die Menge wirklich ausschoepfen.
+  // Tun sie es nicht - etwa weil eine Rune fehlt -, waere ein Auffuellen
+  // auf hundert eine Behauptung.
+  const gezaehlt = roh.reduce((a, b) => a + b, 0);
+  const ziel = gezaehlt >= oben ? 100 : Math.round((gezaehlt / oben) * 100);
+  let fehlt = ziel - unten.reduce((a, b) => a + b, 0);
+
+  // Wer bekommt die uebrigen Punkte: groesster Rest zuerst.
+  const reihenfolge = genau
+    .map((x, i) => ({ i, rest: x - Math.floor(x) }))
+    .sort((a, b) => b.rest - a.rest);
+
+  const ergebnis = unten.slice();
+  for (const { i } of reihenfolge) {
+    if (fehlt <= 0) break;
+    // Nicht auf 100 heben, wenn es nicht wirklich alle sind.
+    if (ergebnis[i] + 1 >= 100 && roh[i] < oben) continue;
+    ergebnis[i] += 1;
+    fehlt -= 1;
+  }
+
+  // Und die Untergrenze: was gemessen wurde, steht nie auf null.
+  for (let i = 0; i < ergebnis.length; i++) {
+    if (roh[i] > 0 && ergebnis[i] === 0) {
+      // Den Punkt beim Groessten holen, sonst waere die Summe wieder falsch.
+      let groesster = -1;
+      for (let j = 0; j < ergebnis.length; j++) {
+        if (ergebnis[j] > 1 && (groesster < 0 || ergebnis[j] > ergebnis[groesster])) groesster = j;
+      }
+      if (groesster >= 0) { ergebnis[groesster] -= 1; ergebnis[i] = 1; }
+    }
+  }
+  return ergebnis;
+}
+
+module.exports = { share, shares };

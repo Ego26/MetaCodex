@@ -26,7 +26,7 @@ const path = require('path');
 const https = require('https');
 // Die Zaehlregel fuer Verbrauchsgueter - eigene Datei, eigener Test.
 const { countsForThisFight } = require('./lib/consumable-window');
-const { share } = require('./lib/share');
+const { share, shares } = require('./lib/share');
 
 const BASE = process.argv[2];
 if (!BASE) {
@@ -1922,21 +1922,21 @@ Haeufigste nicht zugeordnete Auren (${missedAuras.size} verschiedene):`);
             // Zahlen traegt die Unsicherheit, nicht die groesste.
             const rest = Math.max(0, grundlage - mitUeberladung - echos);
 
-            const picks = [];
-            if (mitUeberladung > 0) {
-              picks.push({ spell: FOLIO_OVERLOAD, pct: share(mitUeberladung, grundlage) });
-            }
-            if (echos > 0) {
-              picks.push({ spell: FOLIO_ECHOES, pct: share(echos, grundlage) });
-            }
-            if (rest > 0) {
-              picks.push({
-                spell: FOLIO_RESIDUAL, pct: share(rest, grundlage),
-                // Das Kennzeichen, an dem das Fenster diese Zeile
-                // anders beschriftet: sie ist gerechnet, nicht gesehen.
-                derived: true,
-              });
-            }
+            // Die drei teilen dieselbe Menge auf, also werden sie
+            // zusammen gerundet - sonst stehen dort 101 %.
+            const roh = [
+              { spell: FOLIO_OVERLOAD, n: mitUeberladung },
+              { spell: FOLIO_ECHOES, n: echos },
+              // Das Kennzeichen, an dem das Fenster diese Zeile anders
+              // beschriftet: sie ist gerechnet, nicht gesehen.
+              { spell: FOLIO_RESIDUAL, n: rest, derived: true },
+            ].filter((x) => x.n > 0);
+            const anteile = shares(roh.map((x) => x.n), grundlage);
+            const picks = roh.map((x, i) => {
+              const p = { spell: x.spell, pct: anteile[i] };
+              if (x.derived) p.derived = true;
+              return p;
+            });
             const brauchbar = picks.filter((p) => p.pct > 0);
             if (brauchbar.length) {
               reihen.push({
@@ -1956,13 +1956,16 @@ Haeufigste nicht zugeordnete Auren (${missedAuras.size} verschiedene):`);
           }
 
           if (!runen.length || !gesehen) continue;
+          // Auch hier teilen die Runen EINE Menge auf: je Reihe waehlt
+          // jeder Spieler genau eine. Zusammen gerundet, nicht einzeln.
+          const anteile = shares(runen.map(([, n]) => n), gesehen);
           reihen.push({
             row,
             seen: gesehen,
             picks: runen
-              .map(([key, n]) => ({
+              .map(([key], i) => ({
                 spell: Number(key.split(':')[1]),
-                pct: share(n, gesehen),
+                pct: anteile[i],
               }))
               .sort((a, b) => b.pct - a.pct),
           });
