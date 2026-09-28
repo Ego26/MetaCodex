@@ -90,8 +90,13 @@ Mock.methods.GetFrameLevel = function() return 1 end
 Mock.methods.SetSize = function(self, w, h) self.__w, self.__h = w, h end
 Mock.methods.SetWidth = function(self, w) self.__w = w end
 Mock.methods.SetHeight = function(self, h) self.__h = h end
-Mock.methods.GetWidth = function(self) return self.__w or 0 end
-Mock.methods.GetHeight = function(self) return self.__h or 0 end
+Mock.methods.GetWidth = function(self) return rawget(self, "__w") or 0 end
+-- rawget, nicht self.__h.
+--
+-- Ein Mock beantwortet JEDEN unbekannten Zugriff mit einem Kind-Mock.
+-- Eine nie gesetzte Hoehe kam darum als Tabelle zurueck statt als
+-- Zahl, und der erste Code, der damit rechnen wollte, ist gescheitert.
+Mock.methods.GetHeight = function(self) return rawget(self, "__h") or 0 end
 -- Wie hoch ein Text gesetzt waere: das Erinnerungsfenster waechst mit
 -- ihm, und ein Mock, der hier ein Kind zurueckgibt, liesse die Rechnung
 -- mit einem Laufzeitfehler sterben.
@@ -171,11 +176,31 @@ function M.install(opts)
     G.GameTooltip_Hide = function() end
     G.SlashCmdList = {}
 
-    G.CreateFrame = function(_, name, parent)
+    G.CreateFrame = function(art, name, parent, template)
         local frame = Mock.new(name or "anon")
         frame.__parent = parent or false
         M.frames[#M.frames + 1] = frame
         if name then G[name] = frame end
+        -- Blizzards Scroll-Vorlage bringt eine Leiste und zwei
+        -- Pfeilknoepfe mit, benannt nach dem Rahmen. Das Addon blendet
+        -- sie aus, wenn nichts zu schieben ist - ohne diese Kinder im
+        -- Stub laeuft diese Stelle im Test ins Leere und die Pruefung
+        -- waere eine Attrappe, die sich selbst bestaetigt.
+        -- Im Spiel bekommt der Scroll-Bereich seine Hoehe aus zwei
+        -- Ankerpunkten, nicht aus SetHeight - hier waere sie also null,
+        -- und dann passte nie etwas hinein. Ein realistischer Wert macht
+        -- die Frage "muss gescrollt werden?" ueberhaupt erst stellbar.
+        if art == "ScrollFrame" then frame:SetHeight(420) end
+        if name and template and tostring(template):find("ScrollFrame", 1, true) then
+            local leiste = Mock.new(name .. "ScrollBar")
+            G[name .. "ScrollBar"] = leiste
+            M.frames[#M.frames + 1] = leiste
+            for _, endung in ipairs({ "ScrollUpButton", "ScrollDownButton" }) do
+                local knopf = Mock.new(name .. "ScrollBar" .. endung)
+                G[name .. "ScrollBar" .. endung] = knopf
+                M.frames[#M.frames + 1] = knopf
+            end
+        end
         return frame
     end
 

@@ -124,6 +124,9 @@ const slug = (name) => String(name).toLowerCase()
 // auch nicht so getan - die Zeile nennt beide.
 const FOLIO_ROWS = 5;
 const FOLIO_REST_ROW = 5;
+// Reihen ohne Wahl: die Reihe, ihre einzige Rune. Sie kosten keine
+// Abfrage und stehen trotzdem im Fenster.
+const FOLIO_FIXED = { 3: 1287555 };
 
 // --- Reihe 5 am Schaden je Treffer ------------------------------------
 //
@@ -176,7 +179,19 @@ const FOLIO = [
   { row: 2, spell: 1287908, table: 'Healing' },     // Self-Mending
   { row: 2, spell: 1287955, table: 'Buffs' },       // Void-Tainted Shell
   { row: 2, spell: 1287978, table: 'Buffs' },       // Lynxlike Reflexes
-  { row: 3, spell: 1287665, table: 'Buffs' },       // Lingering
+  // REIHE 3 WIRD NICHT ABGEFRAGT. Sie hat genau eine Rune - der Baum
+  // sagt es: Knoten 110273, ein einziger Eintrag. Wer den Folianten
+  // hat, hat Lingering, und eine Messung kann gar nichts anderes
+  // ergeben als hundert Prozent.
+  //
+  // Die Reihe verschwindet trotzdem nicht aus dem Fenster: eine Luecke
+  // zwischen zwei und vier saehe aus wie ein Fehler. Sie steht dort
+  // ohne Prozentwert und sagt, dass es nichts zu waehlen gibt - siehe
+  // FOLIO_FIXED.
+  //
+  // Das spart eine der fuenfzehn Tabellen. Klingt nach wenig, ist aber
+  // genau die Art von Gewicht, an der die Abfrage heute einmal in einen
+  // HTTP 504 gelaufen ist.
   // Lingering noch einmal als SCHADEN, fuer die Gegenprobe zu Reihe 5.
   //
   // Zwei Zauber heissen "Rune of Lingering": 1287663 traegt den Schaden,
@@ -1903,6 +1918,14 @@ Haeufigste nicht zugeordnete Auren (${missedAuras.size} verschiedene):`);
                 picks: brauchbar.sort((a, b) => b.pct - a.pct),
               });
             }
+            continue;
+          }
+
+          // Eine Reihe ohne Wahl steht da, ohne gemessen zu sein: ihre
+          // Rune hat keine Mitbewerber, und ein Prozentwert waere nur
+          // eine umstaendliche Art, "die einzige" zu sagen.
+          if (FOLIO_FIXED[row]) {
+            reihen.push({ row, only: FOLIO_FIXED[row] });
             continue;
           }
 

@@ -613,7 +613,17 @@ for (const [mode, bySource] of Object.entries(byMode)) {
         // Daten" - und dann waere die Seite leer.
         const zeilen = [];
         for (const row of entry.folio) {
+          // Eine Reihe ohne Wahl: nur ihre Rune, kein Anteil.
+          if (row.only) {
+            zeilen.push(`              { row = ${row.row}, only = ${row.only} },`);
+            continue;
+          }
           const picks = (row.picks || [])
+            // Ohne Zauber keine Zeile. Das faengt Ernten aus einer
+            // aelteren Fassung ab, in der Reihe 5 noch anders aussah -
+            // sonst stuende "spell = undefined" in der Lua-Datei und
+            // das Addon liesse sich nicht laden.
+            .filter((p) => Number(p.spell) > 0)
             // Unter einem Prozent ist Rauschen, hier wie ueberall.
             .filter((p) => (p.pct || 0) >= 1)
             .map((p) => {

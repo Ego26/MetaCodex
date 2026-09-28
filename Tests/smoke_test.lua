@@ -4684,6 +4684,9 @@ do
         return {
             { row = 1, seen = 812, picks = {
                 { spell = 1286970, pct = 71 }, { spell = 1287425, pct = 29 } } },
+            -- Reihe 3 hat nur eine Rune. Sie steht da, kostet aber
+            -- keine Messung und traegt keinen Anteil.
+            { row = 3, only = 1287555 },
             { row = 4, seen = 790, picks = {
                 { spell = 1287772, pct = 58 }, { spell = 1287774, pct = 26 },
                 { spell = 1287771, pct = 16 } } },
@@ -4755,10 +4758,37 @@ do
     check("der Satz dazu steht darunter",
         alleTexte:find(satz:sub(1, 24), 1, true) ~= nil)
 
-    -- Acht Anteile fuer acht Runen - keine Zeile ohne Zahl und keine
-    -- Zahl ohne Zeile.
-    check("jede Rune traegt genau einen Anteil",
+    -- Acht Anteile fuer acht gewaehlte Runen. Reihe 3 ist die neunte
+    -- Zeile und traegt KEINEN - "100 %" waere dort nur eine
+    -- umstaendliche Art, "die einzige" zu sagen.
+    check("jede gewaehlte Rune traegt genau einen Anteil",
         anteile == 8, anteile .. " Anteile")
+
+    local einzige
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() and row.detail
+            and (row.detail:GetText() or "") == ns.L["FOLIO_ONLY"] then
+            einzige = row
+        end
+    end
+    -- Keine Zeile wiederholt den Prozentwert, der rechts schon steht.
+    local doppelt = {}
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() and row.detail and row.share then
+            local d, s = row.detail:GetText() or "", row.share:GetText() or ""
+            local zahl = s:match("^(%d+)%%$")
+            if zahl and d:find(zahl, 1, true) then doppelt[#doppelt + 1] = d end
+        end
+    end
+    check("kein Anteil steht zweimal in derselben Zeile", #doppelt == 0,
+        table.concat(doppelt, " | "))
+
+    check("die Reihe ohne Wahl steht da", einzige ~= nil)
+    if einzige then
+        check("und zwar ohne Prozentwert",
+            (einzige.share:GetText() or "") == "",
+            tostring(einzige.share:GetText()))
+    end
 
     -- Ohne Daten darf der Punkt gar nicht erst im Menueband stehen -
     -- sonst fuehrt er in eine leere Seite.
@@ -4769,6 +4799,69 @@ do
     ns.Recommend.Folio = echterFoliant
     MetaCodexDB.section = "talents"
     ns.UI.Refresh()
+end
+
+-- ------------------------------------------------------- Die Scrollleiste
+--
+-- Sie darf nur dastehen, wenn es etwas zu schieben gibt. Blizzards
+-- Vorlage blendet ihre Pfeilknoepfe nie aus; auf einer kurzen Seite
+-- sehen sie aus, als gaebe es noch etwas, das man nicht findet.
+do
+    -- Die EIGENE Leiste, nicht Blizzards. Deren Teile sind beim Aufbau
+    -- stillgelegt worden und duerfen nie wieder auftauchen.
+    local blizz = _G["MetaCodexScrollScrollBar"]
+    if blizz then
+        check("Blizzards Leiste bleibt verborgen", blizz:IsShown() == false,
+            tostring(blizz:IsShown()))
+    end
+
+    local leiste = ns.UI.Frame().scrollRail
+    check("die eigene Scrollleiste gibt es", leiste ~= nil)
+    if leiste then
+        -- Eine lange Seite: die Ausruestung hat mehr Zeilen als Platz.
+        rowsInSection("gear")
+        local langeSeite = leiste:IsShown()
+
+        -- Und eine kurze: der Foliant mit zwei Zeilen.
+        local echterFoliant = ns.Recommend.Folio
+        ns.Recommend.Folio = function()
+            return { { row = 1, seen = 500, picks = {
+                { spell = 1286970, pct = 98 } } } }, "warcraftlogs.com"
+        end
+        rowsInSection("folio")
+        local kurzeSeite = leiste:IsShown()
+        ns.Recommend.Folio = echterFoliant
+
+        check("bei langer Liste ist sie da", langeSeite == true,
+            tostring(langeSeite))
+        check("bei kurzer Liste nicht", kurzeSeite == false,
+            tostring(kurzeSeite))
+
+        MetaCodexDB.section = "talents"
+        ns.UI.Refresh()
+    end
+end
+
+-- ------------------------------------------------- Die 60-Upvalue-Grenze
+--
+-- WoWs Lua laesst einer Funktion hoechstens 60 Upvalues. UI.Refresh sitzt
+-- dicht darunter, und eine einzige zusaetzliche Lokale auf Dateiebene
+-- hebt sie darueber. Dann laedt UI.lua NICHT MEHR, ns.UI bleibt leer und
+-- das Fenster geht gar nicht auf - ein Totalausfall aus einer Zeile.
+--
+-- Genau das ist am 28.09. passiert, und keine Pruefung hat es gesehen:
+-- die Test-VM ist neuer als das Spiel und kennt die Grenze nicht. Also
+-- wird sie hier von Hand nachgehalten.
+if debug and debug.getinfo then
+    local info = debug.getinfo(ns.UI.Refresh, "u")
+    local n = info and info.nups or 0
+    check("UI.Refresh bleibt unter der 60-Upvalue-Grenze", n > 0 and n <= 60,
+        n .. " Upvalues")
+    -- Und eine Warnung, bevor es knapp wird: wer bei 57 noch eine
+    -- Lokale anlegt, merkt es sonst erst im Spiel.
+    if n > 52 and n <= 60 then
+        say("  ! UI.Refresh hat " .. n .. " von 60 Upvalues - wenig Luft")
+    end
 end
 
 say(fails == 0 and "\nalles gruen" or ("\n" .. fails .. " Fehler"))

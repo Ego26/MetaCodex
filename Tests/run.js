@@ -83,7 +83,15 @@ for (const name of ["enUS", "deDE"]) {
   const seen = new Set();
   const text = fs.readFileSync(localeFile, "utf8");
   for (const line of text.split(String.fromCharCode(10))) {
-    const key = /^\s*\["([A-Z0-9_]+)"\]\s*=/.exec(line);
+    // Auch Kleinbuchstaben.
+    //
+    // Das Muster liess nur Grossbuchstaben zu, und damit fielen genau
+    // die Schluessel durch, die einen Abschnitt benennen:
+    // SECTION_folio, SECTION_enchants, SECTION_talents. Beide waren
+    // doppelt vergeben, seit Monaten, und die Pruefung sah es nicht -
+    // im deutschen Fenster stand deshalb "Omnium Folio" statt
+    // "Omnium-Foliant".
+    const key = /^\s*\["([A-Za-z0-9_]+)"\]\s*=/.exec(line);
     if (!key) continue;
     if (seen.has(key[1])) dupes.push(name + ": " + key[1]);
     seen.add(key[1]);

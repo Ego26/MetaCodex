@@ -32,6 +32,14 @@ local linkFrame
 local textFrame
 local frame, rows, scrollChild
 local navButtons, groupHeads = {}, {}
+
+-- Die Breite der Scrollleiste.
+--
+-- Vier Pixel sahen gut aus und waren mit der Maus nicht zu fassen: ein
+-- Ziel, das man dreimal verfehlt, ist kein Bedienteil, sondern eine
+-- Anzeige. Zehn sind schmal genug, um nicht aufzutragen, und breit
+-- genug, um sie im ersten Anlauf zu treffen.
+local SCROLLBAR_WIDTH = 10
 local statButtons, optionChecks = { main = {}, second = {}, tertiary = {} }, {}
 local headerText, hintText, sourceText, sectionTitle, sectionCount
 
@@ -2249,7 +2257,18 @@ end
 ---Also steht dort ein Satz statt einer Zahl.
 ---@return table[] rows
 ---@return string|nil fromSource
-local function folioRows(specID, mode, source)
+-- An UI gehaengt statt als weitere Datei-Lokale.
+--
+-- WoWs Lua laesst einer Funktion hoechstens 60 Upvalues, und die
+-- Zeichenschleife weiter unten sass schon knapp darunter. Eine
+-- zusaetzliche Lokale auf Dateiebene hat sie ueber die Grenze
+-- gehoben - dann laedt UI.lua nicht mehr, ns.UI bleibt leer und das
+-- Fenster geht gar nicht mehr auf. UI ist ohnehin ein Upvalue;
+-- darueber kostet die Funktion keines mehr.
+--
+-- Die Tests haben es nicht gesehen: die Test-VM kennt diese Grenze
+-- nicht. Gemerkt hat es das Spiel.
+function UI.FolioRows(specID, mode, source)
     local rows, from = ns.Recommend.Folio(specID, mode, source)
     if not rows then return {}, nil end
 
@@ -2258,6 +2277,17 @@ local function folioRows(specID, mode, source)
     -- gehoert darunter, nicht ans Ende der Seite.
     local gerechneteGruppe
     for _, row in ipairs(rows) do
+        -- Eine Reihe mit nur einer Rune ist keine Wahl. Sie steht
+        -- trotzdem da, sonst klafft zwischen zwei und vier eine Luecke,
+        -- die wie ein Fehler aussieht - und sie traegt keinen
+        -- Prozentwert, weil "100 %" hier nichts misst.
+        if row.only then
+            out[#out + 1] = {
+                kind = "talent", spell = row.only, single = true,
+                group = L["FOLIO_ROW_ONE"]:format(row.row or 0),
+            }
+        else
+
         -- Die Grundlage steht im Gruppenkopf, nicht im Kleingedruckten:
         -- wer den Anteil liest, soll im selben Blick sehen, worauf er
         -- ruht.
@@ -2272,11 +2302,15 @@ local function folioRows(specID, mode, source)
                     derived = true, group = group,
                 }
             else
+                -- Ohne die Zeile "98 % der Besten nehmen es": rechts
+                -- steht schon "98 %". Zweimal dieselbe Zahl in einer
+                -- Zeile macht sie nicht wahrer, nur breiter.
                 out[#out + 1] = {
                     kind = "talent", spell = pick.spell, pct = pick.pct,
-                    group = group,
+                    bare = true, group = group,
                 }
             end
+        end
         end
     end
     if #out == 0 then return {}, nil end
@@ -3120,9 +3154,26 @@ local function setItemRow(row, data)
         if (data.rank or 1) > 1 then parts[#parts + 1] = L["TALENT_RANK"]:format(data.rank) end
         -- Eine gerechnete Zahl sagt das an ihrer Zeile, nicht im
         -- Kleingedruckten am Seitenende.
-        if data.derived then parts[#parts + 1] = L["FOLIO_DERIVED"]
-        elseif data.pct then parts[#parts + 1] = L["TALENT_SHARE"]:format(data.pct) end
+        if data.single then parts[#parts + 1] = L["FOLIO_ONLY"]
+        elseif data.derived then parts[#parts + 1] = L["FOLIO_DERIVED"]
+        -- "bare" heisst: der Anteil steht schon rechts in der Zeile.
+        elseif data.pct and not data.bare then
+            parts[#parts + 1] = L["TALENT_SHARE"]:format(data.pct)
+        end
         row.detail:SetText(table.concat(parts, "  \194\183  "))
+        -- Steht nichts darunter, gehoert der Name in die Mitte.
+        --
+        -- Die Zeile ist fuer zwei Textzeilen gebaut: Name oben, Erklaerung
+        -- darunter. Faellt die Erklaerung weg - und im Folianten faellt
+        -- sie weg, weil sie nur den Prozentwert wiederholt hat -, dann
+        -- klebt der Name an der Oberkante und darunter gaehnt eine
+        -- Luecke, die aussieht, als fehle etwas.
+        row.title:ClearAllPoints()
+        if #parts == 0 then
+            row.title:SetPoint("LEFT", S.space.sm + 38, 0)
+        else
+            row.title:SetPoint("TOPLEFT", S.space.sm + 38, -S.space.sm)
+        end
         row.share:SetText(data.pct and (data.pct .. "%") or "")
         -- Die Auszeichnung gehoert dem, was gemessen wurde - auch wenn
         -- die gerechnete Zahl groesser waere.
@@ -3623,6 +3674,112 @@ local function build()
     scroll:SetScrollChild(scrollChild)
     frame.scroll = scroll
 
+    -- Eine eigene Leiste, weil Blizzards nicht hierher gehoert.
+    --
+    -- UIPanelScrollFrameTemplate bringt eine Leiste mit zwei Pfeil-
+    -- knoepfen mit, in Blizzards Metall-Optik. In einem Fenster, das
+    -- sonst aus flaechigen Toenen und duennen Linien besteht, sieht das
+    -- aus wie ein Ersatzteil aus einem anderen Geraet. Die Vorlage
+    -- bleibt - sie kann das Scrollen -, ihre Sichtbarkeit nicht.
+    for _, teil in ipairs({ "", "ScrollUpButton", "ScrollDownButton" }) do
+        local k = _G["MetaCodexScrollScrollBar" .. teil]
+        if k then k:Hide(); k:SetAlpha(0); k:EnableMouse(false) end
+    end
+
+    -- Schiene und Griff: zwei Flaechen, mehr braucht es nicht.
+    local rail = CreateFrame("Frame", nil, content)
+    rail:SetWidth(SCROLLBAR_WIDTH)
+    -- An der LINKEN Kante verankert, nicht an der rechten.
+    --
+    -- Vorher hing sie mit ihrer rechten Kante zwoelf Pixel neben dem
+    -- Inhalt - bei vier Pixel Breite blieben davon acht Abstand, bei
+    -- zehn nur noch zwei, und sie klebte an den Zeilen. So haengt der
+    -- Abstand nicht mehr an der Breite: links immer zwoelf, egal wie
+    -- breit die Leiste wird.
+    rail:SetPoint("TOPLEFT", scroll, "TOPRIGHT", S.space.md, 0)
+    rail:SetPoint("BOTTOMLEFT", scroll, "BOTTOMRIGHT", S.space.md, 0)
+    S:Fill(rail, "bgOverlay")
+    rail:Hide()
+    frame.scrollRail = rail
+
+    local grip = CreateFrame("Frame", nil, rail)
+    grip:SetWidth(SCROLLBAR_WIDTH)
+    grip:SetPoint("TOP", rail, "TOP", 0, 0)
+    grip:SetHeight(40)
+    S:Fill(grip, "borderSubtle")
+    frame.scrollGrip = grip
+
+    -- Ein Klick auf die Schiene springt dorthin.
+    --
+    -- Wer danebengreift, will trotzdem dorthin - und eine Leiste, bei
+    -- der nur der Griff etwas tut, fuehlt sich kaputt an.
+    rail:EnableMouse(true)
+    rail:SetScript("OnMouseDown", function(self)
+        local inhalt = tonumber(scrollChild:GetHeight()) or 0
+        local sichtbar = tonumber(scroll:GetHeight()) or 0
+        local weg = inhalt - sichtbar
+        local schiene = tonumber(self:GetHeight()) or 0
+        if weg <= 0 or schiene <= 0 then return end
+        local _, mausY = GetCursorPosition()
+        local skala = UIParent:GetEffectiveScale() / (frame:GetEffectiveScale() or 1)
+        local oben = (self:GetTop() or 0)
+        local wo = (oben - mausY * skala) / schiene
+        if wo < 0 then wo = 0 elseif wo > 1 then wo = 1 end
+        scroll:SetVerticalScroll(wo * weg)
+    end)
+
+    -- Der Griff folgt auch dem Mausrad, nicht nur dem Auffrischen.
+    -- Sonst steht er still, waehrend die Liste unter ihm wandert.
+    scroll:SetScript("OnVerticalScroll", function(self)
+        if not rail:IsShown() then return end
+        local schiene = tonumber(rail:GetHeight()) or 0
+        local inhalt = tonumber(scrollChild:GetHeight()) or 0
+        local sichtbar = tonumber(self:GetHeight()) or 0
+        local weg = inhalt - sichtbar
+        if weg <= 0 or schiene <= 0 then return end
+        local laenge = tonumber(grip:GetHeight()) or 24
+        local wo = (tonumber(self:GetVerticalScroll()) or 0) / weg
+        if wo < 0 then wo = 0 elseif wo > 1 then wo = 1 end
+        grip:ClearAllPoints()
+        grip:SetPoint("TOP", rail, "TOP", 0, -wo * (schiene - laenge))
+    end)
+
+    -- Ziehen. Ohne das waere die Leiste eine Anzeige und kein Bedienteil.
+    grip:EnableMouse(true)
+    grip:SetScript("OnEnter", function(self) S:Recolor(self, "accent") end)
+    grip:SetScript("OnLeave", function(self)
+        if not self.__zieht then S:Recolor(self, "borderSubtle") end
+    end)
+    grip:SetScript("OnMouseDown", function(self)
+        self.__zieht = true
+        local _, mausY = GetCursorPosition()
+        self.__vonY = mausY
+        self.__vonScroll = scroll:GetVerticalScroll() or 0
+        S:Recolor(self, "accent")
+    end)
+    grip:SetScript("OnMouseUp", function(self)
+        self.__zieht = false
+        S:Recolor(self, "borderSubtle")
+    end)
+    grip:SetScript("OnUpdate", function(self)
+        if not self.__zieht then return end
+        local hoehe = tonumber(rail:GetHeight()) or 0
+        local inhalt = tonumber(scrollChild:GetHeight()) or 0
+        local sichtbar = tonumber(scroll:GetHeight()) or 0
+        local weg = inhalt - sichtbar
+        if weg <= 0 or hoehe <= 0 then return end
+        local _, mausY = GetCursorPosition()
+        -- Der Zeiger bewegt sich in Bildschirmpunkten, die Leiste in
+        -- Fensterpunkten - der Massstab des Fensters bringt beides
+        -- zusammen.
+        local skala = UIParent:GetEffectiveScale() / (frame:GetEffectiveScale() or 1)
+        local verschoben = ((self.__vonY or 0) - mausY) * skala
+        local anteil = verschoben / hoehe
+        local neu = (self.__vonScroll or 0) + anteil * inhalt
+        if neu < 0 then neu = 0 elseif neu > weg then neu = weg end
+        scroll:SetVerticalScroll(neu)
+    end)
+
     -- --- Statuszeile ---------------------------------------------------
     local footer = CreateFrame("Frame", nil, frame)
     footer:SetPoint("BOTTOMLEFT")
@@ -3746,6 +3903,31 @@ function activeSection()
     return SECTIONS[1]
 end
 
+-- Die Zeilenbauer in einer Tabelle.
+--
+-- NICHT aus Ordnungsliebe: WoWs Lua laesst einer Funktion hoechstens
+-- 60 Upvalues, und UI.Refresh ruft ein Dutzend dieser Funktionen auf -
+-- jede davon kostete eines. Ueber die Tabelle kostet der ganze Satz
+-- nur noch ein einziges. Am 28.09. hat eine einzige zusaetzliche
+-- Lokale die Grenze gerissen, und dann laedt UI.lua nicht mehr: kein
+-- Fehler im Fenster, sondern gar kein Fenster.
+--
+-- Die Funktionen bleiben, wo sie sind - anderswo werden sie direkt
+-- aufgerufen. Nur Refresh geht ueber diesen Umweg.
+local BAU = {
+    statRows = statRows,
+    talentRows = talentRows,
+    consumableRows = consumableRows,
+    playerRows = playerRows,
+    remindRows = remindRows,
+    settingsRows = settingsRows,
+    infoRows = infoRows,
+    guideRows = guideRows,
+    gearRows = gearRows,
+    embellishRows = embellishRows,
+    kindRows = kindRows,
+    playerViewRows = playerViewRows,
+}
 function UI.Refresh()
     if not frame then return end
 
@@ -4064,14 +4246,14 @@ function UI.Refresh()
         -- Die Zeilen von eben, nur neu gesetzt.
         fromSource = frame.__fromSource
     elseif viewingPlayer then
-        currentRows = playerViewRows(viewingPlayer)
+        currentRows = BAU.playerViewRows(viewingPlayer)
         -- Auch die Ueberschrift: der Name, dessen Profil offen ist,
         -- kann aus jedem Land kommen.
         S:SetText(sectionTitle, viewingPlayer.name)
         hintText:SetText(L["PLAYER_VIEW_HINT"])
     elseif section.key == "gear" then
         currentRows, fromSource = withFallback(function(source)
-            return gearRows(specID, mode, source)
+            return BAU.gearRows(specID, mode, source)
         end)
         -- Prozente bedeuten nicht ueberall dasselbe, und das gehoert
         -- dazugesagt: hier der Anteil der gemessenen Spieler, bei den
@@ -4082,20 +4264,20 @@ function UI.Refresh()
             or L["SHARE_GEAR"])
     elseif section.key == "embellish" then
         currentRows, fromSource = withFallback(function(source)
-            return embellishRows(specID, mode, source)
+            return BAU.embellishRows(specID, mode, source)
         end)
         hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted)
             or L["EMBELLISH_HINT"])
     elseif section.key == "tier" or section.key == "crafted" then
         local want = section.key == "tier" and "set" or "craft"
         currentRows, fromSource = withFallback(function(source)
-            return kindRows(specID, mode, source, want)
+            return BAU.kindRows(specID, mode, source, want)
         end)
         hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted)
             or L["SHARE_GEAR"])
     elseif section.key == "stats" then
         currentRows, fromSource = withFallback(function(source)
-            return statRows(specID, mode, source)
+            return BAU.statRows(specID, mode, source)
         end)
         -- Was die Zahl IST, gehoert ueber die Zahl.
         --
@@ -4109,37 +4291,37 @@ function UI.Refresh()
             or (n and L["STAT_HINT_N"]:format(n) or L["STAT_HINT"]))
     elseif section.key == "consumables" then
         currentRows, fromSource = withFallback(function(source)
-            return consumableRows(specID, mode, source)
+            return BAU.consumableRows(specID, mode, source)
         end)
         hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted)
             or (L["CONSUM_HINT"] .. "  " .. L["SHARE_CONSUM"]))
     elseif section.key == "talents" then
         currentRows, fromSource = withFallback(function(source)
-            return talentRows(specID, mode, source)
+            return BAU.talentRows(specID, mode, source)
         end)
         hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted) or "")
     elseif section.key == "folio" then
         currentRows, fromSource = withFallback(function(source)
-            return folioRows(specID, mode, source)
+            return UI.FolioRows(specID, mode, source)
         end)
         hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted)
             or L["FOLIO_HINT"])
     elseif section.key == "players" then
         currentRows, fromSource = withFallback(function(source)
-            return playerRows(specID, mode, source)
+            return BAU.playerRows(specID, mode, source)
         end)
         hintText:SetText(#currentRows > 0 and L["PLAYER_HINT"] or L["NO_PLAYERS"])
     elseif section.key == "remind" then
-        currentRows = remindRows(mode)
+        currentRows = BAU.remindRows(mode)
         hintText:SetText(#currentRows > 3 and L["REMIND_HINT"] or emptyReason(mode, wanted))
     elseif section.key == "settings" then
-        currentRows = settingsRows()
+        currentRows = BAU.settingsRows()
         hintText:SetText(L["SET_HINT"])
     elseif section.key == "info" then
-        currentRows = infoRows()
+        currentRows = BAU.infoRows()
         hintText:SetText("")
     elseif section.key == "guides" then
-        currentRows = guideRows(specID)
+        currentRows = BAU.guideRows(specID)
         hintText:SetText(#currentRows > 0 and L["GUIDE_HINT"] or L["SOON_GUIDES"])
     elseif section.empty then
         hintText:SetText(L[section.empty])
@@ -4529,6 +4711,41 @@ function UI.Refresh()
 
     for i = index + 1, #(rows or {}) do rows[i]:Hide() end
     scrollChild:SetHeight(math.max(offset, 1))
+
+    -- Keine Leiste, wo es nichts zu schieben gibt.
+    --
+    -- Blizzards UIPanelScrollFrameTemplate blendet ihre beiden
+    -- Pfeilknoepfe nie aus. Auf einer kurzen Seite stehen sie dann da
+    -- und laden zu einer Bewegung ein, die nichts bewirkt - und schlimmer:
+    -- sie sehen aus, als waere noch etwas da, das man nicht findet.
+    --
+    -- Die Vorlage benennt ihre Teile nach dem Rahmen, darum die Namen.
+    -- Fehlt eines davon in einer kuenftigen Spielversion, passiert
+    -- nichts weiter: dann bleibt es einfach sichtbar wie bisher.
+    local sichtbar = tonumber(frame.scroll:GetHeight()) or 0
+    local passt = offset <= sichtbar + 1
+    -- Blizzards Leiste bleibt in jedem Fall weg; sie wurde beim Aufbau
+    -- stillgelegt und wird hier nur nicht wieder geweckt.
+    local rail, grip = frame.scrollRail, frame.scrollGrip
+    if rail and grip then
+        if passt then
+            rail:Hide()
+        else
+            rail:Show()
+            -- Der Griff ist so lang, wie der sichtbare Teil am Ganzen
+            -- ausmacht - so sieht man an ihm, wieviel noch kommt.
+            local schiene = tonumber(rail:GetHeight()) or 0
+            local anteil = sichtbar / offset
+            local laenge = math.max(24, schiene * anteil)
+            grip:SetHeight(laenge)
+            local weg = offset - sichtbar
+            local wo = weg > 0
+                and ((tonumber(frame.scroll:GetVerticalScroll()) or 0) / weg) or 0
+            if wo < 0 then wo = 0 elseif wo > 1 then wo = 1 end
+            grip:ClearAllPoints()
+            grip:SetPoint("TOP", rail, "TOP", 0, -wo * (schiene - laenge))
+        end
+    end
 
     -- Und sagen, wenn eine andere Quelle geantwortet hat.
     if fellBack then
