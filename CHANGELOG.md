@@ -4,6 +4,42 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ## [Unreleased]
 
+## [1.1.5] - 2026-09-28
+
+### Added
+
+- The crafting tier is drawn at the icon - the mark the bags draw, in the
+  same corner: on consumables, on crafted gear and on the embellishment
+  reagents. It is read from the game's own quality tables, not guessed
+  from how many tiers of the same ware exist.
+- Stat targets say what they are: the median of the measured players, one
+  stat at a time, with the middle half of the measured field behind each
+  number. Explicitly not a BiS list.
+- Rings and trinkets show two rows, because two are worn, and the heading
+  says how many slots it stands for.
+
+### Fixed
+
+- Two of the same embellishment were counted as one. They are a choice of
+  their own, and for many specs the most common one. The row names it once
+  with "x2" and carries both tooltips.
+- An embellishment was named after the lowest crafting tier of its
+  reagent: the reagent was looked up by name, and the first hit won.
+- Shares no longer round into a claim. A hundred percent appears only when
+  it really is all of them, zero only when it really is none - the rings
+  read 100, 1 and 0 percent, which is 101 and cannot be.
+- The top pick is highlighted by rank, not from fifty percent up. A
+  trinket worn by 48 percent is the most worn one just as much as one worn
+  by 51.
+- "Already on it" for gems is answered by the gems in the gear you are
+  wearing, and follows when you swap a piece.
+- "Pick from my bags" offers what is in the bags instead of what is in the
+  catalog: an older rune was missing from the list although it lay right
+  there. GetItemInfoInstant returns seven values, and the fifth is the
+  icon, not the class.
+- German headings kept a lowercase umlaut in the middle of capitals -
+  string.upper knows only a to z - and the slot count read "1 slot(s)".
+
 ## [1.1.4] - 2026-09-28
 
 ### Fixed

@@ -4,6 +4,43 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ## [Unveröffentlicht]
 
+## [1.1.5] - 2026-09-28
+
+### Neu
+
+- Die Handwerksstufe steht am Symbol - dasselbe Zeichen wie im Beutel, in
+  derselben Ecke: bei Verbrauchsgütern, bei Handwerksstücken und bei den
+  Reagenzien der Verzierungen. Sie kommt aus den Qualitätstabellen des
+  Spiels und wird nicht mehr daraus geraten, wie viele Stufen derselben
+  Ware es gibt.
+- Die Zielwerte sagen, was sie sind: der Median der gemessenen Spieler, je
+  Wert einzeln, mit der mittleren Hälfte des gemessenen Feldes hinter jeder
+  Zahl. Ausdrücklich keine BiS-Liste.
+- Ringe und Schmuck zeigen zwei Zeilen, weil man zwei trägt, und die
+  Überschrift sagt, für wie viele Plätze sie steht.
+
+### Behoben
+
+- Zweimal dieselbe Verzierung wurde als eine gezählt. Sie ist eine eigene
+  Wahl und bei vielen Speccs die häufigste. Die Zeile nennt sie einmal mit
+  "×2" und trägt beide Tooltips.
+- Eine Verzierung trug den Namen der niedrigsten Handwerksstufe ihres
+  Reagenz: gesucht wurde über den Namen, und der erste Treffer gewann.
+- Anteile runden nicht mehr zu einer Behauptung. 100 % steht nur da, wenn
+  es wirklich alle sind, 0 % nur, wenn es wirklich keiner ist - bei den
+  Ringen stand 100, 1 und 0 Prozent, das sind 101 und kann nicht sein.
+- Hervorgehoben wird der erste Platz, nicht alles ab fünfzig Prozent. Ein
+  Schmuckstück mit 48 % ist genauso das meistgetragene wie eines mit 51 %.
+- "Bereits drauf" bei Sockelsteinen beantwortet die angelegte Ausrüstung
+  und folgt sofort, wenn du ein Stück tauschst.
+- "Aus meinen Taschen wählen" bietet an, was in den Taschen liegt, statt
+  dessen, was im Katalog steht: eine ältere Rune fehlte in der Liste,
+  obwohl sie genau dort lag. GetItemInfoInstant gibt sieben Werte zurück,
+  und der fünfte ist das Symbol, nicht die Klasse.
+- Deutsche Überschriften behielten einen kleinen Umlaut mitten in
+  Großbuchstaben - string.upper kennt nur a bis z - und die Platzzahl las
+  sich als "1 Platz/Plätze".
+
 ## [1.1.4] - 2026-09-28
 
 ### Behoben

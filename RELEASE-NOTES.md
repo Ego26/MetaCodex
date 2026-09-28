@@ -1,3 +1,59 @@
+## v1.1.5 — numbers that say what they mean
+
+Eight reports from the game, and every one of them turned out to be a
+number claiming something nobody had measured.
+
+### Fixed
+
+- **Twice the same embellishment was counted as one.** The counting used a
+  set, and a set knows no "twice" — so whoever wore two Arcanoweave Linings
+  landed in the same drawer as someone with one. That is why the window
+  said "one embellishment, 93 %" where in truth most wear two of the same.
+  It is now counted as a pair, the row names it once with **x2** and
+  carries both tooltips.
+- **An embellishment was named after the wrong reagent.** A reagent exists
+  once per crafting tier under the same name; the lookup went by name and
+  kept the first hit, which is the lowest tier. So the row showed an item
+  with the worse quality mark, as if the measured players had crafted with
+  it. Which tier they used stands in no bonus id and cannot be seen from
+  outside — but of the reagents with that name, the one that fits a
+  finished endgame piece is now taken.
+- **A share was rounded into a claim.** The rings read 100 %, 1 % and 0 %.
+  That is 101 and cannot be: 996 of 1000 rounds to 100, 9 to 1, and 4 to 0.
+  Worse than the sum is what the edges assert — a hundred percent means
+  "all", and the lines below it prove it was not; zero percent means
+  "nobody", standing in a list of what people wear. A hundred now appears
+  only when it really is all of them, zero only when it really is none.
+- **The highlight followed a threshold the data do not know.** The share
+  was coloured from fifty percent up, so a trinket at 48 % looked like the
+  3 % row below it. The leader of each group is coloured now, and a tie
+  colours both.
+- **"Already on it" answered from the wrong place.** For gems it now reads
+  the gear you are wearing and follows immediately when you swap a piece.
+- **"Pick from my bags" showed the catalog, not the bags.** An older rune
+  was missing although it lay right there: the catalog carries only the
+  running expansion. The bags are asked directly now — and while fixing it,
+  the reason came out: `GetItemInfoInstant` returns seven values, and the
+  fifth is the icon, not the class.
+
+### Added
+
+- **The crafting tier is drawn at the icon**, the same mark the bags draw
+  and in the same corner: on consumables, on crafted gear and on the
+  embellishment reagents. It is read from the game's own quality tables.
+  Guessing it from how many tiers of a ware exist was wrong twice over —
+  item ids are not issued in tier order, and in this expansion a ware has
+  two tiers, not three.
+- **The stat targets say what they are.** A median of the measured players,
+  one stat at a time, with the middle half of the measured field behind
+  each number — and the line above says it plainly: for orientation, not
+  BiS values. Four medians side by side are nobody's actual build.
+- **Rings and trinkets show two rows**, because two are worn. The second
+  best choice there is not an alternative, it is the second ring — it used
+  to hide behind "+4 more". The heading says how many slots it stands for.
+- German headings no longer keep a lowercase umlaut in the middle of
+  capitals: `string.upper` works byte by byte and knows only a to z.
+
 ## v1.1.4 — names you can read, a button where it belongs
 
 Four things reported from the game, each fixed at its cause.
