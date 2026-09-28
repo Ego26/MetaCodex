@@ -2186,12 +2186,13 @@ local function acquireRow(index)
     row.icon:SetPoint("LEFT", S.space.sm, 0)
     row.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
-    -- Die Handwerksstufe, unten links auf dem Symbol - dort, wo der
-    -- Beutel sie auch zeigt. Wer drei Sorten Heiltrank im Fenster
-    -- stehen hat, unterscheidet sie sonst nur am Prozentwert.
+    -- Die Handwerksstufe in der Ecke des Symbols - dieselbe Ecke und
+    -- dasselbe Zeichen wie im Beutel. Wer zwei Sorten desselben
+    -- Heiltranks im Fenster stehen hat, unterscheidet sie sonst nur am
+    -- Prozentwert.
     row.quality = row:CreateTexture(nil, "OVERLAY")
-    row.quality:SetSize(14, 14)
-    row.quality:SetPoint("BOTTOMLEFT", row.icon, "BOTTOMLEFT", -3, -3)
+    row.quality:SetSize(15, 15)
+    row.quality:SetPoint("TOPLEFT", row.icon, "TOPLEFT", -2, 2)
     row.quality:Hide()
 
     row.title = S:Text(row, S.role.title.size, S.role.title.token)

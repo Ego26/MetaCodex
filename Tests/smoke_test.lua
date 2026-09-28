@@ -3920,6 +3920,10 @@ do
     check("und die Zeichen dieser Erweiterung",
         type(icon2) == "string" and icon2:find("12-Tier2", 1, true) ~= nil,
         tostring(icon2))
+    -- Und zwar die Variante, die der Beutel auf das Symbol zeichnet.
+    check("es ist das Zeichen aus dem Beutel",
+        type(icon2) == "string" and icon2:find("-Inv", 1, true) ~= nil,
+        tostring(icon2))
     check("die erste Stufe traegt das erste Zeichen",
         type(icon1) == "string" and icon1:find("12-Tier1", 1, true) ~= nil,
         tostring(icon1))

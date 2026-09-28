@@ -797,9 +797,16 @@ function emitEnchants(groups) {
   const atlasName = new Map(atlasElements.map((r) => [Number(r.ID), r.Name]));
   const setIcon = new Map();
   for (const row of qualityAtlasSets) {
-    // Das kleine Zeichen: es sitzt auf einem Symbol, nicht auf einer
-    // eigenen Flaeche.
-    const name = atlasName.get(Number(row.IconSmall)) || atlasName.get(Number(row.Icon));
+    // Die BEUTEL-Variante, nicht die kleine.
+    //
+    // Jeder Satz fuehrt mehrere: eine grosse fuer das Berufsfenster,
+    // eine kleine fuer Fliesstext, eine fuer den Chat - und IconInv,
+    // die auf einem Gegenstandssymbol sitzt. Genau die zeichnet der
+    // Beutel in die Ecke, und genau die soll hier stehen: dasselbe
+    // Zeichen am selben Gegenstand, egal wo man hinsieht.
+    const name = atlasName.get(Number(row.IconInv))
+      || atlasName.get(Number(row.IconSmall))
+      || atlasName.get(Number(row.Icon));
     if (name) setIcon.set(Number(row.ID), name);
   }
   const qualityOf = new Map();
