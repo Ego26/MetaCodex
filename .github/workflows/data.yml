@@ -28,9 +28,21 @@ name: Daily data
 
 on:
   schedule:
-    # 04:30 UTC - after the daily leaderboard reset, before the European
-    # evening.
-    - cron: "30 4 * * *"
+    # 00:05 UTC - 02:05 in Vienna through the summer, 01:05 through the
+    # winter. GitHub's cron is UTC and does not know daylight saving, so
+    # one of the two has to drift; the earlier one is the harmless one.
+    #
+    # It used to be 04:30 UTC, "after the daily leaderboard reset". That
+    # reason did not survive being checked: nothing here asks for a day.
+    # The Warcraft Logs rankings and the raider.io runs are season-wide
+    # lists, and the fourteen-day window in the comments is Archon's, not
+    # ours. Starting earlier costs no measurement - it only means the run
+    # is done by breakfast instead of after lunch.
+    #
+    # Five past, not on the hour: midnight UTC is the fullest slot in
+    # GitHub's scheduler, and a scheduled run that finds it busy is
+    # simply late.
+    - cron: "5 0 * * *"
   workflow_dispatch:
     inputs:
       reuse:
