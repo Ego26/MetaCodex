@@ -139,10 +139,25 @@ function Catalog.Tiers(id)
     local function collect(list, me)
         for _, e in ipairs(list) do
             if e.id ~= me.id and e.name == me.name then
-                local mine = me.ilvl or me.id
-                local other = e.ilvl or e.id
-                if other < mine then lower[#lower + 1] = e.id
-                elseif other > mine then higher[#higher + 1] = e.id end
+                -- Erst die Stufe, wie das Spiel sie fuehrt.
+                --
+                -- Sonst die Gegenstandsstufe, und ohne sie die ID. Die
+                -- ID ist der schlechteste Massstab: sie wird NICHT in
+                -- der Reihenfolge der Handwerksstufen vergeben. Bei
+                -- drei Stufen derselben Ware steht die hoechste
+                -- manchmal auf der kleinsten Zahl - und dann stand im
+                -- Fenster "in niedrigerer Qualitaet vorhanden" ueber
+                -- der besseren.
+                local mineTier = Catalog.Quality(me.id)
+                local otherTier = Catalog.Quality(e.id)
+                local mine = mineTier or me.ilvl or me.id
+                local other = otherTier or e.ilvl or e.id
+                -- Nur vergleichbare Masse vergleichen: eine Stufe 2 ist
+                -- nicht kleiner als eine Gegenstandsstufe 300.
+                if (mineTier ~= nil) == (otherTier ~= nil) then
+                    if other < mine then lower[#lower + 1] = e.id
+                    elseif other > mine then higher[#higher + 1] = e.id end
+                end
             end
         end
     end
@@ -264,6 +279,25 @@ function Catalog.DropSource(itemID)
     if not where and ns.Recommend and ns.Recommend.Drop then where = ns.Recommend.Drop(itemID) end
     if not where then return nil end
     return where.enc, where.inst
+end
+
+---Die Handwerksstufe eines Gegenstands und ihr Zeichen.
+---
+---Aus den Spieldaten, nicht gezaehlt. Gezaehlt wurde vorher, wie viele
+---Stufen derselben Ware darunter liegen - das setzt voraus, dass die
+---Gegenstands-IDs in der Reihenfolge der Stufen vergeben sind, und das
+---stimmt nicht. In dieser Erweiterung hat eine Ware ausserdem ZWEI
+---Stufen, nicht drei, und ihre Zeichen heissen anders als die alten.
+---@param itemID number|nil
+---@return number|nil tier
+---@return string|nil atlas
+function Catalog.Quality(itemID)
+    if not itemID then return nil end
+    local c = data()
+    local set = c and c.quality and c.quality[itemID]
+    local entry = set and c.qualitySets and c.qualitySets[set]
+    if not entry then return nil end
+    return entry.tier, entry.icon
 end
 
 ---Gehoert dieses Stueck zum Tier-Set der laufenden Saison?

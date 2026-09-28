@@ -3907,6 +3907,29 @@ do
 
     check("der Client sagt die Stufe", ns.Compat.CraftQuality(4242) == 3,
         tostring(ns.Compat.CraftQuality(4242)))
+
+    -- Der Katalog fuehrt Stufe UND Zeichen so, wie das Spiel sie fuehrt.
+    -- Geraten wurde vorher: gezaehlt, wie viele Stufen derselben Ware
+    -- darunter liegen - und die Gegenstands-IDs stehen nicht in der
+    -- Reihenfolge der Stufen. In dieser Erweiterung hat eine Ware
+    -- ausserdem zwei Stufen, nicht drei, und ihre Zeichen heissen anders.
+    local tier1, icon1 = ns.Catalog.Quality(271883)
+    local tier2, icon2 = ns.Catalog.Quality(271884)
+    check("der Katalog kennt die Stufen derselben Ware",
+        tier1 == 1 and tier2 == 2, tostring(tier1) .. " / " .. tostring(tier2))
+    check("und die Zeichen dieser Erweiterung",
+        type(icon2) == "string" and icon2:find("12-Tier2", 1, true) ~= nil,
+        tostring(icon2))
+    check("die erste Stufe traegt das erste Zeichen",
+        type(icon1) == "string" and icon1:find("12-Tier1", 1, true) ~= nil,
+        tostring(icon1))
+
+    -- Und die Reihenfolge der Stufen folgt der Stufe, nicht der ID.
+    local unten = ns.Catalog.Tiers(271884)
+    local drin = false
+    for _, id in ipairs(unten or {}) do if id == 271883 then drin = true end end
+    check("die niedrigere Stufe steht unter der hoeheren", drin,
+        table.concat(unten or {}, ", "))
     local atlas = ns.Compat.QualityAtlas(3)
     check("und es gibt ein Zeichen dazu",
         type(atlas) == "string" and atlas:find("Tier3", 1, true) ~= nil,

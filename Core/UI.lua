@@ -2316,7 +2316,11 @@ end
 ---@param itemID number|nil
 local function setQuality(row, itemID)
     if not row.quality then return end
-    local atlas = ns.Compat.QualityAtlas(ns.Compat.CraftQuality(itemID))
+    -- Erst der Katalog: er fuehrt Stufe UND Zeichen so, wie das Spiel
+    -- sie fuehrt. Erst wenn er den Gegenstand nicht kennt, wird
+    -- geschaetzt.
+    local _, fromCatalog = ns.Catalog.Quality(itemID)
+    local atlas = fromCatalog or ns.Compat.QualityAtlas(ns.Compat.CraftQuality(itemID))
     if atlas and row.quality.SetAtlas then
         row.quality:SetAtlas(atlas)
         row.quality:Show()

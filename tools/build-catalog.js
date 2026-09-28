@@ -178,7 +178,9 @@ function emitEnchants(groups) {
 
   const [items, gemProps, sieRows, itemEffects, itemLinks, spellEffects, itemClasses,
     chrSpecs, chrClasses, journalItems, journalEncounters, journalInstances, itemSets,
-    maps, journalTiers, tierXInstance, craftQualities, craftingData, levelDeltas,
+    maps, journalTiers, tierXInstance,
+    craftingQuality, qualityAtlasSets, atlasElements,
+    craftQualities, craftingData, levelDeltas,
     trackRows, statBonusRows, effectBonusRows, traitDefs, pvpTalents, spellNames,
     traitNodes, traitNodeXEntry, traitEntries, traitLoadouts, subTreesEN, subTreesDE]
     = await Promise.all([
@@ -217,6 +219,22 @@ function emitEnchants(groups) {
       // liefen und deren Beute deshalb wirklich gemessen wurde.
       db2('JournalTier'),
       db2('JournalTierXInstance'),
+      // Die Handwerksstufe, wie das Spiel sie fuehrt.
+      //
+      // Geraten haben wir sie vorher: gezaehlt, wie viele Stufen
+      // derselben Ware darunter liegen. Das ging schief, sobald die
+      // Gegenstands-IDs nicht in der Reihenfolge der Stufen vergeben
+      // sind - und es ging ganz schief, als die Skala sich aenderte.
+      // In dieser Erweiterung hat eine Ware ZWEI Stufen, nicht drei,
+      // und ihre Zeichen heissen anders als die alten Sterne.
+      //
+      // Item.CraftingQualityID zeigt auf CraftingQuality: dort stehen
+      // die Stufe und die Nummer des Zeichensatzes. Welche Zeichen das
+      // sind, sagt CraftingQualityAtlasSet, und wie sie heissen,
+      // UiTextureAtlasElement.
+      db2('CraftingQuality'),
+      db2('CraftingQualityAtlasSet'),
+      db2('UiTextureAtlasElement'),
       // Was Berufe herstellen. NICHT ueber den Gegenstand selbst:
       // ItemSparse fuehrt fuer ein Handwerksstueck weder eine
       // Qualitaetsstufe noch einen Beruf - beides kommt erst beim
@@ -775,6 +793,38 @@ function emitEnchants(groups) {
   // Welche Instanz ist was - ueber ihre Karte.
   const mapType = new Map();
   for (const row of maps) mapType.set(Number(row.ID), Number(row.InstanceType) || 0);
+  // Die Handwerksstufe je Gegenstand, mit dem Zeichen, das dazugehoert.
+  const atlasName = new Map(atlasElements.map((r) => [Number(r.ID), r.Name]));
+  const setIcon = new Map();
+  for (const row of qualityAtlasSets) {
+    // Das kleine Zeichen: es sitzt auf einem Symbol, nicht auf einer
+    // eigenen Flaeche.
+    const name = atlasName.get(Number(row.IconSmall)) || atlasName.get(Number(row.Icon));
+    if (name) setIcon.set(Number(row.ID), name);
+  }
+  const qualityOf = new Map();
+  for (const row of craftingQuality) {
+    qualityOf.set(Number(row.ID), {
+      tier: Number(row.QualityTier) || 0,
+      set: Number(row.CraftingQualityAtlasSetID) || 0,
+    });
+  }
+  const itemQuality = {};   // Gegenstand -> Zeichensatz
+  const qualitySets = {};   // Zeichensatz -> { tier, icon }
+  for (const row of itemClasses) {
+    const id = Number(row.ID);
+    if (!current.has(id)) continue;
+    const q = qualityOf.get(Number(row.CraftingQualityID));
+    if (!q || !q.tier || !q.set) continue;
+    const icon = setIcon.get(q.set);
+    if (!icon) continue;
+    itemQuality[id] = q.set;
+    qualitySets[q.set] = { tier: q.tier, icon };
+  }
+  console.log('Handwerksstufen:', Object.keys(itemQuality).length, 'Gegenstaende in',
+    Object.keys(qualitySets).length, 'Stufen (' +
+    Object.values(qualitySets).map((q) => q.icon).join(', ') + ')');
+
   // Welche Instanzen zum laufenden Inhalt gehoeren.
   //
   // Zwei Abschnitte zaehlen: der der laufenden Erweiterung (seine
@@ -1075,6 +1125,21 @@ function emitEnchants(groups) {
   // Instanz gehoert in den Katalog, nicht in den Sammler: der Sammler
   // kennt nur die Instanzen, in denen er gemessen hat, und eine, in der
   // niemand gemessen hat, fiele damit in "Sonstiges".
+  // Die Handwerksstufen: je Zeichensatz die Stufe und ihr Zeichen,
+  // je Gegenstand der Satz.
+  out.push('  qualitySets = {');
+  for (const [set, q] of Object.entries(qualitySets).sort((a, b) => a[0] - b[0])) {
+    out.push(`    [${set}] = { tier = ${q.tier}, icon = ${luaString(q.icon)} },`);
+  }
+  out.push('  },');
+  out.push('');
+  out.push('  quality = {');
+  for (const [id, set] of Object.entries(itemQuality).sort((a, b) => a[0] - b[0])) {
+    out.push(`    [${id}] = ${set},`);
+  }
+  out.push('  },');
+  out.push('');
+
   // Was zum laufenden Inhalt gehoert.
   out.push('  instCurrent = {');
   for (const id of Object.keys(instCurrent).sort((a, b) => a - b)) {
