@@ -185,6 +185,7 @@ ns.RegisterLocale("enUS", {
     ["CRAFTSTATS_MEASURED"] = "As measured",
     ["CRAFTSTATS_SHARE"]    = "(%d%%)",
     ["SECTION_embellish"]  = "Embellishments",
+    ["EMBELLISH_TWICE"] = "%s  x2",
     ["EMBELLISH_ONE"]      = "one embellishment",
     ["EMBELLISH_TWO"]      = "both embellishments",
     ["EMBELLISH_HINT"]     = "Two may be worn. Percent = share of the measured players with exactly this combination.",

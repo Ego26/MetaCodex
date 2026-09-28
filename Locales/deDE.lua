@@ -185,6 +185,7 @@ ns.RegisterLocale("deDE", {
     ["CRAFTSTATS_MEASURED"] = "Wie gemessen",
     ["CRAFTSTATS_SHARE"]    = "(%d%%)",
     ["SECTION_embellish"]  = "Verzierungen",
+    ["EMBELLISH_TWICE"] = "%s  ×2",
     ["EMBELLISH_ONE"]      = "eine Verzierung",
     ["EMBELLISH_TWO"]      = "beide Verzierungen",
     ["EMBELLISH_HINT"]     = "Zwei darf man tragen. Prozent = Anteil der gemessenen Spieler mit genau dieser Kombination.",

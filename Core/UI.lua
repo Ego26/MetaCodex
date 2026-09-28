@@ -820,13 +820,18 @@ local function embellishRows(specID, mode, source)
         end
         if #names > 0 then
             local single = #entry.ids == 1
+            -- Zweimal dasselbe: einmal nennen und dazuschreiben, wie
+            -- oft. "Arkanostofffutter + Arkanostofffutter" sagt nichts,
+            -- was "Arkanostofffutter  x2" nicht kuerzer sagt.
+            local doppelt = #entry.ids == 2 and entry.ids[1] == entry.ids[2]
             rows[#rows + 1] = {
                 kind = "gear", pct = entry.pct,
                 id = entry.ids[1],
                 -- Beide, damit der Zeiger beide Tooltips zeigt.
                 ids = entry.ids,
                 link = single and link or nil,
-                name = table.concat(names, "  +  "),
+                name = doppelt and L["EMBELLISH_TWICE"]:format(names[1])
+                    or table.concat(names, "  +  "),
                 icon = icon,
                 slotLabel = single and L["EMBELLISH_ONE"] or L["EMBELLISH_TWO"],
                 owned = single and ns.Compat.ItemCount(entry.ids[1]) > 0 or false,

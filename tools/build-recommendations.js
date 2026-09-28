@@ -186,7 +186,9 @@ for (const part of profileParts) {
       const craft = {}, emb = {}, perItem = {};
       let counted = 0;
       for (const pl of entry.players || []) {
-        const worn = new Set();
+        // Eine Liste, keine Menge: zweimal dieselbe Verzierung ist
+        // erlaubt und oft die haeufigste Wahl.
+        const worn = [];
         let any = false;
         for (const item of Object.values(pl.gear || {})) {
           // Die ganze Liste je Stufe - dieselbe Frage wie bei M+: ohne
@@ -197,6 +199,8 @@ for (const part of profileParts) {
             if (old) { old.n += 1; }
             else { have[item.ilvl] = { ilvl: item.ilvl, n: 1, ids: item.bonuses.slice() }; }
           }
+          // Je Stueck hoechstens eine Verzierung.
+          let hier = null;
           for (const b of item.bonuses || []) {
             if (bonusMap.stats[b]) {
               craft[b] = (craft[b] || 0) + 1;
@@ -204,14 +208,15 @@ for (const part of profileParts) {
               per[b] = (per[b] || 0) + 1;
               any = true;
             }
-            if (bonusMap.embellish[b]) worn.add(bonusMap.embellish[b]);
+            if (bonusMap.embellish[b] && !hier) hier = bonusMap.embellish[b];
           }
+          if (hier) worn.push(hier);
         }
-        if (worn.size) {
-          const key = [...worn].sort((a, b) => a - b).join(',');
+        if (worn.length) {
+          const key = worn.sort((a, b) => a - b).slice(0, 2).join(',');
           emb[key] = (emb[key] || 0) + 1;
         }
-        if (any || worn.size) counted += 1;
+        if (any || worn.length) counted += 1;
       }
       const players = Math.max(1, (entry.players || []).length);
       const statTotal = Object.values(craft).reduce((a, b) => a + b, 0);

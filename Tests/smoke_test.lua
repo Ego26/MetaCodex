@@ -4124,5 +4124,43 @@ do
     C_Item.GetItemInfoInstant = echtesInstant
 end
 
+-- Zweimal dieselbe Verzierung ist eine eigene Wahl - und oft die
+-- haeufigste. Gezaehlt wurde sie als EINE: eine Menge kennt kein
+-- Zweimal. Im Fenster stand dann "eine Verzierung" mit 93 %, wo die
+-- meisten in Wahrheit zwei gleiche tragen.
+do
+    local echt = ns.Recommend.Embellish
+    ns.Recommend.Embellish = function()
+        return {
+            { ids = { 240166, 240166 }, pct = 50 },
+            { ids = { 240166, 273059 }, pct = 36 },
+            { ids = { 240166 }, pct = 4 },
+        }, "raider.io"
+    end
+    ns.Profile.SetMode("mplus")
+    rowsInSection("embellish")
+    local doppelt, beide, einzeln
+    for _, row in ipairs(wow.rows()) do
+        local ids = row:IsShown() and rawget(row, "ids") or nil
+        if type(ids) == "table" then
+            if #ids == 2 and ids[1] == ids[2] then doppelt = row
+            elseif #ids == 2 then beide = row
+            elseif #ids == 1 then einzeln = row end
+        end
+    end
+    check("die doppelte Verzierung steht als eigene Zeile", doppelt ~= nil)
+    if doppelt then
+        local name = ns.Compat.ItemInfo(240166) or "#240166"
+        check("sie wird einmal genannt, mit x2",
+            doppelt.title:GetText() == ns.L["EMBELLISH_TWICE"]:format(name),
+            tostring(doppelt.title:GetText()))
+        check("und traegt beide IDs fuer die Tooltips",
+            #rawget(doppelt, "ids") == 2)
+    end
+    check("zwei verschiedene stehen weiter nebeneinander", beide ~= nil)
+    check("und eine einzelne bleibt eine einzelne", einzeln ~= nil)
+    ns.Recommend.Embellish = echt
+end
+
 say(fails == 0 and "\nalles gruen" or ("\n" .. fails .. " Fehler"))
 os.exit(fails == 0 and 0 or 1)

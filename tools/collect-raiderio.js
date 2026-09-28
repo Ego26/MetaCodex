@@ -348,7 +348,12 @@ const slug = (text) => String(text).toLowerCase()
 
     // Zwei darf man tragen, und welche zwei zusammen - das ist die
     // Frage. Also erst sammeln, dann als Paar zaehlen.
-    const embellished = new Set();
+    //
+    // Eine LISTE, keine Menge: zweimal dieselbe Verzierung ist erlaubt
+    // und bei manchen Speccs die haeufigste Wahl ueberhaupt. Eine Menge
+    // macht daraus eine einzelne - und genau so stand "eine Verzierung"
+    // mit 93 % da, wo in Wahrheit die meisten zwei gleiche tragen.
+    const embellished = [];
     for (const [slot, item] of Object.entries((prof.gear && prof.gear.items) || {})) {
       if (!item || !item.item_id) continue;
 
@@ -380,6 +385,11 @@ const slug = (text) => String(text).toLowerCase()
       // Werte und Verzierung stehen in den Bonus-IDs, nicht am
       // Gegenstand: ein Handwerksstueck traegt am Gegenstand
       // "Zufallswert 1" und "Zufallswert 2".
+      //
+      // Je STUECK hoechstens eine Verzierung: mehr passt nicht darauf,
+      // und zwei Bonus-IDs desselben Stuecks, die auf dieselbe zeigen,
+      // waeren sonst zwei.
+      let reagentHere = null;
       for (const b of item.bonuses || []) {
         if (bonusMap.stats[b]) {
           for (const spec of specs) {
@@ -389,8 +399,9 @@ const slug = (text) => String(text).toLowerCase()
           }
         }
         const reagent = bonusMap.embellish[b];
-        if (reagent) embellished.add(reagent);
+        if (reagent && !reagentHere) reagentHere = reagent;
       }
+      if (reagentHere) embellished.push(reagentHere);
 
       const enchantSlot = ENCHANT_SLOT[slot];
       if (enchantSlot && item.enchant) {
@@ -405,8 +416,10 @@ const slug = (text) => String(text).toLowerCase()
     // Zwei Verzierungen darf man tragen, und welche zwei ZUSAMMEN, das
     // ist die Frage - einzeln gezaehlt stuenden zwei Haelften einer
     // Entscheidung untereinander, als waeren es zwei.
-    if (embellished.size) {
-      const key = [...embellished].sort((a, b) => a - b).join(',');
+    if (embellished.length) {
+      // Hoechstens zwei: mehr darf niemand tragen, und ein drittes
+      // Fundstueck waere ein Fehler in den Daten, kein Ausruestungsstueck.
+      const key = embellished.sort((a, b) => a - b).slice(0, 2).join(',');
       for (const spec of specs) spec.embellish[key] = (spec.embellish[key] || 0) + 1;
     }
 
