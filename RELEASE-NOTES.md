@@ -1,3 +1,29 @@
+## v1.1.4 — names you can read, a button where it belongs
+
+Four things reported from the game, each fixed at its cause.
+
+### Fixed
+
+- **The minimap button sat inside the map** instead of on its rim, and with
+  ElvUI almost in the middle. It was following a number written down once:
+  the radius of Blizzard's minimap at its default size. The minimap is now
+  asked how big it is, and whoever changed its shape is asked what shape it
+  is — round, square, or one of the half shapes. When it is resized
+  afterwards, the button follows.
+- **Korean and Chinese names showed as empty boxes** in the top players
+  list. Nothing was wrong with the data: the client's standard font has no
+  Hangul, and the Korean font has no Chinese. Every client carries a font
+  for each language, so each line picks the one that can draw it — and
+  gives it back when the line is reused for a European name.
+- **Headings were drawn in the wrong font** after looking at a Korean
+  player's profile: the section heading came back too wide and oddly
+  spaced.
+- **Tier set showed more than the tier set.** Last season's class set, the
+  PvP armour and a ring from a dungeon jewellery set stood next to the real
+  thing, because "belongs to a set" is a wider question than "is the tier
+  set". A tier piece is restricted to one class, and of the class sets the
+  current one is the newest — 13 classes, five pieces each.
+
 ## v1.1.3 — with the catalog it was built for
 
 v1.1.2 shipped minutes ago with the previous night's catalog instead of

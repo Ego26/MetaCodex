@@ -4,6 +4,17 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ## [Unreleased]
 
+## [1.1.4] - 2026-09-28
+
+### Fixed
+
+- The minimap button sits on the rim of the minimap again, whatever size
+  and shape it has - it was following a hardcoded radius.
+- Korean and Chinese names are drawn with a font that can draw them, and
+  the font is given back when a line or heading is reused.
+- Tier set lists only this season's class set: not last season's, not the
+  PvP armour, not a ring from a jewellery set.
+
 ## [1.1.3] - 2026-09-27
 
 ### Fixed

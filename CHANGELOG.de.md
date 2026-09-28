@@ -4,6 +4,18 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ## [Unveröffentlicht]
 
+## [1.1.4] - 2026-09-28
+
+### Behoben
+
+- Der Minimap-Knopf sitzt wieder auf dem Rand der Minimap, in jeder Größe
+  und Form - er folgte einer fest eingetragenen Zahl.
+- Koreanische und chinesische Namen werden mit einer Schrift gezeichnet, die
+  sie zeichnen kann, und die Schrift wird wieder hergegeben, wenn eine Zeile
+  oder Überschrift weiterbenutzt wird.
+- Der Reiter Tier-Set zeigt nur das Klassenset dieser Saison: nicht das der
+  vorigen, nicht die PvP-Rüstung, nicht den Ring aus einem Schmuckset.
+
 ## [1.1.3] - 2026-09-27
 
 ### Behoben
