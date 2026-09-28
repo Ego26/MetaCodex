@@ -177,6 +177,25 @@ const FOLIO = [
   { row: 2, spell: 1287955, table: 'Buffs' },       // Void-Tainted Shell
   { row: 2, spell: 1287978, table: 'Buffs' },       // Lynxlike Reflexes
   { row: 3, spell: 1287665, table: 'Buffs' },       // Lingering
+  // Lingering noch einmal als SCHADEN, fuer die Gegenprobe zu Reihe 5.
+  //
+  // Zwei Zauber heissen "Rune of Lingering": 1287663 traegt den Schaden,
+  // 1287665 die Heilung - nachgemessen an zwoelf Berichten (60 Spieler
+  // im Schaden, 51 in der Heilung, und nur der Schaden laesst sich mit
+  // der Kernrune paaren).
+  //
+  // Wozu: Lingering ist ein fester Bruchteil des Kernrunen-Schadens.
+  // Gemessen an 148 Spielern ist das Verhaeltnis 0,0625 - ein
+  // Sechzehntel, und zwar bei jedem auf drei Stellen gleich. Ueberladung
+  // verdoppelt BEIDE Seiten und laesst es unveraendert; Restenergie
+  // verdoppelt nur Lingering und muss es anheben.
+  //
+  // Genau ein Spieler von 148 wich ab, und zwar um das Vierfache statt
+  // des erwarteten Doppelten. Auf eine einzige Beobachtung wird hier
+  // nichts gebaut - die Zahl wird mitgezaehlt und ins Protokoll
+  // geschrieben, damit der naechste Lauf mit Tausenden Spielern sagt,
+  // ob sie zur Restgroesse passt.
+  { row: 0, spell: 1287663, table: 'DamageDone', ling: true },
   { row: 4, spell: 1287770, table: 'Buffs' },       // Versatile Warrior
   { row: 4, spell: 1287771, table: 'Buffs' },       // Masterful Cunning
   { row: 4, spell: 1287772, table: 'Buffs' },       // Critical Power
@@ -1345,7 +1364,12 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
       const proReihe = new Map();  // "spec|row"      -> Set(sourceID)
       // Der Schaden je Treffer der Kernrune, je Spieler das Beste aus
       // den beiden moeglichen Kernrunen. Daraus wird spaeter Reihe 5.
-      const kernTreffer = new Map();   // sourceID -> Wert
+      const kernTreffer = new Map();   // sourceID -> Wert, durch ilvl geteilt
+      // Derselbe Wert ungeteilt. Fuer den Vergleich zwischen Spielern
+      // braucht es den Massstab der Gegenstandsstufe; fuer ein
+      // Verhaeltnis INNERHALB eines Spielers waere er ein Fehler, weil
+      // er sich dort ohnehin herauskuerzt.
+      const kernRoh = new Map();
       for (const [i, rune] of FOLIO.entries()) {
         if (!rune.core) continue;
         const daten = ((report && report['f' + i]) || {}).data || {};
@@ -1356,9 +1380,13 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
           // Unter fuenf Treffern ist der Schnitt Zufall, und ohne
           // Gegenstandsstufe fehlt der Massstab.
           if (treffer < 5 || summe <= 0 || stufe <= 0) continue;
-          const wert = (summe / treffer) / Math.pow(stufe, 3);
+          const roh = summe / treffer;
+          const wert = roh / Math.pow(stufe, 3);
           const quelle = Number(e.id);
-          if (wert > (kernTreffer.get(quelle) || 0)) kernTreffer.set(quelle, wert);
+          if (wert > (kernTreffer.get(quelle) || 0)) {
+            kernTreffer.set(quelle, wert);
+            kernRoh.set(quelle, roh);
+          }
         }
       }
       for (const [quelle, wert] of kernTreffer) {
@@ -1367,6 +1395,37 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
         for (const mode of active) {
           const spec = entryFor(mode, specID);
           (spec.coreHits || (spec.coreHits = [])).push(wert);
+        }
+      }
+
+      // Die Gegenprobe: Lingering geteilt durch die Kernrune.
+      //
+      // Beides je Treffer und beides aus der Schadenstabelle, sonst
+      // teilt man zwei verschiedene Waehrungen durcheinander. Gezaehlt
+      // wird nur, wer auffaellig hoch liegt - siehe FOLIO oben.
+      {
+        const lingTreffer = new Map();
+        for (const [i, rune] of FOLIO.entries()) {
+          if (!rune.ling) continue;
+          const daten = ((report && report['f' + i]) || {}).data || {};
+          for (const e of (daten.entries || [])) {
+            const treffer = (Number(e.hitCount) || 0) + (Number(e.tickCount) || 0);
+            const summe = Number(e.total) || 0;
+            if (treffer < 5 || summe <= 0) continue;
+            lingTreffer.set(Number(e.id), summe / treffer);
+          }
+        }
+        for (const [quelle, lingWert] of lingTreffer) {
+          const specID = specBySource.get(quelle);
+          // Beide Seiten ungeteilt: innerhalb eines Spielers kuerzt sich
+          // die Gegenstandsstufe von selbst heraus, und sie doch
+          // hineinzurechnen waere ein Fehler.
+          const kern = kernRoh.get(quelle);
+          if (!specID || !kern) continue;
+          for (const mode of active) {
+            const spec = entryFor(mode, specID);
+            (spec.lingRatio || (spec.lingRatio = [])).push(lingWert / kern);
+          }
         }
       }
 
@@ -1590,6 +1649,33 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
     } else {
       const pct = moeglich ? Math.round(gesehen * 100 / moeglich) : 0;
       console.log(`Foliant: ${speccs} Zaehlwerke, ${pct} % der Spieler je Reihe zugeordnet`);
+    }
+
+    // Die Gegenprobe zu Reihe 5.
+    //
+    // Restenergie steht dort als Rest. Sie muesste sich aber auch daran
+    // zeigen, dass Lingering im Verhaeltnis zur Kernrune zu hoch liegt -
+    // gemessen ist dieses Verhaeltnis sonst bei jedem gleich. Stimmen
+    // die beiden Zahlen ueberein, ist der Rest keine blosse Annahme
+    // mehr; stimmen sie nicht, will ich es WISSEN und nicht ahnen.
+    //
+    // Nur eine Zeile im Protokoll, keine Pruefung: eine Nacht ist schon
+    // einmal an einer Pruefung gestorben, die nur berichten wollte.
+    let auffaellig = 0, verglichen = 0;
+    for (const tally of Object.values(tallies)) {
+      for (const entry of Object.values(tally)) {
+        const werte = (entry.lingRatio || []).slice().sort((a, b) => a - b);
+        if (werte.length < 10) continue;
+        const mitte = werte[Math.floor(werte.length / 2)];
+        if (!(mitte > 0)) continue;
+        verglichen += werte.length;
+        auffaellig += werte.filter((v) => v > mitte * 1.5).length;
+      }
+    }
+    if (verglichen) {
+      console.log('  Gegenprobe Restenergie: ' + auffaellig + ' von ' + verglichen
+        + ' Spielern mit auffaellig hohem Lingering ('
+        + (Math.round(auffaellig * 1000 / verglichen) / 10) + ' %)');
     }
   }
   if (missedEnchants.size) {
