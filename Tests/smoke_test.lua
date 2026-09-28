@@ -3276,6 +3276,9 @@ end
 do
     check("ohne Minimap kein Knopf", ns.Minimap.Button() == nil)
     Minimap = CreateFrame("Frame", "Minimap")
+    -- Eine Minimap MIT Groesse: der Knopf sitzt an ihrem Rand, und
+    -- welcher das ist, kann er nur von ihr erfahren.
+    Minimap:SetSize(198, 198)
     Minimap.GetCenter = function() return 100, 100 end
     Minimap.GetEffectiveScale = function() return 1 end
     ns.Profile.SetMinimap(true)
@@ -3289,15 +3292,58 @@ do
     local p = button.__points[#button.__points]
     check("er haengt an der Minimap", p ~= nil and p[2] == Minimap and p[3] == "CENTER",
         p and tostring(p[3]) or "kein Anker")
+    -- Gemessen, nicht geraten: halbe Breite plus der Abstand, den ein
+    -- Knopf zum Rand haelt. Frueher stand hier eine feste 80 - die Zahl
+    -- der Blizzard-Minimap in ihrer Standardgroesse. Wer sie skaliert
+    -- oder ElvUI benutzt, bekam den Knopf mitten ins Bild.
+    local rand = 198 / 2 + 5
     local dist = p and math.floor(math.sqrt(p[4] * p[4] + p[5] * p[5]) + 0.5)
-    check("er sitzt auf dem Ring", dist == 80, tostring(dist))
+    check("er sitzt am Rand DIESER Minimap", dist == rand,
+        tostring(dist) .. " statt " .. rand)
     -- Ein anderer Winkel verschiebt ihn, der Abstand bleibt.
     ns.Profile.SetMinimapAngle(0)
     ns.Minimap.Update()
     local q = button.__points[#button.__points]
-    check("ein anderer Winkel, derselbe Ring",
-        math.floor(q[4] + 0.5) == 80 and math.floor(q[5] + 0.5) == 0,
+    check("ein anderer Winkel, derselbe Rand",
+        math.floor(q[4] + 0.5) == rand and math.floor(q[5] + 0.5) == 0,
         math.floor(q[4] + 0.5) .. "/" .. math.floor(q[5] + 0.5))
+
+    -- Eine groessere Minimap schiebt ihn weiter nach aussen.
+    Minimap:SetSize(280, 280)
+    ns.Minimap.Update()
+    local g = button.__points[#button.__points]
+    check("eine groessere Minimap, ein weiterer Rand",
+        math.floor(g[4] + 0.5) == 280 / 2 + 5,
+        tostring(math.floor(g[4] + 0.5)))
+
+    -- Und eine ECKIGE Minimap - ElvUI sagt das ueber GetMinimapShape.
+    -- Auf der Diagonale liegt die Ecke weiter draussen als der Kreis;
+    -- der Knopf folgt der Kante, statt im Bild zu landen.
+    GetMinimapShape = function() return "SQUARE" end
+    ns.Profile.SetMinimapAngle(45)
+    ns.Minimap.Update()
+    local e = button.__points[#button.__points]
+    local halb = 280 / 2 + 5
+    -- Nicht GENAU in die Ecke: die Ecke eines Quadrats liegt weiter
+    -- draussen als sein Rand, und ein Knopf, der dort klebt, haengt in
+    -- der Luft. Er geht auf der Diagonale aber deutlich ueber den Kreis
+    -- hinaus - genau das ist der Unterschied zur runden Minimap.
+    local aufDemKreis = halb * math.cos(math.rad(45))
+    check("eckige Minimap: der Knopf geht Richtung Ecke",
+        math.abs(e[4] - e[5]) < 1 and e[4] > aufDemKreis + 5 and e[4] <= halb,
+        math.floor(e[4] + 0.5) .. "/" .. math.floor(e[5] + 0.5)
+            .. " (Kreis waere " .. math.floor(aufDemKreis + 0.5) .. ")")
+    -- Auf der Seite bleibt er auf der Kante, nicht davor.
+    ns.Profile.SetMinimapAngle(0)
+    ns.Minimap.Update()
+    local k = button.__points[#button.__points]
+    check("eckige Minimap: und auf der Seite auf der Kante",
+        math.floor(k[4] + 0.5) == halb and math.floor(k[5] + 0.5) == 0,
+        math.floor(k[4] + 0.5) .. "/" .. math.floor(k[5] + 0.5))
+    GetMinimapShape = nil
+    Minimap:SetSize(198, 198)
+    ns.Profile.SetMinimapAngle(0)
+    ns.Minimap.Update()
     -- Linksklick oeffnet, Rechtsklick fuehrt zu den Einstellungen.
     local before = ns.UI.IsShown()
     button.__scripts.OnClick(button, "LeftButton")

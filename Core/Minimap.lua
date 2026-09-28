@@ -15,16 +15,84 @@ local Minimap_ = {}
 ns.Minimap = Minimap_
 
 local ICON = "Interface\\AddOns\\MetaCodex\\Media\\Textures\\logo"
-local RADIUS = 80
+
+-- Wie weit der Knopf vom Mittelpunkt sitzt: knapp AUSSERHALB des Randes.
+local GAP = 5
+
+-- Welche Ecken einer Minimap rund sind.
+--
+-- Eine runde Minimap hat auf jedem Winkel denselben Abstand zur Mitte -
+-- eine eckige nicht, und eine halbrunde erst recht nicht. Wer die Form
+-- veraendert, sagt es ueber GetMinimapShape; das ist die Absprache, auf
+-- die sich Addons seit Jahren verlassen. Die vier Eintraege stehen fuer
+-- die vier Viertel, gegen den Uhrzeigersinn ab rechts unten.
+local SHAPES = {
+    ["ROUND"] = { true, true, true, true },
+    ["SQUARE"] = { false, false, false, false },
+    ["CORNER-TOPLEFT"] = { false, false, false, true },
+    ["CORNER-TOPRIGHT"] = { false, false, true, false },
+    ["CORNER-BOTTOMLEFT"] = { false, true, false, false },
+    ["CORNER-BOTTOMRIGHT"] = { true, false, false, false },
+    ["SIDE-LEFT"] = { false, true, false, true },
+    ["SIDE-RIGHT"] = { true, false, true, false },
+    ["SIDE-TOP"] = { false, false, true, true },
+    ["SIDE-BOTTOM"] = { true, true, false, false },
+    ["TRICORNER-TOPLEFT"] = { false, true, true, true },
+    ["TRICORNER-TOPRIGHT"] = { true, false, true, true },
+    ["TRICORNER-BOTTOMLEFT"] = { true, true, false, true },
+    ["TRICORNER-BOTTOMRIGHT"] = { true, true, true, false },
+}
 
 local button
 
+---Wo der Knopf zu einem Winkel sitzt.
+---
+---GEMESSEN, nicht geraten. Hier stand eine 80: der halbe Durchmesser
+---der Blizzard-Minimap in ihrer Standardgroesse, plus ein bisschen. Wer
+---sie skaliert oder ElvUI benutzt, bekam den Knopf mitten ins Bild -
+---und bei einer eckigen Minimap sass er ueberhaupt nicht mehr am Rand.
+---Also fragen wir die Minimap nach ihrer Groesse und ihrer Form.
+---@param deg number Winkel in Grad
+---@return number x
+---@return number y
+local function spotFor(deg)
+    local angle = math.rad(deg)
+    local x, y = math.cos(angle), math.sin(angle)
+
+    -- In welchem Viertel liegt der Winkel.
+    local quarter = 1
+    if x < 0 then quarter = quarter + 1 end
+    if y > 0 then quarter = quarter + 2 end
+
+    local shape = (GetMinimapShape and GetMinimapShape()) or "ROUND"
+    local round = SHAPES[shape] or SHAPES["ROUND"]
+
+    -- tonumber, nicht "or 0": was die Minimap antwortet, ist nicht
+    -- garantiert eine Zahl. Im Spiel ist sie es immer - aber ein
+    -- Rechenfehler beim Anmelden nimmt das ganze Addon mit, und die
+    -- Frage kostet nichts.
+    local w = (tonumber(Minimap:GetWidth()) or 0) / 2 + GAP
+    local h = (tonumber(Minimap:GetHeight()) or 0) / 2 + GAP
+    -- Eine Minimap ohne Groesse gibt es nicht - ausser, sie ist noch
+    -- nicht gebaut. Dann die alte Zahl, damit der Knopf irgendwo sitzt.
+    if w <= GAP then w = 80 end
+    if h <= GAP then h = 80 end
+
+    if round[quarter] then
+        return x * w, y * h
+    end
+    -- Eckiges Viertel: der Knopf laeuft die Kante entlang statt im Kreis.
+    local diagW = math.sqrt(2 * w * w) - 10
+    local diagH = math.sqrt(2 * h * h) - 10
+    return math.max(-w, math.min(x * diagW, w)),
+        math.max(-h, math.min(y * diagH, h))
+end
+
 local function place()
     if not button or not Minimap then return end
-    local angle = math.rad(ns.Profile.MinimapAngle())
+    local x, y = spotFor(ns.Profile.MinimapAngle())
     button:ClearAllPoints()
-    button:SetPoint("CENTER", Minimap, "CENTER",
-        math.cos(angle) * RADIUS, math.sin(angle) * RADIUS)
+    button:SetPoint("CENTER", Minimap, "CENTER", x, y)
 end
 
 -- Der Winkel unter dem Mauszeiger, vom Mittelpunkt der Minimap aus.
@@ -111,6 +179,13 @@ local function build()
         GameTooltip:Show()
     end)
     button:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+    -- Aendert jemand die Groesse der Minimap - ElvUI beim Laden seines
+    -- Profils, der Spieler ueber einen Regler -, sitzt der Knopf sonst
+    -- weiter dort, wo der Rand frueher war.
+    if Minimap.HookScript then
+        Minimap:HookScript("OnSizeChanged", function() place() end)
+    end
 
     place()
 end
