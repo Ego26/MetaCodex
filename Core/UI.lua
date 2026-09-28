@@ -2307,6 +2307,11 @@ local function resetRow(row)
     -- Und den Zauber: eine Talentzeile zeigt sein Tooltip, und eine
     -- wiederverwendete Zeile zeigte sonst den Zauber des Vorgaengers.
     row.spellID = nil
+    -- Und eine fremde Schrift: eine Zeile, die eben einen koreanischen
+    -- Namen trug, zeichnet den naechsten Gegenstandsnamen sonst in
+    -- koreanischer Schrift - zu breit und mit seltsamen Abstaenden.
+    S:ClearScript(row.title)
+    S:ClearScript(row.detail)
     row.barTrack:Hide()
     row.barTarget:Hide()
     row.barMine:Hide()
@@ -3079,6 +3084,8 @@ local function build()
 
     sectionTitle = S:Text(content, "title", "textPrimary")
     sectionTitle:SetPoint("TOPLEFT", S.space.xl, -S.space.lg)
+    -- Am Rahmen, damit /mc probe und die Tests sie lesen koennen.
+    frame.sectionTitle = sectionTitle
 
     -- Der Stufenfilter gehoert in den Abschnitt, nicht in die ohnehin
     -- volle Kopfzeile: er gilt nur fuer die Ausruestung.
@@ -3474,7 +3481,10 @@ function UI.Refresh()
     -- gelesen. Sie steht jetzt unter "Info", vollstaendig.
     headerText:SetText("")
 
-    sectionTitle:SetText(L["SECTION_" .. section.key])
+    -- Ueber S:SetText: dieselbe Zeile traegt im Spielerprofil einen
+    -- Namen, der aus Korea kommen kann. Direkt gesetzt, erbte sie dessen
+    -- Schrift.
+    S:SetText(sectionTitle, L["SECTION_" .. section.key])
 
     -- Die Schluesselstufe gilt fuer alles, was Ausruestung zeigt - auch
     -- fuer Tier-Set und Handwerk. Vergleichen kann nur, wer beide auf

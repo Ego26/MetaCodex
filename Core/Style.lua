@@ -287,6 +287,23 @@ function Style:ScriptOf(text)
     return nil
 end
 
+---Raeumt eine fremde Schrift wieder ab.
+---
+---WARUM ES DAS BRAUCHT. Style:SetText waehlt die Schrift zum Text - aber
+---nur, wenn jemand DURCH sie setzt. Ein Text, der direkt gesetzt wird,
+---erbt die Schrift, die zuletzt an dieser Zeile hing. Genau so kam es:
+---wer das Profil eines koreanischen Spielers ansah und zurueckging,
+---bekam die Ueberschrift "Zielwerte" in koreanischer Schrift gezeichnet
+---- lesbar, aber falsch breit, und es las sich wie "Zie l werte".
+---
+---Zeilen werden wiederverwendet, und Ueberschriften auch. Hier ist die
+---Stelle, an der eine Zeile ihre Schrift wieder hergibt.
+---@param fontString table|nil
+function Style:ClearScript(fontString)
+    if not fontString or not fontString.__script then return end
+    Style:SetText(fontString, "")
+end
+
 ---Setzt einen Text und, wenn noetig, eine Schrift, die ihn zeichnen kann.
 ---
 ---Immer beides: eine Zeile wird wiederverwendet, und die koreanische

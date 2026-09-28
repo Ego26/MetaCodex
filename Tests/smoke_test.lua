@@ -3804,6 +3804,39 @@ do
     check("und gibt sie wieder her",
         tostring(zurueck):find("2002", 1, true) == nil, tostring(zurueck))
     check("der Text steht trotzdem da", fs2:GetText() == "Felphis")
+
+    -- Und sie bleibt an keiner Zeile haengen, die weiterbenutzt wird.
+    --
+    -- Genau daran ist es gescheitert: wer das Profil eines koreanischen
+    -- Spielers ansah und zurueckging, bekam die Ueberschrift in
+    -- koreanischer Schrift - "Zielwerte" stand da zu breit und mit
+    -- seltsamen Abstaenden, wie "Zie l werte".
+    local titel = ns.UI.Frame().sectionTitle
+    S:SetText(titel, koreanisch)
+    check("die Ueberschrift nimmt die fremde Schrift an",
+        tostring(titel:GetFont()):find("2002", 1, true) ~= nil,
+        tostring(titel:GetFont()))
+    rowsInSection("stats")
+    check("und gibt sie beim naechsten Abschnitt wieder her",
+        tostring(titel:GetFont()):find("2002", 1, true) == nil,
+        tostring(titel:GetFont()))
+    check("die Ueberschrift heisst wieder, wie der Abschnitt heisst",
+        titel:GetText() == ns.L["SECTION_stats"], tostring(titel:GetText()))
+
+    -- Dasselbe fuer eine Zeile: sie traegt erst einen koreanischen
+    -- Namen und danach einen Gegenstand.
+    rowsInSection("gear")
+    local zeile
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() and not zeile then zeile = row end
+    end
+    if zeile then
+        S:SetText(zeile.title, koreanisch)
+        rowsInSection("gear")
+        check("und eine Zeile gibt sie ebenso wieder her",
+            tostring(zeile.title:GetFont()):find("2002", 1, true) == nil,
+            tostring(zeile.title:GetFont()))
+    end
 end
 
 say(fails == 0 and "\nalles gruen" or ("\n" .. fails .. " Fehler"))
