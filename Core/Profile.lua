@@ -324,6 +324,46 @@ function Profile.SetOwnConsumable(kind, itemID)
     MetaCodexDB.ownConsum[who()][kind] = itemID
 end
 
+---Was die Erinnerung nicht mehr melden soll.
+---
+---Gemessen bleibt gemessen: in den Reitern steht weiter, was die
+---Gemessenen tragen, und wie weit die eigene Ausruestung davon weg ist.
+---Nur das ANSPRECHEN hoert auf. Wer seine Sockel bewusst auf Tempo und
+---Vielseitigkeit stellt, hat nichts vergessen - er hat sich entschieden,
+---und ein Addon, das ihn vor jedem Pull daran erinnert, nennt eine
+---Entscheidung einen Fehler.
+---
+---Je Charakter, wie die eigene Speise: der Stein im Ring des Schamanen
+---sagt nichts darueber, was der Krieger vorhat.
+---@param itemID number|nil
+---@return boolean
+function Profile.Ignored(itemID)
+    if not itemID then return false end
+    local db = MetaCodexDB or {}
+    local mine = db.ignored and db.ignored[who()]
+    return (mine and mine[itemID]) == true
+end
+
+---@param itemID number
+---@param on boolean
+function Profile.SetIgnored(itemID, on)
+    if not itemID then return end
+    MetaCodexDB.ignored = MetaCodexDB.ignored or {}
+    MetaCodexDB.ignored[who()] = MetaCodexDB.ignored[who()] or {}
+    MetaCodexDB.ignored[who()][itemID] = on and true or nil
+end
+
+---Alles, was dieser Charakter ignoriert.
+---@return number[] itemIDs
+function Profile.IgnoredList()
+    local db = MetaCodexDB or {}
+    local mine = db.ignored and db.ignored[who()] or {}
+    local out = {}
+    for id in pairs(mine) do out[#out + 1] = id end
+    table.sort(out)
+    return out
+end
+
 ---@param kind string
 ---@param count number
 function Profile.SetConsumableTarget(kind, count)

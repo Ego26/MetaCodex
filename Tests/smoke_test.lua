@@ -4387,5 +4387,61 @@ do
     ns.Profile.SetLanguage("auto")
 end
 
+-- Ignorieren heisst: nicht mehr ansprechen - nicht "nicht mehr messen".
+--
+-- Wer seine Sockel bewusst auf Tempo und Vielseitigkeit stellt, hat
+-- nichts vergessen. Ein Addon, das ihn vor jedem Pull daran erinnert,
+-- nennt eine Entscheidung einen Fehler. In den Reitern steht weiter, was
+-- die Gemessenen tragen; nur zur Sprache kommt es nicht mehr.
+do
+    ns.Profile.SetLanguage("de")
+    ns.Profile.SetMode("mplus")
+    local vorher = ns.Remind.Check("mplus")
+    local opfer = vorher[1] and vorher[1].id
+    check("es gibt ueberhaupt etwas zu ignorieren", opfer ~= nil, tostring(opfer))
+    if opfer then
+        ns.Profile.SetIgnored(opfer, true)
+
+        local nachher = ns.Remind.Check("mplus")
+        local drin = false
+        for _, row in ipairs(nachher) do if row.id == opfer then drin = true end end
+        check("die Erinnerung nennt es nicht mehr", not drin,
+            #nachher .. " Posten statt " .. #vorher)
+
+        -- Und die Ansage auch nicht.
+        local gesagt = table.concat(ns.Remind.Lines("mplus"), " | ")
+        check("und die Ansage auch nicht",
+            gesagt:find(tostring(opfer), 1, true) == nil, gesagt:sub(1, 80))
+
+        -- Gemessen bleibt gemessen.
+        local gemessen = false
+        for _, row in ipairs(ns.Remind.Status("mplus")) do
+            if row.id == opfer then gemessen = true end
+        end
+        for _, row in ipairs(ns.List.Build(ns.Gear.Scan())) do
+            if row.id == opfer then gemessen = true end
+        end
+        check("die Messung steht weiter da", gemessen)
+
+        -- Und es steht im eigenen Abschnitt, zum Zurueckholen. Eine
+        -- Einstellung, die man nicht mehr sieht, ist eine Falle.
+        rowsInSection("remind")
+        local sichtbar = false
+        for _, row in ipairs(wow.rows()) do
+            local text = row:IsShown() and row.detail and row.detail:GetText() or ""
+            if text:find(ns.L["IGNORE_HINT"], 1, true) then sichtbar = true end
+        end
+        check("es steht unter Ignoriert", sichtbar)
+
+        ns.Profile.SetIgnored(opfer, false)
+        local zurueck = false
+        for _, row in ipairs(ns.Remind.Check("mplus")) do
+            if row.id == opfer then zurueck = true end
+        end
+        check("und laesst sich zurueckholen", zurueck)
+    end
+    ns.Profile.SetLanguage("auto")
+end
+
 say(fails == 0 and "\nalles gruen" or ("\n" .. fails .. " Fehler"))
 os.exit(fails == 0 and 0 or 1)

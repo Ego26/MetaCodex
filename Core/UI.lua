@@ -1499,6 +1499,56 @@ end
 ---Einstellungen, die es gibt. Die Zeilen tragen Gegenstand und
 ---Fehlmenge, deshalb funktionieren die beiden Einkaufsknoepfe unten
 ---hier genauso wie unter Verbrauchsguetern.
+---Was an einer Zeile der Erinnerung einzustellen ist.
+---
+---Mit Auswahl, nicht mit einem Klick, der sofort etwas tut. Ein Klick,
+---der eine Zeile verschwinden laesst, ist eine Falle: wer ihn aus
+---Versehen macht, sucht danach, wo sie geblieben ist.
+---
+---"Ignorieren" heisst: nicht mehr ansprechen. Es heisst nicht "nicht
+---mehr messen". In den Reitern steht weiter, was die Gemessenen tragen
+---und wie weit die eigene Ausruestung davon weg ist - nur vor dem Pull
+---kommt es nicht mehr zur Sprache. Wer seine Sockel bewusst auf Tempo
+---und Vielseitigkeit stellt, hat nichts vergessen.
+---@param anchor table
+---@param data table
+local function openRemindMenu(anchor, data)
+    local id = data.id
+    local ignoriert = ns.Profile.Ignored(id)
+    if not (MenuUtil and MenuUtil.CreateContextMenu) then
+        -- Ohne Menue-API bleibt das Umschalten. Nicht schoen, aber es
+        -- fuehrt zum selben Ziel und bricht nicht.
+        if id then
+            ns.Profile.SetIgnored(id, not ignoriert)
+            UI.Refresh()
+        end
+        return
+    end
+    local name = (id and ns.Compat.ItemInfo(id)) or data.name or data.fallback
+    MenuUtil.CreateContextMenu(anchor, function(_, root)
+        root:CreateTitle(name or L["REMIND_WINDOW_TITLE"])
+        -- Bei einem Verbrauchsgut bleibt die Zielmenge, wo sie war.
+        if data.ckind then
+            local amount = root:CreateButton(L["CONSUM_TARGET_MENU"])
+            for _, count in ipairs({ 0, 1, 2, 3, 5, 10, 20, 40 }) do
+                amount:CreateRadio(tostring(count),
+                    function() return ns.Profile.ConsumableTarget(data.ckind) == count end,
+                    function() ns.Profile.SetConsumableTarget(data.ckind, count) UI.Refresh() end)
+            end
+            amount:CreateButton(L["CONSUM_TARGET_OWN"], function()
+                UI.AskNumber(L["CONSUM_" .. data.ckind], ns.Profile.ConsumableTarget(data.ckind),
+                    function(value) ns.Profile.SetConsumableTarget(data.ckind, value) end)
+            end)
+        end
+        if id then
+            root:CreateButton(ignoriert and L["IGNORE_OFF"] or L["IGNORE_ON"], function()
+                ns.Profile.SetIgnored(id, not ignoriert)
+                UI.Refresh()
+            end)
+        end
+    end)
+end
+
 ---@return table[] rows
 local function remindRows(mode)
     local rows = {}
@@ -1509,15 +1559,18 @@ local function remindRows(mode)
     -- dem Dungeon ist die Frage eine andere, und dort gilt der aktive
     -- Spec.
     for _, row in ipairs(ns.Remind.Status(mode, ns.Profile.SelectedSpec())) do
-        local name, link, icon = ns.Compat.ItemInfo(row.id)
-        if not name then ns.Compat.RequestItem(row.id) end
-        rows[#rows + 1] = {
-            kind = "remind", ckind = row.kind, id = row.id,
-            name = name or row.name, link = link, icon = icon,
-            owned = row.owned, need = row.need, state = row.state,
-            buy = math.max(0, row.need - row.owned),
-            group = L["REMIND_GROUP_STATUS"],
-        }
+        if not ns.Profile.Ignored(row.id) then
+            local name, link, icon = ns.Compat.ItemInfo(row.id)
+            if not name then ns.Compat.RequestItem(row.id) end
+            rows[#rows + 1] = {
+                kind = "remind", ckind = row.kind, id = row.id,
+                name = name or row.name, link = link, icon = icon,
+                owned = row.owned, need = row.need, state = row.state,
+                buy = math.max(0, row.need - row.owned),
+                group = L["REMIND_GROUP_STATUS"],
+                remindMenu = true,
+            }
+        end
     end
     -- Und die Verzauberungen und Steine, die am Charakter noch fehlen.
     -- Dieselben Zeilen wie unter "Verzauberungen & Steine", nur auf
@@ -1526,8 +1579,10 @@ local function remindRows(mode)
     local open = 0
     if ns.Profile.Complete() and not ns.Profile.IsForeignClass() then
         for _, row in ipairs(ns.List.Build(ns.Gear.Scan())) do
-            if not row.pending and not row.alt and (row.buy or 0) > 0 then
+            if not row.pending and not row.alt and (row.buy or 0) > 0
+                and not ns.Profile.Ignored(row.id) then
                 row.group = L["REMIND_GROUP_ENCHANTS"]
+                row.remindMenu = true
                 rows[#rows + 1] = row
                 open = open + 1
             end
@@ -1538,6 +1593,23 @@ local function remindRows(mode)
                 group = L["REMIND_GROUP_ENCHANTS"],
             }
         end
+    end
+
+    -- Und was dieser Charakter nicht mehr hoeren will.
+    --
+    -- Eigener Abschnitt, damit nichts spurlos verschwindet: wer etwas
+    -- ignoriert hat, findet es hier wieder und kann es zurueckholen.
+    -- Eine Einstellung, die man nicht mehr sieht, ist eine Falle.
+    for _, id in ipairs(ns.Profile.IgnoredList()) do
+        local name, link, icon = ns.Compat.ItemInfo(id)
+        if not name then ns.Compat.RequestItem(id) end
+        rows[#rows + 1] = {
+            kind = "gear", id = id, name = name or ("#" .. tostring(id)),
+            link = link, icon = icon,
+            slotLabel = L["IGNORE_HINT"],
+            group = L["REMIND_GROUP_IGNORED"],
+            remindMenu = true,
+        }
     end
     local on = ns.Profile.RemindersOn()
     rows[#rows + 1] = {
@@ -4140,6 +4212,13 @@ function UI.Refresh()
         index = index + 1
         local row = acquireRow(index)
         setItemRow(row, data)
+        -- Im Reiter "Erinnerung" oeffnet jede Zeile dasselbe Menue.
+        --
+        -- Danach, nicht davor: die Zeilenarten setzen ihren eigenen
+        -- Klick, und hier zaehlt, wo die Zeile steht, nicht was sie ist.
+        if data.remindMenu then
+            row.onClick = function(self) openRemindMenu(self, data) end
+        end
         -- Eine Unterzeile ist halb so hoch und rueckt ein; die volle
         -- Hoehe bekaeme sonst Zubehoer, das nur mitlaeuft.
         if data.sub then

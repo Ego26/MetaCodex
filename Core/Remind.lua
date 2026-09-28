@@ -103,7 +103,9 @@ function Remind.Check(mode)
     -- zwei, die sich auseinanderentwickeln. Gemeldet wird, was knapp
     -- oder leer ist.
     for _, row in ipairs(Remind.Status(mode)) do
-        if row.state ~= "ok" then
+        -- Was ignoriert wird, wird nicht angesprochen. In den Reitern
+        -- steht es weiter - gemessen bleibt gemessen.
+        if row.state ~= "ok" and not ns.Profile.Ignored(row.id) then
             out[#out + 1] = {
                 id = row.id, name = row.name or ("#" .. row.id),
                 owned = row.owned, need = row.need, lower = row.lower or 0,
@@ -124,7 +126,8 @@ function Remind.Check(mode)
     -- sondern eine offene. Sie gehoert darunter, nicht dazwischen.
     if ns.Profile.Complete() and not ns.Profile.IsForeignClass() then
         for _, row in ipairs(ns.List.Build(ns.Gear.Scan())) do
-            if not row.pending and not row.alt and (row.buy or 0) > 0 then
+            if not row.pending and not row.alt and (row.buy or 0) > 0
+                and not ns.Profile.Ignored(row.id) then
                 out[#out + 1] = {
                     id = row.id,
                     name = ns.Compat.ItemInfo(row.id) or row.fallback
