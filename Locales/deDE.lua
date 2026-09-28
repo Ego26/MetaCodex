@@ -441,8 +441,8 @@ ns.RegisterLocale("deDE", {
 
 ns.RegisterLocale("deDE", {
     ["STAT_RANGE"] = "die mittlere Hälfte liegt bei %d bis %d",
-    ["STAT_HINT"]  = "Je Wert die Mitte der gemessenen Spieler — Wertungen wie im Charakterfenster, kein Build eines einzelnen Spielers.",
-    ["STAT_HINT_N"] = "Je Wert die Mitte aus %d gemessenen Spielern — Wertungen wie im Charakterfenster, kein Build eines einzelnen Spielers.",
+    ["STAT_HINT"]  = "Median der gemessenen Spieler, je Wert einzeln — zur Orientierung, keine BiS-Werte.",
+    ["STAT_HINT_N"] = "Median aus %d gemessenen Spielern, je Wert einzeln — zur Orientierung, keine BiS-Werte.",
     ["STAT_SHARE"] = "%d%% des Gesamtwerts",
     ["STAT_YOURS"] = "du hast %d von %d",
     ["STAT_GAP"] = "−%d",

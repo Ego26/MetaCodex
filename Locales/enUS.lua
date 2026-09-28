@@ -467,8 +467,8 @@ ns.RegisterLocale("enUS", {
     -- The rank sat there and was the smaller answer: the order already
     -- shows it.
     ["STAT_RANGE"] = "the middle half sits between %d and %d",
-    ["STAT_HINT"]  = "For each stat the middle of the measured players — ratings as on your character sheet, not one player's build.",
-    ["STAT_HINT_N"] = "For each stat the middle of %d measured players — ratings as on your character sheet, not one player's build.",
+    ["STAT_HINT"]  = "Median of the measured players, one stat at a time — for orientation, not BiS values.",
+    ["STAT_HINT_N"] = "Median of %d measured players, one stat at a time — for orientation, not BiS values.",
     ["STAT_SHARE"] = "%d%% of the budget",
     ["STAT_YOURS"] = "you have %d of %d",
     ["STAT_GAP"] = "−%d",
