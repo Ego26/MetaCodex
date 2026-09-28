@@ -692,10 +692,42 @@ function emitEnchants(groups) {
   // kennt sie in seiner Sprache, und ein Symbol hat er auch.
   const effectSpell = new Map(itemEffects.map((r) => [r.ID, Number(r.SpellID)]));
   const spellNameOf = new Map(spellNames.map((r) => [Number(r.ID), r.Name_lang]));
+  // Die Handwerksstufe je Gegenstand. Hier schon gebraucht, weiter unten
+  // noch einmal fuer das Zeichen an der Zeile.
+  const qualityOf = new Map();
+  for (const row of craftingQuality) {
+    qualityOf.set(Number(row.ID), {
+      tier: Number(row.QualityTier) || 0,
+      set: Number(row.CraftingQualityAtlasSetID) || 0,
+    });
+  }
+  const craftQualityID = new Map();
+  for (const row of itemClasses) {
+    const q = Number(row.CraftingQualityID);
+    if (q > 0) craftQualityID.set(Number(row.ID), q);
+  }
+  const craftTier = (id) => (qualityOf.get(craftQualityID.get(id)) || {}).tier || 0;
+
+  // Von gleichnamigen Gegenstaenden der mit der HOECHSTEN Stufe.
+  //
+  // Ein Reagenz gibt es mehrfach: "Arkanostofffutter" ist 240166 (Stufe 1)
+  // und 240167 (Stufe 2) - gleicher Name, gleiche Verzierung. Wer den
+  // ersten Treffer nimmt, nimmt die niedrige Stufe, und dann haengt an
+  // der Zeile ein Reagenz mit der schlechteren Marke, als haetten die
+  // Gemessenen damit gearbeitet.
+  //
+  // Gemessen ist nur, WELCHE Verzierung auf dem Stueck sitzt. Mit welcher
+  // Stufe des Reagenz es gefertigt wurde, steht in keiner Bonus-ID und
+  // ist von aussen nicht zu sehen. Eine Wahl ist trotzdem noetig - der
+  // Name allein hat kein Symbol und keinen Tooltip -, und dann die, die
+  // zu einem fertigen Stueck dieser Stufe passt.
   const itemByName = new Map();
   for (const row of items) {
     const name = row.Display_lang;
-    if (name && !itemByName.has(name)) itemByName.set(name, Number(row.ID));
+    if (!name) continue;
+    const id = Number(row.ID);
+    const have = itemByName.get(name);
+    if (have === undefined || craftTier(id) > craftTier(have)) itemByName.set(name, id);
   }
   const embellish = new Map();
   for (const row of effectBonusRows) {
@@ -808,13 +840,6 @@ function emitEnchants(groups) {
       || atlasName.get(Number(row.IconSmall))
       || atlasName.get(Number(row.Icon));
     if (name) setIcon.set(Number(row.ID), name);
-  }
-  const qualityOf = new Map();
-  for (const row of craftingQuality) {
-    qualityOf.set(Number(row.ID), {
-      tier: Number(row.QualityTier) || 0,
-      set: Number(row.CraftingQualityAtlasSetID) || 0,
-    });
   }
   const itemQuality = {};   // Gegenstand -> Zeichensatz
   const qualitySets = {};   // Zeichensatz -> { tier, icon }
