@@ -340,8 +340,8 @@ ns.RegisterLocale("enUS", {
 
 ns.RegisterLocale("enUS", {
     -- Two groups, because they answer two different questions.
-    ["TALENT_BUILD"] = "Most common build  ·  %d%% run exactly this",
-    ["CARD_SHARE"]   = "%d%% run exactly this",
+    ["TALENT_BUILD"] = "Most common build  ·  %d%% of the measured players",
+    ["CARD_SHARE"]   = "%d%% of the measured players run exactly this build",
     ["CARD_RANK"]    = "number %d  ·  %s",
     ["LOADOUT_FROM_BASE"] = "string from %s",
     ["LOADOUT_FROM_SOURCE"] = "string from %s",

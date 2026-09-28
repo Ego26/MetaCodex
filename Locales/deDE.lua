@@ -335,8 +335,8 @@ ns.RegisterLocale("deDE", {
 })
 
 ns.RegisterLocale("deDE", {
-    ["TALENT_BUILD"] = "Häufigster Build  ·  %d%% spielen genau diesen",
-    ["CARD_SHARE"]   = "%d%% spielen genau diesen",
+    ["TALENT_BUILD"] = "Häufigster Build  ·  %d%% der gemessenen Spieler",
+    ["CARD_SHARE"]   = "%d%% der gemessenen Spieler spielen genau diesen Build",
     ["CARD_RANK"]    = "Platz %d  ·  %s",
     ["LOADOUT_FROM_BASE"] = "String aus %s",
     ["LOADOUT_FROM_SOURCE"] = "String von %s",
