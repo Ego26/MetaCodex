@@ -2857,6 +2857,18 @@ local function setItemRow(row, data)
             pcall(C_Item.RequestLoadItemDataByID, data.id)
         end
         row.icon:SetTexture(data.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+        -- Die Handwerksmarke, wenn der Gegenstand eine hat.
+        --
+        -- Dieselbe Ecke wie bei den Verbrauchsguetern, dieselbe wie im
+        -- Beutel. Die meisten Ausruestungsstuecke tragen keine: ihre
+        -- Stufe steht in den Bonus-IDs, nicht am Gegenstand, und dann
+        -- bleibt die Ecke leer.
+        --
+        -- Bei den Verzierungen sitzt sie am Reagenz. Das ist die Stufe
+        -- DES REAGENZ, das hier verlinkt ist - nicht die eines
+        -- gemessenen Spielers. Mit welcher Stufe die gearbeitet haben,
+        -- steht in keiner Bonus-ID und ist von aussen nicht zu sehen.
+        setQuality(row, data.id)
         row.title:SetText(data.name or ("#" .. tostring(data.id)))
         row.detail:ClearAllPoints()
         row.detail:SetPoint("TOPLEFT", S.space.sm + 38, -S.space.sm - 16)

@@ -3986,6 +3986,34 @@ do
     C_Texture = nil
 end
 
+-- Die Verzierungen tragen dasselbe Zeichen wie die Verbrauchsgueter.
+--
+-- Das Reagenz gibt es je Handwerksstufe einmal - gleicher Name, andere
+-- ID. Ohne das Zeichen am Symbol sieht man der Zeile nicht an, welche
+-- der beiden an ihr haengt, und im Tooltip stand die Stufe schon immer.
+--
+-- Geraten wird dabei nichts: gezeigt wird die Stufe DES REAGENZ, das
+-- verlinkt ist. Mit welcher Stufe die gemessenen Spieler gearbeitet
+-- haben, steht in keiner Bonus-ID.
+do
+    C_Texture = { GetAtlasInfo = function(name) return { name = name } end }
+    rowsInSection("embellish")
+    local mitStufe, mitZeichen = 0, 0
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() and row.itemID and ns.Catalog.Quality(row.itemID) then
+            mitStufe = mitStufe + 1
+            if row.quality and row.quality:IsShown() then
+                mitZeichen = mitZeichen + 1
+            end
+        end
+    end
+    check("die Verzierungen tragen das Zeichen am Symbol",
+        mitStufe > 0 and mitZeichen == mitStufe,
+        mitZeichen .. " von " .. mitStufe .. " mit Handwerksstufe")
+    C_Texture = nil
+    ns.Profile.SetMode("mplus")
+end
+
 -- "Bereits drauf" heisst: DER empfohlene Stein sitzt drin.
 --
 -- Gezaehlt wurden frueher nur die leeren Sockel. Wer einen fremden
