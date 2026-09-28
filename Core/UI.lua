@@ -511,6 +511,23 @@ local GEAR_ORDER = {
     "Waist", "Legs", "Feet", "Rings", "Trinkets", "Main Hand", "Off Hand",
 }
 
+-- Welcher Platz zweimal da ist.
+--
+-- Ringe und Schmuckstuecke traegt man zu zweit, und das sind zwei
+-- Entscheidungen, nicht eine. In der Liste stand darueber nur "RINGE",
+-- und wer die Prozente las, konnte meinen, es gehe um einen Ring. Die
+-- Waffenhaende stehen ohnehin schon als zwei eigene Ueberschriften da.
+local GEAR_SLOTS = { ["Rings"] = 2, ["Trinkets"] = 2 }
+
+---"1 Platz" oder "2 Plaetze" - und nicht "1 Platz/Plaetze".
+---@param n number|nil
+---@return string
+local function slotCount(n)
+    n = tonumber(n) or 0
+    if n == 1 then return L["SLOT_COUNT_ONE"] end
+    return L["SLOT_COUNT"]:format(n)
+end
+
 ---Woher ein Gegenstand kommt - in absteigender Sicherheit.
 ---
 ---1. Das Abenteuerjournal: Boss und Instanz. Auch fuer die alten
@@ -2370,6 +2387,30 @@ local function resetRow(row)
     row.onClick = nil
 end
 
+-- Grossbuchstaben, die auch die Umlaute treffen.
+--
+-- string.upper geht byteweise und kennt nur a-z. Ein Umlaut besteht aus
+-- zwei Bytes, von denen keines in diesem Bereich liegt - er bleibt also
+-- klein stehen. "Fuesse" mit Umlaut wurde dadurch zu "FueSSE" mit
+-- kleinem Umlaut mitten in einer Ueberschrift aus Grossbuchstaben,
+-- ebenso "Ruecken" und "Haende". Drei von vierzehn Ueberschriften.
+--
+-- Also die vier deutschen Sonderzeichen vorher von Hand, dann den Rest.
+-- Koreanisch und Chinesisch kennen keine Gross- und Kleinschreibung und
+-- bleiben unberuehrt.
+local UPPER = {
+    ["\195\164"] = "\195\132",   -- a-Umlaut
+    ["\195\182"] = "\195\150",   -- o-Umlaut
+    ["\195\188"] = "\195\156",   -- u-Umlaut
+    ["\195\159"] = "SS",         -- scharfes s
+}
+
+---@param text string|nil
+---@return string
+local function upperText(text)
+    return (tostring(text or ""):gsub("\195[\164\182\188\159]", UPPER)):upper()
+end
+
 local function setHeaderRow(row, text)
     resetRow(row)
     row.__header = true
@@ -2378,7 +2419,7 @@ local function setHeaderRow(row, text)
     S:ApplyRole(row.title, "head")
     row.title:ClearAllPoints()
     row.title:SetPoint("BOTTOMLEFT", S.space.sm, 4)
-    row.title:SetText(text:upper())
+    row.title:SetText(upperText(text))
     row.detail:SetText("")
     row.share:SetText("")
     row:SetHeight(26)
@@ -2937,7 +2978,7 @@ local function setItemRow(row, data)
         row.icon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
         row.title:SetText(L["PICK_" .. data.pending:upper()])
         S:Recolor(row.title, "warning")
-        row.detail:SetText(L["SLOT_" .. data.slot] .. "  ·  " .. L["SLOT_COUNT"]:format(data.need or 0))
+        row.detail:SetText(L["SLOT_" .. data.slot] .. "  ·  " .. slotCount(data.need))
         row.share:SetText("")
         if data.pending == "tertiary" then
             row.onClick = nil
@@ -2965,7 +3006,7 @@ local function setItemRow(row, data)
     if data.kind == "gem" then
         parts[#parts + 1] = L["SOCKETS"]:format(data.need, data.missing or 0)
     else
-        parts[#parts + 1] = L["SLOT_COUNT"]:format(data.need)
+        parts[#parts + 1] = slotCount(data.need)
     end
     if (data.owned or 0) > 0 then parts[#parts + 1] = L["OWNED"]:format(data.owned) end
     if (data.ownedHigher or 0) > 0 then parts[#parts + 1] = L["OWNED_HIGHER"]:format(data.ownedHigher) end
@@ -3112,7 +3153,7 @@ local function build()
         head.chevron:SetPoint("LEFT", 0, 0)
         head.label = S:Text(head, "caption", "heading")
         head.label:SetPoint("LEFT", 14, 0)
-        head.label:SetText(L[group]:upper())
+        head.label:SetText(upperText(L[group]))
         head.group = group
         head:SetScript("OnEnter", function(self) S:Recolor(self.label, "textPrimary") end)
         head:SetScript("OnLeave", function(self) S:Recolor(self.label, "heading") end)
@@ -4059,6 +4100,9 @@ function UI.Refresh()
         -- weil eine einzige Ueberschrift ueber vier Zeilen nur den
         -- Abschnittstitel wiederholen wuerde.
         local group = data.group or (data.slot and L["SLOT_" .. data.slot])
+        -- Wo es zwei davon gibt, steht es in der Ueberschrift.
+        local zweimal = group and data.slot and GEAR_SLOTS[data.slot]
+        if zweimal then group = group .. "  ·  " .. slotCount(zweimal) end
         if group and group ~= lastSlot then
             index = index + 1
             local header = acquireRow(index)

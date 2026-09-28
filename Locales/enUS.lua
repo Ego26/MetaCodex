@@ -143,7 +143,8 @@ ns.RegisterLocale("enUS", {
     ["PICK_WEAPON"]       = "Pick a weapon enchant",
     ["PICK_LEGS"]         = "Pick leg armor",
     ["PICK_TERTIARY"]     = "Pick a tertiary stat above",
-    ["SLOT_COUNT"]        = "%d slot(s)",
+    ["SLOT_COUNT"]        = "%d slots",
+    ["SLOT_COUNT_ONE"]    = "1 slot",
 })
 
 -- Auswahl der Spezialisierung, dazugekommen mit dem Waehler im Kopf.

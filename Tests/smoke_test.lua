@@ -4243,5 +4243,48 @@ do
     rowsInSection("embellish")
 end
 
+-- Zwei Ringe, zwei Schmuckstuecke - und das steht auch da.
+--
+-- Ueber der Liste stand nur "RINGE". Wer die Prozente las, konnte meinen,
+-- es gehe um einen Ring. Es sind zwei Plaetze und damit zwei
+-- Entscheidungen. Die Waffenhaende stehen ohnehin als zwei eigene
+-- Ueberschriften da, also brauchen sie den Zusatz nicht.
+do
+    ns.Profile.SetLanguage("de")
+    ns.Profile.SetMode("mplus")
+    rowsInSection("gear")
+    local mitZahl, ohneZahl = {}, {}
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() and rawget(row, "__header") then
+            local text = row.title:GetText() or ""
+            if text:find("2 PL", 1, true) then
+                mitZahl[#mitZahl + 1] = text
+            else
+                ohneZahl[#ohneZahl + 1] = text
+            end
+        end
+    end
+    check("die doppelten Plaetze sagen, dass es zwei sind", #mitZahl == 2,
+        table.concat(mitZahl, " | "))
+    check("und die einfachen sagen nichts dergleichen", #ohneZahl > 0,
+        #ohneZahl .. " Ueberschriften")
+
+    -- Und die Umlaute stehen gross da.
+    --
+    -- string.upper geht byteweise und kennt nur a-z: "Fuesse" mit Umlaut
+    -- blieb "FueSSE" mit kleinem Umlaut mitten in Grossbuchstaben.
+    local klein = 0
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() and rawget(row, "__header") then
+            local text = row.title:GetText() or ""
+            -- Die zweiten Bytes der kleinen Umlaute und des scharfen s.
+            if text:find("\195[\164\182\188\159]") then klein = klein + 1 end
+        end
+    end
+    check("keine kleinen Umlaute in den Ueberschriften", klein == 0,
+        klein .. " Ueberschriften")
+    ns.Profile.SetLanguage("auto")
+end
+
 say(fails == 0 and "\nalles gruen" or ("\n" .. fails .. " Fehler"))
 os.exit(fails == 0 and 0 or 1)

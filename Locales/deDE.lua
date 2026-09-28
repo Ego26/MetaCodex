@@ -143,7 +143,8 @@ ns.RegisterLocale("deDE", {
     ["PICK_WEAPON"]       = "Waffenverzauberung wählen",
     ["PICK_LEGS"]         = "Beinverstärkung wählen",
     ["PICK_TERTIARY"]     = "Drittwert oben wählen",
-    ["SLOT_COUNT"]        = "%d Platz/Plätze",
+    ["SLOT_COUNT"]        = "%d Plätze",
+    ["SLOT_COUNT_ONE"]    = "1 Platz",
 })
 
 -- Auswahl der Spezialisierung, dazugekommen mit dem Waehler im Kopf.
