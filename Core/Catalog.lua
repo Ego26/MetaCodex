@@ -256,9 +256,25 @@ end
 ---@param kind string
 ---@return table[] entries
 function Catalog.OwnedOfKind(kind)
-    local out = {}
+    local out, seen = {}, {}
     for _, entry in ipairs(Catalog.Consumables(kind)) do
-        if ns.Compat.ItemCount(entry.id) > 0 then out[#out + 1] = entry end
+        if ns.Compat.ItemCount(entry.id) > 0 then
+            seen[entry.id] = true
+            out[#out + 1] = entry
+        end
+    end
+    -- Und was sonst noch im Beutel liegt.
+    --
+    -- Der Katalog fuehrt nur die laufende Erweiterung. Eine Rune von
+    -- vorletztem Jahr steht nicht darin - und fehlte deshalb unter "aus
+    -- meinen Taschen waehlen", obwohl sie genau dort lag. Gefragt wird
+    -- jetzt der Beutel selbst, und was fuer eine Art es ist, sagt der
+    -- Client.
+    for _, id in ipairs(ns.Compat.BagItems()) do
+        if not seen[id] and ns.Compat.ConsumableKind(id) == kind then
+            seen[id] = true
+            out[#out + 1] = { id = id, name = ns.Compat.ItemInfo(id) }
+        end
     end
     return out
 end

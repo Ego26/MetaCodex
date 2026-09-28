@@ -211,6 +211,61 @@ function Compat.BagsKnown()
     return n > 0
 end
 
+-- Welche Unterklasse eines Verbrauchsguts welche Art ist. Dieselbe
+-- Zuordnung wie im Katalog, nur hier am lebenden Gegenstand: 8 ist die
+-- Sammelklasse fuer Runen, Oele und Schleifsteine.
+local CONSUM_SUBCLASS = {
+    [1] = "potion", [3] = "flask", [5] = "food", [8] = "other", [9] = "vantus",
+}
+
+---Was fuer ein Verbrauchsgut das ist - gefragt beim Client.
+---
+---Der Katalog kennt nur die laufende Erweiterung. Wer eine Rune von
+---vorletztem Jahr im Beutel hat, findet sie dort nicht - und stand
+---deshalb nicht zur Wahl, obwohl sie im Beutel liegt. Der Client weiss
+---es von jedem Gegenstand, auch vom aeltesten.
+---@param itemID number|nil
+---@return string|nil "potion" | "flask" | "food" | "other" | "vantus"
+function Compat.ConsumableKind(itemID)
+    if not itemID then return nil end
+    local get = C_Item and C_Item.GetItemInfoInstant or GetItemInfoInstant
+    if type(get) ~= "function" then return nil end
+    local ok, _, _, _, _, classID, subclassID = pcall(get, itemID)
+    if not ok then return nil end
+    -- Klasse 0 ist "Verbrauchbar". Alles andere ist kein Verbrauchsgut,
+    -- egal was in der Unterklasse steht.
+    if classID ~= 0 then return nil end
+    return CONSUM_SUBCLASS[subclassID or -1]
+end
+
+---Was in den Taschen liegt: je Gegenstands-ID einmal.
+---
+---Gebraucht fuer "aus meinen Taschen waehlen". Gezaehlt wird nicht hier
+---- die Menge sagt GetItemCount, und die kennt auch die Bank.
+---@return number[] itemIDs
+function Compat.BagItems()
+    local slots = C_Container and C_Container.GetContainerNumSlots or GetContainerNumSlots
+    local itemAt = C_Container and C_Container.GetContainerItemID or GetContainerItemID
+    if type(slots) ~= "function" or type(itemAt) ~= "function" then return {} end
+    local seen, out = {}, {}
+    -- 0 ist der Rucksack, 1 bis 5 die angelegten Taschen. Mehr Taschen
+    -- gibt es nicht, und die Bank ist nicht gemeint: waehlen kann man
+    -- nur, was man dabeihat.
+    for bag = 0, 5 do
+        local ok, n = pcall(slots, bag)
+        if ok and type(n) == "number" then
+            for slot = 1, n do
+                local fine, id = pcall(itemAt, bag, slot)
+                if fine and type(id) == "number" and not seen[id] then
+                    seen[id] = true
+                    out[#out + 1] = id
+                end
+            end
+        end
+    end
+    return out
+end
+
 ---Name, Link und Symbol eines Gegenstands - oder nil, solange der Client
 ---die Daten noch nicht hat.
 ---@param itemID number

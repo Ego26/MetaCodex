@@ -4069,5 +4069,54 @@ do
     rowsInSection("stats")
 end
 
+-- "Aus meinen Taschen waehlen" fragt die TASCHEN, nicht den Katalog.
+--
+-- Der Katalog fuehrt nur die laufende Erweiterung. Eine Rune von
+-- vorletztem Jahr steht nicht darin - und fehlte deshalb in der
+-- Auswahl, obwohl sie genau dort im Beutel lag.
+do
+    local alteRune = 224572
+    local echtesContainer = C_Container
+    C_Container = {
+        GetContainerNumSlots = function(bag) return bag == 0 and 2 or 0 end,
+        GetContainerItemID = function(bag, slot)
+            if bag == 0 and slot == 1 then return alteRune end
+            if bag == 0 and slot == 2 then return 200001 end
+            return nil
+        end,
+    }
+    local echtesInstant = C_Item.GetItemInfoInstant
+    C_Item.GetItemInfoInstant = function(id)
+        -- Klasse 0 ist "Verbrauchbar", Unterklasse 8 die Sammelklasse
+        -- fuer Runen, Oele und Schleifsteine.
+        if id == alteRune then return id, "", "", "", 0, 8 end
+        -- Und ein Ruestungsteil, damit klar ist, dass nicht alles
+        -- aus dem Beutel in der Liste landet.
+        if id == 200001 then return id, "", "", "INVTYPE_HEAD", 4, 1 end
+        return echtesInstant(id)
+    end
+
+    check("der Client ordnet die alte Rune ein",
+        ns.Compat.ConsumableKind(alteRune) == "other",
+        tostring(ns.Compat.ConsumableKind(alteRune)))
+    check("und ein Ruestungsteil ist kein Verbrauchsgut",
+        ns.Compat.ConsumableKind(200001) == nil,
+        tostring(ns.Compat.ConsumableKind(200001)))
+    check("die Taschen werden gelesen", #ns.Compat.BagItems() == 2,
+        #ns.Compat.BagItems() .. " Gegenstaende")
+
+    local ausDemBeutel = ns.Catalog.OwnedOfKind("other")
+    local drin, ruestung = false, false
+    for _, eintrag in ipairs(ausDemBeutel) do
+        if eintrag.id == alteRune then drin = true end
+        if eintrag.id == 200001 then ruestung = true end
+    end
+    check("die alte Rune steht zur Wahl", drin, #ausDemBeutel .. " Eintraege")
+    check("das Ruestungsteil nicht", not ruestung)
+
+    C_Container = echtesContainer
+    C_Item.GetItemInfoInstant = echtesInstant
+end
+
 say(fails == 0 and "\nalles gruen" or ("\n" .. fails .. " Fehler"))
 os.exit(fails == 0 and 0 or 1)
