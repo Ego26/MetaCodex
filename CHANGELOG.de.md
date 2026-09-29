@@ -4,27 +4,22 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ## [Unveröffentlicht]
 
+## [1.1.6] - 2026-09-29
+
 ### Neu
 
-- Der Omnium-Foliant, als Untereintrag bei den Talenten: welche Rune die
-  besten Spieler in jeder Reihe nehmen. Warcraft Logs führt den Folianten
-  nicht in den Kampfdaten – ein Entwickler von dort hat es bestätigt –,
-  also werden die Runen an ihrer Wirkung erkannt, so wie Archon es tut.
-- Jede Reihe nennt im Kopf, auf wie vielen Spielern ihre Anteile ruhen:
-  diese Zahl ist kleiner als die Stichprobe der Spec, und ein Anteil, der
-  sie verschweigt, lädt zum falschen Vergleich ein.
-- Reihe 5 hat drei Anläufe gebraucht. Überladung und Restenergie haben
-  keinen eigenen Zauber – von 414 027 Zaubern im Spiel trägt keiner ihren
-  Namen außer dem Talent –, und im Kampflog stehen sie auch nicht. Was sie
-  tun, ist etwas Vorhandenes zu verdoppeln, und genau daran sind sie zu
-  fassen: Überladung verdoppelt die Kernrune, und deren Schaden je Treffer
-  liegt in einem dichten Haufen, aus dem einzelne Spieler bei genau der
-  Hälfte herausfallen. Das sind die ohne sie.
-- Restenergie bleibt gerechnet, weil Lingering, das sie verdoppelt, viel
-  zu ungleich streut. Sie ist also das, was übrig bleibt, wenn Überladung
-  und Echos gezählt sind – damit trägt die kleinste der drei Zahlen die
-  Unsicherheit und nicht die größte. Ihre Zeile sagt „Gerechnet, nicht
-  gesehen" und bekommt nie die Akzentfarbe.
+- Der Omnium-Foliant, als Untereintrag bei den Talenten: fünf Reihen,
+  dreizehn Runen, je Spec, je Aktivität und je Dungeon.
+- Jede Reihe nennt, an wie vielen Spielern sie gemessen wurde. Eine Rune
+  wird an ihrer Wirkung im Kampf erkannt, also ist die Stichprobe hinter
+  einer Reihe kleiner als die der Spec – das zu verschweigen lüde zum
+  falschen Vergleich ein.
+- Reihe 3 hat nur eine Rune und steht darum ohne Prozentwert da: es gibt
+  nichts zu wählen.
+- Restenergie ist überhaupt nicht zu sehen, ihre Zahl ist also das, was
+  die beiden anderen in Reihe 5 übrig lassen. Die Zeile sagt „Gerechnet,
+  nicht gesehen" und bekommt nie die Akzentfarbe – so trägt die kleinste
+  der drei Zahlen die Unsicherheit und nicht die größte.
 - Der Waffenbuff, den eine Klasse selbst auflegt, wird gemessen und
   gezeigt: Flammenzunge des Schamanen und das Gift des Schurken stehen
   dort, wo sonst ein Öl stünde.
@@ -59,6 +54,27 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
   Zweig, der richtig aussah, tat nichts.
 - Der Anteil neben einem Talent-Build sagt jetzt, wessen fünfzig Prozent
   das sind.
+- Anteile, die eine Menge aufteilen, ergeben zusammen hundert. In jeder
+  Reihe des Folianten wählt jeder Spieler genau eine Rune, die Zahlen
+  teilen also dieselbe Menge; einzeln gerundet kamen sie auf 99 oder 101.
+  Über 790 Reihen echter Daten landet jetzt jede auf genau 100.
+- Die Zielwert-Zeilen überlappen den Balken nicht mehr: ein Text ohne
+  Breite läuft so weit, wie er lang ist, und der Balken liegt senkrecht
+  genau darüber.
+- Die Zielwert-Zeilen sagen, welchen Prozentwert sie meinen – diese
+  Wertung gegen die Summe der vier Zweitwerte, und das ist nicht die
+  Wirkung, die das Charakterfenster zeigt.
+- Die Raid-Schwierigkeiten haben ihre Bossauswahl zurück, und den neunten
+  Boss des Raids gleich mit.
+
+### Geändert (Oberfläche)
+
+- Die Scrollleiste gehört zu diesem Fenster: eine schmale Schiene in der
+  Klassenfarbe, zum Ziehen, und ein Klick daneben springt dorthin. Sie
+  erscheint nur, wenn es etwas zu schieben gibt – Blizzards Pfeile standen
+  auf kurzen Seiten da, als gäbe es noch etwas zu finden.
+- Die Folianten-Zeilen wiederholen ihren Prozentwert nicht mehr in Worten,
+  und eine Zeile ohne zweite Zeile setzt ihren Namen mittig.
 
 ## [1.1.5] - 2026-09-28
 

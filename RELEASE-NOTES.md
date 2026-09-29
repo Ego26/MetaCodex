@@ -1,3 +1,53 @@
+## v1.1.6 — the Omnium Folio
+
+Which rune the best players take, in every row, for your spec — and the
+usual handful of things that were wrong.
+
+### Added
+
+- **The Omnium Folio**, under Talents: five rows, thirteen runes, per spec,
+  per activity and per dungeon.
+- Each row says **how many players it was measured on**. A rune is found by
+  what it does in the fight, so someone who carries one and never triggers
+  it is not counted — the row names its own sample rather than hiding it.
+- Row three holds a single rune and therefore stands there **without a
+  percentage**: there is nothing to choose.
+- One rune in row five, **Residual Energy**, cannot be seen at all. Its
+  number is what the other two leave over, its row says "worked out, not
+  seen", and it never takes the accent colour.
+- **Weapon buffs a class puts on itself** are shown: a shaman's Flametongue
+  and a rogue's poison stand where an oil would. And a shaman is no longer
+  told to buy oil he cannot use.
+- **Everything under "Other" in the reminder has its own amount.** Drums, a
+  repair hammer and a Vantus rune are not one decision.
+- **Anything can be put on the reminder by item id**, with a preview and
+  the game's own tooltip while you hover — including what nobody measured.
+- **An ignore list.** A row you do not want to hear about again goes away
+  through a menu, and comes back the same way.
+
+### Fixed
+
+- **A shaman was told to buy oil** he cannot use.
+- **A socket with a gem in it was called empty.** Wearing haste and
+  versatility on purpose is a decision, not an omission.
+- **Missing enchants and gems are named, not counted.** "Two gems missing"
+  does not say which two.
+- **A row's percentages add up to a hundred.** They were rounded one at a
+  time and came to 99 or 101.
+- **The stat rows no longer run through the bar**, and they say which
+  percentage they mean: this stat's rating against the sum of the four
+  secondary ratings — not the effect your character sheet shows.
+- **Raid Mythic and Normal got their boss picker back**, and the raid's
+  ninth boss with it.
+
+### Changed
+
+- **The scrollbar is the addon's own now** — slim, in your class colour,
+  draggable, and a click on the track jumps there. It shows up only when
+  there is something to scroll.
+- **The daily data run starts earlier**, so fresh tables reach CurseForge
+  before breakfast instead of after lunch.
+
 ## v1.1.5 — numbers that say what they mean
 
 Eight reports from the game, and every one of them turned out to be a

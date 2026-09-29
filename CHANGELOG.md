@@ -4,27 +4,21 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ## [Unreleased]
 
+## [1.1.6] - 2026-09-29
+
 ### Added
 
-- The Omnium Folio, as a sub-entry under Talents: which rune the best
-  players take in each row. Warcraft Logs does not carry the folio in the
-  combatant data - one of their developers confirmed it - so the runes are
-  recognised by their effect, the way Archon does it.
-- Each row header says how many players its percentages rest on, because
-  that number is smaller than the spec's full sample and a share that
-  hides it invites the wrong comparison.
-- Row five took three tries. Overload and Residual Energy have no spell of
-  their own - of 414027 spells in the game, not one carries either name
-  apart from the talent - and they are not in the combat log either. What
-  they do instead is double something that already exists, and that is
-  where they can be caught: Overload doubles the Core Rune, and the Core
-  Rune's damage per hit falls into one tight cluster with single players
-  at exactly half. Those are the ones without it.
-- Residual Energy stays derived, because Lingering, which it doubles,
-  spreads far too unevenly to separate. So it is what remains once
-  Overload and Echoes are counted - which makes the smallest of the three
-  numbers the uncertain one rather than the largest. Its row says "worked
-  out, not seen" and never takes the accent colour.
+- The Omnium Folio, as a sub-entry under Talents: five rows, thirteen
+  runes, per spec, per activity and per dungeon.
+- Each row says how many players it was measured on. A rune is found by
+  what it does in the fight, so the sample behind a row is smaller than
+  the spec's, and hiding that would invite the wrong comparison.
+- Row three holds a single rune and stands there without a percentage:
+  there is nothing to choose.
+- Residual Energy cannot be seen at all, so its number is what the other
+  two in row five leave over. The row says "worked out, not seen" and
+  never takes the accent colour - the smallest of the three carries the
+  uncertainty rather than the largest.
 - The weapon buff a class puts on itself is measured and shown, so a
   shaman's Flametongue and a rogue's poison appear where an oil would.
 - Anything under "Other" in the reminder carries its own amount. Drums, a
@@ -55,6 +49,26 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
   work: in Lua `cond and nil or x` always yields `x`, so the branch that
   looked right did nothing.
 - The share next to a talent build said whose fifty percent it is.
+- Percentages that divide one sample add up to a hundred. In each folio
+  row every player picks exactly one rune, so the numbers share a sample;
+  rounded one at a time they came to 99 or 101. Across 790 rows of live
+  data every one now lands on exactly 100.
+- The stat rows no longer overlap the bar: a text without a width runs as
+  far as its text is long, and the bar sits vertically straight across it.
+- The stat rows say which percentage they mean - this stat's rating
+  against the sum of the four secondary ratings, which is not the effect
+  the character sheet shows.
+- The raid difficulties got their boss picker back, and the raid's ninth
+  boss with it.
+
+### Changed (interface)
+
+- The scrollbar belongs to this window: a slim rail in the class accent,
+  draggable, and a click on the track jumps there. It appears only when
+  there is something to scroll - Blizzard's arrows used to sit on short
+  pages looking like there was more to find.
+- The folio rows no longer repeat their own percentage in words, and a
+  row without a second line centres its name.
 
 ## [1.1.5] - 2026-09-28
 
