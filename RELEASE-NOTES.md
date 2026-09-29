@@ -1,8 +1,5 @@
 ## v1.1.6 — the Omnium Folio
 
-Which rune the best players take, in every row, for your spec — and the
-usual handful of things that were wrong.
-
 ### Added
 
 - **The Omnium Folio**, under Talents: five rows, thirteen runes, per spec,
