@@ -4797,9 +4797,17 @@ function UI.Refresh()
     -- Recht als unseren liest.
     local usable = ns.Adapter.Loaded()
     local canSearch = usable and ns.Adapter.AuctionHouseOpen()
+    -- Ohne Auctionator gar nicht erst zeigen.
+    --
+    -- Grau heisst "geht, nur gerade nicht" - das ist beim geschlossenen
+    -- Auktionshaus richtig, denn das kann man aendern. Fehlt Auctionator,
+    -- geht es ueberhaupt nicht; ein grauer Knopf sieht dann aus wie ein
+    -- kaputter. Warum er fehlt, steht unter "Info".
+    frame.createButton:SetShown(usable and true or false)
+    frame.searchButton:SetShown(usable and true or false)
     frame.createButton:SetEnabled(usable)
     frame.searchButton:SetEnabled(canSearch)
-    frame.createButton:SetAlpha(usable and 1 or 0.4)
+    frame.createButton:SetAlpha(1)
     frame.searchButton:SetAlpha(canSearch and 1 or 0.4)
 
     -- Die Liste am Auktionshaus zieht mit.
@@ -5043,8 +5051,10 @@ function UI.UpdateReminderButtons()
     if not remindFrame then return end
     local usable = ns.Adapter and ns.Adapter.Loaded()
     local canSearch = usable and ns.Adapter.AuctionHouseOpen()
+    remindFrame.create:SetShown(usable and true or false)
+    remindFrame.search:SetShown(usable and true or false)
     remindFrame.create:SetEnabled(usable and true or false)
-    remindFrame.create:SetAlpha(usable and 1 or 0.4)
+    remindFrame.create:SetAlpha(1)
     remindFrame.search:SetEnabled(canSearch and true or false)
     remindFrame.search:SetAlpha(canSearch and 1 or 0.4)
 end
@@ -5471,17 +5481,20 @@ function UI.HandoverMissing(searchNow)
     if searchNow then
         ok, message = ns.Adapter.Search(rows)
     else
+        -- ZUERST der Reiter, DANN die Liste.
+        --
+        -- CreateShoppingList feuert ein Ereignis, auf das Auctionators
+        -- Einkaufsreiter hoert und die neue Liste auswaehlt - aber nur,
+        -- wenn er in dieser Sitzung schon einmal offen war. War er es
+        -- nie, hoert niemand zu: die Liste entstand, blieb aber
+        -- unausgewaehlt, und erst der zweite Klick zeigte sie.
+        --
+        -- Andersherum ist der Reiter wach, wenn das Ereignis kommt.
+        ns.Adapter.ShowShoppingTab()
         ok, message, written = ns.Adapter.CreateList(rows, "remind")
     end
     if ok then
         if not searchNow then
-            -- Und gleich dorthin, wo die Liste steht.
-            --
-            -- Bisher blieb der Spieler auf dem Reiter, auf dem er war,
-            -- und musste den Einkaufsreiter selbst suchen. Beim Suchen
-            -- nimmt Auctionator das Fenster von sich aus mit; beim
-            -- Anlegen tat es das nicht.
-            ns.Adapter.ShowShoppingTab()
             ns.Print(L["LIST_CREATED"], written, message)
             -- Versprochen wird nur, was auch gehalten wird.
             --
@@ -5668,6 +5681,7 @@ local function buildAuctionPanel()
     p.more:SetPoint("TOPLEFT", S.space.md, -46 - AH_PANEL_ROWS * (AH_ROW_HEIGHT + 2) - 4)
 
     local foot = CreateFrame("Frame", nil, p)
+    p.foot = foot
     foot:SetHeight(34)
     foot:SetPoint("BOTTOMLEFT")
     foot:SetPoint("BOTTOMRIGHT")
@@ -5744,8 +5758,13 @@ function UI.RefreshAuctionPanel()
 
     local usable = ns.Adapter and ns.Adapter.Loaded()
     local canSearch = usable and ns.Adapter.AuctionHouseOpen()
+    -- Und mit ihnen die Fussleiste: zwei versteckte Knoepfe hinterlassen
+    -- sonst einen leeren Streifen, der wie ein Fehler aussieht.
+    ahPanel.foot:SetShown(usable and true or false)
+    ahPanel.create:SetShown(usable and true or false)
+    ahPanel.search:SetShown(usable and true or false)
     ahPanel.create:SetEnabled(usable and true or false)
-    ahPanel.create:SetAlpha(usable and 1 or 0.4)
+    ahPanel.create:SetAlpha(1)
     ahPanel.search:SetEnabled(canSearch and true or false)
     ahPanel.search:SetAlpha(canSearch and 1 or 0.4)
 end

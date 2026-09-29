@@ -452,6 +452,28 @@ do
     -- Fehlt der Knopf, passiert nichts - und zwar ohne Fehler.
     _G.AuctionatorTabs_Shopping = nil
     check("ohne Reiter bleibt es ruhig", ns.Adapter.ShowShoppingTab() == false)
+
+    -- Und die Reihenfolge stimmt: erst der Reiter, dann die Liste.
+    --
+    -- CreateShoppingList feuert ein Ereignis, auf das Auctionators
+    -- Reiter hoert - aber nur, wenn er schon einmal offen war. Andersrum
+    -- entstand die Liste und blieb unausgewaehlt, und erst der zweite
+    -- Klick zeigte sie.
+    local reihenfolge = {}
+    _G.AuctionatorTabs_Shopping = {
+        Click = function() reihenfolge[#reihenfolge + 1] = "Reiter" end,
+    }
+    local echteCreate = _G.Auctionator.API.v1.CreateShoppingList
+    _G.Auctionator.API.v1.CreateShoppingList = function(...)
+        reihenfolge[#reihenfolge + 1] = "Liste"
+        return echteCreate(...)
+    end
+    ns.UI.HandoverMissing(false)
+    _G.Auctionator.API.v1.CreateShoppingList = echteCreate
+    check("erst der Reiter, dann die Liste",
+        reihenfolge[1] == "Reiter" and reihenfolge[2] == "Liste",
+        table.concat(reihenfolge, " -> "))
+    _G.AuctionatorTabs_Shopping = nil
 end
 
 -- Die Suche braucht ein offenes Auktionshaus.
@@ -4959,6 +4981,23 @@ do
             ns.Profile.SetIgnored(ersteID, false)
             wow.fire("AUCTION_HOUSE_SHOW")
         end
+
+        -- Ohne Auctionator stehen die beiden Knoepfe gar nicht erst da.
+        --
+        -- Grau heisst "geht, nur gerade nicht" - das ist beim
+        -- geschlossenen Auktionshaus richtig. Fehlt Auctionator, geht es
+        -- ueberhaupt nicht, und ein grauer Knopf sieht dann aus wie ein
+        -- kaputter.
+        check("mit Auctionator sind die Knoepfe da",
+            panel.create:IsShown() == true and panel.search:IsShown() == true)
+        wow.auctionatorGone = true
+        ns.UI.RefreshAuctionPanel()
+        check("ohne Auctionator sind sie weg",
+            panel.create:IsShown() == false and panel.search:IsShown() == false)
+        check("und die Fussleiste gleich mit", panel.foot:IsShown() == false)
+        wow.auctionatorGone = nil
+        ns.UI.RefreshAuctionPanel()
+        check("und wieder da", panel.create:IsShown() == true)
 
         -- Abschaltbar - und an den Erinnerungen haengend.
         --

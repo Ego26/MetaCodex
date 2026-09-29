@@ -342,7 +342,13 @@ function M.install(opts)
     G.C_AddOns = {
         GetAddOnMetadata = function() return "1.0.0-test" end,
         IsAddOnLoaded = function(addon)
-            if addon == "Auctionator" then return opts.auctionator == true end
+            -- Ein Test darf Auctionator auch mittendrin verschwinden
+            -- lassen: die Knoepfe zur Uebergabe haengen daran, und ob
+            -- sie dann weg sind, laesst sich sonst nicht pruefen.
+            if addon == "Auctionator" then
+                if M.auctionatorGone then return false end
+                return opts.auctionator == true
+            end
             return M.loadedAddons[addon] == true
         end,
         LoadAddOn = function(addon)
