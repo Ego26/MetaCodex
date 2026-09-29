@@ -5177,6 +5177,27 @@ do
         andere ~= nil and (andere.missing or 0) == 1,
         andere and tostring(andere.missing) or "keine Zeile")
 
+    -- ABER SIE STEHT NICHT AUF DEM EINKAUFSZETTEL.
+    --
+    -- Die Rune fehlt, und trotzdem gibt es nichts zu kaufen: der
+    -- Todesritter schmiedet sie selbst, an einer Runenschmiede in
+    -- seinem Startgebiet. Im Fenster gehoert sie hin - sie ist ja
+    -- offen -, im Auktionshaus nicht.
+    --
+    -- Getragen wird das von buy = 0: die Zeile fehlt, ist aber nicht
+    -- zu kaufen. Wer das einmal zu "missing > 0 also kaufen"
+    -- vereinfacht, schickt den Spieler zum Auktionator nach etwas,
+    -- das dort nicht verkauft wird.
+    check("eine fehlende Rune ist trotzdem nichts zu kaufen",
+        ns.List.Wanted(andere) == false,
+        tostring(andere and andere.buy))
+
+    local aufDemZettel = false
+    for _, row in ipairs(ns.UI.ShoppingRows()) do
+        if row.kind == "runeforge" then aufDemZettel = true end
+    end
+    check("und steht nicht auf dem Einkaufszettel", aufDemZettel == false)
+
     ns.Gear.Runeforge = function() return WUNSCH end
     local passend = runenzeile()
     check("die empfohlene Rune gilt als erledigt",
