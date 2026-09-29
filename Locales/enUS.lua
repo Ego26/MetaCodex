@@ -86,6 +86,9 @@ ns.RegisterLocale("enUS", {
     -- Knoepfe
     ["BTN_CREATE_LIST"]    = "Create shopping list",
     ["BTN_SEARCH"]         = "Search now",
+    ["HINT_CREATE_LIST"] = "Writes what is missing to Auctionator as a shopping list. Works while the auction house is closed.",
+    ["HINT_SEARCH"] = "Searches the auction house for everything missing at once.",
+    ["HINT_SEARCH_CLOSED"] = "The auction house has to be open for this.",
     ["BTN_ONLY_MISSING"]   = "Only what I'm missing",
     ["BTN_REFRESH"]        = "Rescan gear",
 

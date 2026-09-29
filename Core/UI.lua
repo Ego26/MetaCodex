@@ -178,6 +178,48 @@ local function makeButton(parent, width, height, label, onClick)
     return button
 end
 
+---Einem Knopf einen Hinweis geben, der seinen Zustand erklaert.
+---
+---Ein grauer Knopf ohne Erklaerung ist eine Sackgasse: man sieht, dass
+---es nicht geht, und nicht warum. "Jetzt suchen" ist grau, solange das
+---Auktionshaus zu ist - das weiss nur, wer es gebaut hat.
+---
+---Der Text wird bei jedem Ueberfahren neu geholt, nicht einmal gesetzt:
+---der Zustand aendert sich, waehrend das Fenster steht.
+---@param button table
+---@param holen fun(): string|nil, string|nil Titel und Text
+local function buttonHint(button, holen)
+    button:SetScript("OnEnter", function(self)
+        self.bg:SetVertexColor(S:Color("bgHover"))
+        local titel, text = holen()
+        if not titel then return end
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:AddLine(titel, 1, 1, 1)
+        if text then GameTooltip:AddLine(text, 0.8, 0.8, 0.8, true) end
+        GameTooltip:Show()
+    end)
+    button:SetScript("OnLeave", function(self)
+        self.bg:SetVertexColor(S:Color(self.__active and "bgHover" or "bgOverlay"))
+        GameTooltip:Hide()
+    end)
+end
+
+---Die beiden Hinweise zur Uebergabe ans Auktionshaus.
+---
+---An einer Stelle, weil es drei Knoepfe an drei Orten sind: im Fenster,
+---in der Erinnerung und in der Liste neben dem Auktionshaus.
+local function handoverHints(create, search)
+    buttonHint(create, function()
+        return L["BTN_CREATE_LIST"], L["HINT_CREATE_LIST"]
+    end)
+    buttonHint(search, function()
+        if ns.Adapter and ns.Adapter.AuctionHouseOpen() then
+            return L["BTN_SEARCH"], L["HINT_SEARCH"]
+        end
+        return L["BTN_SEARCH"], L["HINT_SEARCH_CLOSED"]
+    end)
+end
+
 local function setButtonActive(button, active)
     button.__active = active and true or false
     button.bg:SetVertexColor(S:Color(active and "bgHover" or "bgOverlay"))
@@ -3826,6 +3868,7 @@ local function build()
     local create = makeButton(footer, 170, 28, L["BTN_CREATE_LIST"], function() UI.Handover(false) end)
     create:SetPoint("RIGHT", search, "LEFT", -S.space.sm, 0)
     frame.createButton = create
+    handoverHints(create, search)
 
     -- Der Griff. Ein kleines Dreieck in der Ecke, wie es jedes Fenster
     -- hat, das man ziehen kann - ohne es sucht niemand danach.
@@ -5117,6 +5160,7 @@ function UI.ShowReminder(text, list)
             UI.HandoverMissing(false)
         end)
         remindFrame.create:SetPoint("RIGHT", remindFrame.search, "LEFT", -S.space.sm, 0)
+        handoverHints(remindFrame.create, remindFrame.search)
         -- Solange der Zeiger darauf liegt, laeuft die Uhr nicht: ein
         -- Fenster, das unter der Hand verschwindet, ist aergerlich.
         remindFrame:SetScript("OnEnter", function(self)
@@ -5695,6 +5739,7 @@ local function buildAuctionPanel()
         UI.HandoverMissing(false)
     end)
     p.create:SetPoint("RIGHT", p.search, "LEFT", -S.space.xs, 0)
+    handoverHints(p.create, p.search)
     return p
 end
 

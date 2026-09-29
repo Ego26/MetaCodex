@@ -4982,6 +4982,38 @@ do
             wow.fire("AUCTION_HOUSE_SHOW")
         end
 
+        -- Der graue Knopf sagt, WARUM er grau ist.
+        --
+        -- "Jetzt suchen" ist grau, solange das Auktionshaus zu ist -
+        -- das weiss sonst nur, wer es gebaut hat. Der Hinweis wird bei
+        -- jedem Ueberfahren neu geholt, weil der Zustand wechselt,
+        -- waehrend das Fenster steht.
+        _G.GameTooltip.__lines = {}
+        local echtesAH = _G.AuctionHouseFrame
+        _G.AuctionHouseFrame = nil
+        panel.search:GetScript("OnEnter")(panel.search)
+        local zu = table.concat(_G.GameTooltip.__lines or {}, " | ")
+        check("bei zugem Auktionshaus sagt er warum",
+            zu:find(ns.L["HINT_SEARCH_CLOSED"], 1, true) ~= nil, zu)
+
+        _G.GameTooltip.__lines = {}
+        -- Offen heisst: es meldet sich als sichtbar. Der Rahmen aus dem
+        -- Lauf davor war laengst zugeklappt.
+        _G.AuctionHouseFrame = { IsShown = function() return true end }
+        panel.search:GetScript("OnEnter")(panel.search)
+        local offen = table.concat(_G.GameTooltip.__lines or {}, " | ")
+        check("bei offenem sagt er, was er tut",
+            offen:find(ns.L["HINT_SEARCH"], 1, true) ~= nil, offen)
+
+        _G.AuctionHouseFrame = echtesAH
+
+        -- Und "Liste anlegen" sagt, dass es ohne offenes Haus geht.
+        _G.GameTooltip.__lines = {}
+        panel.create:GetScript("OnEnter")(panel.create)
+        local liste = table.concat(_G.GameTooltip.__lines or {}, " | ")
+        check("und die Liste sagt, dass sie ohne Haus geht",
+            liste:find(ns.L["HINT_CREATE_LIST"], 1, true) ~= nil, liste)
+
         -- Ohne Auctionator stehen die beiden Knoepfe gar nicht erst da.
         --
         -- Grau heisst "geht, nur gerade nicht" - das ist beim

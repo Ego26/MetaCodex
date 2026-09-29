@@ -86,6 +86,9 @@ ns.RegisterLocale("deDE", {
     -- Knoepfe
     ["BTN_CREATE_LIST"]    = "Einkaufsliste anlegen",
     ["BTN_SEARCH"]         = "Jetzt suchen",
+    ["HINT_CREATE_LIST"] = "Schreibt die fehlenden Gegenstände als Einkaufsliste nach Auctionator. Geht auch, während das Auktionshaus zu ist.",
+    ["HINT_SEARCH"] = "Sucht alles Fehlende auf einmal im Auktionshaus.",
+    ["HINT_SEARCH_CLOSED"] = "Dafür muss das Auktionshaus offen sein.",
     ["BTN_ONLY_MISSING"]   = "Nur was mir fehlt",
     ["BTN_REFRESH"]        = "Ausrüstung neu lesen",
 
