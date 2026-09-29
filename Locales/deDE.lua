@@ -424,6 +424,9 @@ ns.RegisterLocale("deDE", {
 
 ns.RegisterLocale("deDE", {
     ["AH_OFFER"] = "%d Dinge fehlen noch. |cff4c8dff/mc|r öffnet die Liste.",
+    ["AH_BUTTON"] = "MetaCodex – Einkaufsliste",
+    ["AH_BUTTON_N"] = "MetaCodex – %d zu kaufen",
+    ["AH_BUTTON_HINT"] = "Öffnet die Erinnerung mit dem aktuellen Stand. Dort legst du die Einkaufsliste an oder suchst direkt im Auktionshaus.",
 })
 
 ns.RegisterLocale("deDE", {

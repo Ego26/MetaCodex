@@ -4822,6 +4822,50 @@ do
     ns.UI.Refresh()
 end
 
+-- ------------------------------------------ Der Knopf am Auktionshaus
+--
+-- Die Einkaufsliste und "Jetzt suchen" gab es laengst; was fehlte, war
+-- der Weg dorthin, wenn man vor dem Auktionshaus steht. Der Knopf muss
+-- deshalb zweierlei koennen: die Zahl dessen nennen, was fehlt, und die
+-- Erinnerung oeffnen.
+do
+    -- Das Auktionshaus-Fenster wird im Spiel nachgeladen. Frueher im
+    -- Test wurde es schon mehrfach gesetzt und wieder genommen, der
+    -- Knopf kann also an einer aelteren Fassung haengen - gesucht wird
+    -- er darum an seiner Beschriftung, nicht am Elternteil.
+    if not _G.AuctionHouseFrame then
+        _G.AuctionHouseFrame = CreateFrame("Frame", "AuctionHouseFrame", UIParent)
+    end
+
+    local vorher = MetaCodexDB.section
+    MetaCodexDB.section = "talents"
+
+    local erreicht = wow.fire("AUCTION_HOUSE_SHOW")
+    check("jemand hoert auf das Auktionshaus", erreicht > 0, erreicht .. " Rahmen")
+
+    local knopf
+    for _, f in ipairs(wow.frames) do
+        local text = f.label and f.label.GetText and f.label:GetText()
+        if type(text) == "string" and text:find("MetaCodex", 1, true)
+            and f.GetScript and f:GetScript("OnClick") then
+            knopf = f
+        end
+    end
+    check("am Auktionshaus steht ein Knopf", knopf ~= nil)
+    if knopf then
+        check("und er nennt die Zahl oder die Liste",
+            (knopf.label:GetText() or ""):find("MetaCodex", 1, true) ~= nil,
+            knopf.label:GetText())
+
+        -- Und er fuehrt zur Erinnerung, nicht irgendwohin.
+        knopf:GetScript("OnClick")(knopf)
+        check("und oeffnet die Erinnerung",
+            MetaCodexDB.section == "remind", tostring(MetaCodexDB.section))
+    end
+    MetaCodexDB.section = vorher
+    ns.UI.Refresh()
+end
+
 -- ------------------------------------------------------- Die Scrollleiste
 --
 -- Sie darf nur dastehen, wenn es etwas zu schieben gibt. Blizzards

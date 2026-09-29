@@ -5517,11 +5517,79 @@ local warmNames = function() ns.Catalog.WarmNames() end
 -- blieb es aber auch, nachdem man es geoeffnet hatte, weil niemand neu
 -- zeichnete. Ein grauer Knopf, der grau bleibt, obwohl die Bedingung
 -- erfuellt ist, sieht aus wie ein kaputter Knopf.
+-- Ein Knopf am Auktionshaus.
+--
+-- Die Einkaufsliste und "Jetzt suchen" gibt es laengst - sie stehen unter
+-- der Erinnerung und werden scharf, sobald das Auktionshaus offen ist.
+-- Was fehlte, war der WEG dorthin: wer vor dem Auktionshaus steht, hatte
+-- eine Zeile im Chat mit einem Link, und war die weggescrollt, blieb nur
+-- /mc zu tippen.
+--
+-- Der Knopf haengt am Auktionshaus-Fenster, nennt die Zahl dessen, was
+-- fehlt, und oeffnet die Erinnerung. Mehr tut er nicht - wer zum
+-- Verkaufen da ist, soll nichts wegklicken muessen.
+local ahButton
+
+local function auctionCount()
+    if not (ns.Data and ns.Data.Ensure and ns.Data.Ensure()) then return 0 end
+    if not (ns.List and ns.List.Build and ns.Gear and ns.Gear.Scan) then return 0 end
+    local ok, rows = pcall(ns.List.Build, ns.Gear.Scan())
+    if not ok or not rows then return 0 end
+    local zahl = ns.List.BuyCount and ns.List.BuyCount(rows) or 0
+    return tonumber(zahl) or 0
+end
+
+local function updateAuctionButton()
+    if not ahButton then return end
+    local fehlt = auctionCount()
+    ahButton.label:SetText(fehlt > 0
+        and L["AH_BUTTON_N"]:format(fehlt) or L["AH_BUTTON"])
+    S:Recolor(ahButton.label, fehlt > 0 and "textPrimary" or "textSecondary")
+end
+
+local function buildAuctionButton()
+    -- Das Auktionshaus-Fenster wird nachgeladen; vor dem ersten Besuch
+    -- gibt es die Variable gar nicht.
+    if ahButton or not AuctionHouseFrame then return end
+    ahButton = makeButton(AuctionHouseFrame, 150, 22, "", function()
+        UI.OpenSection("remind")
+    end)
+    -- Oben rechts, neben dem Schliessen-Knopf: dort ist Platz, und dort
+    -- sucht man Knoepfe, die zum Fenster gehoeren.
+    ahButton:SetPoint("TOPRIGHT", AuctionHouseFrame, "TOPRIGHT", -56, -28)
+    ahButton:SetFrameStrata("HIGH")
+    ahButton:SetScript("OnEnter", function(self)
+        self.bg:SetVertexColor(S:Color("bgHover"))
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        GameTooltip:AddLine("MetaCodex", 1, 1, 1)
+        GameTooltip:AddLine(L["AH_BUTTON_HINT"], 0.8, 0.8, 0.8, true)
+        GameTooltip:Show()
+    end)
+    ahButton:SetScript("OnLeave", function(self)
+        self.bg:SetVertexColor(S:Color("bgOverlay"))
+        GameTooltip:Hide()
+    end)
+end
+
 local ahWatch = CreateFrame("Frame")
 ahWatch:RegisterEvent("AUCTION_HOUSE_SHOW")
 ahWatch:RegisterEvent("AUCTION_HOUSE_CLOSED")
-ahWatch:SetScript("OnEvent", function()
+ahWatch:SetScript("OnEvent", function(_, event)
+    if event == "AUCTION_HOUSE_SHOW" then
+        buildAuctionButton()
+        updateAuctionButton()
+        if ahButton then ahButton:Show() end
+    elseif ahButton then
+        ahButton:Hide()
+    end
     if frame and frame:IsShown() then UI.Refresh() end
+end)
+
+-- Was in den Beuteln liegt, aendert sich waehrend des Einkaufs.
+local ahBags = CreateFrame("Frame")
+ahBags:RegisterEvent("BAG_UPDATE_DELAYED")
+ahBags:SetScript("OnEvent", function()
+    if ahButton and ahButton:IsShown() then updateAuctionButton() end
 end)
 
 ---Die eingestellte Startaktivitaet anwenden, wenn es eine gibt.

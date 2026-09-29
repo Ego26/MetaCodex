@@ -132,8 +132,21 @@ Mock.methods.GetChecked = function(self) return self.__checked == true end
 Mock.methods.SetChecked = function(self, v) self.__checked = v and true or false end
 Mock.methods.SetEnabled = function(self, v) self.__enabled = v and true or false end
 Mock.methods.IsEnabled = function(self) return self.__enabled == true end
-Mock.methods.RegisterEvent = function() end
-Mock.methods.UnregisterEvent = function() end
+-- Ereignisse merken, statt sie wegzuwerfen.
+--
+-- Das Spiel ruft OnEvent; hier muss ein Test das selbst tun koennen, und
+-- dafuer muss er den Rahmen finden, der auf dieses Ereignis hoert. Ohne
+-- das laesst sich kein ereignisgesteuerter Teil pruefen - etwa der Knopf,
+-- der beim Oeffnen des Auktionshauses entsteht.
+Mock.methods.RegisterEvent = function(self, event)
+    local liste = rawget(self, "__events")
+    if not liste then liste = {}; rawset(self, "__events", liste) end
+    liste[event] = true
+end
+Mock.methods.UnregisterEvent = function(self, event)
+    local liste = rawget(self, "__events")
+    if liste then liste[event] = nil end
+end
 Mock.methods.RegisterForDrag = function() end
 Mock.methods.RegisterForClicks = function() end
 Mock.methods.StartMoving = function() end
@@ -615,10 +628,22 @@ end
 ---Feuert ein Ereignis auf jedem Rahmen, der einen OnEvent-Haken hat.
 ---@param event string
 function M.fire(event, ...)
+    -- Nur an die, die sich dafuer angemeldet haben - und sagen, wie
+    -- viele es waren. Vorher bekam JEDER Rahmen mit einem OnEvent-Haken
+    -- jedes Ereignis, und ein Test konnte nicht unterscheiden, ob
+    -- niemand zuhoert oder ob der Haken nichts tut.
+    local n = 0
     for _, frame in ipairs(M.frames) do
+        local liste = rawget(frame, "__events")
         local handler = frame.__scripts.OnEvent
-        if handler then handler(frame, event, ...) end
+        -- Wer sich nie angemeldet hat, bekommt es wie bisher: manche
+        -- Rahmen im Addon haengen ihren Haken vor der Anmeldung ein.
+        if handler and (not liste or liste[event]) then
+            n = n + 1
+            handler(frame, event, ...)
+        end
     end
+    return n
 end
 
 ---Das zuletzt geoeffnete Auswahlmenue: Titel und Eintraege.

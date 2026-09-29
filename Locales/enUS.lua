@@ -432,6 +432,9 @@ ns.RegisterLocale("enUS", {
     -- One line, not an opening window. Someone at the auction house is
     -- usually there for something else.
     ["AH_OFFER"] = "%d things still missing. |cff4c8dff/mc|r opens the list.",
+    ["AH_BUTTON"] = "MetaCodex – shopping list",
+    ["AH_BUTTON_N"] = "MetaCodex – %d to buy",
+    ["AH_BUTTON_HINT"] = "Opens the reminder with what you have right now. From there you build the shopping list or search the auction house directly.",
 })
 
 ns.RegisterLocale("enUS", {
