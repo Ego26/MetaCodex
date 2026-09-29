@@ -1107,7 +1107,34 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
   // Ausruestung, die Auren beim Pull und die Talente. Gleicher Preis,
   // dreifacher Ertrag.
   const readReports = async (codes) => {
+  // Der Foliant haengt NICHT an jedem Bericht.
+  //
+  // Die tausend Berichte der Verbrauchsgueter sind fuer die
+  // Verbrauchsgueter da: die werden nach Dungeon, Stufe und Gegenstand
+  // aufgeschluesselt und brauchen jede einzelne Beobachtung. Der Foliant
+  // braucht je Spec zehn - das sind ein paar hundert Berichte, nicht
+  // tausend.
+  //
+  // In der Nacht auf den 29.09. hat das den Unterschied gemacht: die
+  // Runen-Tabellen an allen tausend Berichten kosteten rund 24000 Punkte
+  // extra, also vier Stunden reines Warten am Stundenlimit. Der Job
+  // brauchte statt 96 Minuten deren 290.
+  //
+  // JEDER N-TE, nicht die ersten N. Die Berichte kommen nach Dungeon und
+  // Metrik sortiert herein; die ersten dreihundert waeren drei Dungeons
+  // und sonst nichts. Ein gleichmaessiger Schritt nimmt aus jeder Ecke
+  // der Stichprobe etwas mit.
+  const folioZiel = Number(process.env.MC_FOLIO_REPORTS || 500);
+  const folioSchritt = codes.length > folioZiel
+    ? Math.ceil(codes.length / folioZiel) : 1;
+  if (folioSchritt > 1) {
+    console.log(`Foliant: jeder ${folioSchritt}. Bericht `
+      + `(${Math.ceil(codes.length / folioSchritt)} von ${codes.length})`);
+  }
+  let folioIndex = -1;
   for (const [code, info] of codes) {
+    folioIndex += 1;
+    const mitFolio = (folioIndex % folioSchritt) === 0;
     const fightID = info.fightID;
     // Ein hoher Key zaehlt in beide Auswertungen: er ist ein M+-Lauf
     // und ausserdem ein hoher.
@@ -1149,11 +1176,16 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
         }`;
     let data;
     try {
-      data = await gql(KOPF + '\n' + FOLIO_QUERY + FUSS, { code, fight: fightID });
+      data = mitFolio
+        ? await gql(KOPF + '\n' + FOLIO_QUERY + FUSS, { code, fight: fightID })
+        : await gql(KOPF + FUSS, { code, fight: fightID });
     } catch (err) {
       try {
         data = await gql(KOPF + FUSS, { code, fight: fightID });
-        if (!folioBroken) {
+        // Nur melden, wenn der Foliant ueberhaupt mit dran war - sonst
+        // stuende die Meldung an einem Bericht, der ihn gar nicht
+        // abgefragt hat.
+        if (mitFolio && !folioBroken) {
           folioBroken = true;
           console.log('\n  ! Foliant-Abfrage abgelehnt, sammle ohne ihn weiter: '
             + String(err.message).slice(0, 120));
@@ -1681,6 +1713,27 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
     } else {
       const pct = moeglich ? Math.round(gesehen * 100 / moeglich) : 0;
       console.log(`Foliant: ${speccs} Zaehlwerke, ${pct} % der Spieler je Reihe zugeordnet`);
+
+      // Und die Zahl, an der sich entscheidet, ob die Stichprobe reicht.
+      //
+      // Reihe 5 verlangt je Spec zehn Beobachtungen. Werden dem
+      // Folianten zu wenige Berichte gegeben, faellt sie bei den
+      // selteneren Speccs weg - und zwar still. Diese Zeile sagt es,
+      // und wenn sie zu niedrig wird, gehoert MC_FOLIO_REPORTS
+      // hochgesetzt.
+      let mitReihe5 = 0, speccsGesamt = 0;
+      for (const tally of Object.values(tallies)) {
+        for (const entry of Object.values(tally)) {
+          if (!(entry.coreHits || []).length && !Object.keys(entry.folio || {}).length) continue;
+          speccsGesamt++;
+          if ((entry.coreHits || []).length >= 10) mitReihe5++;
+        }
+      }
+      if (speccsGesamt) {
+        console.log(`  Reihe 5 belegt: ${mitReihe5} von ${speccsGesamt} Zaehlwerken`
+          + (mitReihe5 * 2 < speccsGesamt
+            ? '  <-- duenn, MC_FOLIO_REPORTS erhoehen' : ''));
+      }
     }
 
     // Die Gegenprobe zu Reihe 5.
