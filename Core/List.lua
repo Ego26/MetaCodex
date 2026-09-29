@@ -336,10 +336,32 @@ end
 ---Wie viele Zeilen wirklich gekauft werden muessen.
 ---@param rows table[]
 ---@return number
+---Gehoert diese Zeile auf den Einkaufszettel?
+---
+---Die Regel stand an drei Stellen und war an zweien unvollstaendig: das
+---Ignorieren fehlte. Wer einen Gegenstand ignoriert hatte, sah ihn im
+---Fenster nicht mehr - er stand aber in der Einkaufsliste neben dem
+---Auktionshaus, und "Liste anlegen" schrieb ihn brav zu Auctionator.
+---
+---Darum hier, einmal. Wer einen weiteren Weg zum Einkauf baut, nimmt
+---diese Funktion und vergisst nichts.
+---@param row table
+---@return boolean
+function List.Wanted(row)
+    if not row then return false end
+    -- Ein Platzhalter ist keine Ware, eine Alternative keine zweite.
+    if row.pending or row.alt then return false end
+    if (row.buy or 0) <= 0 then return false end
+    if row.id and ns.Profile and ns.Profile.Ignored and ns.Profile.Ignored(row.id) then
+        return false
+    end
+    return true
+end
+
 function List.BuyCount(rows)
     local n = 0
     for _, row in ipairs(rows) do
-        if not row.pending and not row.alt and (row.buy or 0) > 0 then n = n + 1 end
+        if List.Wanted(row) then n = n + 1 end
     end
     return n
 end

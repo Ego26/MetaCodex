@@ -4892,6 +4892,40 @@ do
             check("ein Klick auf eine Zeile laeuft durch", ok == true)
         end
 
+        -- Ignoriertes steht NICHT auf dem Einkaufszettel.
+        --
+        -- Es stand im Fenster schon nicht mehr, tauchte aber in der
+        -- Liste neben dem Auktionshaus auf - und "Liste anlegen"
+        -- reichte es brav an Auctionator weiter. Die Regel liegt jetzt
+        -- in List.Wanted, also an einer Stelle statt an dreien.
+        local ersteID
+        for _, r in ipairs(panel.rows) do
+            if r:IsShown() and not ersteID then
+                -- Aus der Liste selbst holen, nicht aus der Zeile: die
+                -- Zeile traegt den Link, nicht die Nummer.
+                for _, zeile in ipairs(ns.List.Build(ns.Gear.Scan())) do
+                    if ns.List.Wanted(zeile) and not ersteID then ersteID = zeile.id end
+                end
+            end
+        end
+        check("es gibt etwas zu ignorieren", ersteID ~= nil, tostring(ersteID))
+        if ersteID then
+            local vorher = ns.List.BuyCount(ns.List.Build(ns.Gear.Scan()))
+            ns.Profile.SetIgnored(ersteID, true)
+            local nachher = ns.List.BuyCount(ns.List.Build(ns.Gear.Scan()))
+            check("ignoriert zaehlt nicht mehr mit", nachher == vorher - 1,
+                vorher .. " -> " .. nachher)
+
+            wow.fire("AUCTION_HOUSE_SHOW")
+            local nochDa = false
+            for _, zeile in ipairs(ns.List.Build(ns.Gear.Scan())) do
+                if zeile.id == ersteID and ns.List.Wanted(zeile) then nochDa = true end
+            end
+            check("und steht nicht mehr auf dem Zettel", nochDa == false)
+            ns.Profile.SetIgnored(ersteID, false)
+            wow.fire("AUCTION_HOUSE_SHOW")
+        end
+
         -- Abschaltbar - und an den Erinnerungen haengend.
         --
         -- Wer die Erinnerungen ganz abstellt, will Ruhe; ein Fenster,

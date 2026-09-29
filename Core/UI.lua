@@ -5440,7 +5440,10 @@ function UI.HandoverMissing(searchNow)
     local rows = {}
     for _, row in ipairs(ns.Remind.Status(ns.Profile.Mode())) do
         local buy = math.max(0, (row.need or 0) - (row.owned or 0))
-        if buy > 0 then
+        -- Ignoriertes gehoert auch hier nicht hinein. Es stand im
+        -- Fenster nicht mehr und wurde trotzdem an Auctionator
+        -- weitergereicht.
+        if buy > 0 and not ns.Profile.Ignored(row.id) then
             rows[#rows + 1] = {
                 kind = "consumable", id = row.id, name = row.name,
                 buy = buy, need = row.need, owned = row.owned,
@@ -5449,9 +5452,7 @@ function UI.HandoverMissing(searchNow)
     end
     if ns.Profile.Complete() and not ns.Profile.IsForeignClass() then
         for _, row in ipairs(ns.List.Build(ns.Gear.Scan())) do
-            if not row.pending and not row.alt and (row.buy or 0) > 0 then
-                rows[#rows + 1] = row
-            end
+            if ns.List.Wanted(row) then rows[#rows + 1] = row end
         end
     end
 
@@ -5554,11 +5555,9 @@ local function auctionRows()
     if not ok or type(alle) ~= "table" then return {} end
     local out = {}
     for _, row in ipairs(alle) do
-        -- Dieselbe Regel wie in List.BuyCount: was noch offen ist,
-        -- keine Alternative und kein Platzhalter.
-        if not row.pending and not row.alt and (row.buy or 0) > 0 then
-            out[#out + 1] = row
-        end
+        -- Eine Regel, eine Stelle: List.Wanted kennt auch das
+        -- Ignorieren, das hier vorher fehlte.
+        if ns.List.Wanted(row) then out[#out + 1] = row end
     end
     return out
 end
