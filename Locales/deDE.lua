@@ -306,7 +306,6 @@ ns.RegisterLocale("deDE", {
     ["REMIND_WIN_LOW"] = "%d von %d",
     ["REMIND_WIN_LOWER"] = "%d in niedrigerer Qualität",
     ["REMIND_WINDOW_TITLE"] = "Bevor du reingehst",
-    ["REMIND_OPT_AH"]  = "Am Auktionshaus an Fehlendes erinnern",
     ["REMIND_OPT_AH_PANEL"] = "Einkaufsliste neben dem Auktionshaus",
     ["REMIND_OPT_BELOW"] = "Als knapp gilt, was unter diesem Anteil des Ziels liegt",
     ["REMIND_GROUP_ENCHANTS"] = "Verzauberungen & Steine, die noch fehlen",
@@ -424,7 +423,6 @@ ns.RegisterLocale("deDE", {
 })
 
 ns.RegisterLocale("deDE", {
-    ["AH_OFFER"] = "%d Dinge fehlen noch. |cff4c8dff/mc|r öffnet die Liste.",
     ["AH_PANEL_TITLE"] = "Einkaufsliste",
     ["AH_PANEL_COUNT_1"] = "1 Ding fehlt — Klick sucht es hier",
     ["AH_PANEL_LIST"] = "Liste anlegen",

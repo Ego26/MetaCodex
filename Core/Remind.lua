@@ -402,33 +402,18 @@ frame:SetScript("OnEvent", function()
     C_Timer.After(0.5, tryAnnounce)
 end)
 
--- Am Auktionshaus: einmal anbieten, nicht aufdraengen.
+-- Die Einkaufsliste eines Besuchs wieder wegraeumen.
 --
--- Das Fenster von selbst aufzureissen waere die naheliegende Loesung und
--- die falsche - wer zum Verkaufen da ist, hat gerade etwas anderes vor.
--- Eine Zeile im Chat sagt dasselbe und laesst die Entscheidung dort, wo
--- sie hingehoert.
+-- Hier stand einmal auch eine Chatzeile beim Betreten: "acht Dinge
+-- fehlen noch" mit einem Link ins Addon. Sie ist weg, seit die
+-- Einkaufsliste neben dem Auktionshaus steht - die zeigt dasselbe und
+-- mehr, ohne dass man einen Link im Chat suchen muss, und zwei Schalter
+-- fuer dasselbe Haus waren eine Frage zu viel.
+--
+-- Geblieben ist das Aufraeumen: die Liste in Auctionator gehoert zu
+-- EINEM Einkauf und soll danach nicht stehenbleiben.
 local auctionFrame = CreateFrame("Frame")
 auctionFrame:RegisterEvent("AUCTION_HOUSE_CLOSED")
-auctionFrame:RegisterEvent("AUCTION_HOUSE_SHOW")
-auctionFrame:SetScript("OnEvent", function(_, event)
-    -- Zu, also weg mit der Liste fuer diesen einen Einkauf.
-    if event == "AUCTION_HOUSE_CLOSED" then
-        if ns.UI and ns.UI.DropTemporaryList then ns.UI.DropTemporaryList() end
-        return
-    end
-    if not ns.Profile.RemindersOn() then return end
-    if not ns.Profile.RemindAtAuctionHouse() then return end
-    if ns.UI.IsShown() then return end
-    if not ns.Data.Ensure() then return end
-
-    -- Gezaehlt wird gegen die Beutel, nicht gegen eine Liste: die Frage
-    -- ist, was JETZT fehlt, nicht was einmal auf einem Zettel stand.
-    local rows = ns.List.Build(ns.Gear.Scan())
-    local missing = ns.List.BuyCount(rows)
-    if missing > 0 then
-        -- Auch hier ein Weg hinein, statt "mach mal /mc".
-        ns.Print(L["AH_OFFER"]:format(missing)
-            .. "  " .. Remind.AddonLink("list", L["REMIND_OPEN_LIST"]))
-    end
+auctionFrame:SetScript("OnEvent", function()
+    if ns.UI and ns.UI.DropTemporaryList then ns.UI.DropTemporaryList() end
 end)

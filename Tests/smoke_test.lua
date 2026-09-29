@@ -2241,24 +2241,19 @@ wow.runTimers()
 check("kein zweites Mal in derselben Instanz", #wow.printed == 0,
     table.concat(wow.printed, " | "))
 
--- Am Auktionshaus meldet sie sich einmal, wenn etwas fehlt. Nicht das
--- Fenster aufreissen: wer dort steht, hat meist etwas anderes vor.
+-- Am Auktionshaus sagt sie NICHTS mehr im Chat.
+--
+-- Dort stand einmal "acht Dinge fehlen noch" mit einem Link ins Addon.
+-- Seit die Einkaufsliste neben dem Auktionshaus steht, ist die Zeile
+-- ueberfluessig - sie zeigt dasselbe und mehr, ohne dass man einen Link
+-- im Chat suchen muss.
 wow.instance = nil
 ns.Profile.SetMode("mplus")
 MetaCodexDB.section = "enchants"
--- Bei offenem Fenster schweigt sie: die Liste liegt dann schon vor.
 if ns.UI.IsShown() then ns.UI.Toggle() end
 wow.printed = {}
 wow.fire("AUCTION_HOUSE_SHOW")
-check("Auktionshaus bietet an", #wow.printed > 0,
-    table.concat(wow.printed, " | ") .. "  (fehlend: "
-        .. ns.List.BuyCount(ns.List.Build(ns.Gear.Scan())) .. ")")
-
--- Steht das Fenster offen, meldet sie sich nicht noch einmal.
-ns.UI.Toggle()
-wow.printed = {}
-wow.fire("AUCTION_HOUSE_SHOW")
-check("bei offenem Fenster still", #wow.printed == 0,
+check("Auktionshaus schweigt im Chat", #wow.printed == 0,
     table.concat(wow.printed, " | "))
 ns.UI.Toggle()
 
@@ -3323,19 +3318,20 @@ do
     -- Reiter regelkonform ausgeblendet.
     ns.Profile.SetMode("raid")
     rowsInSection("remind")
-    local enter, ah
+    local enter, panel
     for _, row in ipairs(wow.rows()) do
         if row:IsShown() and row.title:GetText() == L["REMIND_OPT_ENTER"] then enter = row end
-        if row:IsShown() and row.title:GetText() == L["REMIND_OPT_AH"] then ah = row end
+        if row:IsShown() and row.title:GetText() == L["REMIND_OPT_AH_PANEL"] then panel = row end
     end
-    check("beide Schalter stehen im Erinnerungsreiter", enter ~= nil and ah ~= nil,
+    check("beide Schalter stehen im Erinnerungsreiter", enter ~= nil and panel ~= nil,
         (enter and "Betreten da" or "Betreten fehlt") .. ", "
-        .. (ah and "AH da" or "AH fehlt") .. " in " .. tostring(MetaCodexDB.section))
-    if enter and ah then
+        .. (panel and "Liste da" or "Liste fehlt") .. " in " .. tostring(MetaCodexDB.section))
+    if enter and panel then
         enter.onClick(enter)
         check("Aus waehlen schaltet das Betreten ab",
             wow.pick(L["OPTION_OFF"]) and ns.Profile.RemindOnEnter() == false)
-        check("das Auktionshaus bleibt davon unberuehrt", ns.Profile.RemindAtAuctionHouse() == true)
+        check("die Einkaufsliste bleibt davon unberuehrt",
+            ns.Profile.AuctionPanel() == true)
         enter.onClick(enter)
         check("und wieder an", wow.pick(L["OPTION_ON"]) and ns.Profile.RemindOnEnter() == true)
     end

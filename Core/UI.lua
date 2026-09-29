@@ -1807,11 +1807,6 @@ local function remindRows(mode)
         group = L["REMIND_GROUP_SETTINGS"],
     }
     rows[#rows + 1] = {
-        kind = "option", label = L["REMIND_OPT_AH"], on = on and ns.Profile.RemindAtAuctionHouse(),
-        choices = boolChoices(), pick = function(value) ns.Profile.SetRemindAtAuctionHouse(value) end,
-        group = L["REMIND_GROUP_SETTINGS"],
-    }
-    rows[#rows + 1] = {
         kind = "option", label = L["REMIND_OPT_AH_PANEL"],
         on = ns.Profile.AuctionPanel(),
         choices = boolChoices(),

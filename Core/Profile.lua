@@ -496,18 +496,6 @@ function Profile.SetReminders(on)
     MetaCodexDB.reminders = on and true or false
 end
 
----Auch am Auktionshaus erinnern? Eine Chatzeile, nie ein Fenster.
----@return boolean
-function Profile.RemindAtAuctionHouse()
-    local db = MetaCodexDB or {}
-    if db.remindAH == nil then return true end
-    return db.remindAH and true or false
-end
-
----@param on boolean
-function Profile.SetRemindAtAuctionHouse(on)
-    MetaCodexDB.remindAH = on and true or false
-end
 
 ---Die Einkaufsliste neben dem Auktionshaus?
 ---
