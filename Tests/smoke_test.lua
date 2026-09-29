@@ -4922,6 +4922,23 @@ do
                 if zeile.id == ersteID and ns.List.Wanted(zeile) then nochDa = true end
             end
             check("und steht nicht mehr auf dem Zettel", nochDa == false)
+
+            -- Und die Liste neben dem Auktionshaus zieht SOFORT mit,
+            -- ohne dass man erst wieder hingehen muss.
+            ns.Profile.SetIgnored(ersteID, false)
+            ns.UI.Refresh()
+            local mitDrin = 0
+            for _, r in ipairs(panel.rows) do
+                if r:IsShown() then mitDrin = mitDrin + 1 end
+            end
+            ns.Profile.SetIgnored(ersteID, true)
+            ns.UI.Refresh()
+            local ohne = 0
+            for _, r in ipairs(panel.rows) do
+                if r:IsShown() then ohne = ohne + 1 end
+            end
+            check("ein Ignorieren im Fenster wirkt sofort in der Liste",
+                ohne == mitDrin - 1, mitDrin .. " -> " .. ohne)
             ns.Profile.SetIgnored(ersteID, false)
             wow.fire("AUCTION_HOUSE_SHOW")
         end

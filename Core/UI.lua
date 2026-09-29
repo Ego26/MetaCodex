@@ -4801,6 +4801,17 @@ function UI.Refresh()
     frame.searchButton:SetEnabled(canSearch)
     frame.createButton:SetAlpha(usable and 1 or 0.4)
     frame.searchButton:SetAlpha(canSearch and 1 or 0.4)
+
+    -- Die Liste am Auktionshaus zieht mit.
+    --
+    -- Wer dort steht und im Fenster etwas ignoriert oder eine Zielmenge
+    -- aendert, will das Ergebnis sofort daneben sehen - nicht erst beim
+    -- naechsten Besuch. Hier statt an jeder einzelnen Stelle: so ist
+    -- jede Aenderung erfasst, auch die, an die heute niemand denkt.
+    --
+    -- Kostet nichts, wenn die Liste zu ist: sie rechnet erst, wenn sie
+    -- sichtbar ist.
+    if UI.RefreshAuctionPanel then UI.RefreshAuctionPanel() end
 end
 
 ---Legt eine Adresse zum Kopieren hin.
