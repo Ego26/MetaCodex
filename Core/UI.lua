@@ -1811,6 +1811,18 @@ local function remindRows(mode)
         choices = boolChoices(), pick = function(value) ns.Profile.SetRemindAtAuctionHouse(value) end,
         group = L["REMIND_GROUP_SETTINGS"],
     }
+    rows[#rows + 1] = {
+        kind = "option", label = L["REMIND_OPT_AH_PANEL"],
+        on = ns.Profile.AuctionPanel(),
+        choices = boolChoices(),
+        pick = function(value)
+            ns.Profile.SetAuctionPanel(value)
+            -- Sofort wirksam: wer sie am offenen Auktionshaus abschaltet,
+            -- soll nicht erst neu hingehen muessen.
+            if not value and ns.UI.HideAuctionPanel then ns.UI.HideAuctionPanel() end
+        end,
+        group = L["REMIND_GROUP_SETTINGS"],
+    }
     -- Auf welchem Weg erinnert wird. Mehrere gleichzeitig sind erlaubt.
     for _, way in ipairs({ "chat", "window", "warning", "sound" }) do
         rows[#rows + 1] = {
@@ -5517,58 +5529,215 @@ local warmNames = function() ns.Catalog.WarmNames() end
 -- blieb es aber auch, nachdem man es geoeffnet hatte, weil niemand neu
 -- zeichnete. Ein grauer Knopf, der grau bleibt, obwohl die Bedingung
 -- erfuellt ist, sieht aus wie ein kaputter Knopf.
--- Ein Knopf am Auktionshaus.
+-- Eine schmale Einkaufsliste neben dem Auktionshaus.
 --
--- Die Einkaufsliste und "Jetzt suchen" gibt es laengst - sie stehen unter
--- der Erinnerung und werden scharf, sobald das Auktionshaus offen ist.
--- Was fehlte, war der WEG dorthin: wer vor dem Auktionshaus steht, hatte
--- eine Zeile im Chat mit einem Link, und war die weggescrollt, blieb nur
--- /mc zu tippen.
+-- Erst war es ein Knopf oben im Auktionshaus-Fenster. Der sass mitten
+-- in Blizzards eigenen Bedienelementen - und bei ElvUI, das dieses
+-- Fenster umbaut, erst recht. Feste Koordinaten INNERHALB eines fremden
+-- Fensters sind eine Wette darauf, dass niemand es anfasst.
 --
--- Der Knopf haengt am Auktionshaus-Fenster, nennt die Zahl dessen, was
--- fehlt, und oeffnet die Erinnerung. Mehr tut er nicht - wer zum
--- Verkaufen da ist, soll nichts wegklicken muessen.
-local ahButton
+-- Aussen angedockt haengt das Panel nur an der rechten Aussenkante, und
+-- die behaelt auch ein umgebautes Auktionshaus. Nebenbei ist es das,
+-- was man eigentlich will: die Liste NEBEN dem Haus, nicht ein Knopf,
+-- der ein zweites Fenster darueberlegt.
+local ahPanel
+local AH_PANEL_ROWS = 14
 
-local function auctionCount()
-    if not (ns.Data and ns.Data.Ensure and ns.Data.Ensure()) then return 0 end
-    if not (ns.List and ns.List.Build and ns.Gear and ns.Gear.Scan) then return 0 end
-    local ok, rows = pcall(ns.List.Build, ns.Gear.Scan())
-    if not ok or not rows then return 0 end
-    local zahl = ns.List.BuyCount and ns.List.BuyCount(rows) or 0
-    return tonumber(zahl) or 0
+---Die Zeilen, die wirklich zu kaufen sind.
+local function auctionRows()
+    if not (ns.Data and ns.Data.Ensure and ns.Data.Ensure()) then return {} end
+    if not (ns.List and ns.List.Build and ns.Gear and ns.Gear.Scan) then return {} end
+    local ok, alle = pcall(ns.List.Build, ns.Gear.Scan())
+    if not ok or type(alle) ~= "table" then return {} end
+    local out = {}
+    for _, row in ipairs(alle) do
+        -- Dieselbe Regel wie in List.BuyCount: was noch offen ist,
+        -- keine Alternative und kein Platzhalter.
+        if not row.pending and not row.alt and (row.buy or 0) > 0 then
+            out[#out + 1] = row
+        end
+    end
+    return out
 end
 
-local function updateAuctionButton()
-    if not ahButton then return end
-    local fehlt = auctionCount()
-    ahButton.label:SetText(fehlt > 0
-        and L["AH_BUTTON_N"]:format(fehlt) or L["AH_BUTTON"])
-    S:Recolor(ahButton.label, fehlt > 0 and "textPrimary" or "textSecondary")
+local function buildAuctionPanel()
+    if ahPanel then return ahPanel end
+    -- An UIParent, nicht am Auktionshaus: ein Kind wird mitgeschnitten,
+    -- wenn das Elternfenster kleiner ist als das Kind - und genau das
+    -- ist es hier, denn das Panel steht daneben.
+    local p = CreateFrame("Frame", "MetaCodexAuctionList", UIParent)
+    p:SetWidth(250)
+    p:SetFrameStrata("HIGH")
+    S:Fill(p, "bgBase")
+    S:Border(p, "borderSubtle")
+    p:Hide()
+    ahPanel = p
+
+    p.title = S:Text(p, "title", "textPrimary")
+    p.title:SetPoint("TOPLEFT", S.space.md, -S.space.md)
+    p.title:SetText(L["AH_PANEL_TITLE"])
+
+    p.count = S:Text(p, "caption", "textSecondary")
+    p.count:SetPoint("TOPLEFT", S.space.md, -S.space.md - 20)
+
+    -- Zu, aber nur fuer diesen Besuch: beim naechsten Auktionshaus ist
+    -- es wieder da. Wer es nie will, schaltet es in den Einstellungen
+    -- ab; wer es gerade nicht braucht, klickt hier.
+    p.close = makeButton(p, 20, 20, "X", function() p:Hide() end)
+    p.close:SetPoint("TOPRIGHT", -S.space.sm, -S.space.sm)
+
+    p.rows = {}
+    for i = 1, AH_PANEL_ROWS do
+        local r = CreateFrame("Button", nil, p)
+        r:SetHeight(30)
+        r:SetPoint("TOPLEFT", S.space.sm, -46 - (i - 1) * 32)
+        r:SetPoint("TOPRIGHT", -S.space.sm, -46 - (i - 1) * 32)
+        r.bg = S:Fill(r, "bgOverlay", 0)
+        r.icon = r:CreateTexture(nil, "ARTWORK")
+        r.icon:SetSize(24, 24)
+        r.icon:SetPoint("LEFT", S.space.xs, 0)
+        r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        r.name = S:Text(r, "body", "textPrimary")
+        r.name:SetPoint("LEFT", 32, 0)
+        r.name:SetPoint("RIGHT", -46, 0)
+        r.name:SetJustifyH("LEFT")
+        r.count = S:Text(r, "caption", "warning")
+        r.count:SetPoint("RIGHT", -S.space.xs, 0)
+        r:SetScript("OnEnter", function(self)
+            self.bg:SetAlpha(0.6)
+            if not self.link then return end
+            GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+            GameTooltip:SetHyperlink(self.link)
+            GameTooltip:Show()
+        end)
+        r:SetScript("OnLeave", function(self)
+            self.bg:SetAlpha(0)
+            GameTooltip:Hide()
+        end)
+        -- Shift-Klick gehoert dem Spiel: es haengt den Link in den Chat.
+        -- Ein schlichter Klick sucht die Ware im Auktionshaus.
+        r:SetScript("OnClick", function(self)
+            if self.link and IsModifiedClick and IsModifiedClick("CHATLINK") then
+                if HandleModifiedItemClick then HandleModifiedItemClick(self.link) end
+                return
+            end
+            if self.itemName then UI.SearchAuctionHouse(self.itemName) end
+        end)
+        r:Hide()
+        p.rows[i] = r
+    end
+
+    p.more = S:Text(p, "caption", "textMuted")
+    p.more:SetPoint("TOPLEFT", S.space.md, -46 - AH_PANEL_ROWS * 32 - 4)
+
+    local foot = CreateFrame("Frame", nil, p)
+    foot:SetHeight(34)
+    foot:SetPoint("BOTTOMLEFT")
+    foot:SetPoint("BOTTOMRIGHT")
+    S:Fill(foot, "bgRaised")
+    S:Border(foot, "borderSubtle", 1, { top = true })
+    p.search = makeButton(foot, 72, 22, L["AH_PANEL_SEARCH"], function()
+        UI.HandoverMissing(true)
+    end)
+    p.search:SetPoint("RIGHT", -S.space.sm, 0)
+    p.create = makeButton(foot, 104, 22, L["AH_PANEL_LIST"], function()
+        UI.HandoverMissing(false)
+    end)
+    p.create:SetPoint("RIGHT", p.search, "LEFT", -S.space.xs, 0)
+    return p
 end
 
-local function buildAuctionButton()
-    -- Das Auktionshaus-Fenster wird nachgeladen; vor dem ersten Besuch
-    -- gibt es die Variable gar nicht.
-    if ahButton or not AuctionHouseFrame then return end
-    ahButton = makeButton(AuctionHouseFrame, 150, 22, "", function()
-        UI.OpenSection("remind")
-    end)
-    -- Oben rechts, neben dem Schliessen-Knopf: dort ist Platz, und dort
-    -- sucht man Knoepfe, die zum Fenster gehoeren.
-    ahButton:SetPoint("TOPRIGHT", AuctionHouseFrame, "TOPRIGHT", -56, -28)
-    ahButton:SetFrameStrata("HIGH")
-    ahButton:SetScript("OnEnter", function(self)
-        self.bg:SetVertexColor(S:Color("bgHover"))
-        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
-        GameTooltip:AddLine("MetaCodex", 1, 1, 1)
-        GameTooltip:AddLine(L["AH_BUTTON_HINT"], 0.8, 0.8, 0.8, true)
-        GameTooltip:Show()
-    end)
-    ahButton:SetScript("OnLeave", function(self)
-        self.bg:SetVertexColor(S:Color("bgOverlay"))
-        GameTooltip:Hide()
-    end)
+---Die Einkaufsliste am Auktionshaus schliessen.
+---
+---Gebraucht von der Einstellung: wer sie am offenen Auktionshaus
+---abschaltet, soll nicht erst wieder hingehen muessen.
+function UI.HideAuctionPanel()
+    if ahPanel then ahPanel:Hide() end
+end
+
+---Das Panel mit dem aktuellen Stand fuellen.
+function UI.RefreshAuctionPanel()
+    if not ahPanel or not ahPanel:IsShown() then return end
+    local rows = auctionRows()
+    local fehltName = false
+    -- Eine Sache ist kein "1 Dinge".
+    local kopf = L["AH_PANEL_EMPTY"]
+    if #rows == 1 then kopf = L["AH_PANEL_COUNT_1"]
+    elseif #rows > 1 then kopf = L["AH_PANEL_COUNT"]:format(#rows) end
+    ahPanel.count:SetText(kopf)
+    for i, r in ipairs(ahPanel.rows) do
+        local row = rows[i]
+        if row then
+            r.link = row.link
+            r.itemName = row.name
+            r.icon:SetTexture(row.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+            -- Kennt der Client den Gegenstand noch nicht, steht hier
+            -- seine Nummer - und wir fordern ihn an. Der Haken weiter
+            -- unten zeichnet neu, sobald der Name da ist.
+            if not row.name and ns.Compat and ns.Compat.RequestItem then
+                ns.Compat.RequestItem(row.id)
+                fehltName = true
+            end
+            r.name:SetText(row.name or ("#" .. tostring(row.id)))
+            r.count:SetText(L["AH_PANEL_MISSING"]:format(row.buy or 0))
+            r:Show()
+        else
+            r:Hide()
+        end
+    end
+    ahPanel.more:SetText(#rows > AH_PANEL_ROWS
+        and L["AH_PANEL_MORE"]:format(#rows - AH_PANEL_ROWS) or "")
+
+    local usable = ns.Adapter and ns.Adapter.Loaded()
+    local canSearch = usable and ns.Adapter.AuctionHouseOpen()
+    ahPanel.create:SetEnabled(usable and true or false)
+    ahPanel.create:SetAlpha(usable and 1 or 0.4)
+    ahPanel.search:SetEnabled(canSearch and true or false)
+    ahPanel.search:SetAlpha(canSearch and 1 or 0.4)
+end
+
+---Einen Namen in das Suchfeld des Auktionshauses schreiben.
+---
+---Blizzards Feld heisst je nach Spielstand anders, und ElvUI baut das
+---Fenster um - gefunden wird es deshalb ueber mehrere Wege, und wenn
+---keiner traegt, passiert nichts. Ein Fehler aus fremdem Code waere das
+---schlechtere Ende.
+---@param name string
+function UI.SearchAuctionHouse(name)
+    if not name or name == "" then return end
+    local box = AuctionHouseFrame and (AuctionHouseFrame.SearchBar
+        and AuctionHouseFrame.SearchBar.SearchBox)
+    if not box then box = _G["AuctionHouseFrameSearchBar"] end
+    if box and box.SetText then
+        box:SetText(name)
+        if box.GetScript and box:GetScript("OnEnterPressed") then
+            box:GetScript("OnEnterPressed")(box)
+        end
+        return true
+    end
+    -- Kein Feld gefunden: dann wenigstens sagen, wonach zu suchen ist.
+    ns.Print(L["AH_PANEL_SEARCH_FALLBACK"]:format(name))
+    return false
+end
+
+local function showAuctionPanel()
+    if not AuctionHouseFrame then return end
+    -- Abgeschaltet heisst abgeschaltet - und das gilt auch, wenn die
+    -- Erinnerungen als Ganzes aus sind.
+    if ns.Profile and ns.Profile.AuctionPanel and not ns.Profile.AuctionPanel() then
+        if ahPanel then ahPanel:Hide() end
+        return
+    end
+    local p = buildAuctionPanel()
+    -- Bei jedem Oeffnen neu andocken: ElvUI und Blizzard setzen das
+    -- Fenster verschieden, und wer es verschiebt, will das Panel
+    -- mitnehmen.
+    p:ClearAllPoints()
+    p:SetPoint("TOPLEFT", AuctionHouseFrame, "TOPRIGHT", 4, 0)
+    local h = tonumber(AuctionHouseFrame.GetHeight and AuctionHouseFrame:GetHeight()) or 0
+    p:SetHeight(h > 200 and h or 520)
+    p:Show()
+    UI.RefreshAuctionPanel()
 end
 
 local ahWatch = CreateFrame("Frame")
@@ -5576,20 +5745,41 @@ ahWatch:RegisterEvent("AUCTION_HOUSE_SHOW")
 ahWatch:RegisterEvent("AUCTION_HOUSE_CLOSED")
 ahWatch:SetScript("OnEvent", function(_, event)
     if event == "AUCTION_HOUSE_SHOW" then
-        buildAuctionButton()
-        updateAuctionButton()
-        if ahButton then ahButton:Show() end
-    elseif ahButton then
-        ahButton:Hide()
+        showAuctionPanel()
+    elseif ahPanel then
+        ahPanel:Hide()
     end
     if frame and frame:IsShown() then UI.Refresh() end
 end)
+-- Namen treffen nachtraeglich ein.
+--
+-- Der Client kennt einen Gegenstand erst, wenn er ihn vom Server geholt
+-- hat; bis dahin steht in der Liste seine Nummer. Boot.lua hoert zwar
+-- auf GET_ITEM_INFO_RECEIVED, steigt aber aus, wenn das grosse Fenster
+-- zu ist - und beim Einkaufen ist es das meistens. Darum hoert das Panel
+-- selbst.
+--
+-- Mit Verzoegerung: beim Oeffnen kommen Dutzende dieser Ereignisse
+-- hintereinander, und jedes einzeln zu zeichnen waere Verschwendung.
+local ahNames = CreateFrame("Frame")
+ahNames:RegisterEvent("GET_ITEM_INFO_RECEIVED")
+ahNames:SetScript("OnEvent", function(self)
+    if not (ahPanel and ahPanel:IsShown()) then return end
+    if self.timer and self.timer.Cancel then self.timer:Cancel() end
+    if C_Timer and C_Timer.NewTimer then
+        self.timer = C_Timer.NewTimer(0.2, function()
+            self.timer = nil
+            UI.RefreshAuctionPanel()
+        end)
+    else
+        UI.RefreshAuctionPanel()
+    end
+end)
 
--- Was in den Beuteln liegt, aendert sich waehrend des Einkaufs.
 local ahBags = CreateFrame("Frame")
 ahBags:RegisterEvent("BAG_UPDATE_DELAYED")
 ahBags:SetScript("OnEvent", function()
-    if ahButton and ahButton:IsShown() then updateAuctionButton() end
+    if ahPanel and ahPanel:IsShown() then UI.RefreshAuctionPanel() end
 end)
 
 ---Die eingestellte Startaktivitaet anwenden, wenn es eine gibt.

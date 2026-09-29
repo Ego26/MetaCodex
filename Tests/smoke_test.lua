@@ -4822,50 +4822,86 @@ do
     ns.UI.Refresh()
 end
 
--- ------------------------------------------ Der Knopf am Auktionshaus
+-- -------------------------------- Die Einkaufsliste am Auktionshaus
 --
--- Die Einkaufsliste und "Jetzt suchen" gab es laengst; was fehlte, war
--- der Weg dorthin, wenn man vor dem Auktionshaus steht. Der Knopf muss
--- deshalb zweierlei koennen: die Zahl dessen nennen, was fehlt, und die
--- Erinnerung oeffnen.
+-- Erst war es ein Knopf oben IM Auktionshaus-Fenster. Der sass mitten in
+-- Blizzards Bedienelementen, und bei ElvUI, das dieses Fenster umbaut,
+-- erst recht. Jetzt steht die Liste aussen daneben - angedockt nur an
+-- die rechte Aussenkante, die auch ein umgebautes Fenster behaelt.
 do
-    -- Das Auktionshaus-Fenster wird im Spiel nachgeladen. Frueher im
-    -- Test wurde es schon mehrfach gesetzt und wieder genommen, der
-    -- Knopf kann also an einer aelteren Fassung haengen - gesucht wird
-    -- er darum an seiner Beschriftung, nicht am Elternteil.
     if not _G.AuctionHouseFrame then
         _G.AuctionHouseFrame = CreateFrame("Frame", "AuctionHouseFrame", UIParent)
     end
 
-    local vorher = MetaCodexDB.section
-    MetaCodexDB.section = "talents"
-
     local erreicht = wow.fire("AUCTION_HOUSE_SHOW")
     check("jemand hoert auf das Auktionshaus", erreicht > 0, erreicht .. " Rahmen")
 
-    local knopf
-    for _, f in ipairs(wow.frames) do
-        local text = f.label and f.label.GetText and f.label:GetText()
-        if type(text) == "string" and text:find("MetaCodex", 1, true)
-            and f.GetScript and f:GetScript("OnClick") then
-            knopf = f
+    local panel = _G.MetaCodexAuctionList
+    check("neben dem Auktionshaus steht die Liste", panel ~= nil)
+    if panel then
+        check("und sie ist offen", panel:IsShown() == true)
+        check("sie nennt sich Einkaufsliste",
+            (panel.title:GetText() or "") == ns.L["AH_PANEL_TITLE"],
+            panel.title:GetText())
+
+        -- Sie zeigt, was wirklich zu kaufen ist - nicht mehr und nicht
+        -- weniger.
+        local sichtbar = 0
+        for _, r in ipairs(panel.rows) do
+            if r:IsShown() then sichtbar = sichtbar + 1 end
         end
-    end
-    check("am Auktionshaus steht ein Knopf", knopf ~= nil)
-    if knopf then
-        check("und er nennt die Zahl oder die Liste",
-            (knopf.label:GetText() or ""):find("MetaCodex", 1, true) ~= nil,
-            knopf.label:GetText())
+        check("sie zeigt offene Zeilen", sichtbar > 0, sichtbar .. " Zeilen")
+        -- Einzahl und Mehrzahl: "1 Dinge fehlen" stand da einmal.
+        local kopf = panel.count:GetText() or ""
+        if sichtbar == 1 then
+            check("bei einer Sache heisst es nicht Dinge",
+                kopf == ns.L["AH_PANEL_COUNT_1"], kopf)
+        end
 
-        -- Und er fuehrt zur Erinnerung, nicht irgendwohin.
-        knopf:GetScript("OnClick")(knopf)
-        check("und oeffnet die Erinnerung",
-            MetaCodexDB.section == "remind", tostring(MetaCodexDB.section))
+        check("und der Kopf nennt eine Zahl",
+            (panel.count:GetText() or ""):find("%d") ~= nil,
+            panel.count:GetText())
+
+        -- Ein Klick sucht die Ware. Ohne Suchfeld darf das nicht
+        -- abstuerzen - fremde Fenster sehen nicht ueberall gleich aus.
+        local erste
+        for _, r in ipairs(panel.rows) do
+            if r:IsShown() and not erste then erste = r end
+        end
+        if erste then
+            local ok = pcall(erste:GetScript("OnClick"), erste)
+            check("ein Klick auf eine Zeile laeuft durch", ok == true)
+        end
+
+        -- Abschaltbar - und an den Erinnerungen haengend.
+        --
+        -- Wer die Erinnerungen ganz abstellt, will Ruhe; ein Fenster,
+        -- das trotzdem aufgeht, waere das Gegenteil. Die eigene
+        -- Einstellung entscheidet nur, solange Erinnerungen an sind.
+        check("standardmaessig an", ns.Profile.AuctionPanel() == true)
+
+        ns.Profile.SetReminders(false)
+        check("ohne Erinnerungen ist sie aus",
+            ns.Profile.AuctionPanel() == false)
+        wow.fire("AUCTION_HOUSE_SHOW")
+        check("und geht dann auch nicht auf", panel:IsShown() == false)
+
+        ns.Profile.SetReminders(true)
+        wow.fire("AUCTION_HOUSE_SHOW")
+        check("mit Erinnerungen wieder da", panel:IsShown() == true)
+
+        ns.Profile.SetAuctionPanel(false)
+        check("einzeln abschaltbar", ns.Profile.AuctionPanel() == false)
+        wow.fire("AUCTION_HOUSE_SHOW")
+        check("und bleibt dann zu", panel:IsShown() == false)
+        ns.Profile.SetAuctionPanel(true)
+        wow.fire("AUCTION_HOUSE_SHOW")
+
+        -- Und mit dem Auktionshaus geht sie wieder zu.
+        wow.fire("AUCTION_HOUSE_CLOSED")
+        check("mit dem Auktionshaus geht sie zu", panel:IsShown() == false)
     end
-    MetaCodexDB.section = vorher
-    ns.UI.Refresh()
 end
-
 -- ------------------------------------------------------- Die Scrollleiste
 --
 -- Sie darf nur dastehen, wenn es etwas zu schieben gibt. Blizzards

@@ -307,6 +307,7 @@ ns.RegisterLocale("deDE", {
     ["REMIND_WIN_LOWER"] = "%d in niedrigerer Qualität",
     ["REMIND_WINDOW_TITLE"] = "Bevor du reingehst",
     ["REMIND_OPT_AH"]  = "Am Auktionshaus an Fehlendes erinnern",
+    ["REMIND_OPT_AH_PANEL"] = "Einkaufsliste neben dem Auktionshaus",
     ["REMIND_OPT_BELOW"] = "Als knapp gilt, was unter diesem Anteil des Ziels liegt",
     ["REMIND_GROUP_ENCHANTS"] = "Verzauberungen & Steine, die noch fehlen",
     ["IGNORE_ON"] = "Ignorieren",
@@ -424,9 +425,15 @@ ns.RegisterLocale("deDE", {
 
 ns.RegisterLocale("deDE", {
     ["AH_OFFER"] = "%d Dinge fehlen noch. |cff4c8dff/mc|r öffnet die Liste.",
-    ["AH_BUTTON"] = "MetaCodex – Einkaufsliste",
-    ["AH_BUTTON_N"] = "MetaCodex – %d zu kaufen",
-    ["AH_BUTTON_HINT"] = "Öffnet die Erinnerung mit dem aktuellen Stand. Dort legst du die Einkaufsliste an oder suchst direkt im Auktionshaus.",
+    ["AH_PANEL_TITLE"] = "Einkaufsliste",
+    ["AH_PANEL_COUNT_1"] = "1 Ding fehlt — Klick sucht es hier",
+    ["AH_PANEL_LIST"] = "Liste anlegen",
+    ["AH_PANEL_SEARCH"] = "Suchen",
+    ["AH_PANEL_COUNT"] = "%d Dinge fehlen — Klick sucht sie hier",
+    ["AH_PANEL_EMPTY"] = "Nichts offen. Du hast alles dabei.",
+    ["AH_PANEL_MISSING"] = "%d fehlen",
+    ["AH_PANEL_MORE"] = "und %d weitere",
+    ["AH_PANEL_SEARCH_FALLBACK"] = "Suchfeld nicht gefunden. Gesucht wird: %s",
 })
 
 ns.RegisterLocale("deDE", {

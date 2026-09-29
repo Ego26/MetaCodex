@@ -509,6 +509,28 @@ function Profile.SetRemindAtAuctionHouse(on)
     MetaCodexDB.remindAH = on and true or false
 end
 
+---Die Einkaufsliste neben dem Auktionshaus?
+---
+---Sie haengt an den Erinnerungen: wer die abgeschaltet hat, will vom
+---Addon in Ruhe gelassen werden, und ein Fenster, das trotzdem aufgeht,
+---waere genau das Gegenteil. Darum fragt diese Funktion beides ab - die
+---eigene Einstellung entscheidet nur, solange Erinnerungen an sind.
+---
+---Vorgabe an: wer die Erinnerungen anlaesst, will die Liste dort, wo er
+---einkauft.
+---@return boolean
+function Profile.AuctionPanel()
+    if not Profile.RemindersOn() then return false end
+    local db = MetaCodexDB or {}
+    if db.auctionPanel == nil then return true end
+    return db.auctionPanel and true or false
+end
+
+---@param on boolean
+function Profile.SetAuctionPanel(on)
+    MetaCodexDB.auctionPanel = on and true or false
+end
+
 ---Ab wann gewarnt wird: der Anteil des Ziels, unter dem etwas als
 ---knapp gilt. Wer 18 von 20 Traenken hat, braucht keinen Hinweis.
 ---@return number 0.25 | 0.5 | 0.75 | 1

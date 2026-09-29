@@ -309,6 +309,7 @@ ns.RegisterLocale("enUS", {
     ["REMIND_WIN_LOWER"] = "%d in lower quality",
     ["REMIND_WINDOW_TITLE"] = "Before you go in",
     ["REMIND_OPT_AH"]  = "Remind at the auction house",
+    ["REMIND_OPT_AH_PANEL"] = "Shopping list beside the auction house",
     ["REMIND_OPT_BELOW"] = "Counts as low when below this share of the target",
     ["REMIND_GROUP_ENCHANTS"] = "Enchants & gems still missing",
     ["IGNORE_ON"] = "Ignore",
@@ -432,9 +433,15 @@ ns.RegisterLocale("enUS", {
     -- One line, not an opening window. Someone at the auction house is
     -- usually there for something else.
     ["AH_OFFER"] = "%d things still missing. |cff4c8dff/mc|r opens the list.",
-    ["AH_BUTTON"] = "MetaCodex – shopping list",
-    ["AH_BUTTON_N"] = "MetaCodex – %d to buy",
-    ["AH_BUTTON_HINT"] = "Opens the reminder with what you have right now. From there you build the shopping list or search the auction house directly.",
+    ["AH_PANEL_TITLE"] = "Shopping list",
+    ["AH_PANEL_COUNT_1"] = "1 thing missing — click it to search",
+    ["AH_PANEL_LIST"] = "Create list",
+    ["AH_PANEL_SEARCH"] = "Search",
+    ["AH_PANEL_COUNT"] = "%d things missing — click one to search for it",
+    ["AH_PANEL_EMPTY"] = "Nothing open. You have it all.",
+    ["AH_PANEL_MISSING"] = "%d missing",
+    ["AH_PANEL_MORE"] = "and %d more",
+    ["AH_PANEL_SEARCH_FALLBACK"] = "Search box not found. Look for: %s",
 })
 
 ns.RegisterLocale("enUS", {
