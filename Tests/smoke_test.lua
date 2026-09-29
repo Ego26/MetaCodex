@@ -4931,6 +4931,27 @@ do
             check("ein Klick auf eine Zeile laeuft durch", ok == true)
         end
 
+        -- Der Zettel kennt BEIDE Quellen.
+        --
+        -- Verbrauchsgueter stehen in Remind.Status, Verzauberungen und
+        -- Steine in List.Build. Die Liste neben dem Auktionshaus fragte
+        -- nur die zweite und stand leer da, waehrend im Fenster fuenf
+        -- Dinge fehlten.
+        local zettel = ns.UI.ShoppingRows()
+        local ausRemind, ausListe = 0, 0
+        for _, r in ipairs(zettel) do
+            if r.kind == "consumable" then ausRemind = ausRemind + 1
+            else ausListe = ausListe + 1 end
+        end
+        check("der Zettel kennt die Verbrauchsgueter", ausRemind > 0,
+            ausRemind .. " Zeilen")
+        check("und die Verzauberungen und Steine", ausListe > 0,
+            ausListe .. " Zeilen")
+
+        -- Und die Uebergabe an Auctionator nimmt genau denselben Zettel.
+        check("die Liste am Auktionshaus zeigt, was uebergeben wird",
+            #zettel == #ns.UI.ShoppingRows(), #zettel .. " Zeilen")
+
         -- Ignoriertes steht NICHT auf dem Einkaufszettel.
         --
         -- Es stand im Fenster schon nicht mehr, tauchte aber in der
@@ -4964,18 +4985,15 @@ do
 
             -- Und die Liste neben dem Auktionshaus zieht SOFORT mit,
             -- ohne dass man erst wieder hingehen muss.
+            -- Gemessen an der LISTE, nicht an den sichtbaren Zeilen:
+            -- die sind gedeckelt, und ein Ignorieren dahinter aendert
+            -- ihre Zahl nicht.
             ns.Profile.SetIgnored(ersteID, false)
             ns.UI.Refresh()
-            local mitDrin = 0
-            for _, r in ipairs(panel.rows) do
-                if r:IsShown() then mitDrin = mitDrin + 1 end
-            end
+            local mitDrin = #ns.UI.ShoppingRows()
             ns.Profile.SetIgnored(ersteID, true)
             ns.UI.Refresh()
-            local ohne = 0
-            for _, r in ipairs(panel.rows) do
-                if r:IsShown() then ohne = ohne + 1 end
-            end
+            local ohne = #ns.UI.ShoppingRows()
             check("ein Ignorieren im Fenster wirkt sofort in der Liste",
                 ohne == mitDrin - 1, mitDrin .. " -> " .. ohne)
             ns.Profile.SetIgnored(ersteID, false)

@@ -5518,20 +5518,29 @@ end
 ---fehlt mir vor dem Pull", und die Antwort sind die knappen
 ---Verbrauchsgueter UND die offenen Verzauberungen und Steine.
 ---@param searchNow boolean
-function UI.HandoverMissing(searchNow)
-    if not ns.Adapter.Loaded() then
-        ns.Print(L["NO_AUCTIONATOR"])
-        return
-    end
+---Alles, was auf den Einkaufszettel gehoert.
+---
+---ZWEI QUELLEN, und das ist der Grund, warum es diese Funktion gibt.
+---Verbrauchsgueter stehen in Remind.Status, Verzauberungen und Steine
+---in List.Build. Die Uebergabe an Auctionator fragte beide, die Liste
+---neben dem Auktionshaus nur die zweite - und stand leer da, waehrend
+---im Fenster fuenf Dinge fehlten.
+---
+---Die Verbrauchsgueter bekommen Symbol und Link gleich mit: die Liste
+---zeigt sie, und Remind.Status fuehrt nur Nummer und Name.
+---@return table[] rows
+function UI.ShoppingRows()
     local rows = {}
     for _, row in ipairs(ns.Remind.Status(ns.Profile.Mode())) do
         local buy = math.max(0, (row.need or 0) - (row.owned or 0))
-        -- Ignoriertes gehoert auch hier nicht hinein. Es stand im
-        -- Fenster nicht mehr und wurde trotzdem an Auctionator
-        -- weitergereicht.
+        -- Ignoriertes gehoert nicht hinein. Es stand im Fenster nicht
+        -- mehr und wurde trotzdem an Auctionator weitergereicht.
         if buy > 0 and not ns.Profile.Ignored(row.id) then
+            local name, link, icon = ns.Compat.ItemInfo(row.id)
+            if not name then ns.Compat.RequestItem(row.id) end
             rows[#rows + 1] = {
-                kind = "consumable", id = row.id, name = row.name,
+                kind = "consumable", id = row.id,
+                name = name or row.name, link = link, icon = icon,
                 buy = buy, need = row.need, owned = row.owned,
             }
         end
@@ -5541,6 +5550,15 @@ function UI.HandoverMissing(searchNow)
             if ns.List.Wanted(row) then rows[#rows + 1] = row end
         end
     end
+    return rows
+end
+
+function UI.HandoverMissing(searchNow)
+    if not ns.Adapter.Loaded() then
+        ns.Print(L["NO_AUCTIONATOR"])
+        return
+    end
+    local rows = UI.ShoppingRows()
 
     local ok, message, written
     if searchNow then
@@ -5646,16 +5664,11 @@ local AH_TRACK_W = AH_PANEL_W - 34 - 40
 ---Die Zeilen, die wirklich zu kaufen sind.
 local function auctionRows()
     if not (ns.Data and ns.Data.Ensure and ns.Data.Ensure()) then return {} end
-    if not (ns.List and ns.List.Build and ns.Gear and ns.Gear.Scan) then return {} end
-    local ok, alle = pcall(ns.List.Build, ns.Gear.Scan())
-    if not ok or type(alle) ~= "table" then return {} end
-    local out = {}
-    for _, row in ipairs(alle) do
-        -- Eine Regel, eine Stelle: List.Wanted kennt auch das
-        -- Ignorieren, das hier vorher fehlte.
-        if ns.List.Wanted(row) then out[#out + 1] = row end
-    end
-    return out
+    -- Dieselbe Zusammenstellung wie die Uebergabe an Auctionator.
+    -- Vorher stand hier eine eigene, die nur die halbe Quelle kannte.
+    local ok, rows = pcall(UI.ShoppingRows)
+    if not ok or type(rows) ~= "table" then return {} end
+    return rows
 end
 
 local function buildAuctionPanel()
