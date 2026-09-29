@@ -287,6 +287,12 @@ function M.install(opts)
         -- pruefen - und genau das war der Fall, als es im Spiel schieflief.
         [7]  = { className = "Shaman", classFile = "SHAMAN", classID = 7 },
         [11] = { className = "Druid", classFile = "DRUID", classID = 11 },
+        -- Der Todesritter stellt auch eine eigene Frage: er schmiedet
+        -- seine Waffenverzauberung selbst, kauft sie also nicht. Ohne
+        -- ihn im Stub laesst sich die Runenschmiede nicht pruefen - und
+        -- genau das war der Fall, als sie "bereits drauf" sagte,
+        -- waehrend eine ganz andere Rune auf der Waffe sass.
+        [6]  = { className = "Death Knight", classFile = "DEATHKNIGHT", classID = 6 },
     }
     local specs = opts.specs or {
         [1] = {
@@ -297,6 +303,11 @@ function M.install(opts)
             { id = 262, name = "Elemental", primary = 4 },
             { id = 263, name = "Enhancement", primary = 2 },
             { id = 264, name = "Restoration", primary = 4 },
+        },
+        [6] = {
+            { id = 250, name = "Blood", primary = 2 },
+            { id = 251, name = "Frost", primary = 2 },
+            { id = 252, name = "Unholy", primary = 2 },
         },
         [11] = {
             { id = 102, name = "Balance", primary = 4 },

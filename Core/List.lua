@@ -299,11 +299,26 @@ function List.Build(scan)
         local pick = ns.Recommend.Enchant(rec, "runeforge")
         local wornSpell = not foreign and Gear.Runeforge(scan) or nil
         local wantSpell = pick and Catalog.RuneforgeSpell(pick.id) or nil
+        -- Eine Rune ist nicht DIE Rune.
+        --
+        -- Hier stand "wornSpell and 0 or 1": sobald ueberhaupt eine Rune
+        -- auf der Waffe sass, galt die Zeile als erledigt - und zwar die
+        -- Zeile der EMPFOHLENEN Rune. Im Fenster stand dann "Rune der
+        -- Apokalypse - bereits drauf", waehrend auf der Waffe die Rune
+        -- des gefallenen Kreuzfahrers sass.
+        --
+        -- Ohne Empfehlung bleibt es beim alten: was wir nicht besser
+        -- wissen, verlangen wir auch nicht.
+        local passt = wornSpell ~= nil
+            and (wantSpell == nil or wornSpell == wantSpell)
         rows[#rows + 1] = {
             kind = "runeforge", slot = "weapon",
             spell = wantSpell or wornSpell, worn = wornSpell,
+            -- Getrennt gefuehrt: "etwas ist drauf" und "das Richtige ist
+            -- drauf" sind zwei Auskuenfte, und die Zeile braucht beide.
+            wornMatches = passt,
             pct = pick and pick.pct or nil,
-            need = 1, missing = (wornSpell and 0) or 1, buy = 0,
+            need = 1, missing = passt and 0 or 1, buy = 0,
         }
     end
 

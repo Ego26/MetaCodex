@@ -5067,6 +5067,73 @@ do
         check("mit dem Auktionshaus geht sie zu", panel:IsShown() == false)
     end
 end
+-- ------------------------------------------------ Die Runenschmiede
+--
+-- Der Todesritter schmiedet seine Waffenverzauberung selbst. Die Zeile
+-- galt als erledigt, sobald UEBERHAUPT eine Rune auf der Waffe sass -
+-- im Fenster stand dann "Rune der Apokalypse, bereits drauf", waehrend
+-- in Wahrheit die Rune des gefallenen Kreuzfahrers darauf war.
+--
+-- Es gab dafuer keinen einzigen Test. Jetzt schon.
+do
+    local echteRune = ns.Gear.Runeforge
+    local echteEnchant = ns.Recommend.Enchant
+    local echteSpell = ns.Catalog.RuneforgeSpell
+    local echterSpec = ns.Profile.SelectedSpec()
+
+    local WUNSCH, ANDERE = 53344, 53343   -- Apokalypse, gefallener Kreuzfahrer
+    ns.Recommend.Enchant = function(_, welche)
+        if welche == "runeforge" then return { id = 1, pct = 100 } end
+        return echteEnchant and nil
+    end
+    ns.Catalog.RuneforgeSpell = function() return WUNSCH end
+    ns.Profile.Select(6, 250)   -- Todesritter, Blut
+    -- Fuer eine FREMDE Klasse liest das Addon die eigene Waffe bewusst
+    -- nicht aus - der Testcharakter ist Druide. Fuer diesen Block tun
+    -- wir so, als waere es die eigene.
+    local echtFremd = ns.Profile.IsForeignClass
+    ns.Profile.IsForeignClass = function() return false end
+
+    local function runenzeile()
+        for _, row in ipairs(ns.List.Build(ns.Gear.Scan())) do
+            if row.kind == "runeforge" then return row end
+        end
+    end
+
+    ns.Gear.Runeforge = function() return ANDERE end
+    local andere = runenzeile()
+    check("eine fremde Rune gilt nicht als erledigt",
+        andere ~= nil and andere.wornMatches ~= true,
+        andere and tostring(andere.wornMatches) or "keine Zeile")
+    check("und sie fehlt weiterhin",
+        andere ~= nil and (andere.missing or 0) == 1,
+        andere and tostring(andere.missing) or "keine Zeile")
+
+    ns.Gear.Runeforge = function() return WUNSCH end
+    local passend = runenzeile()
+    check("die empfohlene Rune gilt als erledigt",
+        passend ~= nil and passend.wornMatches == true,
+        passend and tostring(passend.wornMatches) or "keine Zeile")
+    check("und fehlt nicht mehr",
+        passend ~= nil and (passend.missing or 0) == 0,
+        passend and tostring(passend.missing) or "keine Zeile")
+
+    -- Ohne Empfehlung wird nichts verlangt: was wir nicht besser
+    -- wissen, fordern wir auch nicht ein.
+    ns.Catalog.RuneforgeSpell = function() return nil end
+    ns.Gear.Runeforge = function() return ANDERE end
+    local ohne = runenzeile()
+    check("ohne Empfehlung genuegt irgendeine Rune",
+        ohne ~= nil and ohne.wornMatches == true,
+        ohne and tostring(ohne.wornMatches) or "keine Zeile")
+
+    ns.Gear.Runeforge = echteRune
+    ns.Recommend.Enchant = echteEnchant
+    ns.Catalog.RuneforgeSpell = echteSpell
+    ns.Profile.IsForeignClass = echtFremd
+    ns.Profile.Select(nil, nil)
+end
+
 -- ------------------------------------------------------- Die Scrollleiste
 --
 -- Sie darf nur dastehen, wenn es etwas zu schieben gibt. Blizzards

@@ -3189,8 +3189,19 @@ local function setItemRow(row, data)
         row.detail:ClearAllPoints()
         row.detail:SetPoint("TOPLEFT", S.space.sm + 38, -S.space.sm - 16)
         local parts = { L["SLOT_weapon"], L["RUNEFORGE_NOTE"] }
-        if data.worn then
+        -- "Bereits drauf" nur, wenn DIESE Rune drauf ist.
+        --
+        -- Sitzt eine andere auf der Waffe, wird sie beim Namen genannt -
+        -- dieselbe Sprache wie bei einem belegten Sockel. Vorher stand
+        -- an der empfohlenen Rune "bereits drauf", sobald irgendeine
+        -- Rune da war.
+        if data.wornMatches then
             parts[#parts + 1] = "|cff" .. S:Hex("success") .. L["ALREADY_DONE"] .. "|r"
+        elseif data.worn then
+            local drauf = C_Spell and C_Spell.GetSpellInfo
+                and C_Spell.GetSpellInfo(data.worn)
+            parts[#parts + 1] = L["OTHER_ENCHANT"]:format(
+                (drauf and drauf.name) or ("#" .. tostring(data.worn)))
         end
         row.detail:SetText(table.concat(parts, "  \194\183  "))
         row.share:SetText(data.pct and (data.pct .. "%") or "")
