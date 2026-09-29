@@ -206,7 +206,6 @@ ns.RegisterLocale("deDE", {
     ["FOLIO_ROW_ONE"]      = "Reihe %d – hier gibt es nichts zu wählen",
     ["FOLIO_ONLY"]         = "Die einzige Rune dieser Reihe",
     ["FOLIO_DERIVED"]      = "Gerechnet, nicht gesehen",
-    ["FOLIO_DERIVED_TEXT"] = "Diese Rune hinterlässt im Kampf keine Spur – das Spiel kennt zu ihr keinen Zauber außer dem Talent selbst. Ihre Zahl ist das, was übrig bleibt, wenn man die beiden anderen abzieht. Die Überladung wird daran erkannt, dass sie den Schaden der Kernrune verdoppelt.",
     ["SOON_CONSUMABLES"]   = "Noch nicht gesammelt. Fläschchen, Tränke, Essen und Runen stehen in denselben Logs wie die Verzauberungsdaten – sie werden nur noch nicht ausgelesen.",
     ["SOON_GEAR"]          = "Noch nicht gesammelt. Die Berichte tragen den Gegenstand je Platz bereits; es fehlt die Auswertung, nicht die Datenlage.",
     ["SOON_TALENTS"]       = "Noch nicht gesammelt. Talentbelegungen stehen in den Logs, je Dungeon und je Boss.",
@@ -462,7 +461,6 @@ ns.RegisterLocale("deDE", {
 
 
 ns.RegisterLocale("deDE", {
-    ["STAT_RANGE"] = "die mittlere Hälfte liegt bei %d bis %d",
     ["STAT_HINT"]  = "Median der gemessenen Spieler, je Wert einzeln — zur Orientierung, keine BiS-Werte.",
     ["STAT_HINT_N"] = "Median aus %d gemessenen Spielern, je Wert einzeln — zur Orientierung, keine BiS-Werte.",
     ["STAT_SHARE"] = "%d%% des Gesamtwerts",

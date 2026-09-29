@@ -206,7 +206,6 @@ ns.RegisterLocale("enUS", {
     ["FOLIO_ROW_ONE"]      = "Row %d - no choice here",
     ["FOLIO_ONLY"]         = "The only rune in this row",
     ["FOLIO_DERIVED"]      = "Worked out, not seen",
-    ["FOLIO_DERIVED_TEXT"] = "This rune leaves no trace in a fight - the game has no spell for it beyond the talent itself. Its number is what is left once the other two are subtracted. Overload is recognised by the fact that it doubles the Core Rune's damage.",
     ["SOON_CONSUMABLES"]   = "Not collected yet. Flasks, potions, food and runes are recorded in the same logs the enchant data comes from - they just are not read out yet.",
     ["SOON_GEAR"]          = "Not collected yet. The reports already carry the item per slot; what is missing is the evaluation, not the data.",
     ["SOON_TALENTS"]       = "Not collected yet. Talent loadouts are in the logs, per dungeon and per boss.",
@@ -488,7 +487,6 @@ ns.RegisterLocale("enUS", {
     -- What is missing belongs on the right, where the eye lands.
     -- The rank sat there and was the smaller answer: the order already
     -- shows it.
-    ["STAT_RANGE"] = "the middle half sits between %d and %d",
     ["STAT_HINT"]  = "Median of the measured players, one stat at a time — for orientation, not BiS values.",
     ["STAT_HINT_N"] = "Median of %d measured players, one stat at a time — for orientation, not BiS values.",
     ["STAT_SHARE"] = "%d%% of the budget",

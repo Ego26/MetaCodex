@@ -2273,9 +2273,7 @@ function UI.FolioRows(specID, mode, source)
     if not rows then return {}, nil end
 
     local out = {}
-    -- Die Gruppe, in der die gerechnete Zeile steht: der Satz dazu
-    -- gehoert darunter, nicht ans Ende der Seite.
-    local gerechneteGruppe
+
     for _, row in ipairs(rows) do
         -- Eine Reihe mit nur einer Rune ist keine Wahl. Sie steht
         -- trotzdem da, sonst klafft zwischen zwei und vier eine Luecke,
@@ -2296,7 +2294,6 @@ function UI.FolioRows(specID, mode, source)
             if pick.derived then
                 -- Diese eine Rune hinterlaesst im Kampf nichts. Ihre
                 -- Zahl ist der Rest - und die Zeile sagt es.
-                gerechneteGruppe = group
                 out[#out + 1] = {
                     kind = "talent", spell = pick.spell, pct = pick.pct,
                     derived = true, group = group,
@@ -2315,15 +2312,13 @@ function UI.FolioRows(specID, mode, source)
     end
     if #out == 0 then return {}, nil end
 
-    -- Und dazu der Satz, der die gerechnete Zeile erklaert. Eine Zahl,
-    -- die anders entsteht als alle anderen im Fenster, muss das sagen -
-    -- sonst liest sie sich wie eine Messung.
-    if gerechneteGruppe then
-        out[#out + 1] = {
-            kind = "note", text = L["FOLIO_DERIVED_TEXT"],
-            group = gerechneteGruppe,
-        }
-    end
+    -- KEIN erklaerender Absatz mehr.
+    --
+    -- Dort standen vier Zeilen darueber, warum diese Rune keine Spur
+    -- hinterlaesst und wie die Zahl zustande kommt. Das ist richtig und
+    -- fuer einen Spieler trotzdem uninteressant - er will wissen, welche
+    -- Rune er nehmen soll. Was er wissen MUSS, steht an der Zeile selbst:
+    -- "Gerechnet, nicht gesehen".
     return out, from
 end
 
@@ -2810,6 +2805,15 @@ local function setItemRow(row, data)
         row.title:SetText(L["STAT_" .. data.statKey])
         row.detail:ClearAllPoints()
         row.detail:SetPoint("TOPLEFT", S.space.md + 26, -S.space.sm - 16)
+        -- Die linke Spalte hoert dort auf, wo die Bahn anfaengt.
+        --
+        -- Ohne Breite laeuft ein FontString so weit nach rechts, wie sein
+        -- Text lang ist. Die Bahn liegt senkrecht genau darueber - von
+        -- -14 bis -28, die Zeile bei -24 -, also lief der Text mitten
+        -- durch den Balken: "die mittlere Haelfte liegt bei 1133 bis
+        -- 1260" quer ueber die Fuellung.
+        row.detail:SetWidth(BAR_X - (S.space.md + 26) - S.space.md)
+        row.detail:SetWordWrap(false)
 
         -- Eine Bahn, die sich fuellt. Der gemeinsame Massstab bleibt,
         -- damit sichtbar ist, dass ein Kritziel groesser ist als ein
@@ -2833,12 +2837,13 @@ local function setItemRow(row, data)
             row.own:Show()
         end
 
-        local satz = L["STAT_SHARE"]:format(data.pct or 0)
-        -- Die Spanne der Gemessenen, wenn wir sie haben.
-        if data.low and data.high then
-            satz = satz .. "  \194\183  " .. L["STAT_RANGE"]:format(data.low, data.high)
-        end
-        row.detail:SetText(satz)
+        -- Nur der Anteil am Gesamtwert. Die Spanne der Gemessenen stand
+        -- hier auch - "die mittlere Haelfte liegt bei 1133 bis 1260" -
+        -- und ist zweimal gescheitert: sie passte nicht in die Spalte
+        -- und lief quer durch die Bahn, und sie beantwortet eine Frage,
+        -- die hier niemand stellt. Dass der Zielwert ein Median mit
+        -- Streuung ist und keine BiS-Zahl, steht im Kopf der Seite.
+        row.detail:SetText(L["STAT_SHARE"]:format(data.pct or 0))
 
         -- Rechts steht, was zaehlt: was fehlt. Dort stand der Rang, und
         -- der ist die kleinere Auskunft - die Rangfolge liest man an der

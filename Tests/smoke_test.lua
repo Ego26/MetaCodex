@@ -4153,21 +4153,34 @@ do
         }, "warcraftlogs"
     end
     rowsInSection("stats")
-    local mitSpanne, ohneSpanne = 0, 0
+    -- Die Spanne steht NICHT mehr an der Zeile.
+    --
+    -- Sie stand dort einmal, und zwar links unter dem Namen. Dort passte
+    -- sie nicht: zweihundert Pixel tragen keine sechzig Zeichen, und die
+    -- Bahn liegt senkrecht genau darueber - im Fenster lief "die
+    -- mittlere Haelfte liegt bei 1133 bis 1260" quer durch den Balken.
+    -- Dass der Zielwert ein Median mit Streuung ist, steht im Kopf der
+    -- Seite; an der Zeile zaehlt der eigene Stand.
+    local mitSpanne, zuBreit = 0, 0
     for _, row in ipairs(wow.rows()) do
-        local text = row:IsShown() and row.detail and row.detail:GetText() or nil
-        if text and text ~= "" then
+        if row:IsShown() and row.detail then
+            local text = row.detail:GetText() or ""
             if text:find("900", 1, true) and text:find("1100", 1, true) then
                 mitSpanne = mitSpanne + 1
-            else
-                ohneSpanne = ohneSpanne + 1
+            end
+            -- Und die Spalte bleibt schmal genug, um die Bahn nicht zu
+            -- beruehren. Ohne Breite laeuft ein FontString so weit, wie
+            -- sein Text lang ist - genau das war der Fehler.
+            local breite = row.detail:GetWidth()
+            if type(breite) == "number" and breite > 0 and breite >= 250 then
+                zuBreit = zuBreit + 1
             end
         end
     end
-    check("die gemessene Spanne steht an der Zeile", mitSpanne == 1,
+    check("die Spanne steht nicht mehr an der Zeile", mitSpanne == 0,
         mitSpanne .. " Zeilen")
-    check("und ohne Messung steht dort keine", ohneSpanne >= 1,
-        ohneSpanne .. " Zeilen")
+    check("und die linke Spalte reicht nicht in die Bahn", zuBreit == 0,
+        zuBreit .. " Zeilen")
     local mitZahl = ns.UI.Frame().hintText:GetText() or ""
     check("der Hinweis nennt die Zahl der Gemessenen",
         mitZahl:find("40", 1, true) ~= nil, mitZahl)
@@ -4753,10 +4766,18 @@ do
     check("die Ueberladung steht als gemessen da", ueberGemessen,
         table.concat(gemessen, " | "))
 
-    -- Und der Satz, der erklaert, wie die eine Zahl entsteht.
-    local satz = ns.L["FOLIO_DERIVED_TEXT"]
-    check("der Satz dazu steht darunter",
-        alleTexte:find(satz:sub(1, 24), 1, true) ~= nil)
+    -- Und KEIN erklaerender Absatz mehr. Er stand einmal darunter und
+    -- erklaerte, warum diese Rune keine Spur hinterlaesst - vier Zeilen,
+    -- die einen Spieler nicht weiterbringen. Was er wissen muss, steht
+    -- an der Zeile: "Gerechnet, nicht gesehen".
+    local absatz = false
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() and row.title
+            and (row.title:GetText() or ""):find("hinterl", 1, true) then
+            absatz = true
+        end
+    end
+    check("kein erklaerender Absatz mehr", absatz == false)
 
     -- Acht Anteile fuer acht gewaehlte Runen. Reihe 3 ist die neunte
     -- Zeile und traegt KEINEN - "100 %" waere dort nur eine
