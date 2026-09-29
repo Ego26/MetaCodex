@@ -437,6 +437,23 @@ check("exakte Suche", handed and handed.terms[1]:find('^"') ~= nil, handed and h
 check("Stueckzahl uebergeben", handed and handed.terms[1]:find(";3$") ~= nil,
     handed and handed.terms[1])
 
+-- Und danach steht man dort, wo die Liste ist.
+--
+-- "Liste anlegen" schrieb sie und liess den Spieler auf dem Reiter
+-- stehen, auf dem er war - er musste den Einkaufsreiter selbst suchen.
+-- Gewechselt wird so, wie Auctionator es selbst tut: sein Reiterknopf
+-- wird angeklickt.
+do
+    local geklickt = false
+    _G.AuctionatorTabs_Shopping = { Click = function() geklickt = true end }
+    check("zum Einkaufsreiter wechseln geht", ns.Adapter.ShowShoppingTab() == true)
+    check("und der Reiter wurde angeklickt", geklickt == true)
+
+    -- Fehlt der Knopf, passiert nichts - und zwar ohne Fehler.
+    _G.AuctionatorTabs_Shopping = nil
+    check("ohne Reiter bleibt es ruhig", ns.Adapter.ShowShoppingTab() == false)
+end
+
 -- Die Suche braucht ein offenes Auktionshaus.
 --
 -- Ohne diese Pruefung wirft Auctionator einen Fehler aus seinem eigenen

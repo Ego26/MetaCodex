@@ -5475,6 +5475,13 @@ function UI.HandoverMissing(searchNow)
     end
     if ok then
         if not searchNow then
+            -- Und gleich dorthin, wo die Liste steht.
+            --
+            -- Bisher blieb der Spieler auf dem Reiter, auf dem er war,
+            -- und musste den Einkaufsreiter selbst suchen. Beim Suchen
+            -- nimmt Auctionator das Fenster von sich aus mit; beim
+            -- Anlegen tat es das nicht.
+            ns.Adapter.ShowShoppingTab()
             ns.Print(L["LIST_CREATED"], written, message)
             -- Versprochen wird nur, was auch gehalten wird.
             --

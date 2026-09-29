@@ -152,6 +152,24 @@ function Adapter.CreateList(rows, section)
     return true, name, #searchTerms
 end
 
+---Zum Einkaufslisten-Reiter wechseln.
+---
+---"Liste anlegen" schrieb die Liste und liess den Spieler dort stehen, wo
+---er war - er musste den Reiter selbst suchen. "Jetzt suchen" wechselt
+---von sich aus, weil Auctionators Suche das Fenster mitnimmt.
+---
+---Gemacht wird es so, wie Auctionator es selbst macht: sein Reiterknopf
+---heisst "AuctionatorTabs_Shopping" und wird angeklickt. Die
+---oeffentliche Schnittstelle kennt dafuer nichts, und in fremde Interna
+---wird nicht gegriffen - fehlt der Knopf, bleibt eben alles stehen.
+---@return boolean geklickt
+function Adapter.ShowShoppingTab()
+    local tab = _G and _G["AuctionatorTabs_Shopping"]
+    if not tab or type(tab.Click) ~= "function" then return false end
+    local ok = pcall(tab.Click, tab)
+    return ok and true or false
+end
+
 ---Steht das Auktionshaus offen?
 ---
 ---Auctionators Suche setzt es voraus und wirft sonst einen Fehler aus
