@@ -5654,12 +5654,20 @@ local ahPanel
 local AH_PANEL_ROWS = 11
 local AH_ROW_HEIGHT = 34
 local AH_PANEL_W = 250
--- Die Bahn wird GERECHNET, nicht gemessen.
+-- Die Breiten werden GERECHNET, nicht gemessen.
 --
 -- GetWidth() liefert erst etwas, wenn die Oberflaeche einmal gerechnet
 -- hat - beim ersten Zeichnen also null, und dann bleibt der Balken weg.
 -- Das grosse Fenster macht es bei den Zielwerten genauso.
-local AH_TRACK_W = AH_PANEL_W - 34 - 40
+--
+-- UND SIE HAENGEN ANEINANDER. Die Bahn hatte eine gesetzte Breite, die
+-- Zahl daneben keine: "20 von 40" wuchs nach links auf den Balken. Wer
+-- hier eine Zahl aendert, aendert die andere mit, weil sie sich aus
+-- derselben Zeilenbreite ergeben.
+local AH_ROW_W = AH_PANEL_W - 2 * S.space.sm  -- Zeile im Panel
+local AH_TEXT_X = 34                          -- rechts vom Symbol
+local AH_COUNT_W = 62                         -- "20 von 40"
+local AH_TRACK_W = AH_ROW_W - AH_TEXT_X - AH_COUNT_W - S.space.sm
 
 ---Die Zeilen, die wirklich zu kaufen sind.
 local function auctionRows()
@@ -5712,9 +5720,16 @@ local function buildAuctionPanel()
         r.icon:SetPoint("LEFT", S.space.xs, 0)
         r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
         r.name = S:Text(r, "body", "textPrimary")
-        r.name:SetPoint("TOPLEFT", 34, -4)
+        r.name:SetPoint("TOPLEFT", AH_TEXT_X, -4)
         r.name:SetPoint("RIGHT", -S.space.xs, 0)
         r.name:SetJustifyH("LEFT")
+        -- EINE Zeile, sonst keine.
+        --
+        -- "Konzentrierter Alchemistischer Trank" passte nicht in die
+        -- Breite, brach um - und die zweite Zeile lag auf dem Balken.
+        -- Ohne Umbruch kuerzt das Spiel selbst mit "..." ab; den
+        -- ganzen Namen zeigt der Zeiger.
+        r.name:SetWordWrap(false)
 
         -- Die Bahn: wie weit man ist, nicht wieviel fehlt. Dasselbe
         -- Bild wie bei den Zielwerten, nur kleiner.
@@ -5723,19 +5738,40 @@ local function buildAuctionPanel()
         r.track:SetVertexColor(S:Color("bgOverlay"))
         r.track:SetHeight(S:Pixel(6))
         r.track:SetWidth(AH_TRACK_W)
-        r.track:SetPoint("TOPLEFT", 34, -21)
+        r.track:SetPoint("TOPLEFT", AH_TEXT_X, -21)
         r.fill = r:CreateTexture(nil, "OVERLAY")
         r.fill:SetTexture("Interface\\Buttons\\WHITE8X8")
         r.fill:SetHeight(S:Pixel(6))
-        r.fill:SetPoint("TOPLEFT", 34, -21)
+        r.fill:SetPoint("TOPLEFT", AH_TEXT_X, -21)
 
         r.count = S:Text(r, "caption", "textSecondary")
         r.count:SetPoint("RIGHT", -S.space.xs, -6)
+        -- Ein eigenes Feld, rechtsbuendig: so endet die Zahl immer an
+        -- derselben Kante und faengt nie dort an, wo der Balken noch
+        -- laeuft.
+        r.count:SetWidth(AH_COUNT_W)
+        r.count:SetJustifyH("RIGHT")
+        r.count:SetWordWrap(false)
+        -- Der Zeiger zeigt IMMER etwas.
+        --
+        -- Ein abgeschnittener Name ist nur dann keine Zumutung, wenn
+        -- man ihn irgendwo ganz lesen kann. Beim gekauften Gegenstand
+        -- steht er ohnehin im Gegenstandsfenster; bei allem anderen -
+        -- Verzauberung, Stein, Rune - gibt es keinen Link, und dort
+        -- zeigen wir Namen und Stand selbst an.
         r:SetScript("OnEnter", function(self)
             self.bg:SetAlpha(0.6)
-            if not self.link then return end
             GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-            GameTooltip:SetHyperlink(self.link)
+            if self.link then
+                GameTooltip:SetHyperlink(self.link)
+            elseif self.fullName then
+                GameTooltip:SetText(self.fullName, 1, 1, 1)
+                if self.countText then
+                    GameTooltip:AddLine(self.countText, 0.7, 0.7, 0.7)
+                end
+            else
+                return
+            end
             GameTooltip:Show()
         end)
         r:SetScript("OnLeave", function(self)
@@ -5808,14 +5844,18 @@ function UI.RefreshAuctionPanel()
                 ns.Compat.RequestItem(row.id)
                 fehltName = true
             end
-            r.name:SetText(row.name or ("#" .. tostring(row.id)))
+            -- Der ungekuerzte Name fuer den Zeiger: im Feld steht
+            -- vielleicht nur "Konzentrierter Alchemisti...".
+            r.fullName = row.name or ("#" .. tostring(row.id))
+            r.name:SetText(r.fullName)
 
             -- "2 von 5": was da ist, gegen das, was gebraucht wird.
             -- Gerechnet aus denselben Zahlen wie die Zeile im grossen
             -- Fenster, damit nicht zwei Stellen verschiedenes sagen.
             local habe = row.owned or 0
             local will = habe + (row.buy or 0)
-            r.count:SetText(L["AH_PANEL_OF"]:format(habe, will))
+            r.countText = L["AH_PANEL_OF"]:format(habe, will)
+            r.count:SetText(r.countText)
             if will > 0 then
                 r.fill:SetWidth(math.max(1, AH_TRACK_W * math.min(1, habe / will)))
                 -- Voll ist gruen, sonst die Warnfarbe. Hier steht nur,

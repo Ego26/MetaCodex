@@ -64,6 +64,14 @@ Mock.methods.GetText = function(self) return self.__text end
 -- Die Feldlaenge merkt sich der Stub, weil genau sie einmal falsch war:
 -- vier Stellen fuer eine sechsstellige Gegenstands-ID, und die Eingabe
 -- brach ab, ohne dass jemand sah, warum.
+-- Ob ein Text umbrechen darf. Gemerkt, weil genau das einmal falsch
+-- war: ein langer Gegenstandsname brach um, und die zweite Zeile lag
+-- auf dem Fortschrittsbalken darunter.
+--
+-- rawget, nicht self.__wrap: ein Mock beantwortet jeden unbekannten
+-- Zugriff mit einem Kind-Mock, und der ist immer wahr.
+Mock.methods.SetWordWrap = function(self, v) self.__wrap = v and true or false end
+Mock.methods.CanWordWrap = function(self) return rawget(self, "__wrap") ~= false end
 Mock.methods.SetMaxLetters = function(self, n) self.__maxLetters = n end
 Mock.methods.GetMaxLetters = function(self) return self.__maxLetters end
 -- Und was ein Tooltip zeigen soll. Sonst laesst sich nicht pruefen, ob

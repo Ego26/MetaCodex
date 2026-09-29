@@ -4909,6 +4909,56 @@ do
         check("und traegt einen Balken, der in die Bahn passt",
             mitBalken == sichtbar, mitBalken .. " von " .. sichtbar)
 
+        -- KEIN TEXT AUF DEM BALKEN.
+        --
+        -- "Konzentrierter Alchemistischer Trank" passte nicht in die
+        -- Breite, brach um, und die zweite Zeile lag quer ueber dem
+        -- Balken. Zwei Dinge halten das jetzt auseinander: der Name
+        -- bricht nicht mehr um, und Bahn und Zahl teilen sich die
+        -- Zeilenbreite, statt jede fuer sich zu wachsen.
+        local einzeilig, passend = 0, 0
+        for _, r in ipairs(panel.rows) do
+            if r:IsShown() then
+                if r.name:CanWordWrap() == false then einzeilig = einzeilig + 1 end
+                -- Symbol, Bahn und Zahl nebeneinander - und alles
+                -- zusammen schmaler als die Liste.
+                local zusammen = 34 + (tonumber(r.track:GetWidth()) or 0)
+                    + (tonumber(r.count:GetWidth()) or 0)
+                if zusammen > 0 and zusammen <= panel:GetWidth() then
+                    passend = passend + 1
+                end
+            end
+        end
+        check("kein Name bricht um", einzeilig == sichtbar,
+            einzeilig .. " von " .. sichtbar)
+        check("Bahn und Zahl passen nebeneinander in die Liste",
+            passend == sichtbar, passend .. " von " .. sichtbar)
+
+        -- Und was gekuerzt wird, muss irgendwo ganz zu lesen sein.
+        --
+        -- Beim gekauften Gegenstand steht der Name im
+        -- Gegenstandsfenster; bei Verzauberung, Stein und Rune gibt es
+        -- keinen Link, und dort zeigen wir ihn selbst.
+        local mitZeiger = 0
+        for _, r in ipairs(panel.rows) do
+            if r:IsShown() then
+                _G.GameTooltip.__lines = {}
+                _G.GameTooltip.__text = nil
+                _G.GameTooltip.__link = nil
+                r:GetScript("OnEnter")(r)
+                local gezeigt = table.concat(_G.GameTooltip.__lines or {}, " | ")
+                    .. " " .. tostring(_G.GameTooltip.__text)
+                if _G.GameTooltip.__link == r.link and r.link ~= nil then
+                    mitZeiger = mitZeiger + 1
+                elseif r.fullName and gezeigt:find(r.fullName, 1, true) then
+                    mitZeiger = mitZeiger + 1
+                end
+                r:GetScript("OnLeave")(r)
+            end
+        end
+        check("jede Zeile zeigt ihren ganzen Namen im Zeiger",
+            mitZeiger == sichtbar, mitZeiger .. " von " .. sichtbar)
+
         -- Einzahl und Mehrzahl: "1 Dinge fehlen" stand da einmal.
         local kopf = panel.count:GetText() or ""
         if sichtbar == 1 then
