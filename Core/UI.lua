@@ -189,6 +189,16 @@ end
 ---@param button table
 ---@param holen fun(): string|nil, string|nil Titel und Text
 local function buttonHint(button, holen)
+    -- Ein grauer Knopf bekommt sonst GAR KEINE Mausereignisse.
+    --
+    -- Genau daran ist der erste Versuch gescheitert: der Hinweis war
+    -- gebaut, im Test gruen, und im Spiel kam nichts. WoW schaltet einem
+    -- deaktivierten Knopf die Bewegungsskripte ab, und OnEnter feuert
+    -- nie - ausgerechnet bei dem Knopf, dessen Zustand erklaert werden
+    -- soll.
+    if button.SetMotionScriptsWhileDisabled then
+        button:SetMotionScriptsWhileDisabled(true)
+    end
     button:SetScript("OnEnter", function(self)
         self.bg:SetVertexColor(S:Color("bgHover"))
         local titel, text = holen()

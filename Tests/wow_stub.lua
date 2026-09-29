@@ -131,6 +131,15 @@ Mock.methods.GetTexture = function(self) return self.__texture end
 Mock.methods.GetChecked = function(self) return self.__checked == true end
 Mock.methods.SetChecked = function(self, v) self.__checked = v and true or false end
 Mock.methods.SetEnabled = function(self, v) self.__enabled = v and true or false end
+-- Ob ein Knopf auch im grauen Zustand auf die Maus hoert.
+--
+-- WoW schaltet einem deaktivierten Knopf die Bewegungsskripte ab: kein
+-- OnEnter, kein Tooltip. Wer erklaeren will, WARUM ein Knopf grau ist,
+-- muss das hier einschalten - und ein Test, der es nicht sieht, haelt
+-- einen Hinweis fuer vorhanden, den im Spiel niemand zu Gesicht bekommt.
+Mock.methods.SetMotionScriptsWhileDisabled = function(self, v)
+    self.__motionWhileDisabled = v and true or false
+end
 Mock.methods.IsEnabled = function(self) return self.__enabled == true end
 -- Ereignisse merken, statt sie wegzuwerfen.
 --

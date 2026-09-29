@@ -4993,6 +4993,13 @@ do
         _G.AuctionHouseFrame = nil
         panel.search:GetScript("OnEnter")(panel.search)
         local zu = table.concat(_G.GameTooltip.__lines or {}, " | ")
+        -- Und er hoert im grauen Zustand ueberhaupt auf die Maus.
+        --
+        -- Ohne das feuert OnEnter im Spiel nie, und der Hinweis ist
+        -- gebaut, aber unsichtbar - im Test gruen, im Spiel nichts.
+        check("der graue Knopf hoert auf die Maus",
+            rawget(panel.search, "__motionWhileDisabled") == true)
+
         check("bei zugem Auktionshaus sagt er warum",
             zu:find(ns.L["HINT_SEARCH_CLOSED"], 1, true) ~= nil, zu)
 
