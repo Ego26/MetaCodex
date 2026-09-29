@@ -37,6 +37,7 @@ jobs:
         run: |
           node tools/tests/consumable-window.test.js
           node tools/tests/share.test.js
+          node tools/tests/merge-tiers.test.js
 
       - name: Fetch the data from the latest nightly
         id: data

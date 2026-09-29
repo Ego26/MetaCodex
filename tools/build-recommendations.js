@@ -14,6 +14,7 @@
 const fs = require('fs');
 const path = require('path');
 const { share } = require('./lib/share');
+const { mergeTiers } = require('./lib/merge-tiers');
 
 const BASE = process.argv[2];
 if (!BASE) {
@@ -530,15 +531,12 @@ for (const [mode, bySource] of Object.entries(byMode)) {
         out.push('            } },');
       }
       // Gleiche Ware, verschiedene Handwerksstufen, ein Eintrag.
-      //
-      // "Thalassian Phoenix Oil" stand zweimal da, mit 74 % und 13 % - das
-      // sind zwei Stufen desselben Oels mit verschiedenen IDs. Zweimal
-      // derselbe Name in einer Liste ist keine Auskunft, sondern eine
-      // Frage.
-      //
-      // Die Anteile werden addiert: wer die eine Stufe benutzt, benutzt
-      // nicht zugleich die andere. Die ID der haeufigsten Stufe bleibt
-      // stehen, denn die will man kaufen.
+      // Die Regel steht in tools/lib/merge-tiers.js und hat dort einen
+      // Test: ihre Auswahl der Stufe war falsch und niemand konnte es
+      // nachrechnen.
+      if (entry.consumables && entry.consumables.length) {
+        entry.consumables = mergeTiers(entry.consumables);
+      }
       if (entry.consumables && entry.consumables.length) {
         const byName = new Map();
         for (const c of entry.consumables) {
