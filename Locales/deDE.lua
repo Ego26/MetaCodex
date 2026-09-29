@@ -429,7 +429,7 @@ ns.RegisterLocale("deDE", {
     ["AH_PANEL_SEARCH"] = "Suchen",
     ["AH_PANEL_COUNT"] = "%d Dinge fehlen — Klick sucht sie hier",
     ["AH_PANEL_EMPTY"] = "Nichts offen. Du hast alles dabei.",
-    ["AH_PANEL_MISSING"] = "%d fehlen",
+    ["AH_PANEL_OF"] = "%d von %d",
     ["AH_PANEL_MORE"] = "und %d weitere",
     ["AH_PANEL_SEARCH_FALLBACK"] = "Suchfeld nicht gefunden. Gesucht wird: %s",
 })

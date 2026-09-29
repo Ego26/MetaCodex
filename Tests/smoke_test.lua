@@ -4847,6 +4847,29 @@ do
             if r:IsShown() then sichtbar = sichtbar + 1 end
         end
         check("sie zeigt offene Zeilen", sichtbar > 0, sichtbar .. " Zeilen")
+        -- Zwei Zeilen je Eintrag: Name oben, darunter "2 von 5" mit
+        -- Balken. Vorher drangen sich Name, Zahl und Wort in einer
+        -- Zeile um denselben Platz.
+        local mitZahl, mitBalken = 0, 0
+        for _, r in ipairs(panel.rows) do
+            if r:IsShown() then
+                if (r.count:GetText() or ""):find("%d+ von %d+")
+                    or (r.count:GetText() or ""):find("%d+ of %d+") then
+                    mitZahl = mitZahl + 1
+                end
+                -- Der Balken hat eine Breite, und sie passt zur Bahn.
+                local b = tonumber(r.fill:GetWidth()) or 0
+                local bahn = tonumber(r.track:GetWidth()) or 0
+                if b > 0 and bahn > 0 and b <= bahn + 1 then
+                    mitBalken = mitBalken + 1
+                end
+            end
+        end
+        check("jede Zeile nennt zwei von fuenf", mitZahl == sichtbar,
+            mitZahl .. " von " .. sichtbar)
+        check("und traegt einen Balken, der in die Bahn passt",
+            mitBalken == sichtbar, mitBalken .. " von " .. sichtbar)
+
         -- Einzahl und Mehrzahl: "1 Dinge fehlen" stand da einmal.
         local kopf = panel.count:GetText() or ""
         if sichtbar == 1 then

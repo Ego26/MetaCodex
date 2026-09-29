@@ -5536,7 +5536,15 @@ local warmNames = function() ns.Catalog.WarmNames() end
 -- was man eigentlich will: die Liste NEBEN dem Haus, nicht ein Knopf,
 -- der ein zweites Fenster darueberlegt.
 local ahPanel
-local AH_PANEL_ROWS = 14
+local AH_PANEL_ROWS = 11
+local AH_ROW_HEIGHT = 34
+local AH_PANEL_W = 250
+-- Die Bahn wird GERECHNET, nicht gemessen.
+--
+-- GetWidth() liefert erst etwas, wenn die Oberflaeche einmal gerechnet
+-- hat - beim ersten Zeichnen also null, und dann bleibt der Balken weg.
+-- Das grosse Fenster macht es bei den Zielwerten genauso.
+local AH_TRACK_W = AH_PANEL_W - 34 - 40
 
 ---Die Zeilen, die wirklich zu kaufen sind.
 local function auctionRows()
@@ -5561,7 +5569,7 @@ local function buildAuctionPanel()
     -- wenn das Elternfenster kleiner ist als das Kind - und genau das
     -- ist es hier, denn das Panel steht daneben.
     local p = CreateFrame("Frame", "MetaCodexAuctionList", UIParent)
-    p:SetWidth(250)
+    p:SetWidth(AH_PANEL_W)
     p:SetFrameStrata("HIGH")
     S:Fill(p, "bgBase")
     S:Border(p, "borderSubtle")
@@ -5583,21 +5591,38 @@ local function buildAuctionPanel()
 
     p.rows = {}
     for i = 1, AH_PANEL_ROWS do
+        -- Zwei Zeilen statt einer: oben der Name, darunter ein Balken
+        -- mit "2/5". In einer Zeile drangen sich Name, Zahl und Wort um
+        -- denselben Platz, und bei langen Namen gewann keiner.
         local r = CreateFrame("Button", nil, p)
-        r:SetHeight(30)
-        r:SetPoint("TOPLEFT", S.space.sm, -46 - (i - 1) * 32)
-        r:SetPoint("TOPRIGHT", -S.space.sm, -46 - (i - 1) * 32)
+        r:SetHeight(AH_ROW_HEIGHT)
+        r:SetPoint("TOPLEFT", S.space.sm, -46 - (i - 1) * (AH_ROW_HEIGHT + 2))
+        r:SetPoint("TOPRIGHT", -S.space.sm, -46 - (i - 1) * (AH_ROW_HEIGHT + 2))
         r.bg = S:Fill(r, "bgOverlay", 0)
         r.icon = r:CreateTexture(nil, "ARTWORK")
-        r.icon:SetSize(24, 24)
+        r.icon:SetSize(26, 26)
         r.icon:SetPoint("LEFT", S.space.xs, 0)
         r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
         r.name = S:Text(r, "body", "textPrimary")
-        r.name:SetPoint("LEFT", 32, 0)
-        r.name:SetPoint("RIGHT", -46, 0)
+        r.name:SetPoint("TOPLEFT", 34, -4)
+        r.name:SetPoint("RIGHT", -S.space.xs, 0)
         r.name:SetJustifyH("LEFT")
-        r.count = S:Text(r, "caption", "warning")
-        r.count:SetPoint("RIGHT", -S.space.xs, 0)
+
+        -- Die Bahn: wie weit man ist, nicht wieviel fehlt. Dasselbe
+        -- Bild wie bei den Zielwerten, nur kleiner.
+        r.track = r:CreateTexture(nil, "ARTWORK")
+        r.track:SetTexture("Interface\\Buttons\\WHITE8X8")
+        r.track:SetVertexColor(S:Color("bgOverlay"))
+        r.track:SetHeight(S:Pixel(6))
+        r.track:SetWidth(AH_TRACK_W)
+        r.track:SetPoint("TOPLEFT", 34, -21)
+        r.fill = r:CreateTexture(nil, "OVERLAY")
+        r.fill:SetTexture("Interface\\Buttons\\WHITE8X8")
+        r.fill:SetHeight(S:Pixel(6))
+        r.fill:SetPoint("TOPLEFT", 34, -21)
+
+        r.count = S:Text(r, "caption", "textSecondary")
+        r.count:SetPoint("RIGHT", -S.space.xs, -6)
         r:SetScript("OnEnter", function(self)
             self.bg:SetAlpha(0.6)
             if not self.link then return end
@@ -5623,7 +5648,7 @@ local function buildAuctionPanel()
     end
 
     p.more = S:Text(p, "caption", "textMuted")
-    p.more:SetPoint("TOPLEFT", S.space.md, -46 - AH_PANEL_ROWS * 32 - 4)
+    p.more:SetPoint("TOPLEFT", S.space.md, -46 - AH_PANEL_ROWS * (AH_ROW_HEIGHT + 2) - 4)
 
     local foot = CreateFrame("Frame", nil, p)
     foot:SetHeight(34)
@@ -5674,7 +5699,24 @@ function UI.RefreshAuctionPanel()
                 fehltName = true
             end
             r.name:SetText(row.name or ("#" .. tostring(row.id)))
-            r.count:SetText(L["AH_PANEL_MISSING"]:format(row.buy or 0))
+
+            -- "2 von 5": was da ist, gegen das, was gebraucht wird.
+            -- Gerechnet aus denselben Zahlen wie die Zeile im grossen
+            -- Fenster, damit nicht zwei Stellen verschiedenes sagen.
+            local habe = row.owned or 0
+            local will = habe + (row.buy or 0)
+            r.count:SetText(L["AH_PANEL_OF"]:format(habe, will))
+            if will > 0 then
+                r.fill:SetWidth(math.max(1, AH_TRACK_W * math.min(1, habe / will)))
+                -- Voll ist gruen, sonst die Warnfarbe. Hier steht nur,
+                -- was noch offen ist, also ist es nie voll - aber wer
+                -- waehrend des Einkaufs zusieht, soll es umschlagen
+                -- sehen.
+                r.fill:SetVertexColor(S:Color(habe >= will and "success" or "warning"))
+                r.fill:Show()
+            else
+                r.fill:Hide()
+            end
             r:Show()
         else
             r:Hide()

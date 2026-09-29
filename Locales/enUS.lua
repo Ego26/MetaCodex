@@ -437,7 +437,7 @@ ns.RegisterLocale("enUS", {
     ["AH_PANEL_SEARCH"] = "Search",
     ["AH_PANEL_COUNT"] = "%d things missing — click one to search for it",
     ["AH_PANEL_EMPTY"] = "Nothing open. You have it all.",
-    ["AH_PANEL_MISSING"] = "%d missing",
+    ["AH_PANEL_OF"] = "%d of %d",
     ["AH_PANEL_MORE"] = "and %d more",
     ["AH_PANEL_SEARCH_FALLBACK"] = "Search box not found. Look for: %s",
 })
