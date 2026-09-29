@@ -461,9 +461,9 @@ ns.RegisterLocale("deDE", {
 
 
 ns.RegisterLocale("deDE", {
-    ["STAT_HINT"]  = "Median der gemessenen Spieler, je Wert einzeln — zur Orientierung, keine BiS-Werte.",
-    ["STAT_HINT_N"] = "Median aus %d gemessenen Spielern, je Wert einzeln — zur Orientierung, keine BiS-Werte.",
-    ["STAT_SHARE"] = "%d%% des Gesamtwerts",
+    ["STAT_HINT"]  = "Median der gemessenen Spieler, je Wert einzeln — Wertungspunkte, nicht die Wirkung im Charakterfenster.",
+    ["STAT_HINT_N"] = "Median aus %d gemessenen Spielern, je Wert einzeln — Wertungspunkte, nicht die Wirkung im Charakterfenster.",
+    ["STAT_SHARE"] = "%d%% der Wertungspunkte",
     ["STAT_YOURS"] = "du hast %d von %d",
     ["STAT_GAP"] = "−%d",
     ["STAT_DONE"] = "erreicht",

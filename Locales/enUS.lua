@@ -487,9 +487,9 @@ ns.RegisterLocale("enUS", {
     -- What is missing belongs on the right, where the eye lands.
     -- The rank sat there and was the smaller answer: the order already
     -- shows it.
-    ["STAT_HINT"]  = "Median of the measured players, one stat at a time — for orientation, not BiS values.",
-    ["STAT_HINT_N"] = "Median of %d measured players, one stat at a time — for orientation, not BiS values.",
-    ["STAT_SHARE"] = "%d%% of the budget",
+    ["STAT_HINT"]  = "Median of the measured players, one stat at a time — rating points, not the effect your character sheet shows.",
+    ["STAT_HINT_N"] = "Median of %d measured players, one stat at a time — rating points, not the effect your character sheet shows.",
+    ["STAT_SHARE"] = "%d%% of all secondary rating",
     ["STAT_YOURS"] = "you have %d of %d",
     ["STAT_GAP"] = "−%d",
     ["STAT_DONE"] = "reached",
