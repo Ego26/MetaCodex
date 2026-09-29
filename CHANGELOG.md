@@ -4,6 +4,58 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ## [Unreleased]
 
+## [1.1.7] - 2026-09-30
+
+### Added
+
+- A shopping list beside the auction house. It opens with the auction
+  house and closes with it, lists what is still missing with icon, bar
+  and "14 of 20", and a click on a row searches for that item.
+  Shift-click puts its link in the chat.
+- The list is docked to the outer right edge of the auction house, not
+  placed inside it: that edge survives ElvUI and anything else that
+  rebuilds the window.
+- A switch for the list under Reminder. It hangs off the reminders: who
+  turns those off wants quiet, and a window that opens anyway would be
+  the opposite.
+
+### Changed
+
+- The chat line at the auction house is gone. It said in one sentence
+  what the list beside the window now shows item by item.
+- The buttons for Auctionator only appear when Auctionator is installed.
+  Greyed out means "not right now" - without Auctionator it is "never",
+  and a grey button then looks like a broken one.
+- "Search" says in a tooltip why it is grey, and "Create list" is greyed
+  out as well while the auction house is closed.
+- Creating a list switches to Auctionator's shopping tab first and fills
+  it afterwards. Auctionator's own event only reaches a tab that has
+  been opened once, so the first click used to look like it did nothing.
+- The list follows what you change: ignoring an item, a new target
+  quantity or a purchase is visible at once, without walking away from
+  the auction house and back.
+
+### Fixed
+
+- Ignored items stayed on the shopping list and were handed to
+  Auctionator, although the window had stopped showing them. The rule
+  now lives in one place instead of three.
+- The list beside the auction house knew only half of what was missing.
+  Consumables are counted in one place, enchants and gems in another; it
+  asked only the second and could stand empty while the window listed
+  five things.
+- A death knight was told a rune was already on his weapon when a
+  different one was on it. Any rune counted as done; now the recommended
+  one does, and any rune only where nothing is recommended.
+- A crafting item was shown in the wrong quality tier. Where a name
+  appeared twice, the tier read last won instead of the most used one -
+  in the current data 3 items against 109.
+- A long item name wrapped onto the progress bar below it. Names are cut
+  with an ellipsis now and shown in full on hover.
+- The tooltip of a greyed-out button stayed invisible in the game though
+  it was there in the test: a disabled button receives no mouse events
+  at all unless it is told to.
+
 ## [1.1.6] - 2026-09-29
 
 ### Added

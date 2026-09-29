@@ -1,3 +1,44 @@
+## v1.1.7 — the shopping list at the auction house
+
+### Added
+
+- **A shopping list beside the auction house.** It opens with the auction
+  house, lists what is still missing with an icon, a bar and "14 of 20",
+  and **a click on a row searches for that item**. Shift-click puts its
+  link in the chat.
+- It docks to the **outer right edge** of the window rather than sitting
+  inside it — that edge survives ElvUI and anything else that rebuilds
+  the auction house.
+- **A switch for it** under Reminder. Turn the reminders off entirely and
+  the list stays away too: whoever wants quiet should get quiet.
+
+### Fixed
+
+- **Ignored meant ignored everywhere except the shopping list.** It still
+  got handed to Auctionator.
+- **The list beside the auction house knew only half the list.** It could
+  stand empty while the window named five missing things.
+- **A death knight was told a rune was already on his weapon** when a
+  different one was on it.
+- **A crafting item was shown in the wrong quality tier.** Where a name
+  appears twice, the most-used tier wins now, not the one read last.
+- **A long item name wrote itself across the progress bar.** Names are cut
+  with an ellipsis and shown in full on hover.
+- **A greyed-out button now says why it is grey** — and actually shows it,
+  which it did not before.
+
+### Changed
+
+- **The chat line at the auction house is gone.** The list beside the
+  window says the same thing, item by item.
+- **The Auctionator buttons only appear when Auctionator is installed.**
+  Grey means "not right now"; without Auctionator it is "never", and that
+  looks like a broken addon.
+- **Create list takes you to the list**, in one click. It used to need a
+  second one.
+- **The list follows what you change** — ignoring something, a new target
+  quantity, a purchase — while you stand at the auction house.
+
 ## v1.1.6 — the Omnium Folio
 
 ### Added

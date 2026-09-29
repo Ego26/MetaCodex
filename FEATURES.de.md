@@ -33,6 +33,8 @@ unter Einstellungen abschalten.
 - **Erinnerung** vor dem Start und am Auktionshaus — und ein Reiter, der
   zeigt, was sie prüft.
 - **Guides** verlinkt, nie kopiert.
+- **Eine Einkaufsliste neben dem Auktionshaus**: was noch fehlt, mit
+  Balken und Zahl, und ein Klick sucht es.
 - **Einkaufslisten an Auctionator** mit Stückzahlen; **Shift-Klick**
   verlinkt jeden Gegenstand in den Chat oder ins Suchfeld des Auktionshauses.
 - **Jede Aktivität, jede Spec, vier Plattformen** — und nichts angezeigt,
@@ -111,8 +113,11 @@ Zielmenge, die du per Klick einstellst.
 **Erinnerung** — Was das Addon prüft, bevor es losgeht: je Verbrauchsart
 der Stand gegen dein Ziel (reicht / knapp / leer), die Verzauberungen und
 Steine, die an deinem Charakter noch fehlen, und die Einstellungen dazu.
-Beim Betreten von Dungeon oder Raid sagt es dir, was fehlt — und am
-Auktionshaus einmal, wie viele Posten offen sind. **Wie** es sich meldet,
+Beim Betreten von Dungeon oder Raid sagt es dir, was fehlt. Am
+Auktionshaus geht daneben eine schmale **Einkaufsliste** auf: jeder
+fehlende Posten mit Symbol, Balken und „14 von 20", ein Klick sucht ihn,
+Shift-Klick verlinkt ihn. Sie zieht mit, während du dort stehst, und sie
+lässt sich abschalten. **Wie** die Erinnerung selbst sich meldet,
 wählst du: Chatzeile, eigenes ziehbares Fenster, Schlachtzugswarnung über
 dem Bild, Ton, beliebig kombiniert. Die Chatzeile trägt echte
 Gegenstandslinks zum Draufzeigen und Shift-Klicken und einen Link, der
@@ -126,8 +131,8 @@ genau das, was käme.
 Fenstergröße, Sprache, mit welcher Aktivität das Fenster aufgeht, und ein
 Zurücksetzen für Lage und Größe. Jede Einstellung ist ein Menü zum
 Auswählen, kein Wert zum Durchklicken. Die Erinnerung behält ihre eigenen
-Einstellungen: die Chatzeile beim Betreten und die am Auktionshaus sind
-getrennt schaltbar.
+Einstellungen: die Chatzeile beim Betreten und die Einkaufsliste am
+Auktionshaus sind getrennt schaltbar.
 
 **Info** — Version, Stand des Katalogs, wann jede Plattform zuletzt
 gemessen hat, und ob Auctionator da ist.
@@ -163,9 +168,10 @@ gemessen hat, und ob Auctionator da ist.
   Ankleideraum.
 - **Einkaufsliste anlegen / Jetzt suchen** (unten, bei Verzauberungen,
   Verbrauchsgütern und Erinnerung): übergibt an **Auctionator** — eine
-  Liste je Reiter, mit Stückzahlen. „Jetzt suchen" braucht ein offenes
-  Auktionshaus und ist sonst grau. Ohne Auctionator zeigt MetaCodex alles
-  trotzdem; nur die Übergabe fällt weg.
+  Liste je Reiter, mit Stückzahlen. Beide brauchen ein offenes
+  Auktionshaus und sagen im Tooltip, warum sie grau sind, wenn es zu ist.
+  Ohne Auctionator stehen die Knöpfe gar nicht erst da — MetaCodex zeigt
+  alles trotzdem, nur die Übergabe fällt weg.
 
 **Slash-Befehle:** `/mc` öffnet · `/mc scale 0.6–1.6` Fenstergröße ·
 `/mc remind` schaltet die Erinnerung · `/mc lang de|en|auto` Sprache ·

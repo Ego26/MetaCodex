@@ -34,6 +34,8 @@ switched off under Settings.
 - **Reminder** before you go in and at the auction house — and a tab that
   shows what it checks.
 - **Guides** linked, never copied.
+- **A shopping list beside the auction house**: what is still missing,
+  with a bar and a count, and a click searches for it.
 - **Shopping lists to Auctionator** with quantities; **Shift-click** links
   any item into chat or the auction house search.
 - **Every activity, every spec, four platforms** — and nothing shown that
@@ -108,8 +110,11 @@ share of players and the highest key it was still used at. Plus your stock
 **Reminder** — What the addon checks before you go in: per consumable kind
 the stand against your target (enough / low / none), the enchants and gems
 still open on your character, and the settings for it. On entering a
-dungeon or raid it tells you what is missing — and once at the auction
-house how many items are open. **How** it tells you is yours to pick:
+dungeon or raid it tells you what is missing. At the auction house a
+narrow **shopping list** opens beside the window: every missing item with
+icon, bar and "14 of 20", a click searches for it, Shift-click links it.
+It follows what you change while you stand there, and it can be switched
+off. **How** the reminder itself tells you is yours to pick:
 chat line, its own movable window, a raid warning across the screen, a
 sound, any combination. The chat line carries real item links you can
 hover and shift-click, and a link that opens the addon on your list. The
@@ -122,8 +127,8 @@ big one. A preview shows exactly what would appear.
 size, language, which activity the window opens on, and a reset for window
 position and size. Every setting is a menu you pick from, not a value you
 click through. The reminder keeps its own settings, next to what they
-control: the chat line on entering and the one at the auction house are
-separate switches.
+control: the chat line on entering and the shopping list at the auction
+house are separate switches.
 
 **Info** — Version, catalog build, when each platform last measured, and
 whether Auctionator is present.
@@ -156,9 +161,10 @@ whether Auctionator is present.
   room.
 - **Create shopping list / Search now** (bottom, under Enchants,
   Consumables and Reminder): hands over to **Auctionator** — one list per
-  tab, with quantities. "Search now" needs the auction house open and is
-  greyed out otherwise. Without Auctionator MetaCodex still shows
-  everything; only the handover is missing.
+  tab, with quantities. Both need the auction house open and say in a
+  tooltip why they are grey when it is not. Without Auctionator the
+  buttons are not there at all — MetaCodex still shows everything, only
+  the handover is missing.
 
 **Slash commands:** `/mc` opens · `/mc scale 0.6–1.6` window size ·
 `/mc remind` toggles the reminder · `/mc lang de|en|auto` language ·

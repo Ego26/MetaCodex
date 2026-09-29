@@ -4,6 +4,58 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ## [Unveröffentlicht]
 
+## [1.1.7] - 2026-09-30
+
+### Neu
+
+- Eine Einkaufsliste neben dem Auktionshaus. Sie geht mit dem
+  Auktionshaus auf und wieder zu, zeigt das Fehlende mit Symbol, Balken
+  und „14 von 20", und ein Klick auf eine Zeile sucht den Gegenstand.
+  Shift-Klick hängt seinen Link in den Chat.
+- Sie hängt an der äußeren rechten Kante des Auktionshauses, nicht
+  darin: diese Kante behält auch ein von ElvUI umgebautes Fenster.
+- Ein Schalter dafür bei der Erinnerung. Er hängt an den Erinnerungen:
+  wer die ganz abstellt, will Ruhe, und ein Fenster, das trotzdem
+  aufgeht, wäre das Gegenteil.
+
+### Geändert
+
+- Die Chatzeile am Auktionshaus ist weg. Sie sagte in einem Satz, was
+  die Liste neben dem Fenster jetzt Posten für Posten zeigt.
+- Die Knöpfe für Auctionator stehen nur da, wenn Auctionator installiert
+  ist. Ausgegraut heißt „geht, nur gerade nicht" – ohne Auctionator geht
+  es überhaupt nicht, und ein grauer Knopf sieht dann kaputt aus.
+- „Jetzt suchen" sagt im Tooltip, warum es grau ist, und „Liste anlegen"
+  ist bei geschlossenem Auktionshaus ebenfalls grau.
+- „Liste anlegen" wechselt zuerst auf den Einkaufsreiter von Auctionator
+  und füllt ihn dann. Auctionators eigene Meldung erreicht nur einen
+  Reiter, der einmal offen war – der erste Klick sah deshalb aus, als
+  täte er nichts.
+- Die Liste zieht mit: Ignorieren, eine neue Zielmenge oder ein Kauf
+  sind sofort zu sehen, ohne erst weg- und wieder hinzugehen.
+
+### Behoben
+
+- Ignorierte Gegenstände standen weiter auf der Einkaufsliste und wurden
+  an Auctionator übergeben, obwohl das Fenster sie längst nicht mehr
+  zeigte. Die Regel liegt jetzt an einer Stelle statt an dreien.
+- Die Liste neben dem Auktionshaus kannte nur die Hälfte des Fehlenden.
+  Verbrauchsgüter werden an einer Stelle gezählt, Verzauberungen und
+  Steine an einer anderen; sie fragte nur die zweite und stand leer da,
+  während im Fenster fünf Dinge fehlten.
+- Dem Todesritter wurde gesagt, eine Rune sei bereits auf der Waffe,
+  während eine andere darauf saß. Irgendeine Rune galt als erledigt;
+  jetzt zählt die empfohlene, und irgendeine nur dort, wo es keine
+  Empfehlung gibt.
+- Ein Handwerksgegenstand stand in der falschen Qualitätsstufe. Kam ein
+  Name doppelt vor, gewann die zuletzt gelesene Stufe statt der
+  häufigsten – in den aktuellen Daten 3 Posten gegen 109.
+- Ein langer Gegenstandsname brach auf den Balken darunter um. Namen
+  werden jetzt mit „…" gekürzt und beim Draufzeigen ganz angezeigt.
+- Der Tooltip eines ausgegrauten Knopfes blieb im Spiel unsichtbar,
+  obwohl er im Test da war: ein abgeschalteter Knopf bekommt überhaupt
+  keine Mausereignisse, solange man es ihm nicht ausdrücklich sagt.
+
 ## [1.1.6] - 2026-09-29
 
 ### Neu
