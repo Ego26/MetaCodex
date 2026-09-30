@@ -168,6 +168,9 @@ whether Auctionator is present.
   remembered. `/mc scale` additionally scales it for large and small screens.
 - **Click on a row**: copies a string, opens a profile, sets a target —
   whatever the row is.
+- **Right-click a box under Upgrades**: watch the piece (gold border and
+  a star) or ignore it. Ignored stays visible, crossed out, and stops
+  counting; the star never changes the order.
 - **Shift-click on a row with an item**: links it — into chat, or straight
   into the search box when the auction house is open. Ctrl-click: dressing
   room.

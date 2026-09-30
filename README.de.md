@@ -34,14 +34,16 @@ fällt weg.
 | **Guides & Rotation** | Verweise auf die geschriebenen Guides zur Spec |
 | **Zielwerte** | Gemessene Mediane der Besten, deine Werte als zweiter Balken |
 | **Talente** | Der häufigste Build mit Import-String, Alternativen als *X statt Y*, umstrittene Talente — je Dungeon in M+, je Boss im Raid |
+| **Omnium-Foliant** | Welche Rune die Besten in jeder der fünf Reihen nehmen, gemessen an dem, was sie im Kampf tut |
 | **Top-Spieler** | Wer oben steht, klickbar: Talentbuild mit Import-String und komplette Ausrüstung |
 | **Ausrüstung** | Fünf je Platz mit Fundort; Tooltips auf der Schlüsselstufe, die du wählst |
+| **Upgrades** | Wo die Stücke fallen, die dir fehlen – je Instanz, sortiert nach dem, was für dich noch offen ist |
 | **Tier-Set** | Welche Set-Teile die Besten tragen, und wie viele davon |
 | **Handwerk** | Die Handwerksstücke, die wirklich getragen werden, mit ihrem Wertepaar und den gemessenen Gegenstandsstufen |
 | **Verzierungen** | Welche zwei Verzierungen zusammen getragen werden, und wie oft |
 | **Verzauberungen & Steine** | Gegen deine angelegte Ausrüstung: was noch offen ist |
 | **Verbrauchsgüter** | Nach Art gruppiert, mit Anteil, höchstem Schlüssel, Bestand und Ziel |
-| **Erinnerung** | Was vor dem Start geprüft wird, und die Einstellungen dazu |
+| **Erinnerung** | Was vor dem Start geprüft wird, und die Einstellungen dazu – dazu eine Einkaufsliste neben dem Auktionshaus |
 
 Zehn Aktivitäten, vier Plattformen, alle vierzig Speccs. Nichts wird
 gezeigt, was keine Plattform beantworten kann: Abschnitte, Aktivitäten und
@@ -71,6 +73,7 @@ Core/Recommend.lua     Zugriff auf die Empfehlungen: Modi, Quellen, Mischen
 Core/Profile.lua       SavedVariables: Auswahl, Fenster, Ziele
 Core/Gear.lua          angelegte Ausrüstung: leere Sockel, fehlende Verzauberungen
 Core/List.lua          Soll minus Ist, für eine Spec oder mehrere
+Core/Drops.lua         dieselben Stücke nach Fundort statt nach Platz
 Core/Auctionator.lua   der Adapter – die EINZIGE Stelle, die Auctionator kennt
 Core/Guides.lua        die Guide-Verweise
 Core/UI.lua            das Fenster

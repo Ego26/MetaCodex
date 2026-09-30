@@ -177,6 +177,10 @@ gemessen hat, und ob Auctionator da ist.
   gemerkt. `/mc scale` skaliert zusätzlich für große und kleine Bildschirme.
 - **Klick auf eine Zeile**: kopiert einen String, öffnet ein Profil, stellt
   eine Zielmenge ein — je nachdem, was die Zeile ist.
+- **Rechtsklick auf ein Kästchen bei Upgrades**: merkt das Stück vor
+  (goldener Rahmen und Stern) oder ignoriert es. Ignoriertes bleibt
+  sichtbar, durchgestrichen, und zählt nicht mehr mit; der Stern ändert
+  die Reihenfolge nie.
 - **Shift-Klick auf eine Zeile mit Gegenstand**: verlinkt ihn — in den
   Chat, oder bei offenem Auktionshaus direkt ins Suchfeld. Ctrl-Klick:
   Ankleideraum.

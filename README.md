@@ -32,14 +32,16 @@ optional — without it the lists still show, only the handover is missing.
 | **Guides & Rotation** | Links to the written guides for the spec |
 | **Stat targets** | Measured medians of the best, with your own values as a second bar |
 | **Talents** | The most common build with import string, alternatives as *X instead of Y*, contested talents — per dungeon in M+, per boss in raids |
+| **Omnium Folio** | Which rune the best take in each of the five rows, measured from what the rune does in the fight |
 | **Top players** | Who is at the top, clickable: talent build with import string and full gear |
 | **Gear** | Five per slot with drop source; tooltips on the keystone level you pick |
+| **Upgrades** | Where the pieces you are missing drop, per instance, sorted by what is still open for you |
 | **Tier set** | Which set pieces the best wear, and how many of them |
 | **Crafted** | The crafted pieces actually worn, with their stat pair and the item levels they were measured at |
 | **Embellishments** | Which two embellishments are worn together, and how often |
 | **Enchants & Gems** | Against your equipped gear: what is still open |
 | **Consumables** | Grouped by kind, with share, highest key, stock and target |
-| **Reminder** | What is checked before you go in, and the settings for it |
+| **Reminder** | What is checked before you go in, and the settings for it — plus a shopping list beside the auction house |
 
 Ten activities, four platforms, all forty specs. Nothing is shown that no
 platform can answer: sections, activities and platforms without data are
@@ -68,6 +70,7 @@ Core/Recommend.lua     access to the recommendations: modes, sources, merging
 Core/Profile.lua       SavedVariables: choices, window, targets
 Core/Gear.lua          equipped gear: empty sockets, missing enchants
 Core/List.lua          wanted minus owned, for one spec or several
+Core/Drops.lua         the same pieces by where they drop, not by slot
 Core/Auctionator.lua   the adapter - the ONLY file that knows Auctionator
 Core/Guides.lua        the guide links
 Core/UI.lua            the window
