@@ -4,6 +4,37 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ## [Unveröffentlicht]
 
+## [1.1.9] - 2026-10-01
+
+### Neu
+
+- Upgrades vergleicht jetzt mit dem, was du trägst. Ein Stück, das 43 %
+  der Besten tragen, nützt nichts, wenn am selben Platz zwanzig Stufen
+  mehr hängen – es tritt zurück und zählt nicht mehr mit, und die Zeile
+  sagt „1 hast du besser". Sichtbar bleibt es: ein Set-Teil oder ein
+  Stück mit Anlegen-Effekt kann auch einen Rang tiefer lohnen, und diese
+  Abwägung gehört dem Spieler.
+- Die Gegenstandsstufen im Schlüsselwähler tragen die Farbe dessen, was
+  sie in dieser Saison bedeuten: ab Champion, ab Held, ab Mythisch – und
+  über dem höchsten Rang, den ein Boss noch fallen lässt, hilft nur noch
+  Aufwerten. Die Grenzen sind an den Pfaden der Saison abgelesen, nicht
+  eingetragen.
+
+### Behoben
+
+- **Der Schlüsselwähler hängte jede Stufe an den falschen Schlüssel** –
+  „311 (+6)" statt „311 (+10)". Der Client nennt diese Saison nur den
+  Tresorwert; die Spieldaten bestätigen es, `EndOfRunRewardLevel` ist in
+  allen dreißig Zeilen der Saison null. Beide Zuordnungen führen wir
+  jetzt selbst, und zwar auf **Pfad und Rang** statt auf eine Zahl:
+  dieselbe Stufe gibt es in zwei Pfaden, und über die Zahl beschriftet
+  stand „+10" an zwei Stellen. Die Stufe selbst rechnet weiterhin der
+  Client aus der Bonus-ID des Rangs.
+- **„Wie die Besten spielen" zeigte die Grundstufe** – 28 unter einem
+  Ring, den die Besten auf 311 tragen. Der Eintrag ist weg; ohne eigene
+  Wahl gilt, was ein +10 abwirft. Die Ausrüstungsliste hatte dieselbe
+  Lücke: in der Zeile stand „Stufe 311", im Zeiger 28.
+
 ## [1.1.8] - 2026-09-30
 
 ### Neu

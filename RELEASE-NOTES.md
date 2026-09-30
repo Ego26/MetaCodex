@@ -1,3 +1,26 @@
+## v1.1.9 — an upgrade is what beats what you wear
+
+### Added
+
+- **Upgrades compares against your gear.** A piece worn by 43 % of the
+  best is worth nothing when twenty item levels more hang in that slot
+  already: it steps back, stops counting, and the row says "1 you
+  already beat". It stays visible, because a set piece can be worth
+  having a rank lower.
+- **Item levels carry their colour** in the keystone picker — from
+  Champion, from Hero, from Mythic, and above the last rank a boss
+  drops.
+
+### Fixed
+
+- **Every level hung on the wrong key**: "311 (+6)" where "311 (+10)" is
+  right. The client only reports the vault level this season, and the
+  game data has no end-of-run level at all. Both mappings are kept here
+  now — key to **track and rank**, never to a number, because the same
+  level exists in two tracks.
+- **"The way the best play" showed item level 28** under a ring the best
+  wear at 311. It is gone; without a choice, what a +10 drops applies.
+
 ## v1.1.8 — where to go next
 
 ### Added

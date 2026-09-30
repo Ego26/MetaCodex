@@ -117,7 +117,9 @@ rows - crafted, set pieces, PvP, auction house, no known source - because
 a combination mode; right-click a box to watch it (gold border and a
 star) or ignore it. Ignored stays visible and stops counting; the star
 never changes the order, because a preference must not move a measured
-number. You choose the question: most still open, or best single piece.
+number. You choose the question: most still open, or best single piece. What
+you already beat in that slot steps back and stops counting, but stays
+visible - a set piece can be worth having a rank lower.
 
 **Reminder** — What the addon checks before you go in: per consumable kind
 the stand against your target (enough / low / none), the enchants and gems

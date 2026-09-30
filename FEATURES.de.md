@@ -122,7 +122,9 @@ Kombinationsmodus; Rechtsklick merkt ein Stück vor (goldener Rahmen und
 Stern) oder ignoriert es. Ignoriertes bleibt sichtbar und zählt nicht
 mehr mit; der Stern ändert die Reihenfolge nie, denn eine Vorliebe darf
 keine gemessene Zahl verschieben. Die Frage wählst du: am meisten offen,
-oder bestes Stück zuerst.
+oder bestes Stück zuerst. Was du auf dem Platz schon besser trägst,
+tritt zurück und zählt nicht mehr mit, bleibt aber sichtbar – ein
+Set-Teil kann auch einen Rang tiefer lohnen.
 
 **Erinnerung** — Was das Addon prüft, bevor es losgeht: je Verbrauchsart
 der Stand gegen dein Ziel (reicht / knapp / leer), die Verzauberungen und

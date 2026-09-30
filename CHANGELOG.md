@@ -4,6 +4,36 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ## [Unreleased]
 
+## [1.1.9] - 2026-10-01
+
+### Added
+
+- Upgrades now compares against what you wear. A piece worn by 43 % of
+  the best is worth nothing when twenty item levels more hang in that
+  slot already, so it steps back and stops counting - and the row says
+  "1 you already beat". It stays visible: a set piece or a piece with an
+  equip effect can be worth having a rank lower, and that trade-off is
+  the player's.
+- Item levels in the keystone picker carry the colour of what they mean
+  this season: from Champion, from Hero, from Mythic, and above the
+  highest rank a boss still drops, where only upgrading gets you. The
+  boundaries are read off the season's own tracks, not written down.
+
+### Fixed
+
+- **The keystone picker put every level on the wrong key** - "311 (+6)"
+  where "311 (+10)" is right. The client only answers with the vault
+  level this season; the game data agrees, EndOfRunRewardLevel is 0 in
+  all thirty rows of the season. Both mappings are now kept here, and
+  they map a key to TRACK AND RANK rather than to a number: the same
+  level exists in two tracks, and labelling by the number put "+10" in
+  two places. The level itself still comes from the client, computed
+  from that rank's bonus id.
+- **"The way the best play" showed the base item level** - 28 under a
+  ring the best wear at 311. The entry is gone; without a choice, what a
+  +10 drops applies. The gear list had the same gap: its row said "level
+  311" while its tooltip said 28.
+
 ## [1.1.8] - 2026-09-30
 
 ### Added
