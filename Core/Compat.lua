@@ -301,6 +301,28 @@ function Compat.ItemInfo(itemID)
     return name, link, icon
 end
 
+---Wie ein Gegenstand bindet: 1 beim Aufheben, 2 beim Anlegen, 3 gar nicht.
+---
+---GEBRAUCHT FUER DIE FRAGE "muss ich das erfarmen?". Ein Stueck, das
+---erst beim Anlegen bindet, faellt zwar irgendwo - aber man kann es
+---auch einfach kaufen. Das Abenteuerjournal fuehrt solche Beute nicht
+---je Boss (sie faellt von jedem), und darum stand sie bei uns unter
+---"ohne bekannten Fundort" - eine Auskunft, die schlechter ist als
+---die, die der Client bereithaelt.
+---
+---Nil heisst: der Client kennt den Gegenstand noch nicht. Nicht
+---"bindet nicht".
+---@param itemID number|nil
+---@return number|nil
+function Compat.BindType(itemID)
+    if not itemID then return nil end
+    local get = C_Item and C_Item.GetItemInfo or GetItemInfo
+    if not get then return nil end
+    local ok, _, _, _, _, _, _, _, _, _, _, _, _, _, bind = pcall(get, itemID)
+    if not ok then return nil end
+    return type(bind) == "number" and bind or nil
+end
+
 ---Was der Spieler gerade traegt, als Menge von Gegenstands-IDs.
 ---Ueber den Link, nicht ueber GetInventoryItemID: der Link ist ueberall
 ---da, wo auch die Ausruestung gelesen wird, und braucht keinen zweiten
@@ -762,16 +784,22 @@ function Compat.LinkAtLevel(itemID, level, extra)
     -- setzt nur die Zahl. Das ist der ganze Unterschied zu KeystoneLoot,
     -- und er liegt nicht in einer Tabelle, sondern in der ART der
     -- Bonus-ID.
+    -- Der Effekt reist mit, wo es einen gibt.
+    --
+    -- Er haengt an einer eigenen Bonus-Liste, nicht am Gegenstand: ohne
+    -- sie zeigt der Client den Helm ohne seine Wirkung, weil im Link
+    -- nichts davon steht.
+    local effect = ns.Catalog.EffectBonus and ns.Catalog.EffectBonus(itemID) or nil
     local delta = level - base
     -- Die Grundstufe braucht keinen Bonus - und keinen Pfad. Die
     -- Wertewahl aber schon: sie haengt nicht an der Stufe.
-    if delta == 0 then return linkWith(itemID, extra) end
+    if delta == 0 then return linkWith(itemID, extra, effect) end
 
     local hit = Compat.TrackFor(level, itemID)
-    if hit then return linkWith(itemID, hit.bonus, extra) end
+    if hit then return linkWith(itemID, hit.bonus, extra, effect) end
 
     local bonus = ns.Catalog.LevelDeltaBonus(delta)
-    if not bonus then return linkWith(itemID, extra) end
+    if not bonus then return linkWith(itemID, extra, effect) end
 
-    return linkWith(itemID, bonus, extra)
+    return linkWith(itemID, bonus, extra, effect)
 end

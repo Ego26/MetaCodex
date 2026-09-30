@@ -182,7 +182,8 @@ function emitEnchants(groups) {
     craftingQuality, qualityAtlasSets, atlasElements,
     craftQualities, craftingData, levelDeltas,
     trackRows, statBonusRows, effectBonusRows, traitDefs, pvpTalents, spellNames,
-    traitNodes, traitNodeXEntry, traitEntries, traitLoadouts, subTreesEN, subTreesDE]
+    traitNodes, traitNodeXEntry, traitEntries, traitLoadouts, subTreesEN, subTreesDE,
+    itemXBonusTree, bonusTreeNodes]
     = await Promise.all([
       db2('ItemSparse', { ExpansionID: String(expansion) }),
       db2('GemProperties'),
@@ -271,6 +272,16 @@ function emitEnchants(groups) {
       db2('TraitTreeLoadout'),
       db2('TraitSubTree'),
       db2('TraitSubTree', null, 'locale=deDE'),
+      // Vom Gegenstand zu seinen Bonus-Listen.
+      //
+      // Ein "Anlegen:"-Effekt haengt bei den besonderen Stuecken dieser
+      // Saison NICHT am Gegenstand (ItemXItemEffect ist fuer sie leer),
+      // sondern an einer Bonus-Liste, die mit der Beute kommt. Wer den
+      // Link selbst baut - und das tun wir, damit die gewaehlte Stufe
+      // im Tooltip steht -, verliert den Effekt, wenn er diese Liste
+      // nicht mitgibt.
+      db2('ItemXBonusTree'),
+      db2('ItemBonusTreeNode'),
     ]);
   console.log('Gegenstaende:', items.length);
 
@@ -760,6 +771,62 @@ function emitEnchants(groups) {
   }
   console.log('Verzierungen:', embellish.size);
 
+  // --- Der "Anlegen:"-Effekt je Gegenstand ---------------------------
+  //
+  // Weg: Gegenstand -> ItemXBonusTree -> ItemBonusTreeNode (auch ueber
+  // Unterbaeume) -> Bonus-Liste; traegt die Liste einen Typ-23-Eintrag,
+  // ist sie die Effektliste.
+  //
+  // NUR BEI EINDEUTIGKEIT. Faende man zwei verschiedene Effektlisten an
+  // einem Stueck, muesste man raten, welche die richtige ist - und ein
+  // geratener Effekt im Tooltip ist schlimmer als gar keiner.
+  // Nachgerechnet an allen 7818 Stuecken der Erweiterung: neun tragen
+  // genau eine, keines mehrere.
+  const effektListen = new Set(effectBonusRows.map((r) => Number(r.ParentItemBonusListID)));
+  const knotenJeBaum = new Map();
+  for (const row of bonusTreeNodes) {
+    const tree = Number(row.ParentItemBonusTreeID);
+    if (!knotenJeBaum.has(tree)) knotenJeBaum.set(tree, []);
+    knotenJeBaum.get(tree).push(row);
+  }
+  const listenCache = new Map();
+  const listenVon = (tree, tiefe) => {
+    // Die Tiefe ist eine Bremse gegen einen Kreis in den Daten, nicht
+    // eine Annahme ueber ihre Form.
+    if (tiefe > 6) return [];
+    if (listenCache.has(tree)) return listenCache.get(tree);
+    const out = [];
+    for (const n of knotenJeBaum.get(tree) || []) {
+      const liste = Number(n.ChildItemBonusListID) || 0;
+      if (liste) out.push(liste);
+      const sub = Number(n.ChildItemBonusTreeID) || 0;
+      if (sub) for (const l of listenVon(sub, tiefe + 1)) out.push(l);
+    }
+    listenCache.set(tree, out);
+    return out;
+  };
+  const baeumeJeItem = new Map();
+  for (const row of itemXBonusTree) {
+    const id = Number(row.ItemID);
+    if (!current.has(id)) continue;
+    if (!baeumeJeItem.has(id)) baeumeJeItem.set(id, []);
+    baeumeJeItem.get(id).push(Number(row.ItemBonusTreeID));
+  }
+  const effectBonus = new Map();
+  let mehrdeutig = 0;
+  for (const [id, baeume] of baeumeJeItem) {
+    const gefunden = new Set();
+    for (const tree of baeume) {
+      for (const liste of listenVon(tree, 0)) {
+        if (effektListen.has(liste)) gefunden.add(liste);
+      }
+    }
+    if (gefunden.size === 1) effectBonus.set(id, [...gefunden][0]);
+    else if (gefunden.size > 1) mehrdeutig += 1;
+  }
+  console.log('Gegenstaende mit Anlegen-Effekt:', effectBonus.size,
+    '| nicht eindeutig (weggelassen):', mehrdeutig);
+
   // Fuer den Sammler: er liest die Bonus-IDs der Spieler und braucht
   // beide Karten. Fuer das Addon stehen sie weiter unten im Katalog.
   // Das Verzeichnis anlegen, bevor hineingeschrieben wird.
@@ -825,6 +892,30 @@ function emitEnchants(groups) {
     const known = bestOfClass.get(mask);
     if (!known || setID > known.setID) bestOfClass.set(mask, { setID, ids });
   }
+  // HERGESTELLTE AUSRUESTUNG, am Flag des Gegenstands erkannt.
+  //
+  // Im Fenster standen die Handwerksstuecke dieser Erweiterung unter
+  // "ohne bekannten Fundort": murlok liefert die Marke nur manchmal
+  // mit, das Abenteuerjournal kennt sie nicht (sie fallen ja nirgends),
+  // und ein Rezept-Zauber, der sie erzeugt, steht in dieser Erweiterung
+  // nicht mehr in SpellEffect.
+  //
+  // ItemSparse fuehrt sie aber: Flags_3, Bit 24. Nachgerechnet an allen
+  // 7818 Stuecken der Erweiterung - 350 tragen das Bit, und KEIN
+  // EINZIGES davon steht im Abenteuerjournal. Ein Stueck, das ein Boss
+  // fallen laesst, traegt es also nie; das ist die Gegenprobe, die aus
+  // einer Beobachtung eine brauchbare Regel macht.
+  const CRAFTED_FLAG = 16777216;
+  const craftedGear = new Set();
+  for (const row of items) {
+    // Nur Ausruestung: InventoryType 0 ist kein Ruestungsplatz, und
+    // Verbrauchsgueter haben ihre eigene Einteilung.
+    if ((Number(row.InventoryType) || 0) <= 0) continue;
+    if (((Number(row.Flags_3) || 0) & CRAFTED_FLAG) === 0) continue;
+    craftedGear.add(Number(row.ID));
+  }
+  console.log('Hergestellte Ausruestung am Flag:', craftedGear.size, 'Stuecke');
+
   const tierNow = new Set();
   for (const entry of bestOfClass.values()) {
     for (const id of entry.ids) tierNow.add(id);
@@ -1212,6 +1303,22 @@ function emitEnchants(groups) {
   out.push('  instKind = {');
   for (const [id, kind] of Object.entries(instKind).sort((a, b) => a[0] - b[0])) {
     out.push(`    [${id}] = ${luaString(kind)},`);
+  }
+  out.push('  },');
+  out.push('');
+
+  // Die Bonus-Liste, die einem Stueck seinen "Anlegen:"-Effekt gibt.
+  out.push('  effectBonus = {');
+  for (const [id, liste] of [...effectBonus.entries()].sort((a, b) => a[0] - b[0])) {
+    out.push(`    [${id}] = ${liste},`);
+  }
+  out.push('  },');
+  out.push('');
+
+  // Was hergestellt wird - siehe oben, Flag statt Rezept.
+  out.push('  crafted = {');
+  for (const id of [...craftedGear].sort((a, b) => a - b)) {
+    out.push(`    [${id}] = true,`);
   }
   out.push('  },');
   out.push('');

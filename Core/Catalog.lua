@@ -330,6 +330,41 @@ function Catalog.Quality(itemID)
     return entry.tier, entry.icon
 end
 
+---Die Bonus-ID, die einem Stueck seinen "Anlegen:"-Effekt gibt.
+---
+---Bei den besonderen Stuecken dieser Saison haengt die Wirkung nicht am
+---Gegenstand, sondern an einer Bonus-Liste, die mit der Beute kommt.
+---Wir bauen den Link aber selbst, damit die GEWAEHLTE Stufe im Tooltip
+---steht - und ohne diese Liste fiel der Effekt dabei heraus. Im Fenster
+---stand dann ein Helm ohne die Zeile, die ihn ueberhaupt interessant
+---macht.
+---@param itemID number|nil
+---@return number|nil
+function Catalog.EffectBonus(itemID)
+    if not itemID then return nil end
+    local c = data()
+    return c and c.effectBonus and c.effectBonus[itemID] or nil
+end
+
+---Wird dieses Stueck hergestellt?
+---
+---Aus den Spieldaten, nicht aus der Beobachtung: ItemSparse markiert
+---hergestellte Ausruestung mit einem eigenen Flag. Gegengeprueft an
+---allen Stuecken der Erweiterung - kein einziges davon steht im
+---Abenteuerjournal, und umgekehrt.
+---
+---GEBRAUCHT IM FUNDORT-RASTER. Dort standen die Handwerksstuecke unter
+---"ohne bekannten Fundort", weil niemand sie als Handwerk gemeldet
+---hatte: murlok liefert die Marke nur manchmal mit, ein Rezept-Zauber
+---erzeugt sie nicht mehr, und fallen tun sie nirgends.
+---@param itemID number|nil
+---@return boolean
+function Catalog.IsCrafted(itemID)
+    if not itemID then return false end
+    local c = data()
+    return (c and c.crafted and c.crafted[itemID]) and true or false
+end
+
 ---Gehoert dieses Stueck zum Tier-Set der laufenden Saison?
 ---
 ---"Set-Teil" ist die weitere Frage und bleibt, was sie ist: der
