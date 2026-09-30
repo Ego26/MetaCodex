@@ -323,6 +323,43 @@ function Compat.BindType(itemID)
     return type(bind) == "number" and bind or nil
 end
 
+-- Welcher Platz der Ausruestungsliste welchem Platz am Charakter
+-- entspricht. ns.SLOTS deckt nur ab, was verzaubert wird - hier geht es
+-- um alle.
+local INV_OF_SLOT = {
+    Head = { 1 }, Neck = { 2 }, Shoulders = { 3 }, Back = { 15 },
+    Chest = { 5 }, Wrist = { 9 }, Hands = { 10 }, Waist = { 6 },
+    Legs = { 7 }, Feet = { 8 }, Rings = { 11, 12 }, Trinkets = { 13, 14 },
+    ["Main Hand"] = { 16 }, ["Off Hand"] = { 17 },
+}
+
+---Die Gegenstandsstufe, die auf jedem Platz wirklich am Koerper haengt.
+---
+---DIE NIEDRIGERE BEI ZWEIEN. Ringe und Schmuck traegt man doppelt; wer
+---ein neues Stueck bekommt, ersetzt das schlechtere. An dem ist zu
+---messen, ob sich etwas lohnt.
+---
+---Kennt der Client ein Stueck nicht, fehlt der Platz in der Antwort -
+---und "weiss nicht" ist etwas anderes als "traegt nichts".
+---@return table<string, number>
+function Compat.WornLevels()
+    local out = {}
+    local read = C_Item and C_Item.GetDetailedItemLevelInfo
+    if not read then return out end
+    for slot, invs in pairs(INV_OF_SLOT) do
+        for _, inv in ipairs(invs) do
+            local link = GetInventoryItemLink("player", inv)
+            if link then
+                local ok, level = pcall(read, link)
+                if ok and type(level) == "number" and level > 0 then
+                    if not out[slot] or level < out[slot] then out[slot] = level end
+                end
+            end
+        end
+    end
+    return out
+end
+
 ---Was der Spieler gerade traegt, als Menge von Gegenstands-IDs.
 ---Ueber den Link, nicht ueber GetInventoryItemID: der Link ist ueberall
 ---da, wo auch die Ausruestung gelesen wird, und braucht keinen zweiten
@@ -507,6 +544,231 @@ function Compat.DateText(stamp)
     return format:format(day, month, year)
 end
 
+-- WAS EIN SCHLUESSEL AM DUNGEONENDE GIBT.
+--
+-- Diese Tabelle ist die einzige Zahlenreihe im Addon, die weder
+-- gemessen noch aus den Spieldaten gelesen ist. Der Grund steht in den
+-- Spieldaten selbst: MythicPlusSeasonRewardLevels fuehrt eine Spalte
+-- EndOfRunRewardLevel, und Blizzard laesst sie diese Saison leer - alle
+-- dreissig Zeilen null. Der Client antwortet deshalb nur mit dem
+-- Tresorwert, und wer daraus eine Dungeonstufe macht, liegt zwei
+-- Raenge zu hoch.
+--
+-- Gespeichert wird PFAD UND RANG, nicht die Stufe: die Stufe rechnet
+-- der Client aus der Bonus-ID des Rangs, und damit bleibt sie richtig,
+-- wenn Blizzard an den Stufen dreht.
+--
+-- NACHPRUEFBAR IM SPIEL: die Truhe am Ende eines +10 sagt selbst, dass
+-- sie Held 3 gibt. Wer hier etwas aendert, kann es dort ansehen.
+--
+-- ZU PRUEFEN JEDE SAISON. Der Katalogbau meldet es, sobald die Spalte
+-- wieder gefuellt ist; dann kann diese Tabelle weg.
+---Der nackte Wert des Clients zu einer Schluesselstufe.
+---
+---OHNE JEDE EIGENE RECHNUNG, und das ist hier der Zweck: auf diesen
+---Wert stuetzt sich die Frage "welche Pfade laufen gerade", und die
+---darf ihrerseits nichts fragen, was wieder von ihr abhaengt. Genau so
+---entstand ein Kreis, der den Lua-Stapel gesprengt hat.
+---@param keyLevel number
+---@return number|nil
+local function rawRewardLevel(keyLevel)
+    if not C_MythicPlus or not C_MythicPlus.GetRewardLevelForDifficultyLevel then
+        return nil
+    end
+    local ok, a, b = pcall(C_MythicPlus.GetRewardLevelForDifficultyLevel, keyLevel)
+    if not ok then return nil end
+    a, b = tonumber(a) or 0, tonumber(b) or 0
+    local hoch = math.max(a, b)
+    return hoch > 0 and hoch or nil
+end
+
+local TRACK_CHAMPION, TRACK_HERO = 973, 974
+local RUN_REWARD = {
+    [0]  = { track = TRACK_CHAMPION, rank = 1 },
+    [2]  = { track = TRACK_CHAMPION, rank = 2 },
+    [3]  = { track = TRACK_CHAMPION, rank = 2 },
+    [4]  = { track = TRACK_CHAMPION, rank = 3 },
+    [5]  = { track = TRACK_CHAMPION, rank = 4 },
+    [6]  = { track = TRACK_HERO, rank = 1 },
+    [7]  = { track = TRACK_HERO, rank = 1 },
+    [8]  = { track = TRACK_HERO, rank = 2 },
+    [9]  = { track = TRACK_HERO, rank = 2 },
+    [10] = { track = TRACK_HERO, rank = 3 },
+}
+
+-- UND WAS DIE SCHATZKAMMER GIBT.
+--
+-- Dieselbe Art Tabelle aus demselben Grund: die Spieldaten fuehren
+-- ihre Stufen zwar (WeeklyRewardLevel), aber nur als ZAHL. Eine Zahl
+-- reicht nicht, weil dieselbe Stufe in zwei Pfaden vorkommt - 305 ist
+-- Held 1 und Champion 5. Ueber die Zahl beschriftet stand deshalb
+-- "Tresor +2 +3" an einem Champion-Rang, den die Schatzkammer nie gibt.
+--
+-- Nachpruefbar im Spiel: die Schatzkammer zeigt am Mittwoch, welchen
+-- Rang sie fuer welchen Schluessel anbietet.
+local TRACK_MYTH_V = 978
+local VAULT_REWARD = {
+    [2]  = { track = TRACK_HERO, rank = 1 },
+    [3]  = { track = TRACK_HERO, rank = 1 },
+    [4]  = { track = TRACK_HERO, rank = 2 },
+    [5]  = { track = TRACK_HERO, rank = 2 },
+    [6]  = { track = TRACK_HERO, rank = 3 },
+    [7]  = { track = TRACK_HERO, rank = 4 },
+    [8]  = { track = TRACK_HERO, rank = 4 },
+    [9]  = { track = TRACK_HERO, rank = 4 },
+    [10] = { track = TRACK_MYTH_V, rank = 1 },
+}
+
+---Welche Schluessel einen Pfad-Rang in der Schatzkammer geben.
+---@param trackName number
+---@param rank number
+---@return number[]|nil
+function Compat.VaultKeysForRank(trackName, rank)
+    local out
+    for key, want in pairs(VAULT_REWARD) do
+        if want.track == trackName and want.rank == rank then
+            out = out or {}
+            out[#out + 1] = key
+        end
+    end
+    if out then table.sort(out) end
+    return out
+end
+
+---Die Stufe, die ein Schluessel in der Schatzkammer gibt.
+---@param keyLevel number
+---@return number|nil
+function Compat.VaultLevel(keyLevel)
+    local want = VAULT_REWARD[keyLevel]
+    if not want then return nil end
+    return Compat.TrackLevel(want.track, want.rank)
+end
+
+---Welche Schluessel einen Pfad-Rang am Dungeonende geben.
+---
+---Die Frage stellt das Menue je RANG - und genau so muss sie
+---beantwortet werden. Ueber die Stufe zu gehen war der Fehler: 311
+---steht im Held-Pfad auf Rang 3 und im Champion-Pfad auf Rang 7, und
+---dann stand "+10" in beiden Zeilen.
+---@param trackName number
+---@param rank number
+---@return number[]|nil  aufsteigend, nil wenn kein Schluessel ihn gibt
+function Compat.KeysForRank(trackName, rank)
+    local out
+    for key, want in pairs(RUN_REWARD) do
+        if want.track == trackName and want.rank == rank then
+            out = out or {}
+            out[#out + 1] = key
+        end
+    end
+    if out then table.sort(out) end
+    return out
+end
+
+---Die Stufe, die ein Schluessel am Dungeonende gibt.
+---
+---Aus Pfad und Rang, vom Client gerechnet. Kennt er den Pfad dieser
+---Saison nicht, gibt es keine Antwort - und dann behauptet das Fenster
+---auch keine.
+---@param keyLevel number
+---@return number|nil
+function Compat.RunLevel(keyLevel)
+    local want = RUN_REWARD[keyLevel]
+    if not want then return nil end
+    local tracks = ns.Catalog.Tracks and ns.Catalog.Tracks()
+    local read = C_Item and C_Item.GetDetailedItemLevelInfo
+    local probe = ns.Catalog.ProbeItem and ns.Catalog.ProbeItem()
+    if not tracks or not read or not probe then return nil end
+    local season = Compat.SeasonTracks(probe)
+    for t, track in ipairs(tracks) do
+        -- Denselben Pfad gibt es aus mehreren Saisons. Gemeint ist der,
+        -- der JETZT laeuft.
+        if track.name == want.track and (not season or season[t]) then
+            local bonus = (track.lists or {})[want.rank]
+            if bonus then
+                -- Der Link von Hand: trackLink() steht weiter unten in
+                -- der Datei und ist hier noch nicht bekannt.
+                local link = ("item:%d::::::::::::1:%d"):format(probe, bonus)
+                local ok, level = pcall(read, link)
+                if ok and type(level) == "number" and level > 0 then return level end
+            end
+        end
+    end
+    return nil
+end
+
+-- Die drei Pfade, an denen sich die Farbe einer Stufe entscheidet.
+local TRACK_MYTH = 978
+-- Bis zu welchem Rang des Mythisch-Pfads ein Schlachtzugsboss faellt.
+-- Darueber gibt es nur noch Aufwertung - und das ist die Grenze, ab
+-- der eine Stufe nicht mehr erreichbar, sondern erarbeitet ist.
+local MYTH_DROP_RANKS = 4
+
+---Die Stufe des ersten Rangs eines Pfads dieser Saison.
+---@param trackName number  SharedString-ID des Pfads
+---@param rank number|nil  Vorgabe: der erste
+---@return number|nil
+function Compat.TrackLevel(trackName, rank)
+    local tracks = ns.Catalog.Tracks and ns.Catalog.Tracks()
+    local read = C_Item and C_Item.GetDetailedItemLevelInfo
+    local probe = ns.Catalog.ProbeItem and ns.Catalog.ProbeItem()
+    if not tracks or not read or not probe then return nil end
+    local season = Compat.SeasonTracks(probe)
+    for t, track in ipairs(tracks) do
+        if track.name == trackName and (not season or season[t]) then
+            local bonus = (track.lists or {})[rank or 1]
+            if bonus then
+                local ok, level = pcall(read, ("item:%d::::::::::::1:%d"):format(probe, bonus))
+                if ok and type(level) == "number" and level > 0 then return level end
+            end
+        end
+    end
+    return nil
+end
+
+---Welche Qualitaet eine Gegenstandsstufe in DIESER Saison bedeutet.
+---
+---Nicht die Qualitaet eines bestimmten Gegenstands - die steht am
+---Gegenstand. Gemeint ist, wo eine Stufe zwischen den Pfaden liegt:
+---unterhalb von Champion ist sie belanglos, ab Held wird es
+---interessant, ab Mythisch selten, und ueber dem hoechsten Rang, den
+---ein Boss noch fallen laesst, ist sie nur noch durch Aufwertung zu
+---haben.
+---
+---Die Grenzen werden NICHT eingetragen, sondern an den Pfaden dieser
+---Saison abgelesen. Damit stimmen sie auch, wenn Blizzard die Stufen
+---verschiebt.
+---@param level number|nil
+---@return number|nil quality  Enum.ItemQuality
+function Compat.LevelQuality(level)
+    if not level then return nil end
+    local champion = Compat.TrackLevel(TRACK_CHAMPION)
+    local hero = Compat.TrackLevel(TRACK_HERO)
+    local myth = Compat.TrackLevel(TRACK_MYTH)
+    local mythTop = Compat.TrackLevel(TRACK_MYTH, MYTH_DROP_RANKS)
+    if mythTop and level > mythTop then return 5 end
+    if myth and level >= myth then return 4 end
+    if hero and level >= hero then return 3 end
+    if champion and level >= champion then return 2 end
+    return 1
+end
+
+---Eine Stufe als eingefaerbter Text.
+---@param level number|nil
+---@return string
+function Compat.LevelText(level)
+    if not level then return "" end
+    local quality = Compat.LevelQuality(level)
+    local get = C_Item and C_Item.GetItemQualityColor
+    if quality and get then
+        local ok, r, g, b = pcall(get, quality)
+        if ok and type(r) == "number" then
+            return ("|cff%02x%02x%02x%d|r"):format(r * 255, g * 255, b * 255, level)
+        end
+    end
+    return tostring(level)
+end
+
 ---Was ein Schluesselstein abwirft.
 ---
 ---Die Tabelle steht nicht in diesem Addon und soll es auch nicht: sie
@@ -517,6 +779,18 @@ end
 ---nicht verlaesslich dokumentiert. Statt sie zu raten, wird die
 ---EIGENSCHAFT benutzt, die immer gilt: die Truhe gibt nie weniger als
 ---der Dungeon.
+---
+---UND EINE FEHLENDE ZAHL WIRD NICHT ERFUNDEN.
+---
+---In dieser Saison antwortet GetRewardLevelForDifficultyLevel nur noch
+---mit EINEM Wert - der Schatzkammer -, der zweite ist null. Hier stand
+---dann "return a, a": die Tresorstufe galt auch als Dungeonstufe. Im
+---Menue las man darum "311 (+6)", wo "311 (+10)" richtig ist, und jede
+---Stufe hing am falschen Schluessel.
+---
+---Die Dungeonstufe kennt eine zweite Schnittstelle. Gibt es sie nicht,
+---bleibt die Dungeonstufe NIL - und das Menue sagt dann eben
+---"Schatzkammer +10" statt etwas zu behaupten.
 ---@param keyLevel number
 ---@return number|nil endOfRun, number|nil vault
 function Compat.RewardLevels(keyLevel)
@@ -525,6 +799,10 @@ function Compat.RewardLevels(keyLevel)
     end
     local ok, a, b = pcall(C_MythicPlus.GetRewardLevelForDifficultyLevel, keyLevel)
     if not ok then return nil end
+    -- Die Dungeonstufe aus Pfad und Rang. Die zweite Schnittstelle des
+    -- Clients wurde probiert und half nicht: sie nennt dieselbe
+    -- Tresorstufe wie die erste.
+    local run = Compat.RunLevel and Compat.RunLevel(keyLevel) or nil
     -- Eine Null ist keine Stufe.
     --
     -- Mein Trick "der kleinere ist der Dungeon" ging genau hier schief:
@@ -533,10 +811,17 @@ function Compat.RewardLevels(keyLevel)
     a, b = tonumber(a), tonumber(b)
     if (a or 0) <= 0 then a = nil end
     if (b or 0) <= 0 then b = nil end
-    if not a and not b then return nil end
-    if not b then return a, a end
-    if not a then return b, b end
-    return math.min(a, b), math.max(a, b)
+    if not a and not b then return run, run end
+    -- Beide da: die kleinere ist der Dungeon, die groessere die Truhe.
+    if a and b then return math.min(a, b), math.max(a, b) end
+    -- Nur eine: sie ist die Schatzkammer. Der Dungeon kommt aus der
+    -- zweiten Schnittstelle - oder gar nicht.
+    -- Die Schatzkammer aus unserer Tabelle; was der Client sagt, bleibt
+    -- der Rueckfall, solange sie den Schluessel nicht kennt.
+    local vault = Compat.VaultLevel and Compat.VaultLevel(keyLevel) or nil
+    vault = vault or a or b
+    if run and vault and run > vault then return vault, run end
+    return run, vault
 end
 
 ---Die Schluesselstufen, die der Client kennt.
@@ -548,7 +833,10 @@ function Compat.RewardTable()
     local out = {}
     for level = 2, 30 do
         local endOfRun, vault = Compat.RewardLevels(level)
-        if endOfRun then
+        -- Auch eine Zeile ohne Dungeonstufe: die Schatzkammer allein ist
+        -- eine Auskunft. Vorher fiel sie ganz heraus, und das Menue war
+        -- leer statt halb.
+        if endOfRun or vault then
             out[#out + 1] = { key = level, endOfRun = endOfRun, vault = vault }
         end
     end
@@ -675,10 +963,12 @@ function Compat.SeasonTracks(probe)
     local read = C_Item and C_Item.GetDetailedItemLevelInfo
     if not tracks or not probe or not read then return nil end
     if not (C_Item.GetItemInfo and C_Item.GetItemInfo(probe)) then return nil end
+    -- Der rohe Clientwert, nicht die fertige Tabelle: die haengt
+    -- inzwischen an den Pfaden, die hier erst bestimmt werden.
     local wanted = {}
-    for _, row in ipairs(Compat.RewardTable()) do
-        if row.endOfRun and row.endOfRun > 0 then wanted[row.endOfRun] = true end
-        if row.vault and row.vault > 0 then wanted[row.vault] = true end
+    for level = 2, 30 do
+        local got = rawRewardLevel(level)
+        if got then wanted[got] = true end
     end
     if not next(wanted) then return nil end
     local out, any = {}, false

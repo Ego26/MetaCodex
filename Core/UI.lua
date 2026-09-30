@@ -782,7 +782,11 @@ local function gearRows(specID, mode, source)
                     -- wenigsten. Dann kam kein Link zustande und das
                     -- Tooltip zeigte die Grundstufe - "71" unter einer
                     -- Zeile, die 318 sagt. Beim Hovern ist er da.
-                    atLevel = atLevel, wantLevel = yours, wantBonus = yoursBonus,
+                    -- Ohne gewaehlte Stufe die gemessene: in der Zeile
+                    -- steht "Stufe 311", und der Zeiger darf nicht 28
+                    -- sagen.
+                    atLevel = atLevel, wantLevel = yours or item.ilvl,
+                    wantBonus = yoursBonus,
                     name = name or item.name, link = link, icon = icon,
                     group = L["GEARSLOT_" .. slot:gsub("%s", "")],
                     -- Der Platz selbst, nicht nur seine Ueberschrift:
@@ -1352,13 +1356,14 @@ local function openKeyPicker(anchor)
 
     MenuUtil.CreateContextMenu(anchor, function(_, root)
         root:CreateTitle(L["LBL_KEY"])
-        root:CreateRadio(L["KEY_BEST"], function()
-            return ns.Profile.Target() == nil and ns.Profile.KeyLevel() == nil
-        end, function()
-            ns.Profile.SetTarget(nil)
-            ns.Profile.SetKeyLevel(nil)
-            UI.Refresh()
-        end)
+        -- "Wie die Besten spielen" gibt es nicht mehr.
+        --
+        -- Der Zustand dahinter war "keine Stufe gewaehlt", und der hat
+        -- nie eine Frage beantwortet, die jemand stellt: im Tooltip
+        -- stand dann die Stufe, auf der irgendein gemessener Spieler das
+        -- Stueck trug. Ohne Wahl gilt jetzt, was ein +10 gibt - das
+        -- laeuft fast jeder, und die Zahl kommt vom Client, nicht aus
+        -- einer Tabelle, die naechste Saison falsch ist.
 
         -- Ohne Pfade (Probegegenstand noch nicht geladen): die Stufen
         -- nach Herkunft, wie bisher.
@@ -1372,7 +1377,8 @@ local function openKeyPicker(anchor)
                     local sub = root:CreateButton(group.label)
                     for _, step in ipairs(steps) do
                         local key, which = step.keys[1], group.which
-                        sub:CreateRadio(L["KEY_STEP"]:format(step.level, step.label), function()
+                        sub:CreateRadio(L["KEY_STEP"]:format(
+                            ns.Compat.LevelText(step.level), step.label), function()
                             return ns.Profile.KeyLevel() == key and ns.Profile.KeySource() == which
                         end, function()
                             ns.Profile.SetKeyLevel(key, which)
@@ -1402,17 +1408,39 @@ local function openKeyPicker(anchor)
                         ranks[#ranks + 1] = { rank = rank, bonus = bonus, level = level, run = run, vault = vault }
                     end
                 end
-                if viaRun or viaVault then
-                    local title = (viaRun and ns.Compat.TrackName(t)) or L["KEY_GROUP_VAULT"]
+                -- Gibt ein Schluessel irgendeinen Rang dieses Pfads, ist
+                -- es sein Pfad; sonst ist es die Schatzkammer.
+                local viaRank, viaTresor = false, false
+                for _, r in ipairs(ranks) do
+                    if ns.Compat.KeysForRank(track.name, r.rank) then viaRank = true end
+                    if ns.Compat.VaultKeysForRank(track.name, r.rank) then viaTresor = true end
+                end
+                if viaRank or viaTresor then
+                    local title = (viaRank and ns.Compat.TrackName(t)) or L["KEY_GROUP_VAULT"]
                     local sub = root:CreateButton(title)
                     for _, r in ipairs(ranks) do
+                        -- Die Stufe in der Farbe ihrer Qualitaet: man
+                        -- sieht am Ton, ob eine Zeile noch Held ist oder
+                        -- schon Mythisch, ohne die Zahlen zu vergleichen.
+                        local zahl = ns.Compat.LevelText(r.level)
+                        -- WELCHE SCHLUESSEL DIESEN RANG GEBEN - gefragt
+                        -- am Rang, nicht an der Stufe. Dieselbe Stufe
+                        -- gibt es in zwei Pfaden, und dann stand "+10"
+                        -- zweimal da: einmal richtig, einmal daneben.
+                        local amRang = ns.Compat.KeysForRank(track.name, r.rank)
+                        local imTresor = ns.Compat.VaultKeysForRank(track.name, r.rank)
                         local label
-                        if r.run then
-                            label = L["KEY_STEP"]:format(r.level, keyText(r.run))
-                        elseif r.vault then
-                            label = L["KEY_STEP_VAULT"]:format(r.level, keyText(r.vault))
+                        if amRang then
+                            label = L["KEY_STEP"]:format(zahl, keyText(amRang))
+                        elseif imTresor then
+                            -- In der Gruppe "Grosse Schatzkammer" steht
+                            -- das Wort schon in der Ueberschrift; es
+                            -- davor noch einmal zu setzen, sagt nichts
+                            -- Zweites.
+                            label = (viaRank and L["KEY_STEP_VAULT"] or L["KEY_STEP"])
+                                :format(zahl, keyText(imTresor))
                         else
-                            label = L["KEY_STEP_UPGRADE"]:format(r.level)
+                            label = L["KEY_STEP_UPGRADE"]:format(zahl)
                         end
                         -- Gemerkt wird der Pfad, nicht seine Beschriftung.
                         --
@@ -3153,6 +3181,13 @@ local function dropCell(row, i)
         local wo = self.enc and ns.Compat.DropText(self.enc, nil)
         if wo then GameTooltip:AddLine(L["DROPS_FROM"]:format(wo), 1, 0.82, 0) end
         if self.worn then GameTooltip:AddLine(L["DROPS_WORN"], 0.4, 0.9, 0.4) end
+        -- Warum das Kaestchen zurueckgetreten ist. Ohne diese Zeile
+        -- sieht es aus wie ein Fehler: ein Stueck, das 43 % der Besten
+        -- tragen, und es ist grau.
+        if self.better and self.wornLevel then
+            GameTooltip:AddLine(L["DROPS_HAVE_BETTER"]:format(self.wornLevel),
+                0.7, 0.7, 0.7)
+        end
         GameTooltip:Show()
     end)
     c:SetScript("OnLeave", function(self)
@@ -3257,6 +3292,9 @@ local function setDropRow(row, data)
         or L["DROPS_ROW"]:format(data.open or 0, math.floor(data.best or 0))
     -- Was ignoriert ist, wird GENANNT, nicht verschwiegen: sonst
     -- wundert man sich, warum ein Dungeon so wenig hergibt.
+    if (data.better or 0) > 0 then
+        text = text .. "  ·  " .. L["DROPS_BETTER_N"]:format(data.better)
+    end
     if (data.ignored or 0) > 0 then
         text = text .. "  ·  " .. L["DROPS_IGNORED_N"]:format(data.ignored)
     end
@@ -3319,8 +3357,9 @@ local function setDropRow(row, data)
         -- Drei Zustaende am selben Kaestchen: getragen, ignoriert,
         -- gewuenscht. Ignoriert tritt am weitesten zurueck - es zaehlt
         -- nicht mehr mit.
-        c.icon:SetDesaturated((item.worn or item.ignored) and true or false)
-        c.icon:SetAlpha(item.ignored and 0.25 or (item.worn and 0.45 or 1))
+        local zurueck = item.worn or item.ignored or item.better
+        c.icon:SetDesaturated(zurueck and true or false)
+        c.icon:SetAlpha(item.ignored and 0.25 or (zurueck and 0.4 or 1))
         c.mark:SetShown(item.worn and not item.ignored and true or false)
         c.star:SetShown(item.fav and true or false)
         c.stop:SetShown(item.ignored and true or false)
@@ -3331,7 +3370,15 @@ local function setDropRow(row, data)
         -- Die Stufe reist als ZAHL mit, nicht als fertiger Link: den
         -- baut erst das Hovern, weil der Client die Grundstufe beim
         -- Aufbau der Liste meist noch nicht hat.
-        c.wantLevel, c.wantBonus = stufe, stufenBonus
+        -- OHNE GEWAEHLTE STUFE DIE GEMESSENE.
+        --
+        -- "Wie die Besten spielen" heisst nicht "ohne Stufe": es heisst
+        -- die Stufe, auf der wir es gemessen haben. Ohne diesen Rueckfall
+        -- baute niemand einen Link, und der Zeiger zeigte die GRUNDstufe
+        -- des Gegenstands - "Gegenstandsstufe 28" unter einem Ring, den
+        -- die Besten auf 311 tragen.
+        c.wantLevel, c.wantBonus = stufe or item.ilvl, stufe and stufenBonus or nil
+        c.better, c.wornLevel = item.better, item.wornLevel
 
         -- PASST ES, PASST ES NICHT, ODER WISSEN WIR ES NICHT?
         --
@@ -4835,9 +4882,19 @@ function UI.Refresh()
     elseif ns.Profile.KeyLevel() then
         local level = ns.Profile.TargetLevel()
         frame.levelButton.label:SetText(level
-            and L["KEY_SHORT"]:format(ns.Profile.KeyLevel(), level) or L["KEY_BEST"])
+            and L["KEY_SHORT"]:format(ns.Profile.KeyLevel(), level) or "")
     else
-        frame.levelButton.label:SetText(L["KEY_BEST"])
+        -- Die Vorgabe steht als das da, was sie ist: eine Stufe mit
+        -- Pfad und Rang, genau wie eine gewaehlte. Ein eigenes Wort
+        -- dafuer ("Vorgabe", "Standard") waere eine zweite Sprache fuer
+        -- dieselbe Sache.
+        local level = ns.Profile.TargetLevel()
+        local probe = ns.Catalog.ProbeItem and ns.Catalog.ProbeItem()
+        local hit = level and probe and ns.Compat.TrackFor(level, probe)
+        frame.levelButton.label:SetText(
+            (hit and L["KEY_LABEL"]:format(ns.Compat.TrackName(hit.track), hit.rank, level))
+            or (level and L["KEY_LEVEL_ONLY"]:format(level))
+            or "")
     end
 
     -- Die Hervorhebung gehoert nur zum Fundort-Raster.

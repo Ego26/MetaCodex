@@ -959,14 +959,35 @@ end
 ---"wie die Besten".
 ---@return number|nil level
 ---@return number|nil bonus  Pfad-Bonus-ID, wenn gewaehlt
+-- Welchen Schluessel wir annehmen, solange niemand etwas gewaehlt hat.
+--
+-- NICHT die hoechste Stufe der Saison: dann waere alles ein Upgrade,
+-- und die Spalte "hast du besser" ginge nie an. Und keine feste Zahl:
+-- 311 ist DIESE Saison ein +10, naechste Saison irgendetwas anderes.
+-- Gefragt wird deshalb der Client, was ein +10 am Dungeonende gibt.
+local DEFAULT_KEY = 10
+
 function Profile.TargetLevel()
     local target = Profile.Target()
     if target and target.level then return target.level, target.bonus end
     -- Rueckfall auf die alte Schluesselwahl, solange sie noch gesetzt ist.
     local key = Profile.KeyLevel()
-    if not key then return nil end
-    local endOfRun, vault = ns.Compat.RewardLevels(key)
-    return (Profile.KeySource() == "vault") and vault or endOfRun, nil
+    if key then
+        local endOfRun, vault = ns.Compat.RewardLevels(key)
+        return (Profile.KeySource() == "vault") and vault or endOfRun, nil
+    end
+    -- Und ohne jede Wahl: der Schluessel, den die meisten laufen - und
+    -- zwar das, was am DUNGEONENDE faellt. Die Schatzkammer waere zwei
+    -- Raenge hoeher und damit eine Vorgabe, die niemand erreicht, der
+    -- nicht auf den Mittwoch wartet.
+    local run, vault = ns.Compat.RewardLevels(DEFAULT_KEY)
+    return run or vault, nil
+end
+
+---Die Vorgabe, wenn nichts gewaehlt ist.
+---@return number|nil
+function Profile.DefaultLevel()
+    return ns.Compat.RewardLevels(DEFAULT_KEY)
 end
 
 ---@return string|nil Beschriftung des Knopfs

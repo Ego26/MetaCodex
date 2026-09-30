@@ -237,6 +237,8 @@ ns.RegisterLocale("deDE", {
     ["DROPS_PLACE_world"]  = "Ohne bekannten Fundort",
     ["DROPS_GROUP_DUNGEON"] = "Dungeons",
     ["DROPS_GROUP_RAID"]   = "Schlachtzüge",
+    ["DROPS_HAVE_BETTER"]  = "Du trägst hier schon Stufe %d",
+    ["DROPS_BETTER_N"]     = "%d hast du besser",
     ["DROPS_WORN"]         = "Trägst du bereits",
     ["DROPS_ELSEWHERE"]    = "%d von %d Stücken fallen in keiner Instanz: %s.",
     ["DROPS_ELSEWHERE_1"]  = "%d von %d Stücken fällt in keiner Instanz: %s.",
@@ -426,8 +428,8 @@ ns.RegisterLocale("deDE", {
     ["ORIGIN_WORLD"]      = "nicht im Journal: Welt, Quest oder Händler",
     ["LBL_ORIGIN"]        = "Fundort",
     ["SOURCE_ANY"]        = "Alle Fundorte",
-    ["KEY_STEP_UPGRADE"]  = "%d  (Aufwertung)",
-    ["KEY_STEP_VAULT"]    = "%d  (Tresor %s)",
+    ["KEY_STEP_UPGRADE"]  = "%s  (Gegenstandsaufwertung)",
+    ["KEY_STEP_VAULT"]    = "%s  (Tresor %s)",
     ["KEY_LEVEL_ONLY"]     = "Gegenstandsstufe %d",
     ["KEY_LABEL"]         = "%s %d · %d",
     ["PLAYER_ENCHANT"] = "Verzauberung auf diesem Stück",
@@ -570,7 +572,6 @@ ns.RegisterLocale("deDE", {
 
 ns.RegisterLocale("deDE", {
     ["LBL_KEY"]   = "Dein Schlüsselstein",
-    ["KEY_BEST"]  = "Wie die Besten spielen",
     ["KEY_ROW"]   = "+%d  ·  %d  ·  Tresor %d",
     ["KEY_SHORT"] = "+%d  ·  %d",
     ["KEY_YOURS"] = "du bekämst %d",
@@ -598,7 +599,7 @@ ns.RegisterLocale("deDE", {
 })
 
 ns.RegisterLocale("deDE", {
-    ["KEY_STEP"] = "%d  (%s)",
+    ["KEY_STEP"] = "%s  (%s)",
 })
 
 ns.RegisterLocale("deDE", {

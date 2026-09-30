@@ -237,6 +237,8 @@ ns.RegisterLocale("enUS", {
     ["DROPS_PLACE_world"]  = "No known source",
     ["DROPS_GROUP_DUNGEON"] = "Dungeons",
     ["DROPS_GROUP_RAID"]   = "Raids",
+    ["DROPS_HAVE_BETTER"]  = "You already wear %d here",
+    ["DROPS_BETTER_N"]     = "%d you already beat",
     ["DROPS_WORN"]         = "You are wearing this",
     ["DROPS_ELSEWHERE"]    = "%d of %d pieces drop in no instance: %s.",
     ["DROPS_ELSEWHERE_1"]  = "%d of %d pieces drops in no instance: %s.",
@@ -434,8 +436,8 @@ ns.RegisterLocale("enUS", {
     ["ORIGIN_WORLD"]      = "not in the journal: world, quest or vendor",
     ["LBL_ORIGIN"]        = "Source",
     ["SOURCE_ANY"]        = "Any source",
-    ["KEY_STEP_UPGRADE"]  = "%d  (upgrade)",
-    ["KEY_STEP_VAULT"]    = "%d  (vault %s)",
+    ["KEY_STEP_UPGRADE"]  = "%s  (item upgrade)",
+    ["KEY_STEP_VAULT"]    = "%s  (vault %s)",
     ["KEY_LEVEL_ONLY"]     = "Item level %d",
     ["KEY_LABEL"]         = "%s %d · %d",
     ["PLAYER_ENCHANT"] = "Enchant on this piece",
@@ -607,7 +609,6 @@ ns.RegisterLocale("enUS", {
     -- do I get" — somebody running +10 cannot tell from a list of 334s
     -- that it becomes 311 for them.
     ["LBL_KEY"]   = "Your keystone",
-    ["KEY_BEST"]  = "As the best run it",
     ["KEY_ROW"]   = "+%d  ·  %d  ·  vault %d",
     ["KEY_SHORT"] = "+%d  ·  %d",
     ["KEY_YOURS"] = "you would get %d",
@@ -639,7 +640,7 @@ ns.RegisterLocale("enUS", {
 })
 
 ns.RegisterLocale("enUS", {
-    ["KEY_STEP"] = "%d  (%s)",
+    ["KEY_STEP"] = "%s  (%s)",
 })
 
 ns.RegisterLocale("enUS", {

@@ -1092,6 +1092,136 @@ check("gleiche Stufe braucht keinen Bonus",
     same == "item:200001", tostring(same))
 check("ohne Gegenstand kein Link", ns.Compat.LinkAtLevel(nil, 300) == nil)
 
+-- DIE TRESORSTUFE IST NICHT DIE DUNGEONSTUFE.
+--
+-- GetRewardLevelForDifficultyLevel nennt in dieser Saison nur die
+-- Schatzkammer; EndOfRunRewardLevel ist in den Spieldaten ueberall
+-- null. Hier stand "return a, a": die Tresorstufe galt auch als
+-- Dungeonstufe, und im Menue hing jede Stufe am falschen Schluessel
+-- ("311 (+6)" statt "311 (+10)").
+--
+-- Die Dungeonstufe kommt jetzt aus Pfad und Rang - einer Tabelle, die
+-- wir selbst fuehren, weil das Spiel sie nicht mehr hergibt.
+do
+    check("ein +10 gibt eine Dungeonstufe", ns.Compat.RunLevel(10) ~= nil,
+        tostring(ns.Compat.RunLevel(10)))
+    check("ein +11 steht nicht in der Tabelle", ns.Compat.RunLevel(11) == nil,
+        tostring(ns.Compat.RunLevel(11)))
+    check("und ohne Schluessel auch nichts", ns.Compat.RunLevel(nil) == nil)
+
+    -- Die Schatzkammer kommt aus DERSELBEN Art Tabelle: ueber die
+    -- blosse Zahl beschriftet stand "Tresor +2 +3" an einem
+    -- Champion-Rang, den die Schatzkammer nie gibt.
+    check("ein +10 gibt eine Tresorstufe", ns.Compat.VaultLevel(10) ~= nil,
+        tostring(ns.Compat.VaultLevel(10)))
+    check("Held 4 gibt der Tresor bei +7 bis +9",
+        table.concat(ns.Compat.VaultKeysForRank(974, 4) or {}, ",") == "7,8,9",
+        table.concat(ns.Compat.VaultKeysForRank(974, 4) or {}, ","))
+    check("Mythisch 1 gibt er beim Zehner",
+        table.concat(ns.Compat.VaultKeysForRank(978, 1) or {}, ",") == "10")
+    check("und Champion gibt er gar nicht",
+        ns.Compat.VaultKeysForRank(973, 5) == nil)
+
+    -- Kennt die Tabelle einen Schluessel nicht, bleibt der Client der
+    -- Rueckfall - eine Auskunft ist besser als keine.
+    local echt = _G.C_MythicPlus
+    _G.C_MythicPlus = { GetRewardLevelForDifficultyLevel = function() return 999, 0 end }
+    local _, vault = ns.Compat.RewardLevels(15)
+    check("ohne Tabelleneintrag antwortet der Client", vault == 999, tostring(vault))
+    _G.C_MythicPlus = echt
+end
+
+-- WELCHE SCHLUESSEL EINEN RANG GEBEN.
+--
+-- Gefragt am RANG, nicht an der Stufe: 311 steht im Held-Pfad auf Rang
+-- 3 und im Champion-Pfad auf Rang 7. Ueber die Stufe zu gehen schrieb
+-- "+10" in beide Zeilen - einmal richtig, einmal daneben.
+do
+    local held = ns.Compat.KeysForRank(974, 3)
+    check("Held 3 gibt der Zehner", held ~= nil and #held == 1 and held[1] == 10,
+        held and table.concat(held, ",") or "nil")
+    local heldEins = ns.Compat.KeysForRank(974, 1)
+    check("Held 1 geben Sechser und Siebener",
+        heldEins ~= nil and table.concat(heldEins, ",") == "6,7",
+        heldEins and table.concat(heldEins, ",") or "nil")
+    check("Champion 7 gibt kein Schluessel", ns.Compat.KeysForRank(973, 7) == nil)
+    check("und ein fremder Pfad auch nicht", ns.Compat.KeysForRank(978, 1) == nil)
+end
+
+-- EINE STUFE TRAEGT IHRE FARBE.
+--
+-- Die Grenzen sind nicht eingetragen, sondern an den Pfaden DIESER
+-- Saison abgelesen: ab dem ersten Held-Rang wird es interessant, ab dem
+-- ersten Mythisch-Rang selten, und ueber dem hoechsten Rang, den ein
+-- Boss noch faellt, ist eine Stufe nur noch durch Aufwertung zu haben.
+--
+-- Geprueft wird die REGEL, nicht der Client: welche Pfade er gerade
+-- fuehrt, ist seine Sache.
+do
+    local echt = ns.Compat.TrackLevel
+    ns.Compat.TrackLevel = function(name, rank)
+        if name == 973 then return 292 end          -- Champion 1
+        if name == 974 then return 305 end          -- Held 1
+        if name == 978 then return (rank == 4) and 328 or 318 end
+        return nil
+    end
+
+    check("unter Champion ist gewoehnlich", ns.Compat.LevelQuality(280) == 1,
+        tostring(ns.Compat.LevelQuality(280)))
+    check("ab Champion unuebliche Ware", ns.Compat.LevelQuality(292) == 2)
+    check("ab Held selten", ns.Compat.LevelQuality(305) == 3)
+    check("ab Mythisch episch", ns.Compat.LevelQuality(318) == 4)
+    check("unter Mythisch noch nicht", ns.Compat.LevelQuality(315) == 3)
+    -- Ueber dem hoechsten Bossrang: nur noch durch Aufwertung.
+    check("ueber dem letzten Bossrang legendaer", ns.Compat.LevelQuality(331) == 5,
+        tostring(ns.Compat.LevelQuality(331)))
+    check("genau darauf noch nicht", ns.Compat.LevelQuality(328) == 4)
+    check("ohne Stufe keine Farbe", ns.Compat.LevelQuality(nil) == nil)
+
+    local text = ns.Compat.LevelText(311)
+    check("die Stufe kommt eingefaerbt zurueck",
+        text:find("311", 1, true) ~= nil and text:find("|c", 1, true) ~= nil, text)
+    check("ohne Stufe bleibt der Text leer", ns.Compat.LevelText(nil) == "")
+
+    ns.Compat.TrackLevel = echt
+end
+
+-- OHNE WAHL GILT DER +10-SCHLUESSEL.
+--
+-- "Wie die Besten spielen" ist weg: der Zustand dahinter war "keine
+-- Stufe", und im Tooltip stand dann die Stufe irgendeines gemessenen
+-- Spielers. Die Vorgabe kommt vom CLIENT - eine feste 311 waere naechste
+-- Saison falsch.
+do
+    local vorgabe = ns.Profile.DefaultLevel()
+    local zehn = ns.Compat.RewardLevels(10)
+    check("die Vorgabe ist die Stufe eines +10", vorgabe ~= nil and vorgabe == zehn,
+        tostring(vorgabe) .. " / " .. tostring(zehn))
+    check("und ohne Wahl gilt sie", ns.Profile.TargetLevel() == vorgabe,
+        tostring(ns.Profile.TargetLevel()))
+    -- Eine eigene Wahl sticht sie.
+    ns.Profile.SetTarget({ level = 999, bonus = 1 })
+    check("eine Wahl sticht die Vorgabe", ns.Profile.TargetLevel() == 999,
+        tostring(ns.Profile.TargetLevel()))
+    ns.Profile.SetTarget(nil)
+    check("und danach gilt wieder die Vorgabe", ns.Profile.TargetLevel() == vorgabe)
+end
+
+-- OHNE GEWAEHLTE STUFE DIE GEMESSENE.
+--
+-- "Wie die Besten spielen" heisst die Stufe, auf der gemessen wurde -
+-- nicht "gar keine". Ohne Rueckfall baute niemand einen Link, und der
+-- Zeiger zeigte die Grundstufe: "Gegenstandsstufe 28" unter einem Ring,
+-- den die Besten auf 311 tragen.
+do
+    local gemessen = ns.Compat.LinkAtLevel(200001, 311)
+    check("eine gemessene Stufe ergibt einen Link",
+        gemessen ~= nil and gemessen:find("::", 1, true) ~= nil, tostring(gemessen))
+    check("ohne Stufe bleibt es beim nackten Gegenstand",
+        ns.Compat.LinkAtLevel(200001, nil) == nil,
+        tostring(ns.Compat.LinkAtLevel(200001, nil)))
+end
+
 -- DER "ANLEGEN:"-EFFEKT HAENGT MIT AM LINK.
 --
 -- Bei den besonderen Stuecken dieser Saison steht die Wirkung nicht am
@@ -5384,6 +5514,46 @@ do
         end
         return n
     end
+    -- WAS DU BESSER HAST, IST KEIN UPGRADE.
+    --
+    -- Der Abschnitt heisst so, also muss er das beantworten: ein Stueck,
+    -- das 43 % der Besten tragen, nuetzt nichts, wenn am selben Platz
+    -- zwanzig Stufen mehr haengen. Verglichen wird mit der Stufe aus dem
+    -- Waehler - derselben, die im Tooltip steht.
+    local mitBesserem = ns.Drops.Build(250, "mplus", nil, {
+        worn = {}, minLevel = 0, level = 311,
+        wornLevel = { Head = 331, Rings = 300 },
+    })
+    local kopf, ring
+    for _, row in ipairs(mitBesserem) do
+        for _, cell in ipairs(row.items) do
+            if cell.id == 101 then kopf = cell end
+            if cell.id == 102 then ring = cell end
+        end
+    end
+    check("das schlechtere Stueck tritt zurueck", kopf and kopf.better == true,
+        tostring(kopf and kopf.better))
+    check("das bessere bleibt ein Upgrade", ring and ring.better == false,
+        tostring(ring and ring.better))
+    local zeile1001
+    for _, row in ipairs(mitBesserem) do if row.inst == 1001 then zeile1001 = row end end
+    check("und es zaehlt nicht mit", zeile1001 and zeile1001.score == 40,
+        tostring(zeile1001 and zeile1001.score))
+    check("die Zeile sagt, wie viele", zeile1001 and zeile1001.better == 1,
+        tostring(zeile1001 and zeile1001.better))
+    check("es steht aber weiter da", zeile1001 and #zeile1001.items == 2,
+        tostring(zeile1001 and #zeile1001.items))
+    -- Ohne Auskunft ueber den getragenen Platz wird NICHT geurteilt.
+    local ohneWissen = ns.Drops.Build(250, "mplus", nil,
+        { worn = {}, minLevel = 0, level = 311, wornLevel = {} })
+    local keinUrteil = true
+    for _, row in ipairs(ohneWissen) do
+        for _, cell in ipairs(row.items) do
+            if cell.better then keinUrteil = false end
+        end
+    end
+    check("ohne bekannte Stufe kein Urteil", keinUrteil)
+
     -- STERN UND KREUZ.
     --
     -- Der Stern ist eine Vorliebe, das Kreuz eine Absage. Nur das

@@ -616,6 +616,15 @@ function M.install(opts)
                 3, (opts.baseLevel or 200), 0, "", "", 1, "", 12345
         end,
         GetItemCount = function(id) return (opts.owned or {})[id] or 0 end,
+        -- Die Farbe einer Qualitaetsstufe. Gebraucht, seit die
+        -- Gegenstandsstufen im Waehler eingefaerbt sind - ohne sie
+        -- faellt der Code auf den nackten Text zurueck, und der Test
+        -- saehe nicht, ob ueberhaupt gefaerbt wird.
+        GetItemQualityColor = function(quality)
+            local toene = { [1] = 1, [2] = 0.12, [3] = 0.0, [4] = 0.64, [5] = 1 }
+            local g = toene[quality] or 1
+            return g, g, g, "ffffffff"
+        end,
         RequestLoadItemDataByID = function() end,
         -- Die Stufe, die der Client aus einem Link errechnet. Eine
         -- Pfad-Bonus-ID kennt der Test aus opts.bonusLevels; eine

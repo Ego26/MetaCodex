@@ -146,6 +146,26 @@ function Drops.Build(specID, mode, source, opts)
     --
     -- Derselbe Waehler wie in der Ausruestung, und das mit Absicht: wer
     -- dort den Kopf gewaehlt hat, meint ihn hier auch.
+    -- WAS SCHLECHTER IST ALS DAS GETRAGENE, IST KEIN UPGRADE.
+    --
+    -- Der Abschnitt heisst so, also muss er das auch beantworten. Die
+    -- Stufe, auf die es ankommt, ist die aus dem Waehler - dieselbe,
+    -- die im Tooltip steht: "auf Held 3 waere das 311". Ohne Wahl
+    -- zaehlt die gemessene Stufe des Stuecks.
+    --
+    -- ES WIRD NICHTS VERSTECKT. Ein Set-Teil oder ein Stueck mit
+    -- Anlegen-Effekt kann auch eine Stufe tiefer noch lohnen; das
+    -- Kaestchen bleibt darum stehen und tritt nur zurueck.
+    local wornLevel = opts.wornLevel
+    if wornLevel == nil and ns.Compat and ns.Compat.WornLevels then
+        wornLevel = ns.Compat.WornLevels()
+    end
+    wornLevel = wornLevel or {}
+    local zielStufe = opts.level
+    if zielStufe == nil and ns.Profile and ns.Profile.TargetLevel then
+        zielStufe = ns.Profile.TargetLevel()
+    end
+
     local nurPlatz = opts.slot
     if nurPlatz == nil and ns.Profile and ns.Profile.GearSlot then
         nurPlatz = ns.Profile.GearSlot()
@@ -194,6 +214,12 @@ function Drops.Build(specID, mode, source, opts)
             fav = ns.Profile.Favorite and ns.Profile.Favorite(item.id) or false,
             ignored = ns.Profile.Ignored and ns.Profile.Ignored(item.id) or false,
         }
+        -- Auf welcher Stufe es bei DIR ankaeme, und was dort schon
+        -- haengt. Fehlt eines von beidem, wird nicht geurteilt.
+        local waere = zielStufe or cell.ilvl
+        local haengt = wornLevel[slot]
+        cell.better = (waere and haengt and waere < haengt) or false
+        cell.wornLevel = haengt
         row.seen[item.id] = cell
         row.items[#row.items + 1] = cell
         row.total = row.total + 1
@@ -260,6 +286,7 @@ function Drops.Build(specID, mode, source, opts)
             -- warum wenig offen ist - aber es draengt sich nicht mehr
             -- vor das, was zaehlt.
             if a.ignored ~= b.ignored then return b.ignored end
+            if a.better ~= b.better then return b.better end
             if a.pct ~= b.pct then return a.pct > b.pct end
             return (a.id or 0) < (b.id or 0)
         end)
@@ -269,11 +296,13 @@ function Drops.Build(specID, mode, source, opts)
         -- mehr - egal wie gut seine Beute ist. Getragene Stuecke zaehlen
         -- deshalb nicht in die Reihenfolge; sie bleiben sichtbar, damit
         -- man sieht, warum dort wenig offen ist.
-        local score, offen, bestes, weg = 0, 0, 0, 0
+        local score, offen, bestes, weg, schon = 0, 0, 0, 0, 0
         for _, cell in ipairs(row.items) do
             -- Ignoriertes zaehlt NICHT. Sonst stuende ein Dungeon oben
             -- wegen eines Stuecks, das man nie holen will.
             if cell.ignored then weg = weg + 1
+            -- Und was schlechter ist als das Getragene, auch nicht.
+            elseif cell.better then schon = schon + 1
             elseif not cell.worn then
                 score = score + (cell.pct or 0)
                 offen = offen + 1
@@ -283,6 +312,7 @@ function Drops.Build(specID, mode, source, opts)
         row.score = score
         row.open = offen
         row.ignored = weg
+        row.better = schon
         -- Der hoechste Anteil, den man dort noch NICHT traegt.
         --
         -- Zwei Fragen, zwei Zahlen: "wo hole ich am meisten heraus"
