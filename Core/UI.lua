@@ -4590,13 +4590,34 @@ local BAU = {
     kindRows = kindRows,
     playerViewRows = playerViewRows,
 }
+-- Masse und feste Tabellen in EINEM Verzeichnis.
+--
+-- NICHT aus Ordnungsliebe, sondern aus demselben Grund wie BAU: WoWs
+-- Lua laesst einer Funktion hoechstens 60 Upvalues, und UI.Refresh
+-- fasst ein Dutzend Zahlen an, die alle einzeln zaehlen. Ueber dieses
+-- Verzeichnis kostet der ganze Satz eines.
+--
+-- Die Locals bleiben stehen: die uebrigen Funktionen benutzen sie
+-- unveraendert weiter, und zwei Namen fuer dieselbe Zahl gibt es
+-- nicht - hier steht die Zahl selbst, einmal zugewiesen.
+local MASS = {
+    SECTIONS = SECTIONS, sidebarWidth = sidebarWidth,
+    HEADER = HEADER, FOOTER = FOOTER,
+    DUNGEON_SECTIONS = DUNGEON_SECTIONS, GEAR_SLOTS = GEAR_SLOTS,
+    HEADER_ROW = HEADER_ROW, HEADER_BUTTON_H = HEADER_BUTTON_H,
+    SUB_ROW_HEIGHT = SUB_ROW_HEIGHT, CARD_HEIGHT = CARD_HEIGHT,
+    DROP_ROW_HEIGHT = DROP_ROW_HEIGHT, DROP_CELL_H = DROP_CELL_H,
+    STAT_ROW_HEIGHT = STAT_ROW_HEIGHT, ROW_HEIGHT = ROW_HEIGHT,
+    SHOPPING = SHOPPING,
+}
+
 function UI.Refresh()
     if not frame then return end
 
     local profile = ns.Profile.Current()
     local section = activeSection()
     if not UI.SectionHasData(section.key) then
-        for _, candidate in ipairs(SECTIONS) do
+        for _, candidate in ipairs(MASS.SECTIONS) do
             if UI.SectionHasData(candidate.key) then
                 MetaCodexDB.section = candidate.key
                 section = candidate
@@ -4625,12 +4646,12 @@ function UI.Refresh()
     -- bei 125 % der Titel auf dem Spec-Knopf und der Text der
     -- Seitenleiste auf ihrer Kante.
     frame.logo:SetSize(26 * fs, 26 * fs)
-    frame.sidebar:SetWidth(sidebarWidth())
+    frame.sidebar:SetWidth(MASS.sidebarWidth())
     frame.content:ClearAllPoints()
-    frame.content:SetPoint("TOPLEFT", sidebarWidth(), -HEADER)
-    frame.content:SetPoint("BOTTOMRIGHT", 0, FOOTER)
+    frame.content:SetPoint("TOPLEFT", MASS.sidebarWidth(), -MASS.HEADER)
+    frame.content:SetPoint("BOTTOMRIGHT", 0, MASS.FOOTER)
     for _, button in ipairs(navButtons) do
-        button:SetWidth(sidebarWidth() - S.space.md * 2)
+        button:SetWidth(MASS.sidebarWidth() - S.space.md * 2)
     end
     local y = -S.space.md
     for _, head in ipairs(groupHeads) do
@@ -4695,7 +4716,7 @@ function UI.Refresh()
     end
     -- Nachgeschlagen wird unter dem Dungeon DIESES Abschnitts, und nur
     -- wo ein Dungeon ueberhaupt etwas aendert.
-    local mode = DUNGEON_SECTIONS[section.key] and ns.Profile.LookupMode(section.key)
+    local mode = MASS.DUNGEON_SECTIONS[section.key] and ns.Profile.LookupMode(section.key)
         or ns.Profile.Mode()
     for _, entry in ipairs(ns.MODES) do
         if entry.key == base then frame.activityButton.label:SetText(entry.label) end
@@ -4709,7 +4730,7 @@ function UI.Refresh()
     -- Nur wo der Dungeon wirklich etwas aendert. Eine Verzauberung ist in
     -- jedem Dungeon dieselbe, und "Alle Dungeons" ueber der Steinliste
     -- beantwortet eine Frage, die dort niemand stellt.
-    local dungeonMatters = DUNGEON_SECTIONS[section.key] == true
+    local dungeonMatters = MASS.DUNGEON_SECTIONS[section.key] == true
     frame.dungeonButton:SetShown(#dungeons > 0 and dungeonMatters)
     local chosen = ns.Profile.Dungeon(section.key)
     local dungeonLabel = L[(unitLabels(base))]
@@ -5175,7 +5196,7 @@ function UI.Refresh()
                 -- beide gleichzeitig. Eine einzelne Zeile mit "+4
                 -- weitere" verlangte, den zweiten Ring hinter einem Klick
                 -- zu suchen, als waere er ein Ersatz.
-                if offen < (GEAR_SLOTS[row.slot] or 1) then
+                if offen < (MASS.GEAR_SLOTS[row.slot] or 1) then
                     offen = offen + 1
                     kept[#kept + 1] = row
                 else
@@ -5260,7 +5281,7 @@ function UI.Refresh()
     -- Hinweis, sonst neben dem Titel.
     local eigenerAbstand = 0
     local function rowOffset()
-        return -S.space.lg - 2 - headerRows * HEADER_ROW - eigenerAbstand
+        return -S.space.lg - 2 - headerRows * MASS.HEADER_ROW - eigenerAbstand
     end
 
     local function placeRight(widget, width)
@@ -5332,7 +5353,7 @@ function UI.Refresh()
     -- lag auf der ersten Ueberschrift. Jetzt misst der Hinweis sich
     -- selbst und die Liste faengt darunter an.
     local hintTop = 140 + (frame.controls:IsShown() and 0 or -128)
-        + headerRows * HEADER_ROW
+        + headerRows * MASS.HEADER_ROW
     -- UND ER ENDET NIE AUF DER KNOPFREIHE.
     --
     -- Bricht die Reihe um - drei Waehler und ein Titel passen in ein
@@ -5346,8 +5367,8 @@ function UI.Refresh()
     -- Knopfhoehe plus ein Abstand, minus dem Rand, den das Setzen
     -- ohnehin dazugibt.
     if wrapped and not verteilt then
-        local unten = S.space.lg + 2 + headerRows * HEADER_ROW
-            + HEADER_BUTTON_H + S.space.sm - S.space.xl
+        local unten = S.space.lg + 2 + headerRows * MASS.HEADER_ROW
+            + MASS.HEADER_BUTTON_H + S.space.sm - S.space.xl
         if unten > hintTop then hintTop = unten end
     end
     -- Bei einer eigenen Knopfreihe steht der Hinweis DARUEBER: direkt
@@ -5365,8 +5386,8 @@ function UI.Refresh()
     if verteilt then
         -- Unter der Knopfreihe, nicht unter dem Hinweis: die Reihe
         -- steht jetzt zwischen beiden.
-        local unten = S.space.lg + 2 + headerRows * HEADER_ROW + eigenerAbstand
-            + HEADER_BUTTON_H + S.space.md - S.space.xl
+        local unten = S.space.lg + 2 + headerRows * MASS.HEADER_ROW + eigenerAbstand
+            + MASS.HEADER_BUTTON_H + S.space.md - S.space.xl
         if unten > scrollTop then scrollTop = unten end
     end
     frame.scroll:ClearAllPoints()
@@ -5431,7 +5452,7 @@ function UI.Refresh()
         -- Abschnittstitel wiederholen wuerde.
         local group = data.group or (data.slot and L["SLOT_" .. data.slot])
         -- Wo es zwei davon gibt, steht es in der Ueberschrift.
-        local zweimal = group and data.slot and GEAR_SLOTS[data.slot]
+        local zweimal = group and data.slot and MASS.GEAR_SLOTS[data.slot]
         if zweimal then group = group .. "  ·  " .. slotCount(zweimal) end
         if group and group ~= lastSlot then
             index = index + 1
@@ -5461,12 +5482,12 @@ function UI.Refresh()
             row.title:ClearAllPoints()
             row.title:SetPoint("LEFT", S.space.sm + 58, 0)
             S:ApplyRole(row.title, "detail")
-            place(row, SUB_ROW_HEIGHT * (S.fontScale or 1))
+            place(row, MASS.SUB_ROW_HEIGHT * (S.fontScale or 1))
         elseif data.kind == "buildcard" then
-            place(row, (CARD_HEIGHT + 16) * (S.fontScale or 1))
+            place(row, (MASS.CARD_HEIGHT + 16) * (S.fontScale or 1))
         elseif data.kind == "droprow" then
-            place(row, (DROP_ROW_HEIGHT
-                + ((data.dropLines or 1) - 1) * (DROP_CELL_H + 2)) * (S.fontScale or 1))
+            place(row, (MASS.DROP_ROW_HEIGHT
+                + ((data.dropLines or 1) - 1) * (MASS.DROP_CELL_H + 2)) * (S.fontScale or 1))
         elseif data.kind == "note" then
             -- Eine Notiz ist eine Zeile Text, kein Gegenstand: Symbol
             -- klein, Text daneben auf halber Hoehe.
@@ -5495,7 +5516,7 @@ function UI.Refresh()
             -- ueberlappt, ist nicht mehr lesbar, und unlesbar ist
             -- schlimmer als abgeschnitten.
             local fs = S.fontScale or 1
-            local height = (data.kind == "stat" and STAT_ROW_HEIGHT or ROW_HEIGHT) * fs
+            local height = (data.kind == "stat" and MASS.STAT_ROW_HEIGHT or MASS.ROW_HEIGHT) * fs
             if data.kind ~= "stat" and (row.detail:GetText() or "") ~= "" then
                 row.detail:ClearAllPoints()
                 row.detail:SetPoint("TOPLEFT", row.title, "BOTTOMLEFT", 0, -2)
@@ -5558,7 +5579,7 @@ function UI.Refresh()
     -- Deckt die Liste mehr als die gezeigte Spec ab, muss das sichtbar
     -- sein: sonst drueckt jemand den Knopf und bekommt mehr, als er sieht.
     local specCount = #ns.Profile.ShoppingSpecs()
-    if specCount > 1 and SHOPPING[section.key] then
+    if specCount > 1 and MASS.SHOPPING[section.key] then
         countText = L["COUNT_SPECS"]:format(specCount)
             .. (missing > 0 and ("  ·  " .. L["COUNT_MISSING"]:format(missing)) or "")
     end
@@ -5569,7 +5590,7 @@ function UI.Refresh()
     -- Die Meldung stand unter JEDEM leeren Abschnitt, auch unter den
     -- Talenten - und dort ist sie nicht nur falsch, sondern verwirrend:
     -- sie beantwortet eine Frage, die niemand gestellt hat.
-    local shopping = SHOPPING[section.key] == true
+    local shopping = MASS.SHOPPING[section.key] == true
     if shopping and #shown == 0 and ns.Profile.Complete() and ns.Catalog.Ready() then
         hintText:SetText("|cff" .. S:Hex("success") .. L["NOTHING_TO_BUY"] .. "|r"
             .. (profile.onlyMissing and ("  " .. L["SHOW_ALL_HINT"]) or ""))
