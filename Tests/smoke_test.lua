@@ -1092,6 +1092,34 @@ check("gleiche Stufe braucht keinen Bonus",
     same == "item:200001", tostring(same))
 check("ohne Gegenstand kein Link", ns.Compat.LinkAtLevel(nil, 300) == nil)
 
+-- DER "ANLEGEN:"-EFFEKT HAENGT MIT AM LINK.
+--
+-- Bei den besonderen Stuecken dieser Saison steht die Wirkung nicht am
+-- Gegenstand, sondern an einer eigenen Bonus-Liste. Wer den Link selbst
+-- baut - und das tun wir, damit die gewaehlte Stufe im Tooltip steht -,
+-- verliert sie, wenn er sie nicht mitgibt: im Fenster stand ein Helm
+-- ohne die Zeile, die ihn interessant macht.
+do
+    local echt = ns.Catalog.EffectBonus
+    ns.Catalog.EffectBonus = function(id) return id == 200001 and 13847 or nil end
+
+    local mitEffekt = ns.Compat.LinkAtLevel(200001, 292)
+    check("der Effekt haengt am Link",
+        mitEffekt ~= nil and mitEffekt:find("13847", 1, true) ~= nil, tostring(mitEffekt))
+    check("und die Stufe steht weiter daneben",
+        mitEffekt ~= nil and mitEffekt:find("12841", 1, true) ~= nil, tostring(mitEffekt))
+    check("beide werden gezaehlt",
+        mitEffekt ~= nil and mitEffekt:find(":2:", 1, true) ~= nil, tostring(mitEffekt))
+
+    -- Auch wenn die Stufe gar nicht geaendert wird: der Effekt gehoert
+    -- zum Gegenstand, nicht zur Aufwertung.
+    local ohneStufe = ns.Compat.LinkAtLevel(200001, 200)
+    check("auch ohne Stufenwechsel",
+        ohneStufe ~= nil and ohneStufe:find("13847", 1, true) ~= nil, tostring(ohneStufe))
+
+    ns.Catalog.EffectBonus = echt
+end
+
 -- --------------------------------------------- Belohnungsstufen
 
 -- Die Tabelle steht NICHT in diesem Addon: sie aendert sich mit jeder
@@ -5221,6 +5249,310 @@ do
     ns.Catalog.RuneforgeSpell = echteSpell
     ns.Profile.IsForeignClass = echtFremd
     ns.Profile.Select(nil, nil)
+end
+
+-- ------------------------------------------------------- Wo es faellt
+--
+-- Dieselben Zahlen wie die Ausruestungsliste, nach Instanz statt nach
+-- Platz. Geprueft wird die Rechnung an erfundenen Daten, damit die
+-- Pruefung nicht davon abhaengt, was gerade in einem Dungeon faellt.
+do
+    local echtGear = ns.Recommend.Gear
+    local echtDrop = ns.Catalog.DropSource
+    local echtKind = ns.Catalog.InstanceKind
+    local echtCurrent = ns.Catalog.InstanceCurrent
+
+    -- 101 liegt in zwei Listen: Ringe passen an zwei Haende. Das ist
+    -- EIN Stueck und darf nicht zweimal zaehlen.
+    ns.Recommend.Gear = function()
+        return {
+            Head  = { { id = 101, pct = 60, ilvl = 300 } },
+            Rings = { { id = 101, pct = 20, ilvl = 300 }, { id = 102, pct = 40, ilvl = 300 } },
+            Feet  = { { id = 103, pct = 90, ilvl = 300 } },
+            Waist = { { id = 104, pct = 70, ilvl = 300, kind = "craft" } },
+            Wrist = { { id = 105, pct = 30, ilvl = 300 } },
+        }, "warcraftlogs.com"
+    end
+    ns.Catalog.DropSource = function(id)
+        if id == 101 then return 11, 1001 end
+        if id == 102 then return 12, 1001 end
+        if id == 103 then return 13, 1002 end
+        if id == 105 then return 14, 1003 end   -- vorbei, faellt raus
+        return nil                               -- 104: Handwerk
+    end
+    ns.Catalog.InstanceKind = function(inst) return inst == 1002 and "raid" or "dungeon" end
+    ns.Catalog.InstanceCurrent = function(inst) return inst ~= 1003 end
+
+    local rows, sum = ns.Drops.Build(250, "mplus", nil, { worn = {}, minLevel = 0 })
+
+    local mitInstanz, handwerk = 0, nil
+    for _, row in ipairs(rows) do
+        if row.inst then mitInstanz = mitInstanz + 1 end
+        if row.place == "craft" then handwerk = row end
+    end
+    check("zwei Instanzen, nicht drei", mitInstanz == 2, mitInstanz .. " Instanzen")
+    -- Die vorbei-Instanz zaehlt nicht als Ziel, aber ihr Stueck ist
+    -- auch nicht "ohne Fundort": es faellt, nur nicht mehr hier.
+    for _, row in ipairs(rows) do
+        check("die alte Instanz steht nicht als Ziel da", row.inst ~= 1003)
+    end
+
+    -- UND WAS NIRGENDS FAELLT, hat trotzdem eine Zeile: sonst steht
+    -- darunter nur eine Zahl, und welche Stuecke gemeint sind, bleibt
+    -- die eigentliche Frage.
+    check("Handwerk bekommt eine eigene Zeile", handwerk ~= nil)
+    if handwerk then
+        check("und zeigt sein Stueck", handwerk.items[1] and handwerk.items[1].id == 104,
+            tostring(handwerk.items[1] and handwerk.items[1].id))
+        check("ohne Instanz", handwerk.inst == nil)
+    end
+
+    local erste = rows[1]
+    check("die ergiebigste Instanz steht oben", erste.inst == 1001,
+        tostring(erste.inst))
+    -- 60 + 40, nicht 60 + 20 + 40: derselbe Ring zaehlt einmal.
+    check("derselbe Gegenstand zaehlt einmal", erste.total == 2,
+        erste.total .. " Kaestchen")
+    check("und mit seinem hoechsten Anteil", erste.score == 100,
+        tostring(erste.score))
+    check("das haeufigste Stueck steht links", erste.items[1].id == 101,
+        tostring(erste.items[1].id))
+
+    -- Was nirgends faellt, wird gezaehlt und benannt.
+    check("Handwerk wird als Handwerk gezaehlt", sum.craft == 1, tostring(sum.craft))
+    check("was in einer alten Instanz faellt, zaehlt nirgends",
+        sum.past == 1 and sum.world == 0, sum.past .. " / " .. sum.world)
+    check("und die Summe stimmt", sum.total == 4 and sum.known == 3,
+        sum.known .. " von " .. sum.total)
+
+    -- WAS GETRAGEN WIRD, ZIEHT DIE ZEILE NACH UNTEN.
+    --
+    -- Ein Dungeon, aus dem man schon alles hat, ist kein Ziel mehr -
+    -- das ist der ganze Zweck dieser Ansicht. Ohne diese Regel stuende
+    -- oben, was man laengst traegt.
+    local getragen = ns.Drops.Build(250, "mplus", nil,
+        { worn = { [101] = true, [102] = true }, minLevel = 0 })
+    check("wer alles hat, rutscht nach unten", getragen[1].inst == 1002,
+        tostring(getragen[1].inst))
+    -- Nicht ueber die Position gesucht: zwischen den Instanzen stehen
+    -- inzwischen auch Handwerk und Unbekanntes, und die Zeile, um die
+    -- es hier geht, ist die mit der Nummer 1001.
+    local leer
+    for _, row in ipairs(getragen) do if row.inst == 1001 then leer = row end end
+    check("und die Zeile sagt, dass nichts offen ist", leer and leer.open == 0,
+        tostring(leer and leer.open))
+    check("zeigt die getragenen Stuecke aber weiter", leer and leer.total == 2,
+        tostring(leer and leer.total))
+
+    -- Und im Fenster.
+    local gezeigt = rowsInSection("drops")
+    check("das Raster zeigt Zeilen", gezeigt >= 3, gezeigt .. " Zeilen")
+
+    local texte = {}
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() then
+            local t = row.title and row.title:GetText()
+            if t and t ~= "" then texte[#texte + 1] = t end
+            local d = row.detail and row.detail:GetText()
+            if d and d ~= "" then texte[#texte + 1] = d end
+        end
+    end
+    local alles = table.concat(texte, " | ")
+
+    -- Grossgeschrieben, wie jede Ueberschrift im Fenster.
+    check("die Gruppen stehen da",
+        alles:upper():find(ns.L["DROPS_GROUP_DUNGEON"]:upper(), 1, true) ~= nil,
+        alles:sub(1, 80))
+    check("die Instanz steht mit ihrem Namen da",
+        alles:find("Instanz 1001", 1, true) ~= nil, alles:sub(1, 80))
+    -- Die Luecke wird genannt, nicht verschwiegen.
+    check("was nirgends faellt, steht darunter",
+        alles:find(ns.L["DROPS_E_CRAFT"]:format(1), 1, true) ~= nil,
+        alles:sub(-80))
+
+    -- UND SIE VERSCHWINDEN WIEDER.
+    --
+    -- Zeilen werden wiederverwendet, ihre Kinder auch: nach einem
+    -- Wechsel auf die Ausruestung lagen die Kaestchen des Rasters quer
+    -- ueber den Gegenstandszeilen. Sichtbar im Spiel, unsichtbar fuer
+    -- jeden Test, der nur Zeilen zaehlt.
+    local function offeneKaestchen()
+        local n = 0
+        for _, f in ipairs(wow.frames) do
+            if rawget(f, "mark") and rawget(f, "share") and not rawget(f, "title")
+                and f:IsShown() then n = n + 1 end
+        end
+        return n
+    end
+    -- STERN UND KREUZ.
+    --
+    -- Der Stern ist eine Vorliebe, das Kreuz eine Absage. Nur das
+    -- Kreuz darf die Zahlen aendern: was man nie holen will, darf einen
+    -- Dungeon nicht nach oben tragen. Der Stern dagegen muss die
+    -- Reihenfolge in Ruhe lassen - sonst stuende eine gemessene Zahl an
+    -- einer Zeile, die aus einem anderen Grund oben liegt.
+    local ohne = ns.Drops.Build(250, "mplus", nil, { worn = {}, minLevel = 0 })
+    local vorher = ohne[1].score
+
+    ns.Profile.SetIgnored(102, true)
+    local mitKreuz = ns.Drops.Build(250, "mplus", nil, { worn = {}, minLevel = 0 })
+    local zeile
+    for _, row in ipairs(mitKreuz) do if row.inst == 1001 then zeile = row end end
+    check("ignoriert zaehlt nicht mehr", zeile and zeile.score == vorher - 40,
+        tostring(zeile and zeile.score) .. " statt " .. tostring(vorher))
+    check("steht aber weiter da", zeile and #zeile.items == 2,
+        tostring(zeile and #zeile.items))
+    check("und die Zeile sagt es", zeile and zeile.ignored == 1,
+        tostring(zeile and zeile.ignored))
+    check("ganz hinten", zeile and zeile.items[#zeile.items].ignored == true)
+    ns.Profile.SetIgnored(102, false)
+
+    ns.Profile.ToggleFavorite(103)
+    local mitStern = ns.Drops.Build(250, "mplus", nil, { worn = {}, minLevel = 0 })
+    check("ein Stern aendert die Reihenfolge nicht",
+        mitStern[1].inst == ohne[1].inst and mitStern[1].score == vorher,
+        tostring(mitStern[1].inst) .. "/" .. tostring(mitStern[1].score))
+    local hatStern = false
+    for _, row in ipairs(mitStern) do
+        for _, cell in ipairs(row.items) do
+            if cell.id == 103 and cell.fav then hatStern = true end
+        end
+    end
+    check("aber das Kaestchen weiss davon", hatStern)
+    -- Und die Hervorhebung kann danach greifen, ohne dass der Client
+    -- den Gegenstand kennen muss.
+    check("Gemerkte lassen sich hervorheben",
+        ns.Drops.Matches(nil, { fav = true }, false, true) == true
+        and ns.Drops.Matches(nil, { fav = true }, false, false) == false)
+    ns.Profile.ToggleFavorite(103)
+
+    -- DER PLATZWAEHLER GILT AUCH HIER.
+    --
+    -- Und zwar in der RECHNUNG: wer nach dem Kopf fragt, will die
+    -- Reihenfolge nach Koepfen. Ein Dungeon mit drei Ringen und keinem
+    -- Helm darf nicht oben stehen, wenn nach Helmen gefragt ist.
+    local nurKopf = ns.Drops.Build(250, "mplus", nil,
+        { worn = {}, minLevel = 0, slot = "Head" })
+    local fremd, stuecke = 0, 0
+    for _, row in ipairs(nurKopf) do
+        for _, cell in ipairs(row.items) do
+            stuecke = stuecke + 1
+            if cell.slot ~= "Head" then fremd = fremd + 1 end
+        end
+    end
+    check("ein Platz laesst nur diesen Platz stehen", fremd == 0 and stuecke > 0,
+        stuecke .. " Stuecke, " .. fremd .. " fremde")
+    -- 101 liegt am Kopf UND an den Ringen; der Filter nimmt den Kopf.
+    check("und der Ring faellt weg", #nurKopf == 1 and nurKopf[1].inst == 1001,
+        #nurKopf .. " Zeilen")
+
+    -- DIE REIHENFOLGE IST EINE FRAGE, KEINE VORGABE.
+    --
+    -- "Wo hole ich am meisten heraus" und "wo liegt das Stueck, das
+    -- die meisten Besten tragen" sind zwei verschiedene Fragen. Die
+    -- Liste beantwortet die, die der Spieler gestellt hat.
+    ns.Profile.SetDropsSort("sum")
+    local nachSumme = ns.Drops.Build(250, "mplus", nil, { worn = {}, minLevel = 0 })
+    ns.Profile.SetDropsSort("best")
+    local nachBestem = ns.Drops.Build(250, "mplus", nil, { worn = {}, minLevel = 0 })
+    check("nach Summe steht die ergiebigste oben", nachSumme[1].inst == 1001,
+        tostring(nachSumme[1].inst))
+    -- 1001: 60 + 40 = 100, bestes 60.  1002: 90, bestes 90.
+    check("nach dem besten Stueck die andere", nachBestem[1].inst == 1002,
+        tostring(nachBestem[1].inst) .. " (bestes " .. tostring(nachBestem[1].best) .. ")")
+    check("und der beste Wert steht an der Zeile", nachSumme[1].best == 60,
+        tostring(nachSumme[1].best))
+    ns.Profile.SetDropsSort("sum")
+
+    -- DIE HERVORHEBUNG.
+    --
+    -- Wer auf Krit und Meisterschaft spielt, sucht die Stuecke mit
+    -- beidem. Die Regel steht in Drops.Matches, damit man sie
+    -- nachrechnen kann statt sie im Spiel zu erraten.
+    local krit = { crit = true }
+    local kritMeister = { crit = true, mastery = true }
+    local nix = {}
+    check("ein Wert genuegt, wenn ODER gilt",
+        ns.Drops.Matches(krit, { crit = true }, false) == true)
+    check("und fehlt er, passt es nicht",
+        ns.Drops.Matches(krit, { mastery = true }, false) == false)
+    check("bei UND muessen alle drauf sein",
+        ns.Drops.Matches(kritMeister, { crit = true, mastery = true }, true) == true)
+    check("einer davon genuegt bei UND nicht",
+        ns.Drops.Matches(krit, { crit = true, mastery = true }, true) == false)
+    check("aber bei ODER schon",
+        ns.Drops.Matches(krit, { crit = true, mastery = true }, false) == true)
+    check("ohne Zweitwerte trifft nur Keine Zweitwerte",
+        ns.Drops.Matches(nix, { none = true }, false) == true
+        and ns.Drops.Matches(krit, { none = true }, false) == false)
+    -- Und die dritte Antwort.
+    check("ohne Auswahl wird nichts abgeblendet",
+        ns.Drops.Matches(krit, {}, false) == nil)
+    check("und was der Client nicht kennt, auch nicht",
+        ns.Drops.Matches(nil, { crit = true }, false) == nil)
+
+    -- DER WAEHLER OBEN.
+    --
+    -- "Nur Dungeons" ist die Frage vor einem Abend, "nur Handwerk"
+    -- die vor einem Handwerksauftrag. Gefiltert wird nach der Art des
+    -- Fundorts, nicht nach der einzelnen Instanz.
+    ns.Profile.SetCategory("drops", "craft")
+    rowsInSection("drops")
+    local namen = {}
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() and row.title then
+            local t = row.title:GetText()
+            if t and t ~= "" then namen[#namen + 1] = t end
+        end
+    end
+    local gefiltert = table.concat(namen, " | ")
+    check("der Waehler laesst nur das Handwerk stehen",
+        gefiltert:find(ns.L["DROPS_PLACE_craft"], 1, true) ~= nil
+        and gefiltert:find("Instanz 1001", 1, true) == nil, gefiltert)
+    ns.Profile.SetCategory("drops", nil)
+    rowsInSection("drops")
+
+    check("das Raster hat Kaestchen", offeneKaestchen() > 0,
+        offeneKaestchen() .. " Kaestchen")
+    rowsInSection("gear")
+    check("und sie liegen nicht in der Ausruestung herum",
+        offeneKaestchen() == 0, offeneKaestchen() .. " Kaestchen")
+
+    -- UND DER ZEIGER GEHOERT WIEDER DEM GEGENSTAND.
+    --
+    -- Die Zeile des Rasters traegt den Namen ihrer Instanz fuer den
+    -- Zeiger. Geloescht wurde er nur in der UEBERSCHRIFT-Zeile, und
+    -- gewoehnliche Zeilen laufen dort nie durch: in der Ausruestung
+    -- stand dann "Moerdergasse, 6 von 6 noch offen" ueber einem Helm.
+    local fremd = {}
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() and type(rawget(row, "dropName")) == "string" then
+            fremd[#fremd + 1] = row.dropName
+        end
+    end
+    check("keine Zeile der Ausruestung traegt noch einen Instanznamen",
+        #fremd == 0, table.concat(fremd, " | "))
+
+    -- UND SIE HAT IHRE VOLLE TEXTBREITE ZURUECK.
+    --
+    -- Das Raster macht die Titelspalte schmal, damit rechts die
+    -- Kaestchen Platz haben. Blieb sie schmal, standen die Namen in
+    -- der Ausruestung abgeschnitten - bei unveraenderter Fensterbreite
+    -- setzt der Zeichner sie naemlich nicht neu.
+    local schmal = 0
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() then
+            local w = tonumber(row.title:GetWidth()) or 0
+            if w > 0 and w < 300 then schmal = schmal + 1 end
+        end
+    end
+    check("die Titelspalte ist wieder breit", schmal == 0, schmal .. " schmale Zeilen")
+
+    ns.Recommend.Gear = echtGear
+    ns.Catalog.DropSource = echtDrop
+    ns.Catalog.InstanceKind = echtKind
+    ns.Catalog.InstanceCurrent = echtCurrent
+    MetaCodexDB.section = "gear"
 end
 
 -- ------------------------------------------------------- Die Scrollleiste

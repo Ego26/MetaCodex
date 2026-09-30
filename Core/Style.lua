@@ -49,6 +49,13 @@ local PALETTE = {
     accentHover = "6BA1FF",
     success     = "3FB950",
     warning     = "D29922",
+    -- Gold fuer Gemerktes.
+    --
+    -- Nicht "warning": eine Vorliebe ist keine Warnung, und wer die
+    -- beiden zusammenlegt, kann sie spaeter nicht mehr trennen. Der
+    -- Ton liegt bewusst neben dem Akzent - der wandert mit der
+    -- Klassenfarbe, das Gold bleibt.
+    gold        = "E9B949",
     danger      = "F04D4D",
 }
 

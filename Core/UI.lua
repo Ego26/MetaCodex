@@ -82,6 +82,10 @@ local HEADER, FOOTER = 56, 48
 -- Hoehe der zweiten Kopfzeile, in die die Knoepfe rutschen, wenn sie neben
 -- dem Titel nicht mehr passen.
 local HEADER_ROW = 28
+-- Wie hoch ein Waehler der Kopfreihe ist. Steht hier, weil zwei
+-- Rechnungen davon abhaengen: wo die Reihe umbricht, und wo der
+-- Hinweis darunter anfaengt.
+local HEADER_BUTTON_H = 22
 local ROW_HEIGHT = 46
 local CARD_HEIGHT = 96
 -- Zubehoer einer Zeile - Verzauberung, Stein - steht klein darunter.
@@ -147,6 +151,13 @@ local SECTIONS = {
     { key = "players",     group = "GROUP_KNOW" },
 
     { key = "gear",        group = "GROUP_GEAR" },
+    -- Dieselben Zahlen, andere Achse: die Ausruestung fragt "was
+    -- traegt man am Kopf", diese Ansicht "wohin gehe ich dafuer".
+    -- Eigener Eintrag und kein Reiter in der Ausruestung, weil die
+    -- Frage eine andere ist - und weil ein Drittel der Stuecke
+    -- NIRGENDS faellt, was hier gesagt werden muss und dort nur
+    -- stoeren wuerde.
+    { key = "drops",       group = "GROUP_GEAR", sub = "gear" },
     { key = "tier",        group = "GROUP_GEAR" },
     { key = "crafted",     group = "GROUP_GEAR" },
     { key = "embellish",   group = "GROUP_GEAR" },
@@ -284,6 +295,40 @@ local function boolChoices()
 end
 
 -- ---------------------------------------------------------------- Menues
+
+---Ein Menue mit Haken statt Knoepfen.
+---
+---Mehrfachauswahl braucht Haken: wer Krit UND Meisterschaft will,
+---soll nicht zweimal ein Menue aufmachen muessen. Das Menue bleibt
+---dabei offen - Blizzards Menue-API macht das von selbst, solange der
+---Rueckruf true liefert.
+---
+---Ohne Menue-API bleibt Durchschalten: dieselbe Notloesung wie beim
+---einfachen Menue, damit ein Client ohne MenuUtil nicht stehenbleibt.
+local function checkMenu(anchor, title, entries)
+    if MenuUtil and MenuUtil.CreateContextMenu then
+        MenuUtil.CreateContextMenu(anchor, function(_, root)
+            root:CreateTitle(title)
+            for _, entry in ipairs(entries) do
+                if entry.spacer then
+                    root:CreateDivider()
+                else
+                    root:CreateCheckbox(entry.label,
+                        function() return entry.on() end,
+                        function()
+                            entry.toggle()
+                            UI.Refresh()
+                            return MenuResponse and MenuResponse.Refresh or true
+                        end)
+                end
+            end
+        end)
+        return
+    end
+    if #entries == 0 then return end
+    entries[1].toggle()
+    UI.Refresh()
+end
 
 local function contextMenu(anchor, title, entries, onPick)
     if MenuUtil and MenuUtil.CreateContextMenu then
@@ -956,6 +1001,13 @@ local function categoriesIn(section, rows)
         if section.key == "consumables" then
             key = row.ckind
             label = key and L["CONSUM_" .. key]
+        elseif section.key == "drops" then
+            -- Gefiltert wird nach der ART des Fundorts, nicht nach der
+            -- einzelnen Instanz: "zeig mir nur Dungeons" ist die
+            -- Frage, "zeig mir nur Mördergasse" beantwortet die Zeile
+            -- selbst.
+            key = row.place
+            label = key and L["DROPS_PLACE_" .. key]
         else
             key = row.slot
             label = key and L["SLOT_" .. key]
@@ -1210,12 +1262,26 @@ local function openSlotPicker(anchor, specID, mode, source)
 end
 
 ---Kategorie eines beliebigen Abschnitts waehlen.
+-- Wie der Waehler und seine Vorgabe heissen - je Abschnitt.
+--
+-- "Anzeigen: Alles" ist nichtssagend, sobald die Liste etwas
+-- Bestimmtes gruppiert. Im Fundort-Raster stehen dort Dungeons,
+-- Schlachtzuege und Handwerk: das ist ein FUNDORT, und so heisst der
+-- Waehler dann auch.
+local function categoryWords(section)
+    if section and section.key == "drops" then
+        return L["LBL_ORIGIN"], L["SOURCE_ANY"]
+    end
+    return L["LBL_CATEGORY"], L["CATEGORY_ALL"]
+end
+
 local function openCategoryPicker(anchor, section, categories)
-    local entries = { { key = false, label = L["CATEGORY_ALL"] } }
+    local titel, alle = categoryWords(section)
+    local entries = { { key = false, label = alle } }
     for _, cat in ipairs(categories) do
         entries[#entries + 1] = { key = cat.key, label = cat.label }
     end
-    contextMenu(anchor, L["LBL_CATEGORY"], entries, function(entry)
+    contextMenu(anchor, titel, entries, function(entry)
         ns.Profile.SetCategory(section.key, entry.key or nil)
     end)
 end
@@ -2381,6 +2447,82 @@ function UI.FolioRows(specID, mode, source)
     return out, from
 end
 
+---Wo die Stuecke fallen, als Raster.
+---
+---Eine Zeile je Instanz, ein Kaestchen je Stueck - Dungeons zuerst,
+---denn das ist die Frage, die man vor einem Abend stellt. Der
+---Schlachtzug steht darunter, weil er jede Liste anfuehren wuerde: aus
+---ihm faellt mehr als aus allen acht Dungeons zusammen, und das ist
+---keine Auskunft, sondern eine Binsenweisheit.
+---
+---Die letzte Zeile nennt, was in KEINER Instanz faellt. Ohne sie sieht
+---jeder Dungeon besser aus, als er ist.
+---@return table[] rows
+---@return string|nil fromSource
+UI.DROP_PLACES = { "dungeon", "raid", "craft", "set", "pvp", "boe", "world" }
+
+function UI.DropRows(specID, mode, source)
+    local rows, summary, from = ns.Drops.Build(specID, mode, source)
+    if #rows == 0 then return {}, nil end
+
+    local out = {}
+    local wie = ns.Profile.DropsSort()
+    -- Die Reihenfolge der Gruppen steht hier und nur hier: erst die
+    -- Dungeons, weil das die Frage vor einem Abend ist, dann der
+    -- Schlachtzug, dann alles, was nirgends faellt.
+    for _, want in ipairs(UI.DROP_PLACES) do
+        local gruppe = {}
+        for _, row in ipairs(rows) do
+            -- Was der Katalog nicht einordnet, steht bei den Dungeons:
+            -- dort sucht man es, und eine Gruppe mit einer einzigen
+            -- Zeile ist keine Gliederung.
+            local place = row.place
+            local eigene = place == "raid" or place == "craft" or place == "set"
+                or place == "pvp" or place == "boe" or place == "world"
+            if not eigene then place = "dungeon" end
+            if place == want then
+                row.place = place
+                row.group = L["DROPS_PLACE_" .. want]
+                gruppe[#gruppe + 1] = row
+            end
+        end
+        -- Gemessen wird INNERHALB der Gruppe.
+        --
+        -- Der Schlachtzug laesst mehr fallen als alle acht Dungeons
+        -- zusammen; an ihm gemessen waere jeder Dungeonbalken ein
+        -- Strich. Die Frage lautet aber "welcher Dungeon", nicht
+        -- "Dungeon oder Schlachtzug".
+        local hoechst = 0
+        for _, row in ipairs(gruppe) do
+            local wert = wie == "best" and (row.best or 0) or (row.score or 0)
+            if wert > hoechst then hoechst = wert end
+        end
+        for _, row in ipairs(gruppe) do
+            local wert = wie == "best" and (row.best or 0) or (row.score or 0)
+            row.rel = hoechst > 0 and (wert / hoechst) or 0
+            out[#out + 1] = row
+        end
+    end
+
+    -- Was nirgends faellt, in einer Zeile.
+    local fehlt = {}
+    if (summary.craft or 0) > 0 then fehlt[#fehlt + 1] = L["DROPS_E_CRAFT"]:format(summary.craft) end
+    if (summary.set or 0) > 0 then fehlt[#fehlt + 1] = L["DROPS_E_SET"]:format(summary.set) end
+    if (summary.pvp or 0) > 0 then fehlt[#fehlt + 1] = L["DROPS_E_PVP"]:format(summary.pvp) end
+    if (summary.boe or 0) > 0 then fehlt[#fehlt + 1] = L["DROPS_E_BOE"]:format(summary.boe) end
+    if (summary.world or 0) > 0 then fehlt[#fehlt + 1] = L["DROPS_E_WORLD"]:format(summary.world) end
+    if #fehlt > 0 then
+        local offen = (summary.total or 0) - (summary.known or 0)
+        out[#out + 1] = {
+            kind = "note",
+            text = (offen == 1 and L["DROPS_ELSEWHERE_1"] or L["DROPS_ELSEWHERE"]):format(
+                offen, summary.total or 0,
+                table.concat(fehlt, ", ")),
+        }
+    end
+    return out, from
+end
+
 ---Zielwerte als Rangfolge mit den beobachteten Zahlen.
 ---@return table[] rows
 ---@return string|nil fromSource
@@ -2488,6 +2630,17 @@ end
 -- eine Attrappe statt der Karte. Eine eigene Tabelle kennt nur, was
 -- wirklich hineingelegt wurde. Schwach, damit sie nichts festhaelt.
 local cardOf = setmetatable({}, { __mode = "k" })
+-- Die Kaestchen des Fundort-Rasters, je Zeile.
+--
+-- Hier oben und nicht dort, wo sie gebaut werden: resetRow muss sie
+-- verstecken koennen. Genau das fehlte, und dann lagen die Kaestchen
+-- des Rasters mitten in der Ausruestungsliste - Zeilen werden
+-- wiederverwendet, ihre Kinder auch.
+local cellsOf = setmetatable({}, { __mode = "k" })
+-- Und die Bahn, die im Fundort-Raster zeigt, wie ergiebig eine Zeile
+-- gegen die beste ihrer Gruppe ist. Die Reihenfolge allein sagt nur,
+-- WER vorne liegt - nicht, ob mit Abstand oder um Haaresbreite.
+local barOf = setmetatable({}, { __mode = "k" })
 
 local function buildCard(row)
     if cardOf[row] then return cardOf[row] end
@@ -2552,6 +2705,38 @@ local function secondTooltip()
             UIParent, "GameTooltipTemplate")
     end
     return secondFrame
+end
+
+-- Der Zeiger gehoert NEBEN das Fenster.
+--
+-- Ein Kaestchen steht mitten im Fenster, und "ANCHOR_RIGHT" haengt den
+-- Zeiger an das Kaestchen - also mitten auf die Liste, die man gerade
+-- liest. Bei einem Gegenstand kommen Vergleichstooltip und Vorschau
+-- dazu, und dann ist vom Raster nichts mehr zu sehen.
+--
+-- Also aussen: rechts vom Fenster, wenn dort Platz ist, sonst links.
+-- Fragt der Client keine Masse heraus - in den Tests etwa -, bleibt es
+-- beim gewohnten Verhalten.
+local function tipOutside(owner)
+    GameTooltip:SetOwner(owner, "ANCHOR_NONE")
+    GameTooltip:ClearAllPoints()
+    local rechts = frame and tonumber(frame:GetRight())
+    local schirm = UIParent and tonumber(UIParent:GetRight())
+    -- WAAGRECHT neben dem Fenster, SENKRECHT auf Hoehe des Kaestchens.
+    --
+    -- Nur neben dem Fenster hiess: oben rechts an der Fensterecke -
+    -- also am anderen Ende des Bildschirms als das Kaestchen, auf das
+    -- man zeigt. Ein Zeiger, den man suchen muss, ist keiner.
+    local obenF = frame and tonumber(frame:GetTop())
+    local obenO = tonumber(owner:GetTop())
+    local hoch = (obenF and obenO) and (obenO - obenF) or 0
+    if rechts and schirm and (schirm - rechts) < 360 then
+        GameTooltip:SetPoint("TOPRIGHT", frame, "TOPLEFT", -S.space.sm, hoch)
+    elseif rechts then
+        GameTooltip:SetPoint("TOPLEFT", frame, "TOPRIGHT", S.space.sm, hoch)
+    else
+        GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
+    end
 end
 
 local function acquireRow(index)
@@ -2656,6 +2841,17 @@ local function acquireRow(index)
 
     row:SetScript("OnEnter", function(self)
         self.bg:SetAlpha(1)
+        -- Die Zeile des Fundort-Rasters traegt keinen Gegenstand,
+        -- sondern einen Namen, der abgeschnitten sein kann.
+        if type(self.dropName) == "string" then
+            tipOutside(self)
+            GameTooltip:SetText(self.dropName, 1, 1, 1)
+            if type(self.dropNote) == "string" then
+                GameTooltip:AddLine(self.dropNote, 0.7, 0.7, 0.7)
+            end
+            GameTooltip:Show()
+            return
+        end
         -- Zwei Gegenstaende in einer Zeile: eine Kombination aus zwei
         -- Verzierungen. Ein Tooltip zum ersten von zweien waere eine
         -- halbe Auskunft - also beide, der zweite unter dem ersten.
@@ -2760,6 +2956,37 @@ local function resetRow(row)
     -- das Verstecken im Zeichner, und der kehrt fuer Kennwerte, Notizen
     -- und Runenschmieden vorher um.
     if cardOf[row] then cardOf[row]:Hide() end
+    -- Dasselbe fuer die Kaestchen des Rasters: sonst steht das
+    -- Fundort-Raster quer ueber der Ausruestung, sobald man den
+    -- Abschnitt wechselt.
+    for _, cell in ipairs(cellsOf[row] or {}) do cell:Hide() end
+    if barOf[row] then
+        barOf[row].track:Hide()
+        barOf[row].fill:Hide()
+    end
+    -- Und den Namen, an dem der Zeiger der Zeile haengt.
+    --
+    -- Er stand in setHeaderRow, und das ist NUR die Ueberschrift - die
+    -- gewoehnlichen Zeilen liefen nie dadurch. In der Ausruestung
+    -- zeigte der Zeiger deshalb "Moerdergasse, 6 von 6 noch offen"
+    -- ueber einem Helm. Hier laeuft jede Zeile durch.
+    row.dropName = nil
+    row.dropNote = nil
+
+    -- UND DIE BREITE DER TEXTSPALTEN.
+    --
+    -- Sie gehoert der Zeilenart, nicht der Zeile: das Fundort-Raster
+    -- macht den Titel schmal, damit rechts die Kaestchen Platz haben.
+    -- Der Zeichner setzt die Breite nur neu, wenn sich die
+    -- FENSTERBREITE geaendert hat - beim Wechsel des Abschnitts
+    -- aendert sie sich nicht. Also behielt in der Ausruestung jede
+    -- Zeile die schmale Spalte des Rasters, und die Namen standen
+    -- abgeschnitten da, obwohl rechts Platz war.
+    local w = tonumber(contentWidth())
+    if w and w > 0 then
+        row.title:SetWidth(math.max(80, w - 140))
+        row.detail:SetWidth(math.max(80, w - 140))
+    end
     row.link = nil
     -- Auch das, woraus der Link beim Hovern entsteht. Eine Zeile wird
     -- wiederverwendet, und eine vergessene Gegenstands-ID zeigte sonst
@@ -2837,6 +3064,314 @@ local function openPicker(row, slot, key)
     end)
 end
 
+-- Das Raster der Fundorte.
+--
+-- Eine Zeile traegt links den Namen der Instanz und rechts bis zu zehn
+-- Kaestchen. Die Kaestchen haengen an der Zeile und werden mit ihr
+-- wiederverwendet - Zeilen werden im Fenster recycelt, und ein
+-- Kaestchen, das bei jedem Bildlauf neu entsteht, waere ein Leck.
+local DROP_ROW_HEIGHT = 54
+local DROP_CELL_W, DROP_CELL_H = 38, 46
+local DROP_NAME_W = 150
+
+local function dropCell(row, i)
+    local list = cellsOf[row]
+    if not list then list = {}; cellsOf[row] = list end
+    if list[i] then return list[i] end
+
+    local c = CreateFrame("Button", nil, row)
+    c:SetSize(DROP_CELL_W, DROP_CELL_H)
+    c.bg = S:Fill(c, "bgOverlay", 0)
+    -- Der Rahmen der Hervorhebung. Einmal gebaut, sonst versteckt.
+    c.hl = S:Border(c, "accent")
+    -- Und der goldene fuer Gemerktes. Zwei Rahmen auf demselben
+    -- Rechteck: es ist immer nur einer zu sehen, und welcher, steht
+    -- unten in setDropRow.
+    c.favBorder = S:Border(c, "gold")
+    c.icon = c:CreateTexture(nil, "ARTWORK")
+    c.icon:SetSize(30, 30)
+    c.icon:SetPoint("TOP", 0, -2)
+    c.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    -- Der Haken fuer "hast du schon".
+    c.mark = c:CreateTexture(nil, "OVERLAY")
+    c.mark:SetSize(16, 16)
+    -- Links oben, weil rechts oben jetzt der Stern sitzt. Beides kann
+    -- gleichzeitig zutreffen: man kann sich etwas merken, das man
+    -- schon traegt - zum Beispiel, um es in einer hoeheren Stufe zu
+    -- holen.
+    c.mark:SetPoint("TOPLEFT", c.icon, "TOPLEFT", -4, 4)
+    c.mark:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
+    c.mark:Hide()
+    -- Der Stern: DEINE Wahl, nicht die Messung. Er sitzt links oben,
+    -- der Haken rechts oben - beides kann gleichzeitig zutreffen.
+    c.star = c:CreateTexture(nil, "OVERLAY")
+    c.star:SetSize(20, 20)
+    c.star:SetPoint("TOPRIGHT", c.icon, "TOPRIGHT", 6, 6)
+    c.star:SetTexture("Interface\\Common\\FavoritesIcon")
+    c.star:Hide()
+    -- Und das Kreuz fuer Ignoriertes. Es bleibt stehen, damit man
+    -- sieht, warum in diesem Dungeon wenig offen ist - und damit man
+    -- es hier auch wieder zuruecknehmen kann.
+    c.stop = c:CreateTexture(nil, "OVERLAY")
+    c.stop:SetSize(16, 16)
+    c.stop:SetPoint("CENTER", c.icon, "CENTER", 0, 0)
+    c.stop:SetTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Up")
+    c.stop:Hide()
+    c.share = S:Text(c, "caption", "textSecondary")
+    c.share:SetPoint("TOP", c.icon, "BOTTOM", 0, -2)
+    c.share:SetWidth(DROP_CELL_W)
+    c.share:SetJustifyH("CENTER")
+    c.share:SetWordWrap(false)
+
+    c:SetScript("OnEnter", function(self)
+        self.bg:SetAlpha(0.7)
+        if not self.itemID then return end
+        tipOutside(self)
+        -- Erst die gewaehlte Stufe, dann der nackte Gegenstand.
+        local link
+        if self.wantBonus then
+            link = ns.Compat.LinkWith(self.itemID, self.wantBonus)
+        elseif self.wantLevel then
+            link = ns.Compat.LinkAtLevel(self.itemID, self.wantLevel)
+        end
+        if link then
+            GameTooltip:SetHyperlink(link)
+        elseif GameTooltip.SetItemByID then
+            GameTooltip:SetItemByID(self.itemID)
+        else
+            GameTooltip:SetHyperlink("item:" .. self.itemID)
+        end
+        -- KEINE zweite Prozentzahl.
+        --
+        -- Der Tooltip-Haken von MetaCodex haengt an JEDEM Gegenstand
+        -- und schreibt den Rang samt Anteil schon hinein. Eine eigene
+        -- Zeile daneben sagte dasselbe ein zweites Mal - zwei Zahlen,
+        -- die dasselbe meinen, lesen sich wie zwei Auskuenfte.
+        --
+        -- Was dort NICHT steht, ist der Boss. Und der ist der Grund,
+        -- warum man hier ueberhaupt hinsieht.
+        local wo = self.enc and ns.Compat.DropText(self.enc, nil)
+        if wo then GameTooltip:AddLine(L["DROPS_FROM"]:format(wo), 1, 0.82, 0) end
+        if self.worn then GameTooltip:AddLine(L["DROPS_WORN"], 0.4, 0.9, 0.4) end
+        GameTooltip:Show()
+    end)
+    c:SetScript("OnLeave", function(self)
+        self.bg:SetAlpha(0)
+        GameTooltip:Hide()
+    end)
+    -- Shift-Klick verlinkt, Ctrl-Klick zieht an - dieselben Griffe wie
+    -- in jeder anderen Zeile des Fensters.
+    c:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    c:SetScript("OnClick", function(self, button)
+        if not self.itemID then return end
+        -- Rechtsklick: was DU zu dem Stueck sagst. Zwei Haken, und das
+        -- Menue bleibt offen - man setzt selten nur einen.
+        if button == "RightButton" then
+            local id = self.itemID
+            checkMenu(self, ns.Compat.ItemInfo(id) or ("#" .. id), {
+                {
+                    label = L["DROPS_FAV"],
+                    on = function() return ns.Profile.Favorite(id) end,
+                    toggle = function() ns.Profile.ToggleFavorite(id) end,
+                },
+                {
+                    label = L["DROPS_IGNORE"],
+                    on = function() return ns.Profile.Ignored(id) end,
+                    toggle = function()
+                        ns.Profile.SetIgnored(id, not ns.Profile.Ignored(id))
+                    end,
+                },
+            })
+            return
+        end
+        local _, link = ns.Compat.ItemInfo(self.itemID)
+        if not link then return end
+        if IsModifiedClick and IsModifiedClick("CHATLINK") then
+            if HandleModifiedItemClick then HandleModifiedItemClick(link) end
+        elseif IsModifiedClick and IsModifiedClick("DRESSUP") then
+            if DressUpLink then DressUpLink(link) end
+        end
+    end)
+    list[i] = c
+    return c
+end
+
+---Eine Zeile des Rasters fuellen.
+-- Schmaler als die Textspalte: ein Balken, der bis an ihren Rand
+-- laeuft, liest sich wie ein Fortschritt, der gleich voll ist.
+local DROP_BAR_W = DROP_NAME_W - 40
+
+local function dropBar(row)
+    local b = barOf[row]
+    if b then return b end
+    b = {}
+    b.track = row:CreateTexture(nil, "ARTWORK")
+    b.track:SetTexture("Interface\\Buttons\\WHITE8X8")
+    b.track:SetVertexColor(S:Color("bgOverlay"))
+    b.track:SetHeight(S:Pixel(3))
+    b.track:SetWidth(DROP_BAR_W)
+    b.track:SetPoint("TOPLEFT", S.space.sm, -40)
+    b.fill = row:CreateTexture(nil, "OVERLAY")
+    b.fill:SetTexture("Interface\\Buttons\\WHITE8X8")
+    b.fill:SetHeight(S:Pixel(3))
+    b.fill:SetPoint("TOPLEFT", S.space.sm, -40)
+    barOf[row] = b
+    return b
+end
+
+local function setDropRow(row, data)
+    row.link = nil
+    row.onClick = nil
+    row.icon:SetTexture(nil)
+    row.icon:SetSize(0, 0)
+    row.share:SetText("")
+
+    -- Eine Instanz hat einen Namen im Spiel; "Handwerk" hat keinen -
+    -- da steht, was die Gruppe ist.
+    local name = data.inst and (ns.Compat.InstanceName(data.inst)
+        or ("#" .. tostring(data.inst)))
+        or L["DROPS_PLACE_" .. tostring(data.place)] or "?"
+    -- Lange Namen werden gekuerzt - "Die Gezeitengebundene..." -, also
+    -- muss der Zeiger den ganzen zeigen. Dieselbe Regel wie in der
+    -- Einkaufsliste: nichts abschneiden, ohne es lesbar zu lassen.
+    row.dropName = name
+    row.title:ClearAllPoints()
+    row.title:SetPoint("TOPLEFT", S.space.sm, -S.space.sm)
+    row.title:SetWidth(DROP_NAME_W)
+    row.title:SetWordWrap(false)
+    row.title:SetText(name)
+
+    -- Die zweite Zeile zaehlt das OFFENE, nicht das Vorhandene: wer
+    -- schon alles traegt, soll das lesen und weitergehen.
+    row.detail:ClearAllPoints()
+    row.detail:SetPoint("TOPLEFT", S.space.sm, -S.space.sm - 16)
+    row.detail:SetWidth(DROP_NAME_W)
+    row.detail:SetWordWrap(false)
+    -- WIEVIEL und WIE GUT in einer Zeile.
+    --
+    -- "3 von 3 noch offen" sagt nur das erste. Welches Stueck dort auf
+    -- einen wartet - eines, das fast alle Besten tragen, oder drei, die
+    -- kaum jemand hat -, stand nirgends.
+    local text = data.open == 0
+        and L["DROPS_ALL_WORN"]:format(data.total or 0)
+        or L["DROPS_ROW"]:format(data.open or 0, math.floor(data.best or 0))
+    -- Was ignoriert ist, wird GENANNT, nicht verschwiegen: sonst
+    -- wundert man sich, warum ein Dungeon so wenig hergibt.
+    if (data.ignored or 0) > 0 then
+        text = text .. "  ·  " .. L["DROPS_IGNORED_N"]:format(data.ignored)
+    end
+    row.detail:SetText(text)
+    row.dropNote = row.detail:GetText()
+
+    -- WIEVIELE KAESTCHEN IN EINE REIHE PASSEN, entscheidet die
+    -- Fensterbreite. Was nicht mehr hineinpasst, kommt in die naechste
+    -- Reihe - es wird nichts weggelassen.
+    --
+    -- Vorher stand am Ende ein Kaestchen "+6". Das war ein leerer
+    -- Rahmen mit einer Zahl darin: es sah kaputt aus, und es
+    -- beantwortete die Frage nicht, die es aufwarf - WELCHE sechs. Ein
+    -- Umbruch beantwortet sie, ohne etwas zu verstecken.
+    -- Der Balken: dieselbe Zahl, nach der sortiert wird, gemessen am
+    -- Besten der Gruppe. Damit beantwortet die Zeile "mit Abstand oder
+    -- knapp" - und das ist die Frage, die eine Reihenfolge offen
+    -- laesst.
+    do
+        local b = dropBar(row)
+        local anteil = tonumber(data.rel) or 0
+        if anteil > 0 then
+            b.track:Show()
+            b.fill:SetWidth(math.max(1, DROP_BAR_W * math.min(1, anteil)))
+            -- Die Zeile, an der man gemessen hat, traegt die
+            -- Akzentfarbe; alles darunter die ruhige.
+            -- Gedaempft, nicht bunt. Die Zeile oben traegt die
+            -- Akzentfarbe, aber halb durchsichtig - sie soll den Blick
+            -- fuehren, nicht ihn fangen.
+            b.fill:SetVertexColor(S:Color(anteil >= 1 and "accent" or "textMuted",
+                anteil >= 1 and 0.75 or 0.5))
+            b.fill:Show()
+        else
+            b.track:Hide()
+            b.fill:Hide()
+        end
+    end
+
+    local stufe, stufenBonus = ns.Profile.TargetLevel()
+    -- Die Hervorhebung: einmal je Zeile gelesen, nicht je Kaestchen.
+    local wunsch = ns.Profile.DropsStats()
+    local kombi = ns.Profile.DropsCombine()
+    local gewaehlt = 0
+    for _ in pairs(wunsch) do gewaehlt = gewaehlt + 1 end
+    local frei = (contentWidth() or 0) - DROP_NAME_W - S.space.md - S.space.lg
+    local proReihe = math.max(1, math.floor(frei / (DROP_CELL_W + 2)))
+    local shown = 0
+    for i, item in ipairs(data.items or {}) do
+        local reihe = math.floor((i - 1) / proReihe)
+        local spalte = (i - 1) % proReihe
+        local c = dropCell(row, i)
+        c:ClearAllPoints()
+        c:SetPoint("TOPLEFT", DROP_NAME_W + S.space.md + spalte * (DROP_CELL_W + 2),
+            -4 - reihe * (DROP_CELL_H + 2))
+        local _, link, icon = ns.Compat.ItemInfo(item.id)
+        if not icon then ns.Compat.RequestItem(item.id) end
+        c.icon:SetTexture(icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+        -- Getragenes bleibt sichtbar und tritt zurueck: es erklaert,
+        -- warum in diesem Dungeon wenig offen ist.
+        -- Drei Zustaende am selben Kaestchen: getragen, ignoriert,
+        -- gewuenscht. Ignoriert tritt am weitesten zurueck - es zaehlt
+        -- nicht mehr mit.
+        c.icon:SetDesaturated((item.worn or item.ignored) and true or false)
+        c.icon:SetAlpha(item.ignored and 0.25 or (item.worn and 0.45 or 1))
+        c.mark:SetShown(item.worn and not item.ignored and true or false)
+        c.star:SetShown(item.fav and true or false)
+        c.stop:SetShown(item.ignored and true or false)
+        c.share:SetText(string.format("%d %%", item.pct or 0))
+        S:Recolor(c.share, item.worn and "textMuted" or "textSecondary")
+        c.itemID, c.pct, c.enc, c.worn = item.id, item.pct, item.enc, item.worn
+        c.link = link
+        -- Die Stufe reist als ZAHL mit, nicht als fertiger Link: den
+        -- baut erst das Hovern, weil der Client die Grundstufe beim
+        -- Aufbau der Liste meist noch nicht hat.
+        c.wantLevel, c.wantBonus = stufe, stufenBonus
+
+        -- PASST ES, PASST ES NICHT, ODER WISSEN WIR ES NICHT?
+        --
+        -- Drei Antworten, nicht zwei. Kennt der Client das Stueck noch
+        -- nicht, kennt er auch seine Werte nicht - dann bleibt das
+        -- Kaestchen, wie es ist. Es abzublenden hiesse "hat deine
+        -- Werte nicht", und das wuerde der Spieler glauben.
+        local passt
+        if gewaehlt > 0 then
+            passt = ns.Drops.Matches(link and ns.Tooltip.SecondaryStats(link),
+                wunsch, kombi, item.fav)
+        end
+        -- GOLD STICHT DEN AKZENT.
+        --
+        -- Ein gemerktes Stueck, das auch noch zur Hervorhebung passt,
+        -- traegt den goldenen Rahmen: die eigene Wahl ist die seltenere
+        -- Auskunft. Dass es zur Hervorhebung passt, sagt schon, dass es
+        -- nicht abgeblendet ist.
+        for _, line in pairs(c.favBorder or {}) do
+            line:SetShown(item.fav and not item.ignored and true or false)
+        end
+        for _, line in pairs(c.hl or {}) do
+            line:SetShown(passt == true and not item.fav)
+        end
+        if passt == false then
+            c.icon:SetDesaturated(true)
+            c.icon:SetAlpha(0.3)
+            S:Recolor(c.share, "textMuted")
+        end
+
+        c:Show()
+        shown = i
+    end
+    -- Wie hoch die Zeile wird, entscheidet sich HIER und wird
+    -- mitgegeben: der Zeichner setzt die Hoehe erst nach diesem
+    -- Aufruf, und er kann nicht wissen, wie oft umgebrochen wurde.
+    data.dropLines = math.max(1, math.ceil(shown / proReihe))
+    for i = shown + 1, #(cellsOf[row] or {}) do cellsOf[row][i]:Hide() end
+end
+
 local function setItemRow(row, data)
     resetRow(row)
     row.__header = false
@@ -2852,6 +3387,14 @@ local function setItemRow(row, data)
     row.title:ClearAllPoints()
     row.title:SetPoint("TOPLEFT", S.space.sm + 38, -S.space.sm)
     row:SetHeight(ROW_HEIGHT)
+
+    -- Das Fundort-Raster baut seine Zeile selbst: links der Name, rechts
+    -- die Kaestchen. Eigene Funktion, damit setItemRow nicht noch einmal
+    -- zwanzig Upvalues dazubekommt.
+    if data.kind == "droprow" then
+        setDropRow(row, data)
+        return
+    end
 
     -- Zielwerte haben keinen Gegenstand: statt eines Symbols traegt die
     -- Zeile ihren Rang, und statt einer Stueckzahl den Prozentwert und das
@@ -3695,6 +4238,49 @@ local function build()
     end)
     frame.slotButton = slotButton
 
+    -- Wonach das Fundort-Raster sortiert.
+    local sortButton = makeButton(content, 170, 22, "", function(self)
+        contextMenu(self, L["DROPS_SORT"], {
+            { key = "sum", label = L["DROPS_SORT_SUM"] },
+            { key = "best", label = L["DROPS_SORT_BEST"] },
+        }, function(entry) ns.Profile.SetDropsSort(entry.key) end)
+    end)
+    frame.sortButton = sortButton
+
+    -- Die Hervorhebung des Fundort-Rasters.
+    --
+    -- Kein Filter: sie versteckt nichts, sie hebt hervor. Was nicht
+    -- passt, bleibt sichtbar und tritt zurueck - sonst weiss man nie,
+    -- ob der Dungeon nichts hat oder die Auswahl zu eng war.
+    local highlightButton = makeButton(content, 170, 22, "", function(self)
+        local entries = {}
+        for _, key in ipairs(ns.SECONDARY) do
+            entries[#entries + 1] = {
+                label = L["STAT_" .. key],
+                on = function() return ns.Profile.DropsStats()[key] == true end,
+                toggle = function() ns.Profile.ToggleDropsStat(key) end,
+            }
+        end
+        entries[#entries + 1] = {
+            label = L["DROPS_HL_FAV"],
+            on = function() return ns.Profile.DropsStats().fav == true end,
+            toggle = function() ns.Profile.ToggleDropsStat("fav") end,
+        }
+        entries[#entries + 1] = {
+            label = L["DROPS_HL_NONE"],
+            on = function() return ns.Profile.DropsStats().none == true end,
+            toggle = function() ns.Profile.ToggleDropsStat("none") end,
+        }
+        entries[#entries + 1] = { spacer = true }
+        entries[#entries + 1] = {
+            label = L["DROPS_HL_COMBINE"],
+            on = function() return ns.Profile.DropsCombine() end,
+            toggle = function() ns.Profile.ToggleDropsCombine() end,
+        }
+        checkMenu(self, L["DROPS_HL"], entries)
+    end)
+    frame.highlightButton = highlightButton
+
     local originButton = makeButton(content, 170, 22, "", function(self)
         openSourcePickerGear(self, frame.__sources or {})
     end)
@@ -4191,7 +4777,10 @@ function UI.Refresh()
     -- Die Schluesselstufe gilt fuer alles, was Ausruestung zeigt - auch
     -- fuer Tier-Set und Handwerk. Vergleichen kann nur, wer beide auf
     -- derselben Stufe sieht.
+    -- Auch ueber dem Fundort-Raster: dort stehen dieselben Stuecke,
+    -- und ohne den Waehler zeigte ihr Zeiger die Grundstufe.
     local gearLike = section.key == "gear" or section.key == "tier"
+        or section.key == "drops"
     local craftLevels = section.key == "crafted"
         and craftLevelsFor(specID, mode, wanted) or {}
     frame.__craftLevels = craftLevels
@@ -4230,8 +4819,44 @@ function UI.Refresh()
         frame.levelButton.label:SetText(L["KEY_BEST"])
     end
 
-    -- Der Platzwaehler gehoert nur zur Ausruestung.
-    local slots = (section.key == "gear")
+    -- Die Hervorhebung gehoert nur zum Fundort-Raster.
+    --
+    -- Der Knopf sagt, WAS hervorgehoben wird, nicht nur DASS etwas
+    -- hervorgehoben wird: "Krit + Meisterschaft" ist die Auskunft,
+    -- "Hervorhebung (2)" waere ein Raetsel.
+    frame.highlightButton:SetShown(section.key == "drops")
+    frame.sortButton:SetShown(section.key == "drops")
+    -- Kurz auf dem Knopf, voll im Menue.
+    --
+    -- Fuenf Waehler stehen in dieser Ansicht nebeneinander; jedes
+    -- ueberfluessige Wort schiebt einen davon in die zweite Zeile, und
+    -- ein einzelner Knopf, der dort haengt, sieht aus wie ein Fehler.
+    frame.sortButton.label:SetText(ns.Profile.DropsSort() == "best"
+        and L["DROPS_SORT_BEST_S"] or L["DROPS_SORT_SUM_S"])
+    do
+        local set = ns.Profile.DropsStats()
+        local teile = {}
+        -- Kurze Namen auf dem Knopf.
+        --
+        -- "Kritische Trefferwertung · Meisterschaft" ist zweihundert
+        -- Pixel breit und schiebt die halbe Kopfreihe in die naechste
+        -- Zeile. Im Menue steht der ganze Name, dort ist Platz.
+        for _, key in ipairs(ns.SECONDARY) do
+            if set[key] then teile[#teile + 1] = L["STAT_SHORT_" .. key] end
+        end
+        if set.fav then teile[#teile + 1] = L["DROPS_HL_FAV"] end
+        if set.none then teile[#teile + 1] = L["DROPS_HL_NONE"] end
+        frame.highlightButton.label:SetText(#teile == 0 and L["DROPS_HL"]
+            or table.concat(teile, ns.Profile.DropsCombine() and " + " or " / "))
+    end
+
+    -- Der Platzwaehler gehoert zur Ausruestung UND zum Fundort-Raster.
+    --
+    -- Dort beantwortet er die engere Frage: nicht "wo faellt am
+    -- meisten", sondern "wo faellt der Helm". Dieselbe Einstellung wie
+    -- in der Ausruestungsliste - wer dort den Kopf gewaehlt hat, meint
+    -- ihn hier auch.
+    local slots = (section.key == "gear" or section.key == "drops")
         and slotsInGear(specID, mode, wanted) or {}
     frame.slotButton:SetShown(#slots > 1)
     local pickedSlot = ns.Profile.GearSlot()
@@ -4382,6 +5007,24 @@ function UI.Refresh()
         end)
         hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted)
             or L["FOLIO_HINT"])
+    elseif section.key == "drops" then
+        currentRows, fromSource = withFallback(function(source)
+            return UI.DropRows(specID, mode, source)
+        end)
+        -- Der Hinweis nennt die Antwort, nicht die Methode.
+        --
+        -- "Was die Besten tragen, nach Fundort sortiert" beschreibt,
+        -- was die Liste IST. Die Frage war "wo muss ich rein" - und die
+        -- beantwortet der Name, der oben steht.
+        local erste
+        for _, row in ipairs(currentRows) do
+            if row.kind == "droprow" and row.inst and not erste then erste = row end
+        end
+        local wohin = erste and ns.Compat.InstanceName(erste.inst)
+        hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted)
+            or (wohin and (ns.Profile.DropsSort() == "best"
+                and L["DROPS_TOP_BEST"] or L["DROPS_TOP_SUM"]):format(wohin))
+            or L["DROPS_HINT"])
     elseif section.key == "players" then
         currentRows, fromSource = withFallback(function(source)
             return BAU.playerRows(specID, mode, source)
@@ -4448,13 +5091,16 @@ function UI.Refresh()
         ns.Profile.SetCategory(section.key, nil)
     end
     if picked == nil then
-        frame.categoryButton.label:SetText(L["CATEGORY_ALL"])
+        local _, alle = categoryWords(section)
+        frame.categoryButton.label:SetText(alle)
     end
 
     if picked then
         local kept = {}
         for _, row in ipairs(currentRows) do
-            local key = (section.key == "consumables") and row.ckind or row.slot
+            local key = (section.key == "consumables") and row.ckind
+                or (section.key == "drops") and row.place
+                or row.slot
             if key == picked then kept[#kept + 1] = row end
         end
         currentRows = kept
@@ -4556,11 +5202,19 @@ function UI.Refresh()
     -- Feste Abstaende waeren ohnehin falsch, sobald ein Knopf wegfaellt -
     -- und zwar unsichtbar falsch: Text unter Knopf.
     local edge, gap = -S.space.xl, S.space.sm
+    -- Die Zahl daneben ist die MINDESTbreite, nicht die Breite.
+    --
+    -- fitted() misst den Text und macht den Knopf so breit, wie er sein
+    -- muss. Eine hohe Mindestbreite kostet also nur Platz, ohne etwas
+    -- zu gewinnen - und im Fundort-Raster stehen vier Waehler
+    -- nebeneinander. Bei 170 brach die Reihe um und ein einzelner
+    -- Knopf hing in der zweiten Zeile.
     local ROW = {
-        { frame.backButton, 175 }, { frame.levelButton, 175 },
+        { frame.backButton, 175 }, { frame.levelButton, 120 },
         { frame.statButton, 170 },
-        { frame.slotButton, 150 }, { frame.originButton, 170 },
-        { frame.heroButton, 170 }, { frame.categoryButton, 170 },
+        { frame.slotButton, 110 }, { frame.originButton, 170 },
+        { frame.heroButton, 170 }, { frame.categoryButton, 110 },
+        { frame.highlightButton, 110 }, { frame.sortButton, 110 },
         { frame.dungeonButton, 160 },
     }
 
@@ -4602,7 +5256,12 @@ function UI.Refresh()
     -- Zeile tiefer weiter - bei 760 Pixeln Fensterbreite stehen drei
     -- Waehler eben nicht nebeneinander.
     local headerRows = (strip > 0 and (titleRoom + strip + S.space.xl) > contentWidth()) and 1 or 0
-    local function rowOffset() return -S.space.lg - 2 - headerRows * HEADER_ROW end
+    -- Wo die Knopfreihe sitzt. Bei einer eigenen Reihe unter dem
+    -- Hinweis, sonst neben dem Titel.
+    local eigenerAbstand = 0
+    local function rowOffset()
+        return -S.space.lg - 2 - headerRows * HEADER_ROW - eigenerAbstand
+    end
 
     local function placeRight(widget, width)
         if not widget:IsShown() then return end
@@ -4614,8 +5273,40 @@ function UI.Refresh()
         widget:SetPoint("TOPRIGHT", edge, rowOffset())
         edge = edge - width - gap
     end
-    for _, pair in ipairs(ROW) do placeRight(pair[1], pair[2]) end
-    local wrapped = headerRows > 0
+
+    -- FUENF WAEHLER STEHEN NICHT NEBEN EINEM TITEL.
+    --
+    -- Rechtsbuendig gedraengt brach die Reihe um, und ein einzelner
+    -- Knopf hing in der zweiten Zeile - das sieht aus wie ein Fehler,
+    -- nicht wie eine Gestaltung. Wo es so viele sind, bekommen sie eine
+    -- eigene Zeile und die ganze Breite: jeder so breit wie sein Text,
+    -- der Rest als gleiche Luecken dazwischen.
+    local eigeneReihe = {}
+    for _, pair in ipairs(ROW) do
+        if pair[1]:IsShown() then eigeneReihe[#eigeneReihe + 1] = pair end
+    end
+    local verteilt = #eigeneReihe >= 4
+    local wrapped
+    if verteilt then
+        headerRows = 1
+        -- Platz fuer den Hinweis, der jetzt daruebersteht.
+        eigenerAbstand = S.space.xl
+        local breite = contentWidth() - 2 * S.space.xl
+        local summe = 0
+        for _, pair in ipairs(eigeneReihe) do summe = summe + pair[2] end
+        local luecke = #eigeneReihe > 1
+            and math.max(gap, (breite - summe) / (#eigeneReihe - 1)) or gap
+        local x = S.space.xl
+        for _, pair in ipairs(eigeneReihe) do
+            pair[1]:ClearAllPoints()
+            pair[1]:SetPoint("TOPLEFT", x, rowOffset())
+            x = x + pair[2] + luecke
+        end
+        wrapped = true
+    else
+        for _, pair in ipairs(ROW) do placeRight(pair[1], pair[2]) end
+        wrapped = headerRows > 0
+    end
     sectionCount:ClearAllPoints()
     sectionCount:SetPoint("TOPRIGHT", edge, rowOffset() - 1)
 
@@ -4642,6 +5333,28 @@ function UI.Refresh()
     -- selbst und die Liste faengt darunter an.
     local hintTop = 140 + (frame.controls:IsShown() and 0 or -128)
         + headerRows * HEADER_ROW
+    -- UND ER ENDET NIE AUF DER KNOPFREIHE.
+    --
+    -- Bricht die Reihe um - drei Waehler und ein Titel passen in ein
+    -- schmales Fenster nicht nebeneinander -, steht sie in einer
+    -- eigenen Zeile UNTER dem Titel. Genau dort stand bisher auch der
+    -- Hinweis: die Rechnung zaehlte die Zeilen der Knopfreihe mit, aber
+    -- nicht die Hoehe der Knoepfe selbst, und vier Pixel davon lagen
+    -- uebereinander.
+    --
+    -- Ausgerechnet statt geschaetzt: Oberkante der Reihe plus
+    -- Knopfhoehe plus ein Abstand, minus dem Rand, den das Setzen
+    -- ohnehin dazugibt.
+    if wrapped and not verteilt then
+        local unten = S.space.lg + 2 + headerRows * HEADER_ROW
+            + HEADER_BUTTON_H + S.space.sm - S.space.xl
+        if unten > hintTop then hintTop = unten end
+    end
+    -- Bei einer eigenen Knopfreihe steht der Hinweis DARUEBER: direkt
+    -- unter dem Titel, wo man ihn liest, bevor man die Waehler
+    -- anfasst. Er beantwortet ja die Frage, die die Waehler nur
+    -- verstellen.
+    if verteilt then hintTop = S.space.md + 2 end
     hintText:ClearAllPoints()
     hintText:SetPoint("TOPLEFT", S.space.xl, -S.space.xl - hintTop)
     local hintHeight = 0
@@ -4649,6 +5362,13 @@ function UI.Refresh()
         hintHeight = math.max(14, hintText:GetStringHeight() or 14)
     end
     local scrollTop = hintTop + hintHeight + (hintHeight > 0 and S.space.md or S.space.sm)
+    if verteilt then
+        -- Unter der Knopfreihe, nicht unter dem Hinweis: die Reihe
+        -- steht jetzt zwischen beiden.
+        local unten = S.space.lg + 2 + headerRows * HEADER_ROW + eigenerAbstand
+            + HEADER_BUTTON_H + S.space.md - S.space.xl
+        if unten > scrollTop then scrollTop = unten end
+    end
     frame.scroll:ClearAllPoints()
     frame.scroll:SetPoint("TOPLEFT", S.space.xl, -S.space.xl - scrollTop)
     frame.scroll:SetPoint("BOTTOMRIGHT", -S.space.xl - 20, S.space.md)
@@ -4744,6 +5464,9 @@ function UI.Refresh()
             place(row, SUB_ROW_HEIGHT * (S.fontScale or 1))
         elseif data.kind == "buildcard" then
             place(row, (CARD_HEIGHT + 16) * (S.fontScale or 1))
+        elseif data.kind == "droprow" then
+            place(row, (DROP_ROW_HEIGHT
+                + ((data.dropLines or 1) - 1) * (DROP_CELL_H + 2)) * (S.fontScale or 1))
         elseif data.kind == "note" then
             -- Eine Notiz ist eine Zeile Text, kein Gegenstand: Symbol
             -- klein, Text daneben auf halber Hoehe.

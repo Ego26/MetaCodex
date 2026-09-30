@@ -742,7 +742,10 @@ function Recommend.HasSection(specID, mode, source, section)
         return Recommend.Talents(specID, mode, source) ~= nil
     elseif section == "folio" then
         return Recommend.Folio(specID, mode, source) ~= nil
-    elseif section == "gear" then
+    elseif section == "gear" or section == "drops" then
+        -- Das Fundort-Raster steht und faellt mit derselben Liste wie
+        -- die Ausruestung: es ordnet sie nur anders. Gibt es keine,
+        -- gibt es auch nichts einzuordnen.
         return Recommend.Gear(specID, mode, source) ~= nil
     elseif section == "embellish" then
         return Recommend.Embellish(specID, mode, source) ~= nil

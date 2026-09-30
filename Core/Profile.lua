@@ -803,6 +803,82 @@ end
 ---Eine gemeinsame Auswahl waere beim Wechsel jedes Mal ungueltig.
 ---@param section string
 ---@return string|nil
+---Ist dieses Stueck ein Favorit?
+---
+---EINE VORLIEBE, KEINE MESSUNG. Der Stern sagt, was DU willst; die
+---Prozentzahl daneben, was die Besten tragen. Deshalb aendert ein
+---Favorit die Reihenfolge NICHT - sonst stuende eine gemessene Zahl an
+---einer Zeile, die aus einem anderen Grund oben liegt.
+---
+---Nicht je Spec gespeichert: ein Gegenstand bleibt derselbe, egal mit
+---welcher Spec man ihn ansieht.
+---@param itemID number|nil
+---@return boolean
+function Profile.Favorite(itemID)
+    if not itemID then return false end
+    local db = MetaCodexDB or {}
+    return (db.favorites and db.favorites[itemID]) and true or false
+end
+
+---@param itemID number
+function Profile.ToggleFavorite(itemID)
+    if not itemID then return end
+    MetaCodexDB.favorites = MetaCodexDB.favorites or {}
+    MetaCodexDB.favorites[itemID] = not MetaCodexDB.favorites[itemID] or nil
+end
+
+---Wonach das Fundort-Raster sortiert.
+---
+---ZWEI VERNUENFTIGE FRAGEN, und wir beantworten nicht beide gleich:
+---"sum" ist die Summe dessen, was dort noch offen ist - die Frage vor
+---einem Abend oder einem Boost. "best" ist der hoechste Traeger-Anteil
+---eines einzelnen Stuecks - die Frage, wenn man ein bestimmtes Teil
+---jagt.
+---@return string "sum" | "best"
+function Profile.DropsSort()
+    local db = MetaCodexDB or {}
+    return db.dropsSort == "best" and "best" or "sum"
+end
+
+---@param wie string|nil
+function Profile.SetDropsSort(wie)
+    MetaCodexDB.dropsSort = (wie == "best") and "best" or nil
+end
+
+---Welche Zweitwerte im Fundort-Raster hervorgehoben werden.
+---
+---Am Charakter UNABHAENGIG gespeichert: die Frage "ich spiele Krit und
+---Meisterschaft" haengt an der Spec, nicht an der Aktivitaet, und wer
+---sie einmal beantwortet hat, will sie nicht nach jedem Wechsel neu
+---beantworten.
+---@return table  { crit = true, ... }
+function Profile.DropsStats()
+    local db = MetaCodexDB or {}
+    return db.dropsStats or {}
+end
+
+---@param key string  crit/haste/mastery/vers/none
+function Profile.ToggleDropsStat(key)
+    MetaCodexDB.dropsStats = MetaCodexDB.dropsStats or {}
+    local set = MetaCodexDB.dropsStats
+    set[key] = not set[key] or nil
+end
+
+function Profile.ClearDropsStats()
+    MetaCodexDB.dropsStats = nil
+end
+
+---UND statt ODER: ein Stueck muss ALLE gewaehlten Werte tragen.
+---@return boolean
+function Profile.DropsCombine()
+    local db = MetaCodexDB or {}
+    return db.dropsCombine == true
+end
+
+function Profile.ToggleDropsCombine()
+    MetaCodexDB.dropsCombine = not Profile.DropsCombine() or nil
+end
+
 function Profile.Category(section)
     local db = MetaCodexDB or {}
     return db.category and db.category[section] or nil

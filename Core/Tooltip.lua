@@ -66,6 +66,31 @@ function Tooltip.StatRanks(link)
     return any and out or nil
 end
 
+---Welche Zweitwerte dieses Stueck traegt.
+---
+---Nicht die Rangfolge, sondern das nackte "hat es Krit, ja oder nein".
+---Gebraucht von der Hervorhebung im Fundort-Raster: wer auf Krit und
+---Meisterschaft spielt, will die Stuecke sehen, die beides haben.
+---
+---Der Client muss das Stueck kennen. Tut er es nicht, ist die Antwort
+---NICHT "hat nichts", sondern "weiss nicht" - und das Raster hebt dann
+---weder hervor noch blendet es ab. Eine Vermutung als Tatsache zu
+---zeigen waere hier besonders teuer: der Spieler sucht ja gerade das
+---eine Stueck mit den richtigen Werten.
+---@param link string|nil
+---@return table|nil stats  { crit = true, ... }, leer wenn keine
+function Tooltip.SecondaryStats(link)
+    if not link then return nil end
+    local stats = ns.Compat.ItemStats(link)
+    if not stats then return nil end
+    local out = {}
+    for _, key in ipairs(ns.SECONDARY) do
+        local value = stats[MOD[key]]
+        if type(value) == "number" and value > 0 then out[key] = true end
+    end
+    return out
+end
+
 ---Wo steht dieses Item in der Liste seines Platzes?
 ---
 ---Platz eins ist das, was die meisten der gemessenen Spieler tragen -
