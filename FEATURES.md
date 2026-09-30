@@ -34,6 +34,8 @@ switched off under Settings.
 - **Reminder** before you go in and at the auction house — and a tab that
   shows what it checks.
 - **Guides** linked, never copied.
+- **Upgrades**: where the pieces you are still missing drop, per
+  instance, sorted by what is open for you.
 - **A shopping list beside the auction house**: what is still missing,
   with a bar and a count, and a click searches for it.
 - **Shopping lists to Auctionator** with quantities; **Shift-click** links
@@ -106,6 +108,16 @@ still your food. Grouped by kind: flask, food, combat
 potion, healing potion, weapon buffs (oils, stones), runes. Per group the
 share of players and the highest key it was still used at. Plus your stock
 — in every quality tier — and a target quantity you set with a click.
+
+**Upgrades** — The same pieces as the gear list, on the other axis: one
+row per instance, one box per piece, sorted by what is still open for
+you. Dungeons first, raids below. What drops in no instance gets its own
+rows - crafted, set pieces, PvP, auction house, no known source - because
+"8 crafted" does not say which eight. Highlight by secondary stats, with
+a combination mode; right-click a box to watch it (gold border and a
+star) or ignore it. Ignored stays visible and stops counting; the star
+never changes the order, because a preference must not move a measured
+number. You choose the question: most still open, or best single piece.
 
 **Reminder** — What the addon checks before you go in: per consumable kind
 the stand against your target (enough / low / none), the enchants and gems

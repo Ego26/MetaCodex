@@ -4,6 +4,57 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ## [Unveröffentlicht]
 
+## [1.1.8] - 2026-09-30
+
+### Neu
+
+- **Upgrades**, ein neuer Eintrag unter Ausrüstung: je Instanz eine
+  Zeile, je Stück ein Kästchen, sortiert nach dem, was für dich noch
+  offen ist. Die Ausrüstungsliste beantwortet „was trägt man am Kopf",
+  diese Ansicht „wo gehe ich dafür hin".
+- Dungeons zuerst, Schlachtzüge darunter. Aus dem Schlachtzug fällt mehr
+  als aus allen acht Dungeons zusammen – eine Liste, die er immer
+  anführt, ist keine Auskunft.
+- Was in keiner Instanz fällt, bekommt eigene Zeilen: Handwerk,
+  Set-Teile, PvP, Auktionshaus, ohne bekannten Fundort. Eine blosse Zahl
+  („8 aus dem Handwerk") ist wahr und nutzlos – sie sagt nicht, welche
+  acht.
+- Fünf Wähler: Platz, Hervorhebung, Fundort, Reihenfolge und Stufe. Die
+  Reihenfolge ist eine Frage, kein Urteil – „am meisten offen" und
+  „bestes Stück zuerst" sind beide vernünftig, also wählt der Spieler.
+- Hervorhebung nach Zweitwerten, mit Kombinationsmodus: Krit UND
+  Meisterschaft. Ein Stück, das der Client noch nicht kennt, wird weder
+  hervorgehoben noch abgeblendet – eine Vermutung wäre hier besonders
+  teuer, denn die Werte sind der Grund, warum man hinsieht.
+- Rechtsklick auf ein Kästchen merkt es vor (goldener Rahmen, Stern)
+  oder ignoriert es. Ignoriertes bleibt sichtbar, durchgestrichen, und
+  zählt nicht mehr mit; der Stern ändert die Reihenfolge nie, denn eine
+  Vorliebe darf keine gemessene Zahl verschieben.
+
+### Behoben
+
+- **Die Handwerksausrüstung dieser Erweiterung stand unter „ohne
+  bekannten Fundort".** Sie hat keinen Journal-Eintrag, keinen
+  Rezept-Zauber, und murlok liefert die Marke nur manchmal mit – die
+  Spieldaten kennzeichnen sie aber, und von 350 gekennzeichneten
+  Stücken steht kein einziges im Abenteuerjournal.
+- **Ein Helm mit „Anlegen:"-Effekt zeigte den Effekt nirgends.** Der
+  hängt an einer Bonus-Liste, nicht am Gegenstand, und der Link, den wir
+  für die gewählte Stufe bauen, verlor ihn. Neun Stücke haben eine
+  eindeutige Effektliste und tragen sie jetzt mit; wo geraten werden
+  müsste, wird nichts behauptet.
+- Zeilen werden in diesem Fenster wiederverwendet, und die neue Ansicht
+  liess drei Dinge an ihnen zurück: ihre Kästchen, den Namen ihrer
+  Instanz für den Zeiger und eine schmale Textspalte. Alle drei tauchten
+  danach in der Ausrüstungsliste auf. Sie werden jetzt an der einen
+  Stelle gelöscht, durch die jede Zeile läuft.
+
+### Geändert
+
+- UI.Refresh ist von 54 auf 40 Upvalues gefallen. WoW erlaubt 60, und
+  darüber lädt die Datei ohne Fehlermeldung nicht mehr – das Addon ist
+  dann einfach weg.
+
 ## [1.1.7] - 2026-09-30
 
 ### Neu

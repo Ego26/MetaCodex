@@ -4,6 +4,52 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ## [Unreleased]
 
+## [1.1.8] - 2026-09-30
+
+### Added
+
+- **Upgrades**, a new entry under Gear: one row per instance, one box
+  per piece the best of your spec wear, sorted by what is still open for
+  you. The gear list answers "what goes on the head"; this one answers
+  "where do I go for it".
+- Dungeons first, raids below. The raid drops more than all eight
+  dungeons together, and a list it always leads is not an answer.
+- What drops in no instance gets its own rows - crafted, set pieces,
+  PvP, auction house, no known source. A count alone ("8 crafted") is
+  true and useless: it does not say which eight.
+- Five pickers: slot, highlight, source, order and item level. The order
+  is a question, not a verdict - "most still open" and "best single
+  piece" are both sensible, so it is the player who picks.
+- Highlighting by secondary stats, with a combination mode: crit AND
+  mastery. An item the client does not know yet is neither highlighted
+  nor dimmed - guessing there is expensive, because the stats are the
+  reason for looking.
+- Right-click a box to watch it (gold border and a star) or ignore it.
+  Ignored stays visible, crossed out, and stops counting; the star never
+  changes the order, because a preference must not move a measured
+  number.
+
+### Fixed
+
+- **This expansion's crafted gear stood under "no known source".** It
+  has no journal entry, no recipe spell and murlok only sometimes marks
+  it - but the game data flags it, and 350 pieces carry that flag while
+  not one of them appears in the adventure journal.
+- **A helmet with an "Equip:" effect showed the effect nowhere.** The
+  effect hangs on a bonus list, not on the item, and the link we build
+  for the chosen item level dropped it. Nine items have an unambiguous
+  effect list and carry it now; where it would need guessing, nothing is
+  claimed.
+- Rows are reused in this window, and the new view left three things on
+  them: its boxes, the tooltip name of its instance, and a narrow text
+  column. All three turned up in the gear list afterwards. They are
+  cleared in the one place every row passes through.
+
+### Changed
+
+- UI.Refresh went from 54 to 40 upvalues. WoW allows 60, and beyond that
+  the file stops loading without an error - the addon is simply gone.
+
 ## [1.1.7] - 2026-09-30
 
 ### Added

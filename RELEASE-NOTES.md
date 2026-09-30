@@ -1,3 +1,35 @@
+## v1.1.8 — where to go next
+
+### Added
+
+- **Upgrades**, under Gear: one row per instance, one box per piece the
+  best of your spec wear, **sorted by what is still open for you**. The
+  gear list says what goes on the head; this says where to go for it.
+- **Dungeons first, raids below** — the raid drops more than all eight
+  dungeons together, and a list it always leads is not an answer.
+- **What drops nowhere gets its own rows**: crafted, set pieces, PvP,
+  auction house, no known source. "8 crafted" is true and useless; it
+  does not say which eight.
+- **Highlight by secondary stats**, with a combination mode — crit AND
+  mastery. What the client does not know yet is neither highlighted nor
+  dimmed.
+- **Right-click a box** to watch it (gold border and a star) or ignore
+  it. Ignored stays visible, crossed out, and stops counting. The star
+  never changes the order.
+- **You pick the question**: "most still open" or "best single piece".
+
+### Fixed
+
+- **This expansion's crafted gear stood under "no known source."** The
+  game data flags it; 350 pieces carry that flag and none of them is in
+  the adventure journal.
+- **A helmet with an "Equip:" effect showed it nowhere.** The effect
+  hangs on a bonus list, not on the item, and the link built for your
+  chosen item level dropped it.
+- **Three things a reused row kept** and showed in the gear list
+  afterwards: its boxes, an instance name in the tooltip, and a narrow
+  text column.
+
 ## v1.1.7 — the shopping list at the auction house
 
 ### Added

@@ -33,6 +33,8 @@ unter Einstellungen abschalten.
 - **Erinnerung** vor dem Start und am Auktionshaus — und ein Reiter, der
   zeigt, was sie prüft.
 - **Guides** verlinkt, nie kopiert.
+- **Upgrades**: wo die Stücke fallen, die dir noch fehlen – je Instanz,
+  sortiert nach dem, was für dich offen ist.
 - **Eine Einkaufsliste neben dem Auktionshaus**: was noch fehlt, mit
   Balken und Zahl, und ein Klick sucht es.
 - **Einkaufslisten an Auctionator** mit Stückzahlen; **Shift-Klick**
@@ -109,6 +111,18 @@ Speise, Kampftrank, Heiltrank, Waffenbuffs (Öle, Wetzsteine), Runen. Je
 Gruppe der Anteil der Spieler und die höchste Schlüsselstufe, bei der es
 noch benutzt wurde. Dazu dein Bestand — in jeder Qualitätsstufe — und eine
 Zielmenge, die du per Klick einstellst.
+
+**Upgrades** — Dieselben Stücke wie die Ausrüstungsliste, auf der
+anderen Achse: je Instanz eine Zeile, je Stück ein Kästchen, sortiert
+nach dem, was für dich noch offen ist. Dungeons zuerst, Schlachtzüge
+darunter. Was in keiner Instanz fällt, bekommt eigene Zeilen – Handwerk,
+Set-Teile, PvP, Auktionshaus, ohne bekannten Fundort –, denn „8 aus dem
+Handwerk" sagt nicht, welche acht. Hervorhebung nach Zweitwerten, mit
+Kombinationsmodus; Rechtsklick merkt ein Stück vor (goldener Rahmen und
+Stern) oder ignoriert es. Ignoriertes bleibt sichtbar und zählt nicht
+mehr mit; der Stern ändert die Reihenfolge nie, denn eine Vorliebe darf
+keine gemessene Zahl verschieben. Die Frage wählst du: am meisten offen,
+oder bestes Stück zuerst.
 
 **Erinnerung** — Was das Addon prüft, bevor es losgeht: je Verbrauchsart
 der Stand gegen dein Ziel (reicht / knapp / leer), die Verzauberungen und
