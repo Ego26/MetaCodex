@@ -138,37 +138,51 @@ local gearUnfolded = {}
 -- Ansage: zwei uebereinander waeren schlimmer als keines.
 local remindFrame
 
+-- Die Gliederung des Menues.
+--
+-- Gruppiert wird nach der FRAGE, die ein Abschnitt beantwortet, nicht
+-- nach der Art seiner Daten. "Verzauberungen", "Verbrauchsgueter" und
+-- "Erinnerung" standen unter Ausruestung, weil sie mit Gegenstaenden zu
+-- tun haben - sie beantworten aber alle dieselbe andere Frage: bin ich
+-- bereit? Die Erinnerung sagt es woertlich ("Fehlt vor dem Start").
+--
+-- Keine Gruppe mit einem einzigen Eintrag: eine Ueberschrift, unter der
+-- genau eine Zeile steht, wiederholt sich nur selbst.
 local SECTIONS = {
-    { key = "guides",      group = "GROUP_KNOW" },
-    { key = "stats",       group = "GROUP_KNOW" },
-    { key = "talents",     group = "GROUP_KNOW" },
+    { key = "guides",      group = "GROUP_OVERVIEW" },
+    { key = "stats",       group = "GROUP_OVERVIEW" },
+    { key = "players",     group = "GROUP_OVERVIEW" },
+
+    { key = "talents",     group = "GROUP_TALENTS" },
     -- Der Foliant haengt unter den Talenten, weil er einer ist: fuenf
     -- Reihen, je Reihe eine Wahl. Eigener Eintrag statt eines Reiters
     -- innerhalb der Talente, weil er aus einer anderen Messung stammt
-    -- und eine eigene Grundlage ausweist - das gehoert nicht in eine
-    -- Seite, auf der jede andere Zahl auf allen Spielern ruht.
-    { key = "folio",       group = "GROUP_KNOW", sub = "talents" },
-    { key = "players",     group = "GROUP_KNOW" },
+    -- und eine eigene Grundlage ausweist.
+    { key = "folio",       group = "GROUP_TALENTS" },
 
     { key = "gear",        group = "GROUP_GEAR" },
-    -- Dieselben Zahlen, andere Achse: die Ausruestung fragt "was
-    -- traegt man am Kopf", diese Ansicht "wohin gehe ich dafuer".
-    -- Eigener Eintrag und kein Reiter in der Ausruestung, weil die
-    -- Frage eine andere ist - und weil ein Drittel der Stuecke
-    -- NIRGENDS faellt, was hier gesagt werden muss und dort nur
-    -- stoeren wuerde.
-    { key = "drops",       group = "GROUP_GEAR", sub = "gear" },
+    -- Dieselben Zahlen, andere Achse: die Ausruestung fragt "was traegt
+    -- man am Kopf", diese Ansicht "wohin gehe ich dafuer".
+    { key = "drops",       group = "GROUP_GEAR" },
     { key = "tier",        group = "GROUP_GEAR" },
+    -- Die Verzierungen stehen MIT dem Handwerk auf einer Seite.
+    --
+    -- Eine Verzierung ist kein eigener Gegenstand, sondern ein Zusatz
+    -- auf einem hergestellten Stueck. Zwei Menuepunkte dafuer hiessen,
+    -- dieselbe Entscheidung an zwei Stellen zu treffen: welches Stueck
+    -- stelle ich her, und was kommt darauf.
     { key = "crafted",     group = "GROUP_GEAR" },
-    { key = "embellish",   group = "GROUP_GEAR" },
-    { key = "enchants",    group = "GROUP_GEAR" },
-    { key = "consumables", group = "GROUP_GEAR" },
-    { key = "remind",      group = "GROUP_GEAR" },
+
+    { key = "enchants",    group = "GROUP_PREP" },
+    { key = "consumables", group = "GROUP_PREP" },
+    { key = "remind",      group = "GROUP_PREP" },
+
     { key = "settings",    group = "GROUP_ABOUT" },
     { key = "info",        group = "GROUP_ABOUT" },
 }
 
-local GROUPS = { "GROUP_KNOW", "GROUP_GEAR", "GROUP_ABOUT" }
+local GROUPS = { "GROUP_OVERVIEW", "GROUP_TALENTS", "GROUP_GEAR",
+    "GROUP_PREP", "GROUP_ABOUT" }
 
 -- ------------------------------------------------------------- Bausteine
 
@@ -1356,6 +1370,15 @@ local function openKeyPicker(anchor)
 
     MenuUtil.CreateContextMenu(anchor, function(_, root)
         root:CreateTitle(L["LBL_KEY"])
+        -- "Alle" steht oben, weil es die weiteste Wahl ist: keine
+        -- Stufe, keine Abblendung, nichts versteckt. Wer eine Stufe
+        -- waehlt, verengt - und das ist die Bewegung nach unten.
+        root:CreateRadio(L["KEY_ALL"], function()
+            return ns.Profile.AllLevels()
+        end, function()
+            ns.Profile.SetAllLevels(true)
+            UI.Refresh()
+        end)
         -- "Wie die Besten spielen" gibt es nicht mehr.
         --
         -- Der Zustand dahinter war "keine Stufe gewaehlt", und der hat
@@ -3450,10 +3473,19 @@ local function setItemRow(row, data)
         row.link = nil
         row.icon:SetTexture(nil)
         row.title:ClearAllPoints()
-        row.title:SetPoint("TOPLEFT", S.space.md + 26, -S.space.sm)
+        -- KEINE EINRUECKUNG FUER EIN SYMBOL, DAS ES NICHT GIBT.
+        --
+        -- Die 26 Pixel waren fuer den Rang, der hier einmal links
+        -- stand; er steht laengst rechts, wo die wichtigere Zahl hin
+        -- gehoert. Die Luecke blieb - und eine Luecke am Zeilenanfang
+        -- liest sich als fehlendes Symbol. Fuer Zweitwerte gibt es
+        -- keines: das Spiel fuehrt in 19 643 Atlas-Elementen kein
+        -- einziges fuer Krit, Tempo, Meisterschaft oder
+        -- Vielseitigkeit.
+        row.title:SetPoint("TOPLEFT", S.space.md, -S.space.sm)
         row.title:SetText(L["STAT_" .. data.statKey])
         row.detail:ClearAllPoints()
-        row.detail:SetPoint("TOPLEFT", S.space.md + 26, -S.space.sm - 16)
+        row.detail:SetPoint("TOPLEFT", S.space.md, -S.space.sm - 16)
         -- Die linke Spalte hoert dort auf, wo die Bahn anfaengt.
         --
         -- Ohne Breite laeuft ein FontString so weit nach rechts, wie sein
@@ -3461,7 +3493,7 @@ local function setItemRow(row, data)
         -- -14 bis -28, die Zeile bei -24 -, also lief der Text mitten
         -- durch den Balken: "die mittlere Haelfte liegt bei 1133 bis
         -- 1260" quer ueber die Fuellung.
-        row.detail:SetWidth(BAR_X - (S.space.md + 26) - S.space.md)
+        row.detail:SetWidth(BAR_X - S.space.md * 2)
         row.detail:SetWordWrap(false)
 
         -- Eine Bahn, die sich fuellt. Der gemeinsame Massstab bleibt,
@@ -4883,6 +4915,8 @@ function UI.Refresh()
         local level = ns.Profile.TargetLevel()
         frame.levelButton.label:SetText(level
             and L["KEY_SHORT"]:format(ns.Profile.KeyLevel(), level) or "")
+    elseif ns.Profile.AllLevels() then
+        frame.levelButton.label:SetText(L["KEY_ALL"])
     else
         -- Die Vorgabe steht als das da, was sie ist: eine Stufe mit
         -- Pfad und Rang, genau wie eine gewaehlte. Ein eigenes Wort
@@ -5041,17 +5075,26 @@ function UI.Refresh()
         -- verschiedene Fragen beantworten.
         hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted)
             or L["SHARE_GEAR"])
-    elseif section.key == "embellish" then
-        currentRows, fromSource = withFallback(function(source)
-            return BAU.embellishRows(specID, mode, source)
-        end)
-        hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted)
-            or L["EMBELLISH_HINT"])
     elseif section.key == "tier" or section.key == "crafted" then
         local want = section.key == "tier" and "set" or "craft"
         currentRows, fromSource = withFallback(function(source)
             return BAU.kindRows(specID, mode, source, want)
         end)
+        -- Und darunter, was auf diese Stuecke daraufkommt.
+        --
+        -- Eine eigene Ueberschrift, keine zweite Seite: die Frage
+        -- "welches Stueck stelle ich her" und die Frage "was kommt
+        -- darauf" gehoeren zusammen, und wer die zweite beantwortet,
+        -- hat die erste gerade gestellt.
+        if section.key == "crafted" then
+            local verzierungen = BAU.embellishRows(specID, mode, wanted)
+            if #verzierungen > 0 then
+                for _, row in ipairs(verzierungen) do
+                    row.group = L["SECTION_embellish"]
+                    currentRows[#currentRows + 1] = row
+                end
+            end
+        end
         hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted)
             or L["SHARE_GEAR"])
     elseif section.key == "stats" then
@@ -5461,8 +5504,20 @@ function UI.Refresh()
             row.title:SetWidth(math.max(80, width - 140))
             row.detail:SetWidth(math.max(80, width - 140))
         end
+        -- AUF GANZE BILDSCHIRMPIXEL.
+        --
+        -- Die Hoehe haengt an der Schriftskala und ist darum krumm:
+        -- 46,8 statt 46. Jede zweite Zeilenkante landet dann auf einem
+        -- halben Bildschirmpixel, und der Client verteilt die Flaeche
+        -- ueber zwei Pixel - im Fenster sah das aus, als waere jede
+        -- zweite Zeile ausgegraut. Es war keine Farbe, es war eine
+        -- Kante.
+        --
+        -- S:Pixel rechnet in die Aufloesung des Bildschirms und zurueck,
+        -- also stimmt es auch bei einer anderen UI-Skalierung.
+        height = S:Pixel(height)
         row:ClearAllPoints()
-        row:SetPoint("TOPLEFT", 0, -offset)
+        row:SetPoint("TOPLEFT", 0, -S:Snap(offset))
         -- Die Zeile ist so hoch, wie sie Platz bekommt. Ohne das blieb
         -- jede Zeile 46 Pixel hoch, auch wo nur 24 gezaehlt wurden - und
         -- die Klickflaeche lag ueber der naechsten Zeile.
@@ -6614,6 +6669,33 @@ local function buildAuctionPanel()
     return p
 end
 
+---Was die Zeilen WIRKLICH messen - im Spiel, nicht in der Attrappe.
+---
+---Gebaut, weil ein Fehler nicht zu finden war, den man sieht: jede
+---zweite Zeile wirkte heller. Haelfte, Hoehe und Lage lassen sich hier
+---ausrechnen; was der Client daraus macht, sagt nur er selbst.
+---@return nil
+function UI.Pixel()
+    local scale = UIParent:GetEffectiveScale()
+    ns.Print(("Skalierung: %.4f  Fensterskala: %.4f"):format(
+        scale or 0, (frame and frame:GetEffectiveScale()) or 0))
+    local gezeigt = 0
+    for _, row in ipairs(rows or {}) do
+        if row:IsShown() then
+            gezeigt = gezeigt + 1
+            if gezeigt <= 8 then
+                local hoehe = tonumber(row:GetHeight()) or 0
+                local oben = tonumber(row:GetTop()) or 0
+                -- In Bildschirmpixeln, denn darum geht es.
+                local alpha = row.bg and row.bg.GetAlpha and row.bg:GetAlpha() or -1
+                ns.Print(("%2d  hoehe %7.3f (%8.3f px)  oben %9.3f (%9.3f px)  bg %.2f"):
+                    format(gezeigt, hoehe, hoehe * scale, oben, oben * scale, alpha))
+            end
+        end
+    end
+    ns.Print(("Zeilen sichtbar: %d"):format(gezeigt))
+end
+
 ---Die Einkaufsliste am Auktionshaus schliessen.
 ---
 ---Gebraucht von der Einstellung: wer sie am offenen Auktionshaus
@@ -6972,3 +7054,590 @@ function UI.ApplyScale()
     end
     UI.Refresh()
 end
+
+
+-- ----------------------------------------- Builds am Talentfenster
+--
+-- DER ORT ENTSCHEIDET. Die Frage "welchen Build nehme ich" stellt sich
+-- im Talentfenster, nicht in unserem. Der Weg dahin war bisher: Addon
+-- oeffnen, Build suchen, String kopieren, Talentfenster, Importieren,
+-- einfuegen. Fuenf Schritte fuer etwas, das zwischen zwei Dungeons
+-- passiert - und je Dungeon ein anderer Build.
+--
+-- NEBEN dem Fenster, nicht darin. Blizzards Talentoberflaeche ist
+-- geschuetzt; wer in ihr etwas anfasst, riskiert "Diese Aktion ist
+-- gesperrt" - und zwar irgendwann spaeter, an einer ganz anderen
+-- Stelle. Dieses Panel haengt an UIParent und dockt nur an die
+-- Aussenkante an, genau wie die Einkaufsliste am Auktionshaus.
+local talentPanel
+local TP_WIDTH = 260
+local TP_ROWS = 7
+local TP_ROW_H = 38
+-- So hoch, wie die Liste braucht: Kopf, Waehler, sieben Zeilen, Fuss.
+local TP_HEIGHT = 74 + 7 * (38 + 2) + 46
+
+---Blizzards Talentfenster, wie es in dieser Fassung heisst.
+---
+---Seit 11.0 heisst es PlayerSpellsFrame, davor ClassTalentFrame. Beide
+---werden nachgeladen, also gibt es sie beim Start noch gar nicht.
+---@return table|nil
+local function talentFrame()
+    return _G.PlayerSpellsFrame or _G.ClassTalentFrame
+end
+
+---Die Builds, die wir gerade empfehlen.
+---@return table[] rows
+local function talentPanelRows()
+    -- ERST DIE DATEN, DANN DIE FRAGE.
+    --
+    -- Beide Datenaddons werden bei Bedarf geladen, und "bei Bedarf"
+    -- hiess bisher: wenn jemand das grosse Fenster oeffnet. Wer nach
+    -- einem /reload direkt ins Talentfenster geht, hatte keines von
+    -- beiden - und das Panel sagte "nichts gemessen", obwohl alles da
+    -- war.
+    if not (ns.Data and ns.Data.Ensure and ns.Data.Ensure()) then return {} end
+    local specID = ns.Profile.SelectedSpec()
+    -- Derselbe Schluessel wie die Talentseite im grossen Fenster: wer
+    -- dort einen Dungeon gewaehlt hat, meint ihn hier auch.
+    if ns.Profile.Dungeon("talents") and ns.Data.EnsureDungeons then
+        ns.Data.EnsureDungeons()
+    end
+    local mode = ns.Profile.LookupMode("talents")
+    if not specID or not mode then return {} end
+    local hero = ns.Profile.HeroTree()
+    -- Woher die Builds stammen - dasselbe Etikett, das auf dem Waehler
+    -- steht, und spaeter der Name der angelegten Talentbelegung.
+    local modeLabel
+    for _, entry in ipairs(ns.MODES or {}) do
+        if entry.key == ns.Profile.Mode() then modeLabel = entry.label end
+    end
+    local dungeon = ns.Profile.Dungeon("talents")
+    for _, d in ipairs(ns.Recommend.Dungeons(ns.Profile.Mode()) or {}) do
+        if d.key == dungeon then modeLabel = unitName(d) end
+    end
+    local ok, picks, build = pcall(ns.Recommend.Talents, specID, mode,
+        ns.Recommend.ALL, hero)
+    if not ok or not picks then return {} end
+
+    local out = {}
+    if build and build.text and build.text ~= "" then
+        out[#out + 1] = {
+            name = L["TALENT_BUILD"]:format(build.pct or 0),
+            note = L["TP_NODES"]:format(#(build.nodes or {})),
+            text = build.text,
+            label = modeLabel,
+        }
+    end
+    local okOther, others = pcall(ns.Recommend.OtherBuilds, specID, mode,
+        ns.Recommend.ALL, hero)
+    for _, other in ipairs((okOther and others) or {}) do
+        if other.text and other.text ~= "" then
+            -- Ein Alternativbuild sagt, WORIN er abweicht - das ist die
+            -- Auskunft, nicht seine blosse Existenz.
+            --
+            -- Und zwar mit NAMEN: in den Daten stehen Zauber-Nummern,
+            -- und "108287, 382197, 462817" ist keine Auskunft, sondern
+            -- eine Zumutung.
+            local worin = {}
+            for _, spell in ipairs(other.added or {}) do
+                if #worin >= 2 then break end
+                local info = C_Spell and C_Spell.GetSpellInfo
+                    and C_Spell.GetSpellInfo(spell)
+                worin[#worin + 1] = (info and info.name) or ("#" .. tostring(spell))
+            end
+            out[#out + 1] = {
+                label = (modeLabel or "") .. " " .. (worin[1] or ""),
+                name = L["TP_OTHER"]:format(other.pct or 0),
+                note = (#worin > 0 and table.concat(worin, ", ")
+                    or L["TP_NODES"]:format(other.count or 0)),
+                text = other.text,
+            }
+        end
+    end
+    return out
+end
+
+---Aktivitaet, Dungeon und Boss fuer das Panel waehlen.
+---
+---DIESELBE GLIEDERUNG WIE IM FENSTER: M+, Raid, PvP als Gruppen,
+---darunter die Stichproben, und darunter - wo es sie gibt - die
+---Dungeons und Bosse. Flach untereinander waeren das zwanzig Zeilen,
+---die sich wie eine Aufzaehlung lesen statt wie eine Auswahl.
+local function openTalentModePicker(anchor)
+    if not (MenuUtil and MenuUtil.CreateContextMenu) then return end
+    local byKey = {}
+    for _, mode in ipairs(ns.MODES or {}) do byKey[mode.key] = mode end
+
+    -- Was keine Talente hat, steht nicht zur Wahl.
+    local function has(mode)
+        return mode and ns.Recommend.HasMode(mode.key)
+            and ns.Recommend.HasSection(ns.Profile.SelectedSpec(), mode.key,
+                ns.Recommend.ALL, "talents")
+    end
+
+    local function waehle(modeKey, dungeonKey)
+        -- ERST LADEN, DANN WAEHLEN.
+        --
+        -- Die Daten je Dungeon stehen in einem eigenen Addon, das erst
+        -- bei Bedarf geladen wird. Ohne diesen Aufruf stand im Panel
+        -- "nichts gemessen", obwohl das Fenster daneben die Builds
+        -- zeigte - es hatte sie geladen, wir nicht.
+        if dungeonKey and not ns.Data.EnsureDungeons() then
+            ns.Print(L["NO_DUNGEON_DATA"])
+            return
+        end
+        ns.Profile.SetMode(modeKey)
+        ns.Profile.SetDungeon(dungeonKey, "talents")
+        UI.RefreshTalentPanel()
+        if frame and frame:IsShown() then UI.Refresh() end
+    end
+
+    MenuUtil.CreateContextMenu(anchor, function(_, root)
+        root:CreateTitle(L["LBL_ACTIVITY"])
+        for _, group in ipairs(ns.MODE_GROUPS or {}) do
+            local any = false
+            for _, key in ipairs(group.keys) do
+                if has(byKey[key]) then any = true end
+            end
+            local sub = any and root:CreateButton(group.label) or nil
+            for _, key in ipairs(group.keys) do
+                local mode = byKey[key]
+                if sub and has(mode) then
+                    local einzeln = ns.Recommend.Dungeons and ns.Recommend.Dungeons(mode.key)
+                    if einzeln and #einzeln > 0 then
+                        -- Eine Stichprobe MIT Einzelauswahl bekommt ein
+                        -- weiteres Untermenue: oben sie selbst, darunter
+                        -- ihre Dungeons oder Bosse.
+                        local tief = sub:CreateButton(mode.label)
+                        local allKey = unitLabels(mode.key)
+                        tief:CreateRadio(L[allKey], function()
+                            return ns.Profile.Mode() == mode.key
+                                and not ns.Profile.Dungeon("talents")
+                        end, function() waehle(mode.key, nil) end)
+                        -- Bosse gehoeren unter ihren Schlachtzug: zwei
+                        -- Raids nebeneinander, neun Bosse flach - das
+                        -- waere eine Liste zum Raten.
+                        local gruppen, reihe = {}, {}
+                        for _, entry in ipairs(einzeln) do
+                            local g = entry.group and unitGroup(entry) or false
+                            if not gruppen[g] then gruppen[g] = {}; reihe[#reihe + 1] = g end
+                            table.insert(gruppen[g], entry)
+                        end
+                        for _, g in ipairs(reihe) do
+                            local ziel = tief
+                            if g then ziel = tief:CreateButton(g) end
+                            for _, entry in ipairs(gruppen[g]) do
+                                ziel:CreateRadio(unitName(entry), function()
+                                    return ns.Profile.Dungeon("talents") == entry.key
+                                end, function() waehle(mode.key, entry.key) end)
+                            end
+                        end
+                    else
+                        sub:CreateRadio(mode.label, function()
+                            return ns.Profile.Mode() == mode.key
+                                and not ns.Profile.Dungeon("talents")
+                        end, function() waehle(mode.key, nil) end)
+                    end
+                end
+            end
+        end
+    end)
+end
+local function buildTalentPanel()
+    if talentPanel then return talentPanel end
+    local p = CreateFrame("Frame", "MetaCodexTalentList", UIParent)
+    p:SetWidth(TP_WIDTH)
+    p:SetFrameStrata("HIGH")
+    S:Fill(p, "bgBase")
+    S:Border(p, "borderSubtle")
+    p:Hide()
+    talentPanel = p
+
+    p.title = S:Text(p, "title", "textPrimary")
+    p.title:SetPoint("TOPLEFT", S.space.md, -S.space.md)
+    p.title:SetText(L["TP_TITLE"])
+
+    p.note = S:Text(p, "caption", "textSecondary")
+    p.note:SetPoint("TOPLEFT", S.space.md, -S.space.md - 20)
+    p.note:SetWidth(TP_WIDTH - S.space.md * 2)
+    p.note:SetWordWrap(false)
+
+    p.close = makeButton(p, 20, 20, "X", function() p:Hide() end)
+    p.close:SetPoint("TOPRIGHT", -S.space.sm, -S.space.sm)
+
+    -- DIE AKTIVITAET GEHOERT HIERHER, nicht nur ins grosse Fenster.
+    --
+    -- Je Dungeon ein anderer Build - das ist der ganze Grund, warum
+    -- dieses Panel neben dem Talentfenster steht. Wer dafuer erst in
+    -- unser Fenster wechseln muesste, koennte auch gleich dort den
+    -- String kopieren.
+    p.pick = makeButton(p, TP_WIDTH - S.space.md * 2, 22, "", function(self)
+        openTalentModePicker(self)
+    end)
+    p.pick:SetPoint("TOPLEFT", S.space.md, -44)
+
+    p.rows = {}
+    for i = 1, TP_ROWS do
+        local r = CreateFrame("Button", nil, p)
+        r:SetHeight(TP_ROW_H)
+        r:SetPoint("TOPLEFT", S.space.sm, -74 - (i - 1) * (TP_ROW_H + 2))
+        r:SetPoint("TOPRIGHT", -S.space.sm, -74 - (i - 1) * (TP_ROW_H + 2))
+        r.bg = S:Fill(r, "bgOverlay", 0)
+        r.name = S:Text(r, "body", "textPrimary")
+        r.name:SetPoint("TOPLEFT", S.space.sm, -4)
+        r.name:SetPoint("RIGHT", -S.space.sm, 0)
+        r.name:SetJustifyH("LEFT")
+        r.name:SetWordWrap(false)
+        r.note = S:Text(r, "caption", "textSecondary")
+        r.note:SetPoint("TOPLEFT", S.space.sm, -20)
+        r.note:SetPoint("RIGHT", -S.space.sm, 0)
+        r.note:SetJustifyH("LEFT")
+        r.note:SetWordWrap(false)
+        r:SetScript("OnEnter", function(self) self.bg:SetAlpha(0.6) end)
+        r:SetScript("OnLeave", function(self) self.bg:SetAlpha(0) end)
+        r:SetScript("OnClick", function(self)
+            if not self.text then return end
+            -- Shift kopiert, wie ueberall im Addon. Ohne Shift wird
+            -- geladen - das ist, wozu man hergekommen ist.
+            if IsShiftKeyDown and IsShiftKeyDown() then
+                UI.ShowLink(self.text)
+            else
+                UI.LoadBuild(self.text, self.buildName)
+            end
+        end)
+        r:Hide()
+        p.rows[i] = r
+    end
+
+    p.hint = S:Text(p, "caption", "textMuted")
+    p.hint:SetPoint("BOTTOMLEFT", S.space.md, S.space.md)
+    p.hint:SetPoint("BOTTOMRIGHT", -S.space.md, S.space.md)
+    p.hint:SetWordWrap(true)
+    p.hint:SetJustifyH("LEFT")
+    p.hint:SetText(L["TP_HINT2"])
+    return p
+end
+
+---Das Panel mit dem aktuellen Stand fuellen.
+function UI.RefreshTalentPanel()
+    if not talentPanel or not talentPanel:IsShown() then return end
+    local rows = talentPanelRows()
+    -- Woraus die Builds stammen, steht dabei: eine Kette ohne ihre
+    -- Aktivitaet ist eine Zahl ohne Frage.
+    local label
+    for _, entry in ipairs(ns.MODES or {}) do
+        if entry.key == ns.Profile.Mode() then label = entry.label end
+    end
+    talentPanel.note:SetText(L["TP_FROM"])
+    -- Auf dem Knopf steht, wonach gerade nachgeschlagen wird: der
+    -- Dungeon, wenn einer gewaehlt ist, sonst die Aktivitaet.
+    local dungeon = ns.Profile.Dungeon("talents")
+    local dLabel
+    for _, d in ipairs(ns.Recommend.Dungeons(ns.Profile.Mode()) or {}) do
+        if d.key == dungeon then dLabel = unitName(d) end
+    end
+    talentPanel.pick.label:SetText(dLabel or label or ns.Profile.Mode() or "")
+    for i, r in ipairs(talentPanel.rows) do
+        local row = rows[i]
+        if row then
+            r.name:SetText(row.name or "")
+            r.note:SetText(row.note or "")
+            r.text = row.text
+            -- Der Name, unter dem er angelegt wird: woher er stammt,
+            -- nicht "Build 1". Wer drei davon hat, muss sie
+            -- unterscheiden koennen.
+            --
+            -- NICHT "label": so heisst im ganzen Addon die Beschriftung
+            -- eines Knopfes, und die ist ein FontString. Wer Rahmen
+            -- danach durchsucht - der Test tut es -, ruft darauf
+            -- GetText auf und findet eine Zeichenkette.
+            r.buildName = row.label
+            r:Show()
+        else
+            r:Hide()
+        end
+    end
+    if #rows == 0 then
+        talentPanel.hint:SetText(L["TP_EMPTY"])
+    else
+        talentPanel.hint:SetText(L["TP_HINT2"])
+    end
+end
+
+-- EIN KNOPF, KEIN AUFSPRINGENDES FENSTER.
+--
+-- Die erste Fassung dockte die Liste rechts an das Talentfenster an.
+-- Das uebersieht man - oder es steht im Weg, je nach Bildschirm. Ein
+-- Knopf unten links ist da, wo man ihn sucht, und zeigt die Liste erst
+-- auf Klick: wer sie nicht braucht, sieht sie nicht.
+local talentButton
+
+local function buildTalentButton(f)
+    if talentButton then return talentButton end
+    -- An UIParent, nicht am Talentfenster: ein Kind von Blizzards
+    -- geschuetzter Oberflaeche ist der erste Schritt zu "Diese Aktion
+    -- ist gesperrt". Angedockt wird nur die Lage.
+    local b = makeButton(UIParent, 160, 30, "", function()
+        if talentPanel and talentPanel:IsShown() then
+            talentPanel:Hide()
+        else
+            UI.ShowTalentPanel()
+        end
+    end)
+    b:SetFrameStrata("HIGH")
+
+    -- DAS ZEICHEN STATT DES NAMENS.
+    --
+    -- "MetaCodex: Builds" sagt zweimal dasselbe: dass es von uns ist,
+    -- sieht man am Zeichen. Uebrig bleibt das Wort, um das es geht -
+    -- und der Knopf wird schmal genug, um in jede Ecke zu passen.
+    b.logo = b:CreateTexture(nil, "ARTWORK")
+    -- Gross genug, um es zu erkennen: bei 16 Pixeln war das Zeichen
+    -- nur noch ein Fleck. Der Knopf waechst mit, damit es Luft hat.
+    b.logo:SetSize(22, 22)
+    b.logo:SetPoint("LEFT", S.space.sm, 0)
+    b.logo:SetTexture("Interface\\AddOns\\MetaCodex\\Media\\Textures\\logo")
+
+    -- Eine schmale Kante in der Hausfarbe. Sie macht aus einem grauen
+    -- Kasten etwas, das erkennbar zu einem Fenster gehoert.
+    b.kante = b:CreateTexture(nil, "OVERLAY")
+    b.kante:SetTexture("Interface\\Buttons\\WHITE8X8")
+    b.kante:SetVertexColor(S:Color("brand"))
+    b.kante:SetWidth(S:Pixel(2))
+    b.kante:SetPoint("TOPLEFT")
+    b.kante:SetPoint("BOTTOMLEFT")
+
+    -- LINKSBUENDIG NEBEN DEM ZEICHEN, nicht mittig.
+    --
+    -- Mittig gesetzt landete der Text zwischen zwei Pixeln und sah
+    -- unscharf aus - dieselbe halbe Kante wie bei den Zeilen. Und neben
+    -- einem Zeichen ist Mitte ohnehin die falsche Achse: das Auge
+    -- erwartet den Text dort, wo er anfaengt.
+    b.label:ClearAllPoints()
+    b.label:SetPoint("LEFT", b.logo, "RIGHT", S.space.sm, 0)
+    b.label:SetJustifyH("LEFT")
+    b.label:SetText(L["TP_BUTTON"])
+    b.label:SetWordWrap(false)
+
+    -- So breit, wie der Text braucht - auf ganze Pixel.
+    local breit = tonumber(b.label.GetStringWidth and b.label:GetStringWidth()) or 100
+    b:SetWidth(S:Pixel(breit + 22 + S.space.sm * 3))
+
+    -- ZIEHBAR, und die Lage wird gemerkt.
+    --
+    -- Am Talentfenster sitzen je nach Addon-Sammlung schon andere
+    -- Knoepfe; unsere Vorgabe lag genau auf einem davon. Welche Ecke
+    -- frei ist, kann nur der Spieler sehen.
+    b:SetMovable(true)
+    b:RegisterForDrag("LeftButton")
+    b:SetScript("OnDragStart", function(self)
+        self:StartMoving()
+    end)
+    b:SetScript("OnDragStop", function(self)
+        self:StopMovingOrSizing()
+        local ziel = talentFrame()
+        if not ziel then return end
+        -- Gemerkt wird der Abstand zur Ecke des Talentfensters, nicht
+        -- die Bildschirmkoordinate: das Fenster steht nicht immer
+        -- gleich, und der Knopf soll mitwandern.
+        local dx = (self:GetLeft() or 0) - (ziel:GetLeft() or 0)
+        local dy = (self:GetBottom() or 0) - (ziel:GetBottom() or 0)
+        ns.Profile.SetTalentButtonPos(dx, dy)
+        self:ClearAllPoints()
+        self:SetPoint("BOTTOMLEFT", ziel, "BOTTOMLEFT", dx, dy)
+        -- Die Liste haengt am Knopf und zieht mit.
+        if talentPanel and talentPanel:IsShown() then UI.ShowTalentPanel() end
+    end)
+    -- Und ein Wort dazu, denn ein ziehbarer Knopf sieht aus wie jeder
+    -- andere.
+    b:SetScript("OnEnter", function(self)
+        self.bg:SetVertexColor(S:Color("bgHover"))
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText("MetaCodex", 1, 1, 1)
+        GameTooltip:AddLine(L["TP_TOOLTIP"], 1, 1, 1)
+        GameTooltip:AddLine(L["TP_DRAG"], 0.7, 0.7, 0.7)
+        GameTooltip:Show()
+    end)
+    b:SetScript("OnLeave", function(self)
+        self.bg:SetVertexColor(S:Color("bgOverlay"))
+        GameTooltip:Hide()
+    end)
+
+    talentButton = b
+    return b
+end
+
+-- Jeder Build, den wir anlegen, traegt dieses Praeposition im Namen.
+--
+-- NICHT ZUR ZIERDE: daran erkennen wir unsere eigenen wieder. Loeschen
+-- duerfen wir nur, was wir selbst angelegt haben - eine fremde
+-- Talentbelegung anzufassen waere ein Uebergriff, und zwar einer, den
+-- niemand rueckgaengig machen kann.
+local TP_PREFIX = "MetaCodex: "
+
+---Einen gleichnamigen Build von uns finden.
+---@param name string
+---@return number|nil configID
+local function ownLoadout(name)
+    if not (C_ClassTalents and C_ClassTalents.GetConfigIDsBySpecID
+        and C_Traits and C_Traits.GetConfigInfo) then return nil end
+    local specID = ns.Compat.CurrentSpec and ns.Compat.CurrentSpec()
+    if not specID then return nil end
+    local ok, ids = pcall(C_ClassTalents.GetConfigIDsBySpecID, specID)
+    if not ok or type(ids) ~= "table" then return nil end
+    for _, id in ipairs(ids) do
+        local gotInfo, info = pcall(C_Traits.GetConfigInfo, id)
+        local vorhanden = gotInfo and info and info.name
+        -- Nur unsere: der Name muss mit unserem Praefix anfangen UND
+        -- genau der gesuchte sein.
+        if vorhanden == name and name:sub(1, #TP_PREFIX) == TP_PREFIX then
+            return id
+        end
+    end
+    return nil
+end
+
+---Einen Build in Blizzards Talentfenster laden.
+---
+---UEBER BLIZZARDS EIGENEN WEG. PlayerSpellsFrame.TalentsFrame:
+---ImportLoadout ist die Methode, die auch ihr Import-Dialog aufruft;
+---sie liest die Kette, legt eine Talentbelegung an und waehlt sie aus.
+---Wir bauen nichts nach und fassen nichts Geschuetztes an.
+---
+---UND SIE KANN SCHEITERN. Im Kampf geht es nicht, und eine Fassung,
+---die diese Methode nicht hat, gibt es auch. Dann faellt es auf den
+---Kopierdialog zurueck - der Weg, der immer geht.
+---@param text string  die Importkette
+---@param label string  woher der Build stammt, fuer den Namen
+function UI.LoadBuild(text, label)
+    if type(text) ~= "string" or text == "" then return end
+    local name = TP_PREFIX .. (label or "")
+
+    if InCombatLockdown and InCombatLockdown() then
+        ns.Print(L["TP_COMBAT"])
+        return
+    end
+
+    local f = talentFrame()
+    local tf = f and f.TalentsFrame
+    if not (tf and tf.ImportLoadout) then
+        UI.ShowLink(text)
+        ns.Print(L["TP_NO_IMPORT"])
+        return
+    end
+
+    -- Zweimal derselbe Name waeren zwei Eintraege, die gleich heissen.
+    -- Unseren alten raeumen wir weg; fremde bleiben unberuehrt.
+    local alt = ownLoadout(name)
+    if alt and C_ClassTalents.DeleteConfig then
+        pcall(C_ClassTalents.DeleteConfig, alt)
+    end
+
+    local ok, err = pcall(tf.ImportLoadout, tf, text, name)
+    if ok then
+        ns.Print(L["TP_LOADED"], name)
+    else
+        -- Gescheitert heisst nicht ratlos: die Kette gibt es noch.
+        UI.ShowLink(text)
+        ns.Print(L["TP_IMPORT_FAILED"], tostring(err))
+    end
+end
+
+---Die Buildliste oeffnen - vom Knopf aus.
+function UI.ShowTalentPanel()
+    local f = talentFrame()
+    if not f then return end
+    local p = buildTalentPanel()
+    p:ClearAllPoints()
+    -- Ueber dem Knopf, nach oben wachsend: dort ist Platz, und der
+    -- Blick kommt ohnehin von dort.
+    if talentButton then
+        p:SetPoint("BOTTOMLEFT", talentButton, "TOPLEFT", 0, 4)
+    else
+        p:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 12, 40)
+    end
+    p:SetHeight(TP_HEIGHT)
+    p:Show()
+    UI.RefreshTalentPanel()
+end
+
+local function showTalentPanel()
+    local f = talentFrame()
+    if not f then return end
+    if ns.Profile and ns.Profile.TalentPanel and not ns.Profile.TalentPanel() then
+        if talentButton then talentButton:Hide() end
+        if talentPanel then talentPanel:Hide() end
+        return
+    end
+    local b = buildTalentButton(f)
+    -- Bei jedem Oeffnen neu andocken: wer das Fenster verschiebt, will
+    -- den Knopf mitnehmen.
+    b:ClearAllPoints()
+    local x, y = ns.Profile.TalentButtonPos()
+    b:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", x, y)
+    b:Show()
+end
+
+---Was der Client zum Laden eines Builds anbietet.
+---
+---Gebaut, bevor wir irgendetwas laden: Blizzards Talentoberflaeche ist
+---geschuetzt, und welcher Weg in DIESER Fassung offensteht, sagt nur
+---der Client. Was es hier nicht gibt, wird auch nicht aufgerufen.
+function UI.TalentAPIs()
+    local function sag(name, wert)
+        ns.Print(("%-46s %s"):format(name, wert and "ja" or "nein"))
+    end
+    sag("PlayerSpellsFrame", _G.PlayerSpellsFrame ~= nil)
+    sag("ClassTalentFrame", _G.ClassTalentFrame ~= nil)
+    local tf = _G.PlayerSpellsFrame and _G.PlayerSpellsFrame.TalentsFrame
+    sag("PlayerSpellsFrame.TalentsFrame", tf ~= nil)
+    sag("  :ImportLoadout", tf and tf.ImportLoadout ~= nil)
+    sag("  :ShowImportDialog", tf and tf.ShowImportDialog ~= nil)
+    sag("  :LoadConfigInternal", tf and tf.LoadConfigInternal ~= nil)
+    sag("  :SetSelectedSavedConfigID", tf and tf.SetSelectedSavedConfigID ~= nil)
+    sag("ClassTalentLoadoutImportDialog", _G.ClassTalentLoadoutImportDialog ~= nil)
+    sag("C_ClassTalents", C_ClassTalents ~= nil)
+    sag("  .ImportLoadout", C_ClassTalents and C_ClassTalents.ImportLoadout ~= nil)
+    sag("  .LoadConfig", C_ClassTalents and C_ClassTalents.LoadConfig ~= nil)
+    sag("  .SaveConfig", C_ClassTalents and C_ClassTalents.SaveConfig ~= nil)
+    sag("  .GetConfigIDsBySpecID", C_ClassTalents and C_ClassTalents.GetConfigIDsBySpecID ~= nil)
+    sag("C_Traits.GenerateImportString", C_Traits and C_Traits.GenerateImportString ~= nil)
+    sag("C_Traits.GetConfigInfo", C_Traits and C_Traits.GetConfigInfo ~= nil)
+end
+
+---Knopf und Liste am Talentfenster schliessen.
+function UI.HideTalentPanel()
+    if talentPanel then talentPanel:Hide() end
+    if talentButton then talentButton:Hide() end
+end
+
+-- Angehaengt wird NUR ueber HookScript.
+--
+-- Das setzt kein Skript, es haengt sich an das bestehende an - der
+-- Unterschied zwischen "danebenstehen" und "hineinfassen".
+local talentHooked = false
+local function hookTalentFrame()
+    if talentHooked then return end
+    local f = talentFrame()
+    if not f or not f.HookScript then return end
+    f:HookScript("OnShow", showTalentPanel)
+    f:HookScript("OnHide", function() UI.HideTalentPanel() end)
+    talentHooked = true
+    -- Schon offen? Dann jetzt.
+    if f:IsShown() then showTalentPanel() end
+end
+
+local talentWatch = CreateFrame("Frame")
+talentWatch:RegisterEvent("ADDON_LOADED")
+talentWatch:RegisterEvent("PLAYER_ENTERING_WORLD")
+talentWatch:SetScript("OnEvent", function(_, event, name)
+    -- Das Talentfenster wird nachgeladen. Welches Addon es mitbringt,
+    -- hat zwischen den Erweiterungen gewechselt, also werden beide
+    -- Namen abgewartet - und bei jedem Betreten der Welt noch einmal
+    -- nachgesehen, falls es laengst da ist.
+    if event == "ADDON_LOADED" and name ~= "Blizzard_PlayerSpells"
+        and name ~= "Blizzard_ClassTalentUI" then
+        return
+    end
+    hookTalentFrame()
+end)

@@ -507,6 +507,42 @@ end
 ---Vorgabe an: wer die Erinnerungen anlaesst, will die Liste dort, wo er
 ---einkauft.
 ---@return boolean
+---Wo der Build-Knopf am Talentfenster sitzt.
+---
+---GEMERKT, WEIL WIR ES NICHT WISSEN KOENNEN. Am Talentfenster sitzen
+---je nach Addon-Sammlung schon andere Knoepfe - Raider.IO unten links,
+---anderes anderswo. Welche Ecke frei ist, weiss nur der Spieler; er
+---zieht ihn hin, wir merken es uns.
+---@return number x, number y  Abstand von der linken unteren Ecke
+function Profile.TalentButtonPos()
+    local db = MetaCodexDB or {}
+    local p = db.talentButton
+    if type(p) ~= "table" then return 12, 12 end
+    return tonumber(p.x) or 12, tonumber(p.y) or 12
+end
+
+---@param x number
+---@param y number
+function Profile.SetTalentButtonPos(x, y)
+    MetaCodexDB.talentButton = { x = x, y = y }
+end
+
+---Zeigt das Fenster die Builds neben dem Talentfenster?
+---
+---Vorgabe an: wer das Talentfenster oeffnet, trifft genau diese
+---Entscheidung - und die Liste steht daneben, nicht darin.
+---@return boolean
+function Profile.TalentPanel()
+    local db = MetaCodexDB or {}
+    if db.talentPanel == nil then return true end
+    return db.talentPanel and true or false
+end
+
+---@param on boolean
+function Profile.SetTalentPanel(on)
+    MetaCodexDB.talentPanel = on and true or false
+end
+
 function Profile.AuctionPanel()
     if not Profile.RemindersOn() then return false end
     local db = MetaCodexDB or {}
@@ -950,6 +986,7 @@ end
 ---@param target table|nil { level, bonus, label }
 function Profile.SetTarget(target)
     MetaCodexDB.keyTarget = target
+    if target then MetaCodexDB.keyAll = nil end
     -- Die alte Schluesselwahl gilt damit nicht mehr; sonst zoegen zwei
     -- Einstellungen an derselben Anzeige.
     if target then MetaCodexDB.keyLevel, MetaCodexDB.keySource = nil, nil end
@@ -967,7 +1004,34 @@ end
 -- Gefragt wird deshalb der Client, was ein +10 am Dungeonende gibt.
 local DEFAULT_KEY = 10
 
+---Zeigt der Spieler ALLE Stufen?
+---
+---Ein EIGENER Zustand, nicht das Fehlen einer Wahl. Frueher hiess
+---"nichts gewaehlt" so viel wie "zeig alles", und damit gab es keine
+---Vorgabe: im Tooltip stand die Grundstufe, und der Vergleich mit der
+---eigenen Ausruestung konnte gar nicht stattfinden. Jetzt hat das
+---Fenster eine Vorgabe (+10), und wer wirklich alles sehen will, sagt
+---es.
+---@return boolean
+function Profile.AllLevels()
+    local db = MetaCodexDB or {}
+    return db.keyAll == true
+end
+
+---@param on boolean|nil
+function Profile.SetAllLevels(on)
+    MetaCodexDB.keyAll = on and true or nil
+    -- Eine Stufenwahl und "alle" schliessen einander aus.
+    if on then
+        MetaCodexDB.keyTarget = nil
+        MetaCodexDB.keyLevel, MetaCodexDB.keySource = nil, nil
+    end
+end
+
 function Profile.TargetLevel()
+    -- "Alle" heisst: keine Stufe, und damit auch kein Urteil darueber,
+    -- was ein Upgrade waere.
+    if Profile.AllLevels() then return nil end
     local target = Profile.Target()
     if target and target.level then return target.level, target.bonus end
     -- Rueckfall auf die alte Schluesselwahl, solange sie noch gesetzt ist.

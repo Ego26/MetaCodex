@@ -187,7 +187,7 @@ ns.RegisterLocale("enUS", {
 -- Neues Fenster: Abschnitte der Seitenleiste und Kopfzeile.
 ns.RegisterLocale("enUS", {
     ["GROUP_SHOPPING"]     = "Shopping",
-    ["GROUP_PREP"]         = "Preparation",
+    ["GROUP_PREP"]         = "Before you go in",
     ["SECTION_all"]        = "Everything",
     ["LBL_CRAFTLEVEL"]     = "Item level",
     ["CRAFTLEVEL_BEST"]    = "Highest measured",
@@ -200,15 +200,15 @@ ns.RegisterLocale("enUS", {
     ["EMBELLISH_TWO"]      = "both embellishments",
     ["EMBELLISH_HINT"]     = "Two may be worn. Percent = share of the measured players with exactly this combination.",
     ["SECTION_tier"]       = "Tier set",
-    ["SECTION_crafted"]    = "Crafted",
-    ["SECTION_enchants"]   = "Enchants",
+    ["SECTION_crafted"]    = "Crafted & embellishments",
+    ["SECTION_enchants"]   = "Enchants & Gems",
     ["SECTION_gems"]       = "Gems",
     ["SECTION_consumables"]= "Consumables",
     ["SECTION_remind"]     = "Reminder",
-    ["SECTION_gear"]       = "Gear",
-    ["SECTION_talents"]    = "Talents",
+    ["SECTION_gear"]       = "Popular",
+    ["SECTION_talents"]    = "Talents & builds",
     ["SECTION_folio"]      = "Omnium Folio",
-    ["SECTION_drops"]      = "Upgrades",
+    ["SECTION_drops"]      = "Sources",
     ["DROPS_HINT"]         = "What the best of your spec wear, sorted by where it drops. A box you are already wearing is ticked off.",
     ["DROPS_OPEN"]         = "%d of %d still open",
     ["DROPS_ALL_WORN"]     = "you wear all %d",
@@ -263,9 +263,10 @@ ns.RegisterLocale("enUS", {
 
 -- Plattformwahl und die neue Themenliste.
 ns.RegisterLocale("enUS", {
-    ["GROUP_KNOW"]         = "Knowledge",
+    ["GROUP_OVERVIEW"]     = "Overview",
+    ["GROUP_TALENTS"]      = "Talents",
     ["GROUP_GEAR"]         = "Gear",
-    ["SECTION_settings"]   = "Settings",
+    ["SECTION_settings"]   = "General",
     ["SECTION_guides"]     = "Guides & Rotation",
     ["SECTION_stats"]      = "Stat targets",
     ["SECTION_players"]    = "Top players",
@@ -398,6 +399,20 @@ ns.RegisterLocale("enUS", {
 
 ns.RegisterLocale("enUS", {
     -- Two groups, because they answer two different questions.
+    ["TP_FROM"]            = "Measured for",
+    ["TP_BUTTON"]          = "Builds",
+    ["TP_COMBAT"]          = "Not in combat - the game does not allow changing talents there.",
+    ["TP_NO_IMPORT"]       = "This client cannot load a build directly. The string is in the copy box.",
+    ["TP_IMPORT_FAILED"]   = "Loading failed (%s). The string is in the copy box.",
+    ["TP_LOADED"]          = "Loaded: %s",
+    ["TP_HINT2"]           = "Click loads the build · Shift-click copies the string",
+    ["TP_DRAG"]            = "Drag to move",
+    ["TP_TOOLTIP"]         = "The builds the best of your spec play",
+    ["TP_TITLE"]           = "Builds",
+    ["TP_NODES"]           = "%d talents",
+    ["TP_OTHER"]           = "Alternative · %d %%",
+    ["TP_HINT"]            = "Click copies the string. Paste it under Import in the talent window.",
+    ["TP_EMPTY"]           = "Nothing measured for this spec in this activity.",
     ["TALENT_BUILD"] = "Most common build  ·  %d%% of the measured players",
     ["CARD_SHARE"]   = "%d%% of the measured players run exactly this build",
     ["CARD_RANK"]    = "number %d  ·  %s",
@@ -439,6 +454,7 @@ ns.RegisterLocale("enUS", {
     ["KEY_STEP_UPGRADE"]  = "%s  (item upgrade)",
     ["KEY_STEP_VAULT"]    = "%s  (vault %s)",
     ["KEY_LEVEL_ONLY"]     = "Item level %d",
+    ["KEY_ALL"]           = "All levels",
     ["KEY_LABEL"]         = "%s %d · %d",
     ["PLAYER_ENCHANT"] = "Enchant on this piece",
     ["PLAYER_GEM"] = "Gem in this piece",
@@ -569,7 +585,7 @@ ns.RegisterLocale("enUS", {
 })
 
 ns.RegisterLocale("enUS", {
-    ["GROUP_ABOUT"]   = "About",
+    ["GROUP_ABOUT"]   = "Settings",
     ["SECTION_info"]  = "Info",
     ["INFO_GROUP"]    = "Data",
     ["INFO_NEEDS"]    = "What this needs",

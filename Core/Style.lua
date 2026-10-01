@@ -130,6 +130,21 @@ Style.font = { display = 20, title = 15, body = 13, caption = 11 }
 ---Pixelreihe trifft, wird grau statt scharf.
 ---@param value number
 ---@return number
+---Einen Abstand auf ganze Bildschirmpixel legen.
+---
+---NICHT Style:Pixel. Das hat eine Untergrenze von einem Pixel, weil es
+---fuer Linienstaerken gedacht ist - eine Linie mit Staerke null gibt es
+---nicht. Eine POSITION null gibt es sehr wohl, und sie wurde dadurch zu
+---eins: die erste Zeile jeder Liste sass einen Pixel zu tief, und ihr
+---Hintergrund ueberlappte den der zweiten.
+---@param value number
+---@return number
+function Style:Snap(value)
+    local scale = UIParent:GetEffectiveScale()
+    if not scale or scale <= 0 then return value end
+    return math.floor(value * scale + 0.5) / scale
+end
+
 function Style:Pixel(value)
     local scale = UIParent:GetEffectiveScale()
     if not scale or scale <= 0 then return value end

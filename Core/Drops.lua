@@ -216,9 +216,13 @@ function Drops.Build(specID, mode, source, opts)
         }
         -- Auf welcher Stufe es bei DIR ankaeme, und was dort schon
         -- haengt. Fehlt eines von beidem, wird nicht geurteilt.
-        local waere = zielStufe or cell.ilvl
+        -- OHNE GEWAEHLTE STUFE KEIN URTEIL.
+        --
+        -- "Alle" heisst: zeig mir alles, und zwar ungedaempft. Mit der
+        -- gemessenen Stufe zu vergleichen waere zwar moeglich, wuerde
+        -- aber genau das wieder abblenden, was der Spieler sehen wollte.
         local haengt = wornLevel[slot]
-        cell.better = (waere and haengt and waere < haengt) or false
+        cell.better = (zielStufe and haengt and zielStufe < haengt) or false
         cell.wornLevel = haengt
         row.seen[item.id] = cell
         row.items[#row.items + 1] = cell

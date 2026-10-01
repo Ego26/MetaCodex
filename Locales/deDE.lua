@@ -200,15 +200,15 @@ ns.RegisterLocale("deDE", {
     ["EMBELLISH_TWO"]      = "beide Verzierungen",
     ["EMBELLISH_HINT"]     = "Zwei darf man tragen. Prozent = Anteil der gemessenen Spieler mit genau dieser Kombination.",
     ["SECTION_tier"]       = "Tier-Set",
-    ["SECTION_crafted"]    = "Handwerk",
-    ["SECTION_enchants"]   = "Verzauberungen",
+    ["SECTION_crafted"]    = "Handwerk & Verzierungen",
+    ["SECTION_enchants"]   = "Verzauberungen & Steine",
     ["SECTION_gems"]       = "Sockelsteine",
     ["SECTION_consumables"]= "Verbrauchsgüter",
     ["SECTION_remind"]     = "Erinnerung",
-    ["SECTION_gear"]       = "Ausrüstung",
-    ["SECTION_talents"]    = "Talente",
+    ["SECTION_gear"]       = "Beliebt",
+    ["SECTION_talents"]    = "Talente & Builds",
     ["SECTION_folio"]      = "Omnium-Foliant",
-    ["SECTION_drops"]      = "Upgrades",
+    ["SECTION_drops"]      = "Fundorte",
     ["DROPS_HINT"]         = "Was die Besten deiner Spec tragen, nach Fundort sortiert. Was du schon trägst, ist abgehakt.",
     ["DROPS_OPEN"]         = "%d von %d noch offen",
     ["DROPS_ALL_WORN"]     = "alle %d trägst du",
@@ -263,9 +263,10 @@ ns.RegisterLocale("deDE", {
 
 -- Plattformwahl und die neue Themenliste.
 ns.RegisterLocale("deDE", {
-    ["GROUP_KNOW"]         = "Wissen",
+    ["GROUP_OVERVIEW"]     = "Überblick",
+    ["GROUP_TALENTS"]      = "Talente",
     ["GROUP_GEAR"]         = "Ausrüstung",
-    ["SECTION_settings"]   = "Einstellungen",
+    ["SECTION_settings"]   = "Allgemein",
     ["SECTION_guides"]     = "Guides & Rotation",
     ["SECTION_stats"]      = "Zielwerte",
     ["SECTION_players"]    = "Top-Spieler",
@@ -393,6 +394,20 @@ ns.RegisterLocale("deDE", {
 })
 
 ns.RegisterLocale("deDE", {
+    ["TP_FROM"]            = "Gemessen für",
+    ["TP_BUTTON"]          = "Builds",
+    ["TP_COMBAT"]          = "Nicht im Kampf – das Spiel lässt dort keine Talentänderung zu.",
+    ["TP_NO_IMPORT"]       = "Dieser Client kann keinen Build direkt laden. Der String steht im Kopierfeld.",
+    ["TP_IMPORT_FAILED"]   = "Laden fehlgeschlagen (%s). Der String steht im Kopierfeld.",
+    ["TP_LOADED"]          = "Geladen: %s",
+    ["TP_HINT2"]           = "Klick lädt den Build · Shift-Klick kopiert den String",
+    ["TP_DRAG"]            = "Ziehen verschiebt ihn",
+    ["TP_TOOLTIP"]         = "Die Builds, die die Besten deiner Spec spielen",
+    ["TP_TITLE"]           = "Builds",
+    ["TP_NODES"]           = "%d Talente",
+    ["TP_OTHER"]           = "Alternative · %d %%",
+    ["TP_HINT"]            = "Klick kopiert den String. Im Talentfenster bei „Importieren“ einfügen.",
+    ["TP_EMPTY"]           = "Für diese Spec ist in dieser Aktivität nichts gemessen.",
     ["TALENT_BUILD"] = "Häufigster Build  ·  %d%% der gemessenen Spieler",
     ["CARD_SHARE"]   = "%d%% der gemessenen Spieler spielen genau diesen Build",
     ["CARD_RANK"]    = "Platz %d  ·  %s",
@@ -431,6 +446,7 @@ ns.RegisterLocale("deDE", {
     ["KEY_STEP_UPGRADE"]  = "%s  (Gegenstandsaufwertung)",
     ["KEY_STEP_VAULT"]    = "%s  (Tresor %s)",
     ["KEY_LEVEL_ONLY"]     = "Gegenstandsstufe %d",
+    ["KEY_ALL"]           = "Alle Stufen",
     ["KEY_LABEL"]         = "%s %d · %d",
     ["PLAYER_ENCHANT"] = "Verzauberung auf diesem Stück",
     ["PLAYER_GEM"] = "Stein in diesem Stück",
@@ -540,7 +556,7 @@ ns.RegisterLocale("deDE", {
 })
 
 ns.RegisterLocale("deDE", {
-    ["GROUP_ABOUT"]   = "Über",
+    ["GROUP_ABOUT"]   = "Einstellungen",
     ["SECTION_info"]  = "Info",
     ["INFO_GROUP"]    = "Daten",
     ["INFO_NEEDS"]    = "Was dafür nötig ist",

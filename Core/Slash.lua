@@ -16,6 +16,10 @@ end
 
 local handlers = {
     probe = function() ns.Probe.Run() end,
+    -- Nicht in der Hilfe: ein Messbefehl fuer die Fehlersuche, kein
+    -- Bedienelement. Er sagt, was der Client aus unseren Zahlen macht.
+    pixel = function() ns.UI.Pixel() end,
+    talents = function() ns.UI.TalentAPIs() end,
     help = help,
     reset = function()
         ns.Profile.Reset()

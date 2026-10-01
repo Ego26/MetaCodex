@@ -754,6 +754,13 @@ function Recommend.HasSection(specID, mode, source, section)
         -- steht in der Arena ein Tier-Set im Menue, zu dem es nichts
         -- gibt. Die Frage kostet einen Durchlauf durch die Platzlisten,
         -- und die stehen schon im Speicher.
+        --
+        -- Die Verzierungen stehen auf der Handwerksseite, also oeffnet
+        -- sie auch, wer nur Verzierungen hat: sonst waere eine
+        -- gemessene Auskunft hinter einem leeren Abschnitt versteckt.
+        if section == "crafted" and Recommend.Embellish(specID, mode, source) then
+            return true
+        end
         local gear = Recommend.Gear(specID, mode, source)
         if not gear then return false end
         local want = section == "tier" and "set" or "craft"

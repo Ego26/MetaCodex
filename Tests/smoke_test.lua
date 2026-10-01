@@ -670,6 +670,14 @@ do
         local last, fallend, doppelt, fremd = nil, true, 0, 0
         local seen = {}
         for _, row in ipairs(wow.rows()) do
+            -- Unter der Ueberschrift "Verzierungen" faengt der zweite
+            -- Teil der Seite an: andere Art Zeile, andere Regeln. Was
+            -- hier geprueft wird, gilt fuer den oberen Teil.
+            local titel = (row.title and row.title:GetText() or ""):upper()
+            if row:IsShown() and titel ~= ""
+                and titel:find(ns.L["SECTION_embellish"]:upper(), 1, true) then
+                break
+            end
             if row:IsShown() and row.itemID then
                 if seen[row.itemID] then doppelt = doppelt + 1 end
                 seen[row.itemID] = true
@@ -736,7 +744,7 @@ end
 -- Verzierung hat einen Namen, ein Handwerksstueck hat ein Wertepaar,
 -- und der Link traegt es mit.
 do
-    local n = rowsInSection("embellish")
+    local n = rowsInSection("crafted")  -- Verzierungen stehen beim Handwerk
     check("Abschnitt Verzierungen zeigt Zeilen", n > 0, n .. " Zeilen")
     local ohneName = 0
     for _, row in ipairs(wow.rows()) do
@@ -767,7 +775,7 @@ do
         if hat then
             local klasse = ns.Compat.ClassOfSpec(spec)
             if klasse then ns.Profile.Select(klasse, spec) end
-            rowsInSection("embellish")
+            rowsInSection("crafted")  -- Verzierungen stehen beim Handwerk
             for _, row in ipairs(wow.rows()) do
                 local ids = row:IsShown() and rawget(row, "ids") or nil
                 if ids and #ids > 1 then pair = row break end
@@ -1184,6 +1192,177 @@ do
     check("ohne Stufe bleibt der Text leer", ns.Compat.LevelText(nil) == "")
 
     ns.Compat.TrackLevel = echt
+end
+
+-- DIE BUILDS AM TALENTFENSTER.
+--
+-- Die Frage "welchen Build nehme ich" stellt sich dort, nicht bei uns.
+-- Ein Knopf unten links, die Liste auf Klick: ein Panel, das von selbst
+-- aufgeht, uebersieht man oder es steht im Weg.
+--
+-- Knopf UND Liste haengen an UIParent und docken nur an - Blizzards
+-- Talentoberflaeche ist geschuetzt, und wer sie zum Elternteil macht,
+-- erntet irgendwann "Diese Aktion ist gesperrt".
+do
+    _G.PlayerSpellsFrame = CreateFrame("Frame", "PlayerSpellsFrame", UIParent)
+    local erreicht = wow.fire("ADDON_LOADED", "Blizzard_PlayerSpells")
+    check("jemand hoert auf das Talentfenster", erreicht > 0, erreicht .. " Rahmen")
+
+    local auf = _G.PlayerSpellsFrame:GetScript("OnShow")
+    if auf then auf(_G.PlayerSpellsFrame) end
+
+    -- Erst der Knopf, noch keine Liste.
+    check("die Liste springt nicht von selbst auf",
+        _G.MetaCodexTalentList == nil or _G.MetaCodexTalentList:IsShown() == false)
+
+    ns.UI.ShowTalentPanel()
+    local panel = _G.MetaCodexTalentList
+    check("auf Klick steht sie da", panel ~= nil and panel:IsShown() == true)
+    if panel then
+        check("sie nennt sich Builds",
+            (panel.title:GetText() or "") == ns.L["TP_TITLE"], panel.title:GetText())
+        local mitKette = 0
+        for _, r in ipairs(panel.rows) do
+            if r:IsShown() and type(r.text) == "string" and r.text ~= "" then
+                mitKette = mitKette + 1
+            end
+        end
+        check("jede Zeile traegt einen Import-String", mitKette > 0,
+            mitKette .. " Zeilen")
+        local erste
+        for _, r in ipairs(panel.rows) do
+            if r:IsShown() and not erste then erste = r end
+        end
+        if erste then
+            check("ein Klick laeuft durch",
+                pcall(erste:GetScript("OnClick"), erste) == true)
+        end
+
+        -- LADEN GEHT UEBER BLIZZARDS EIGENEN WEG - oder gar nicht.
+        --
+        -- Fehlt die Methode (andere Fassung) oder ist man im Kampf,
+        -- faellt es auf den Kopierdialog zurueck. Was nicht passieren
+        -- darf: ein Fehler, der die Zeile sprengt.
+        local gerufen
+        _G.PlayerSpellsFrame.TalentsFrame = {
+            ImportLoadout = function(_, text, name) gerufen = { text, name } end,
+        }
+        ns.UI.LoadBuild("ABC", "Mördergasse")
+        check("der Build wird geladen", gerufen ~= nil and gerufen[1] == "ABC",
+            gerufen and gerufen[1] or "nichts")
+        check("und traegt unseren Namen",
+            gerufen ~= nil and gerufen[2] == "MetaCodex: Mördergasse",
+            gerufen and gerufen[2] or "nichts")
+
+        -- Ohne die Methode darf es nicht knallen.
+        _G.PlayerSpellsFrame.TalentsFrame = {}
+        check("ohne Importweg laeuft es durch",
+            pcall(ns.UI.LoadBuild, "ABC", "Test") == true)
+
+        -- Und eine leere Kette tut gar nichts.
+        check("ohne Kette passiert nichts",
+            pcall(ns.UI.LoadBuild, nil, "Test") == true)
+
+        -- Abschaltbar - und dann gibt es auch keinen Knopf.
+        check("standardmaessig an", ns.Profile.TalentPanel() == true)
+        ns.Profile.SetTalentPanel(false)
+        if auf then auf(_G.PlayerSpellsFrame) end
+        check("abgeschaltet bleibt beides zu", panel:IsShown() == false)
+        ns.Profile.SetTalentPanel(true)
+        if auf then auf(_G.PlayerSpellsFrame) end
+
+        -- Mit dem Talentfenster geht alles zu.
+        ns.UI.ShowTalentPanel()
+        local zu = _G.PlayerSpellsFrame:GetScript("OnHide")
+        if zu then zu(_G.PlayerSpellsFrame) end
+        check("mit dem Talentfenster geht es zu", panel:IsShown() == false)
+    end
+end
+
+-- ZEILEN SITZEN AUF GANZEN BILDSCHIRMPIXELN.
+--
+-- Die Hoehe haengt an der Schriftskala und war darum krumm: 46,8 statt
+-- 47. Jede zweite Zeilenkante landete auf einem halben Pixel, der
+-- Client verteilte die Flaeche ueber zwei - und im Fenster sah jede
+-- zweite Zeile ausgegraut aus. Es war keine Farbe, es war eine Kante.
+do
+    MetaCodexDB.section = "players"
+    ns.UI.Refresh()
+    local krumm, gezaehlt = {}, 0
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() then
+            gezaehlt = gezaehlt + 1
+            local h = tonumber(row:GetHeight()) or 0
+            if h > 0 and math.abs(h - math.floor(h + 0.5)) > 0.001 then
+                krumm[#krumm + 1] = string.format("%.2f", h)
+            end
+        end
+    end
+    check("keine Zeile mit krummer Hoehe", #krumm == 0,
+        gezaehlt .. " Zeilen, krumm: " .. table.concat(krumm, ", "))
+end
+
+-- DIE ABSCHNITTE HEISSEN, WONACH SIE BENANNT SIND.
+--
+-- Beim Aufraeumen doppelter Sprachschluessel ist einmal die falsche
+-- Haelfte stehengeblieben: aus "Verzauberungen & Steine" wurde
+-- "Verzauberungen", obwohl der Abschnitt beides zeigt. Ein Test sieht
+-- so etwas nur, wenn er den Text kennt - also kennt er ihn.
+do
+    check("die Verzauberungen nennen auch die Steine",
+        ns.L["SECTION_enchants"]:find("&", 1, true) ~= nil,
+        ns.L["SECTION_enchants"])
+    -- Und kein Abschnitt steht ohne Namen da.
+    local ohne = {}
+    for _, key in ipairs({ "guides", "stats", "talents", "folio", "players",
+        "gear", "drops", "tier", "crafted", "embellish", "enchants",
+        "consumables", "remind", "settings", "info" }) do
+        local text = ns.L["SECTION_" .. key]
+        if type(text) ~= "string" or text == "" then ohne[#ohne + 1] = key end
+    end
+    check("jeder Abschnitt hat einen Namen", #ohne == 0, table.concat(ohne, ", "))
+
+    -- UND JEDE GRUPPE AUCH.
+    --
+    -- Eine Gruppe ohne Beschriftung faellt nicht auf: im Fenster steht
+    -- dann eine leere Ueberschriftenzeile, und darunter Eintraege, die
+    -- zu nichts zu gehoeren scheinen.
+    local gruppen = {}
+    for _, key in ipairs({ "GROUP_OVERVIEW", "GROUP_TALENTS", "GROUP_GEAR",
+        "GROUP_PREP", "GROUP_ABOUT" }) do
+        local text = ns.L[key]
+        if type(text) ~= "string" or text == "" then gruppen[#gruppen + 1] = key end
+    end
+    check("jede Gruppe hat einen Namen", #gruppen == 0, table.concat(gruppen, ", "))
+end
+
+-- "ALLE STUFEN" IST EIN EIGENER ZUSTAND.
+--
+-- Frueher hiess "nichts gewaehlt" so viel wie "zeig alles" - und damit
+-- gab es keine Vorgabe, im Tooltip stand die Grundstufe, und der
+-- Vergleich mit der eigenen Ausruestung konnte nie stattfinden. Jetzt
+-- hat das Fenster eine Vorgabe, und wer wirklich alles sehen will, sagt
+-- es ausdruecklich.
+do
+    ns.Profile.SetAllLevels(true)
+    check("alle Stufen heisst keine Stufe", ns.Profile.TargetLevel() == nil,
+        tostring(ns.Profile.TargetLevel()))
+    -- Und ohne Stufe wird nichts abgeblendet.
+    local alles = ns.Drops.Build(250, "mplus", nil,
+        { worn = {}, minLevel = 0, wornLevel = { Head = 999 } })
+    local abgeblendet = 0
+    for _, row in ipairs(alles) do
+        for _, cell in ipairs(row.items) do
+            if cell.better then abgeblendet = abgeblendet + 1 end
+        end
+    end
+    check("und nichts tritt zurueck", abgeblendet == 0, abgeblendet .. " Kaestchen")
+
+    -- Eine Stufenwahl hebt es wieder auf.
+    ns.Profile.SetTarget({ level = 311, bonus = 12843 })
+    check("eine Stufe sticht alle Stufen", ns.Profile.AllLevels() == false
+        and ns.Profile.TargetLevel() == 311, tostring(ns.Profile.TargetLevel()))
+    ns.Profile.SetTarget(nil)
 end
 
 -- OHNE WAHL GILT DER +10-SCHLUESSEL.
@@ -4255,7 +4434,7 @@ end
 -- haben, steht in keiner Bonus-ID.
 do
     C_Texture = { GetAtlasInfo = function(name) return { name = name } end }
-    rowsInSection("embellish")
+    rowsInSection("crafted")  -- Verzierungen stehen beim Handwerk
     local mitStufe, mitZeichen = 0, 0
     for _, row in ipairs(wow.rows()) do
         if row:IsShown() and row.itemID and ns.Catalog.Quality(row.itemID) then
@@ -4450,7 +4629,7 @@ do
         }, "raider.io"
     end
     ns.Profile.SetMode("mplus")
-    rowsInSection("embellish")
+    rowsInSection("crafted")  -- Verzierungen stehen beim Handwerk
     local doppelt, beide, einzeln
     for _, row in ipairs(wow.rows()) do
         local ids = row:IsShown() and rawget(row, "ids") or nil
@@ -4503,7 +4682,7 @@ do
         }, "raider.io"
     end
     ns.Profile.SetMode("mplus")
-    rowsInSection("embellish")
+    rowsInSection("crafted")  -- Verzierungen stehen beim Handwerk
     local wie_viele, erste = hervorgehoben()
     check("der erste Platz steht vorn, auch unter 50 %",
         wie_viele == 1 and erste == "48%",
@@ -4518,13 +4697,13 @@ do
             { ids = { 251490 }, pct = 20 },
         }, "raider.io"
     end
-    rowsInSection("embellish")
+    rowsInSection("crafted")  -- Verzierungen stehen beim Handwerk
     local gleich = hervorgehoben()
     check("bei Gleichstand stehen beide vorn", gleich == 2,
         gleich .. " hervorgehoben")
 
     ns.Recommend.Embellish = echt
-    rowsInSection("embellish")
+    rowsInSection("crafted")  -- Verzierungen stehen beim Handwerk
 end
 
 -- Zwei Ringe, zwei Schmuckstuecke - und das steht auch da.
