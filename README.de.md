@@ -36,8 +36,8 @@ fällt weg.
 | **Talente** | Der häufigste Build mit Import-String, Alternativen als *X statt Y*, umstrittene Talente — je Dungeon in M+, je Boss im Raid |
 | **Omnium-Foliant** | Welche Rune die Besten in jeder der fünf Reihen nehmen, gemessen an dem, was sie im Kampf tut |
 | **Top-Spieler** | Wer oben steht, klickbar: Talentbuild mit Import-String und komplette Ausrüstung |
-| **Ausrüstung** | Fünf je Platz mit Fundort; Tooltips auf der Schlüsselstufe, die du wählst |
-| **Upgrades** | Wo die Stücke fallen, die dir fehlen – je Instanz, sortiert nach dem, was für dich noch offen ist |
+| **Beliebt** | Fünf je Platz mit Fundort; Tooltips auf der Schlüsselstufe, die du wählst |
+| **Fundorte** | Wo die Stücke fallen, die dir fehlen – je Instanz, sortiert nach dem, was für dich noch offen ist |
 | **Tier-Set** | Welche Set-Teile die Besten tragen, und wie viele davon |
 | **Handwerk** | Die Handwerksstücke, die wirklich getragen werden, mit ihrem Wertepaar und den gemessenen Gegenstandsstufen |
 | **Verzierungen** | Welche zwei Verzierungen zusammen getragen werden, und wie oft |

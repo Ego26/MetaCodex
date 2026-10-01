@@ -4,6 +4,49 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ## [Unreleased]
 
+## [1.1.10] - 2026-10-01
+
+### Added
+
+- **The builds at the talent frame.** Opening it is the moment of
+  choosing a build; until now the way there was open the addon, find the
+  build, copy the string, go back, Import, paste. A button at the frame
+  opens the list, a click loads the build - through the same method
+  Blizzard's own Import dialog uses. In combat it says so, and when it
+  fails the string lands in the copy box.
+- The button is draggable and remembers where: we cannot know which
+  corner of the talent frame is free on someone else's screen.
+- The activity picker there is grouped like the window - M+, Raid, PvP,
+  then the samples, then dungeons or bosses.
+- **"All levels"** in the keystone picker: a state of its own, not the
+  absence of a choice. It turns the comparison off, so nothing is dimmed.
+
+### Changed
+
+- **The menu is grouped by the question a section answers**, not by the
+  kind of its data: Overview, Talents, Gear, Before you go in, Settings.
+  Enchants, consumables and the reminder sat under Gear because they
+  involve items - they all answer "am I ready?".
+- **"Gear" is now called "Popular"** - that is what it measures: how
+  many of the best wear a piece. And "Sources" says where it drops.
+- Embellishments moved onto the crafted page. An embellishment is not an
+  item of its own but an addition to a crafted one; two menu entries
+  meant making the same decision in two places.
+
+### Fixed
+
+- **Every second row looked greyed out.** Rows were 46.8 pixels high -
+  a fraction - so every other edge landed on half a screen pixel and the
+  client spread the fill across two. It was never a colour, it was an
+  edge. Rows now sit on whole screen pixels, at any UI scale.
+- **"Enchants" had lost half its name.** Cleaning up duplicate language
+  keys on 28 September kept the wrong half of two - it reads "Enchants &
+  Gems" again, and two tests now know the text.
+- **The stat rows looked like an icon was missing.** The 26 pixels were
+  for the rank that used to sit there and has long moved right. There
+  are no icons for secondary stats - all 19,643 atlas elements were
+  searched.
+
 ## [1.1.9] - 2026-10-01
 
 ### Added

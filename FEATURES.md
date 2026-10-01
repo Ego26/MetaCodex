@@ -34,7 +34,7 @@ switched off under Settings.
 - **Reminder** before you go in and at the auction house — and a tab that
   shows what it checks.
 - **Guides** linked, never copied.
-- **Upgrades**: where the pieces you are still missing drop, per
+- **Sources**: where the pieces you are still missing drop, per
   instance, sorted by what is open for you.
 - **A shopping list beside the auction house**: what is still missing,
   with a bar and a count, and a click searches for it.
@@ -109,7 +109,7 @@ potion, healing potion, weapon buffs (oils, stones), runes. Per group the
 share of players and the highest key it was still used at. Plus your stock
 — in every quality tier — and a target quantity you set with a click.
 
-**Upgrades** — The same pieces as the gear list, on the other axis: one
+**Sources** — The same pieces as the gear list, on the other axis: one
 row per instance, one box per piece, sorted by what is still open for
 you. Dungeons first, raids below. What drops in no instance gets its own
 rows - crafted, set pieces, PvP, auction house, no known source - because
@@ -120,6 +120,13 @@ never changes the order, because a preference must not move a measured
 number. You choose the question: most still open, or best single piece. What
 you already beat in that slot steps back and stops counting, but stays
 visible - a set piece can be worth having a rank lower.
+
+**Builds at the talent frame** — A button there opens the builds for
+your spec; a click loads one, through the same method Blizzard's own
+Import dialog uses. Per dungeon and per boss, grouped like the window.
+Shift-click copies instead of loading, in combat it says so, and when
+it fails the string lands in the copy box. The button is draggable —
+we cannot know which corner is free on your screen.
 
 **Reminder** — What the addon checks before you go in: per consumable kind
 the stand against your target (enough / low / none), the enchants and gems

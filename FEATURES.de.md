@@ -33,7 +33,7 @@ unter Einstellungen abschalten.
 - **Erinnerung** vor dem Start und am Auktionshaus — und ein Reiter, der
   zeigt, was sie prüft.
 - **Guides** verlinkt, nie kopiert.
-- **Upgrades**: wo die Stücke fallen, die dir noch fehlen – je Instanz,
+- **Fundorte**: wo die Stücke fallen, die dir noch fehlen – je Instanz,
   sortiert nach dem, was für dich offen ist.
 - **Eine Einkaufsliste neben dem Auktionshaus**: was noch fehlt, mit
   Balken und Zahl, und ein Klick sucht es.
@@ -112,7 +112,7 @@ Gruppe der Anteil der Spieler und die höchste Schlüsselstufe, bei der es
 noch benutzt wurde. Dazu dein Bestand — in jeder Qualitätsstufe — und eine
 Zielmenge, die du per Klick einstellst.
 
-**Upgrades** — Dieselben Stücke wie die Ausrüstungsliste, auf der
+**Fundorte** — Dieselben Stücke wie die Ausrüstungsliste, auf der
 anderen Achse: je Instanz eine Zeile, je Stück ein Kästchen, sortiert
 nach dem, was für dich noch offen ist. Dungeons zuerst, Schlachtzüge
 darunter. Was in keiner Instanz fällt, bekommt eigene Zeilen – Handwerk,
@@ -125,6 +125,14 @@ keine gemessene Zahl verschieben. Die Frage wählst du: am meisten offen,
 oder bestes Stück zuerst. Was du auf dem Platz schon besser trägst,
 tritt zurück und zählt nicht mehr mit, bleibt aber sichtbar – ein
 Set-Teil kann auch einen Rang tiefer lohnen.
+
+**Builds am Talentfenster** — Ein Knopf unten am Talentfenster öffnet
+die Builds deiner Spec; ein Klick lädt einen davon, über dieselbe
+Methode, die auch Blizzards Import-Dialog benutzt. Je Dungeon und je
+Boss wählbar, gegliedert wie im Fenster. Shift-Klick kopiert statt zu
+laden, im Kampf sagt es das, und scheitert es, landet der String im
+Kopierfeld. Der Knopf ist ziehbar — welche Ecke bei dir frei ist,
+wissen wir nicht.
 
 **Erinnerung** — Was das Addon prüft, bevor es losgeht: je Verbrauchsart
 der Stand gegen dein Ziel (reicht / knapp / leer), die Verzauberungen und

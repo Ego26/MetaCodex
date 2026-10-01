@@ -1,3 +1,33 @@
+## v1.1.10 — the builds where the decision is made
+
+### Added
+
+- **A button at the talent frame.** It opens the builds for your spec;
+  **a click loads one** — through the same method Blizzard's own Import
+  dialog uses. No more open-addon, copy, paste.
+- **Per dungeon and per boss**, grouped like the window: M+, Raid, PvP.
+- The button is **draggable** and remembers where — we cannot know which
+  corner is free on your screen.
+- **"All levels"** in the keystone picker, for seeing everything
+  undimmed.
+
+### Changed
+
+- **The menu is grouped by the question each section answers**: Overview,
+  Talents, Gear, Before you go in, Settings.
+- **"Gear" is now "Popular"** — that is what it measures — and **"Sources"**
+  says where it drops.
+- Embellishments moved onto the crafted page, where the decision is made.
+
+### Fixed
+
+- **Every second row looked greyed out.** Rows were 46.8 pixels high, so
+  every other edge landed on half a screen pixel. It was never a colour,
+  it was an edge.
+- **"Enchants" had lost half its name** — it reads "Enchants & Gems"
+  again.
+- **The stat rows no longer indent for an icon that does not exist.**
+
 ## v1.1.9 — an upgrade is what beats what you wear
 
 ### Added

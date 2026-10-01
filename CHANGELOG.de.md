@@ -4,6 +4,55 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ## [Unveröffentlicht]
 
+## [1.1.10] - 2026-10-01
+
+### Neu
+
+- **Die Builds am Talentfenster.** Es zu öffnen ist der Moment, in dem
+  man einen Build wählt; der Weg dahin war bisher: Addon öffnen, Build
+  suchen, String kopieren, zurück, Importieren, einfügen. Ein Knopf am
+  Fenster öffnet die Liste, ein Klick lädt den Build – über dieselbe
+  Methode, die auch Blizzards eigener Import-Dialog aufruft. Im Kampf
+  sagt es das, und scheitert es, landet der String im Kopierfeld.
+- Der Knopf ist ziehbar und merkt sich, wohin: welche Ecke des
+  Talentfensters frei ist, können wir nicht wissen.
+- Der Aktivitätswähler dort ist gegliedert wie im Fenster – M+, Raid,
+  PvP, darunter die Stichproben, darunter Dungeons oder Bosse.
+- **„Alle Stufen"** im Schlüsselwähler: ein eigener Zustand, nicht das
+  Fehlen einer Wahl. Er schaltet den Vergleich ab, es wird nichts
+  abgeblendet.
+
+### Geändert
+
+- **Das Menü ist nach der Frage gegliedert, die ein Abschnitt
+  beantwortet**, nicht nach der Art seiner Daten: Überblick, Talente,
+  Ausrüstung, Vorbereitung, Einstellungen. Verzauberungen,
+  Verbrauchsgüter und Erinnerung standen unter Ausrüstung, weil sie mit
+  Gegenständen zu tun haben – sie beantworten alle „bin ich bereit?".
+- **„Ausrüstung" heißt jetzt „Beliebt"** – das ist, was dort gemessen
+  wird: wie viele der Besten ein Stück tragen. Und „Fundorte" sagt, wo
+  es fällt.
+- Die Verzierungen stehen jetzt auf der Handwerksseite. Eine Verzierung
+  ist kein eigener Gegenstand, sondern ein Zusatz auf einem
+  hergestellten – zwei Menüpunkte hießen, dieselbe Entscheidung an zwei
+  Stellen zu treffen.
+
+### Behoben
+
+- **Jede zweite Zeile wirkte ausgegraut.** Die Zeilen waren 46,8 Pixel
+  hoch – ein Bruchteil –, also landete jede zweite Kante auf einem
+  halben Bildschirmpixel, und der Client verteilte die Fläche über zwei.
+  Es war nie eine Farbe, es war eine Kante. Die Zeilen sitzen jetzt auf
+  ganzen Bildschirmpixeln, bei jeder Skalierung.
+- **„Verzauberungen" hatte seinen halben Namen verloren.** Beim
+  Aufräumen doppelter Sprachschlüssel am 28. September ist die falsche
+  der beiden Fassungen geblieben – es heißt wieder „Verzauberungen &
+  Steine", und zwei Tests kennen den Text jetzt.
+- **Bei den Zielwerten sah es aus, als fehlte ein Symbol.** Die 26 Pixel
+  waren für den Rang, der dort einmal stand und längst rechts steht. Für
+  Zweitwerte gibt es keine Symbole – alle 19 643 Atlas-Elemente des
+  Spiels wurden durchsucht.
+
 ## [1.1.9] - 2026-10-01
 
 ### Neu
