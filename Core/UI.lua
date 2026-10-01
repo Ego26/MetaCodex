@@ -4688,6 +4688,7 @@ local MASS = {
     DROP_ROW_HEIGHT = DROP_ROW_HEIGHT, DROP_CELL_H = DROP_CELL_H,
     STAT_ROW_HEIGHT = STAT_ROW_HEIGHT, ROW_HEIGHT = ROW_HEIGHT,
     SHOPPING = SHOPPING,
+    MIN_W = MIN_W, MIN_H = MIN_H, MAX_W = MAX_W, MAX_H = MAX_H,
 }
 
 function UI.Refresh()
@@ -4762,6 +4763,36 @@ function UI.Refresh()
             end
         end
         y = y - S.space.sm
+    end
+
+    -- DAS MENUE BESTIMMT DIE MINDESTHOEHE.
+    --
+    -- Die Leiste wird nicht abgeschnitten und sie scrollt nicht: sie
+    -- laeuft einfach weiter, und bei einem kleingezogenen Fenster stand
+    -- die Haelfte davon ueber dem Spiel. Aufgefallen ist es erst, als
+    -- aus drei Gruppen fuenf wurden - die feste Zahl von 480 Pixeln
+    -- stammte aus einer Zeit, in der das Menue kuerzer war.
+    --
+    -- Gerechnet statt geschaetzt: was die Leiste gerade braucht, plus
+    -- Kopf und Fuss. Damit stimmt die Grenze auch, wenn jemand eine
+    -- Gruppe zuklappt oder die Schrift groesser stellt.
+    do
+        local braucht = math.ceil(-y + MASS.HEADER + MASS.FOOTER)
+        local fsx = S.fontScale or 1
+        local minH = math.max(math.floor(MASS.MIN_H * fsx), braucht)
+        if frame.SetResizeBounds then
+            frame:SetResizeBounds(math.floor(MASS.MIN_W * fsx), minH,
+                MASS.MAX_W, MASS.MAX_H)
+        end
+        -- Ein Fenster, das schon kleiner ist, waechst einmal nach. Die
+        -- Grenze allein holt es nicht zurueck.
+        if (tonumber(frame:GetHeight()) or 0) + 1 < minH then
+            -- Nur wachsen, NICHT merken: die gespeicherte Groesse ist
+            -- die Wahl des Spielers. Unsere Korrektur darf nicht zu
+            -- seiner werden - sonst haette ein Zuruecksetzen, das die
+            -- Groesse vergisst, gleich wieder eine.
+            frame:SetHeight(minH)
+        end
     end
 
     local specID = ns.Profile.SelectedSpec()

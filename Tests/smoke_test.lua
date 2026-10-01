@@ -2312,16 +2312,56 @@ do
         _G.MetaCodexFrame.dungeonButton.label:GetText() == ns.L["DUNGEON_ALL"])
 end
 
+-- DAS MENUE BESTIMMT DIE MINDESTHOEHE.
+--
+-- Die Seitenleiste wird nicht abgeschnitten und sie scrollt nicht. Bei
+-- einem kleingezogenen Fenster stand die Haelfte des Menues ueber dem
+-- Spiel - aufgefallen, als aus drei Gruppen fuenf wurden. Die feste
+-- Zahl von 480 Pixeln stammte aus einer Zeit, in der es kuerzer war.
+do
+    local f = _G.MetaCodexFrame
+    f:SetSize(900, 300)
+    ns.UI.Refresh()
+    local hoch = tonumber(f:GetHeight()) or 0
+    check("ein zu kleines Fenster waechst nach", hoch > 300, tostring(hoch))
+
+    -- Und das Menue passt wirklich hinein: die unterste Schaltflaeche
+    -- endet ueber dem unteren Rand.
+    local tiefste = 0
+    for _, b in ipairs(wow.frames) do
+        if rawget(b, "section") and b:IsShown() then
+            for _, p in ipairs(rawget(b, "__points") or {}) do
+                if p[1] == "TOPLEFT" then
+                    local y = tonumber(p[#p]) or 0
+                    if -y > tiefste then tiefste = -y end
+                end
+            end
+        end
+    end
+    check("das Menue passt in das Fenster", tiefste > 0 and tiefste < hoch,
+        tiefste .. " von " .. hoch)
+
+    -- Die Korrektur merkt sich NICHTS: die gespeicherte Groesse gehoert
+    -- dem Spieler.
+    ns.Profile.ResetWindow()
+    f:SetSize(900, 300)
+    ns.UI.Refresh()
+    check("und merkt sich die Korrektur nicht", ns.Profile.WindowSize() == nil)
+end
+
 -- --------------------------------------------------------- Fenstergroesse
 
 -- Ziehbar: nach dem Loslassen des Griffs folgen Zeilen, Hinweis und
 -- Scrollkind der neuen Breite, und die Groesse ist gemerkt.
 do
     local f = _G.MetaCodexFrame
-    f:SetSize(1200, 720)
+    -- 800, nicht 720: unter der Hoehe, die das Menue braucht, waechst
+    -- das Fenster von selbst nach - und dann misst dieser Test etwas
+    -- anderes, als er glaubt.
+    f:SetSize(1200, 800)
     f.grip:GetScript("OnMouseUp")(f.grip)
     local w, h = ns.Profile.WindowSize()
-    check("Groesse wird gemerkt", w == 1200 and h == 720, tostring(w) .. "x" .. tostring(h))
+    check("Groesse wird gemerkt", w == 1200 and h == 800, tostring(w) .. "x" .. tostring(h))
     rowsInSection("gear")
     local expected = 1200 - 196 - 48 - 20
     local wrong = 0
