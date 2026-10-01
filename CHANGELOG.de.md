@@ -8,6 +8,11 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ### Neu
 
+- **Ein Aufbau für jeden Abschnitt**: Titel, der Satz, der die Frage
+  beantwortet, die Wähler links beginnend, dann die Liste. Vorher
+  standen sie neben dem Titel und wanderten mit ihrer Zahl – einer ganz
+  rechts, drei weiter links, fünf in eine zweite Zeile.
+
 - **Die Builds am Talentfenster.** Es zu öffnen ist der Moment, in dem
   man einen Build wählt; der Weg dahin war bisher: Addon öffnen, Build
   suchen, String kopieren, zurück, Importieren, einfügen. Ein Knopf am
@@ -39,6 +44,15 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ### Behoben
 
+- **Das Fenster ließ sich kleiner ziehen als sein eigenes Menü.** Die
+  Seitenleiste wird nicht abgeschnitten und scrollt nicht – die Hälfte
+  stand über dem Spiel. Die Mindesthöhe rechnet jetzt mit, was das Menü
+  braucht.
+- **Im Fundort-Raster lief die Unterzeile durch die Symbole.** Es hält
+  seine Textspalte schmal, weil rechts die Kästchen stehen; der Zeichner
+  verbreiterte sie bei jedem Ziehen wieder.
+- **Der Knopf am Talentfenster stand auf jedem Reiter** – auch über dem
+  Zauberbuch – und ließ sich ganz aus dem Fenster schieben.
 - **Jede zweite Zeile wirkte ausgegraut.** Die Zeilen waren 46,8 Pixel
   hoch – ein Bruchteil –, also landete jede zweite Kante auf einem
   halben Bildschirmpixel, und der Client verteilte die Fläche über zwei.

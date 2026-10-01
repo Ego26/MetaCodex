@@ -2,6 +2,8 @@
 
 ### Added
 
+- **One layout for every section**: title, the sentence that answers the
+  question, the pickers, the list. They used to move with their number.
 - **A button at the talent frame.** It opens the builds for your spec;
   **a click loads one** — through the same method Blizzard's own Import
   dialog uses. No more open-addon, copy, paste.
@@ -21,6 +23,12 @@
 
 ### Fixed
 
+- **The window could be dragged smaller than its own menu**, and half the
+  sidebar stood over the game world.
+- **The drops grid ran its second line through the icons** on a narrow
+  window.
+- **The talent-frame button showed on every tab** — spellbook included —
+  and could be dragged out of the window.
 - **Every second row looked greyed out.** Rows were 46.8 pixels high, so
   every other edge landed on half a screen pixel. It was never a colour,
   it was an edge.

@@ -8,6 +8,11 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ### Added
 
+- **One layout for every section**: title, the sentence that answers the
+  question, the pickers starting at the left, then the list. They used
+  to sit beside the title and move with their number - one far right,
+  three further left, five into a second row.
+
 - **The builds at the talent frame.** Opening it is the moment of
   choosing a build; until now the way there was open the addon, find the
   build, copy the string, go back, Import, paste. A button at the frame
@@ -35,6 +40,15 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ### Fixed
 
+- **The window could be dragged smaller than its own menu.** The sidebar
+  is neither clipped nor scrollable - half of it stood over the game
+  world. The minimum height is computed from what the menu needs, so it
+  holds for the next section too.
+- **The drops grid ran its second line through the icons.** It keeps its
+  text column narrow because the boxes sit to the right; the renderer
+  widened it again on every resize.
+- **The button at the talent frame appeared on every tab** - including
+  the spellbook - and could be dragged out of the window entirely.
 - **Every second row looked greyed out.** Rows were 46.8 pixels high -
   a fraction - so every other edge landed on half a screen pixel and the
   client spread the fill across two. It was never a colour, it was an
