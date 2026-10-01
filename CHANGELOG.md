@@ -4,6 +4,28 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ## [Unreleased]
 
+### Added
+
+- A switch for the builds button at the talent frame, beside the other
+  ways in. It sits in Blizzard's window at the corner where others keep
+  Raider.IO - the setting existed, only the row to reach it was missing.
+
+### Fixed
+
+- **Sources cut its instance names although the row was half empty.**
+  The name column was fixed at 150 points, measured for the raid row and
+  its fourteen boxes; a dungeon has three. It now takes a third of the
+  width, between 150 and 300.
+- **Talents had no sentence under its title**, only the gap where one
+  belongs. Every other page says there what its percentages mean.
+- **A consumable at 14 of 20 said "enough" and "need 6" in one row.**
+  "Enough" meant the reminder stays quiet, not that the stock meets the
+  target - the threshold is a setting of its own. The word says that now.
+- **The builds list at the talent frame truncated every line** and showed
+  the full text nowhere. It is wider, and it answers on hover.
+- The special socket, of which there is one, reported "1 sockets".
+- The shopping list beside the auction house ended mid-sentence.
+
 ## [1.1.10] - 2026-10-01
 
 ### Added

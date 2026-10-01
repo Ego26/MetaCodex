@@ -4,6 +4,30 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ## [Unveröffentlicht]
 
+### Neu
+
+- Ein Schalter für den Build-Knopf am Talentfenster, neben den anderen
+  Wegen hinein. Er setzt sich in Blizzards Fenster an genau die Ecke, an
+  der bei anderen Raider.IO sitzt – die Einstellung gab es, nur die
+  Zeile, über die man sie erreicht, fehlte.
+
+### Behoben
+
+- **Fundorte schnitt die Instanznamen ab, obwohl die Zeile halb leer
+  war.** Die Namensspalte war fest 150 Punkte breit, bemessen für die
+  Raidzeile mit ihren vierzehn Kästchen; ein Dungeon hat drei. Sie nimmt
+  jetzt ein Drittel der Breite, zwischen 150 und 300.
+- **Bei Talente stand kein Satz unter dem Titel**, nur die Lücke, in die
+  einer gehört. Jede andere Seite sagt dort, wofür ihre Prozente stehen.
+- **Ein Verbrauchsgut bei 14 von 20 sagte „reicht" und „6 fehlen" in
+  derselben Zeile.** „Reicht" hieß, dass die Erinnerung still bleibt,
+  nicht dass der Vorrat die Zielmenge erfüllt – die Schwelle dafür ist
+  eine eigene Einstellung. Das Wort sagt das jetzt.
+- **Die Build-Liste am Talentfenster kürzte jede Zeile** und zeigte den
+  ganzen Text nirgends. Sie ist breiter, und sie antwortet im Zeiger.
+- Der besondere Sockel, von dem es einen gibt, meldete „1 sockets".
+- Die Einkaufsliste neben dem Auktionshaus hörte mitten im Satz auf.
+
 ## [1.1.10] - 2026-10-01
 
 ### Neu
