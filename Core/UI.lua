@@ -3033,6 +3033,7 @@ local function resetRow(row)
     -- aendert sie sich nicht. Also behielt in der Ausruestung jede
     -- Zeile die schmale Spalte des Rasters, und die Namen standen
     -- abgeschnitten da, obwohl rechts Platz war.
+    row.__textW = nil
     local w = tonumber(contentWidth())
     if w and w > 0 then
         row.title:SetWidth(math.max(80, w - 140))
@@ -3295,6 +3296,9 @@ local function setDropRow(row, data)
     row.dropName = name
     row.title:ClearAllPoints()
     row.title:SetPoint("TOPLEFT", S.space.sm, -S.space.sm)
+    -- Die schmale Spalte gilt auch dann noch, wenn der Zeichner
+    -- gleich die Zeilenbreite neu setzt.
+    row.__textW = DROP_NAME_W
     row.title:SetWidth(DROP_NAME_W)
     row.title:SetWordWrap(false)
     row.title:SetText(name)
@@ -5415,50 +5419,48 @@ function UI.Refresh()
         return -S.space.lg - 2 - headerRows * MASS.HEADER_ROW - eigenerAbstand
     end
 
-    local function placeRight(widget, width)
-        if not widget:IsShown() then return end
-        if (-edge) + width > avail then
-            headerRows = headerRows + 1
-            edge = -S.space.xl
-        end
-        widget:ClearAllPoints()
-        widget:SetPoint("TOPRIGHT", edge, rowOffset())
-        edge = edge - width - gap
+
+    -- DIE WAEHLER STEHEN IMMER AN DERSELBEN STELLE.
+    --
+    -- Vorher hingen sie rechts neben dem Titel - und wanderten damit
+    -- mit ihrer Zahl: bei einem Waehler ganz rechts, bei dreien weiter
+    -- links, bei fuenfen in eine zweite Zeile. Wer zwischen zwei
+    -- Abschnitten wechselt, sucht sie dann jedes Mal neu.
+    --
+    -- Jetzt hat jeder Abschnitt denselben Aufbau: Titel, darunter der
+    -- Satz, der die Frage beantwortet, darunter die Waehler - links
+    -- beginnend, jeder so breit wie sein Text. Der erste steht immer an
+    -- derselben Stelle, egal wie viele folgen.
+    local sichtbar = {}
+    for _, pair in ipairs(ROW) do
+        if pair[1]:IsShown() then sichtbar[#sichtbar + 1] = pair end
     end
 
-    -- FUENF WAEHLER STEHEN NICHT NEBEN EINEM TITEL.
+    -- KEINE WAEHLER, KEINE ZEILE DAFUER.
     --
-    -- Rechtsbuendig gedraengt brach die Reihe um, und ein einzelner
-    -- Knopf hing in der zweiten Zeile - das sieht aus wie ein Fehler,
-    -- nicht wie eine Gestaltung. Wo es so viele sind, bekommen sie eine
-    -- eigene Zeile und die ganze Breite: jeder so breit wie sein Text,
-    -- der Rest als gleiche Luecken dazwischen.
-    local eigeneReihe = {}
-    for _, pair in ipairs(ROW) do
-        if pair[1]:IsShown() then eigeneReihe[#eigeneReihe + 1] = pair end
-    end
-    local verteilt = #eigeneReihe >= 4
-    local wrapped
-    if verteilt then
-        headerRows = 1
-        -- Platz fuer den Hinweis, der jetzt daruebersteht.
-        eigenerAbstand = S.space.xl
-        local breite = contentWidth() - 2 * S.space.xl
-        local summe = 0
-        for _, pair in ipairs(eigeneReihe) do summe = summe + pair[2] end
-        local luecke = #eigeneReihe > 1
-            and math.max(gap, (breite - summe) / (#eigeneReihe - 1)) or gap
-        local x = S.space.xl
-        for _, pair in ipairs(eigeneReihe) do
-            pair[1]:ClearAllPoints()
-            pair[1]:SetPoint("TOPLEFT", x, rowOffset())
-            x = x + pair[2] + luecke
+    -- Die Erinnerung hat keinen einzigen - dort stand die Liste
+    -- siebzig Pixel tiefer als noetig, mit einem leeren Streifen
+    -- darueber, in dem bei anderen Abschnitten etwas steht.
+    local hatWaehler = #sichtbar > 0
+    headerRows = hatWaehler and 1 or 0
+    -- Platz fuer den Hinweis, der ueber der Reihe steht.
+    eigenerAbstand = hatWaehler and S.space.xl or 0
+
+    local x, zeile = S.space.xl, 0
+    local breite = contentWidth() - S.space.xl
+    for _, pair in ipairs(sichtbar) do
+        -- Passt der naechste nicht mehr, faengt eine zweite Reihe an.
+        -- Lieber umbrechen als ueber den Rand laufen.
+        if x + pair[2] > breite and x > S.space.xl then
+            zeile = zeile + 1
+            x = S.space.xl
         end
-        wrapped = true
-    else
-        for _, pair in ipairs(ROW) do placeRight(pair[1], pair[2]) end
-        wrapped = headerRows > 0
+        pair[1]:ClearAllPoints()
+        pair[1]:SetPoint("TOPLEFT", x, rowOffset() - zeile * MASS.HEADER_ROW)
+        x = x + pair[2] + gap
     end
+    headerRows = headerRows + zeile
+    local wrapped = true
     sectionCount:ClearAllPoints()
     sectionCount:SetPoint("TOPRIGHT", edge, rowOffset() - 1)
 
@@ -5497,7 +5499,7 @@ function UI.Refresh()
     -- Ausgerechnet statt geschaetzt: Oberkante der Reihe plus
     -- Knopfhoehe plus ein Abstand, minus dem Rand, den das Setzen
     -- ohnehin dazugibt.
-    if wrapped and not verteilt then
+    if false then
         local unten = S.space.lg + 2 + headerRows * MASS.HEADER_ROW
             + MASS.HEADER_BUTTON_H + S.space.sm - S.space.xl
         if unten > hintTop then hintTop = unten end
@@ -5506,7 +5508,7 @@ function UI.Refresh()
     -- unter dem Titel, wo man ihn liest, bevor man die Waehler
     -- anfasst. Er beantwortet ja die Frage, die die Waehler nur
     -- verstellen.
-    if verteilt then hintTop = S.space.md + 2 end
+    hintTop = S.space.md + 2
     hintText:ClearAllPoints()
     hintText:SetPoint("TOPLEFT", S.space.xl, -S.space.xl - hintTop)
     local hintHeight = 0
@@ -5514,9 +5516,9 @@ function UI.Refresh()
         hintHeight = math.max(14, hintText:GetStringHeight() or 14)
     end
     local scrollTop = hintTop + hintHeight + (hintHeight > 0 and S.space.md or S.space.sm)
-    if verteilt then
+    if hatWaehler then
         -- Unter der Knopfreihe, nicht unter dem Hinweis: die Reihe
-        -- steht jetzt zwischen beiden.
+        -- steht zwischen beiden.
         local unten = S.space.lg + 2 + headerRows * MASS.HEADER_ROW + eigenerAbstand
             + MASS.HEADER_BUTTON_H + S.space.md - S.space.xl
         if unten > scrollTop then scrollTop = unten end
@@ -5532,8 +5534,14 @@ function UI.Refresh()
             -- Platz fuer das Symbol links und den Anteil rechts. Bei
             -- einem schmalen Fenster ist das der Unterschied zwischen
             -- Umbruch und Text unter dem Prozentwert.
-            row.title:SetWidth(math.max(80, width - 140))
-            row.detail:SetWidth(math.max(80, width - 140))
+            --
+            -- AUSSER die Zeilenart sagt etwas anderes. Das
+            -- Fundort-Raster haelt seine beiden Textspalten schmal,
+            -- weil rechts die Kaestchen stehen; hier nachtraeglich
+            -- verbreitert, lief die Unterzeile quer durch sie hindurch.
+            local textW = rawget(row, "__textW") or math.max(80, width - 140)
+            row.title:SetWidth(textW)
+            row.detail:SetWidth(textW)
         end
         -- AUF GANZE BILDSCHIRMPIXEL.
         --
@@ -5660,7 +5668,14 @@ function UI.Refresh()
             -- schlimmer als abgeschnitten.
             local fs = S.fontScale or 1
             local height = (data.kind == "stat" and MASS.STAT_ROW_HEIGHT or MASS.ROW_HEIGHT) * fs
-            if data.kind ~= "stat" and (row.detail:GetText() or "") ~= "" then
+            -- Das Fundort-Raster NICHT: es setzt seine beiden
+            -- Textspalten selbst und schmal, weil rechts die Kaestchen
+            -- stehen. Hier nachtraeglich ueber die ganze Zeile
+            -- gespannt, lief die Unterzeile quer durch sie hindurch -
+            -- bei einem schmalen Fenster stand "1 hast du besser"
+            -- mitten in den Symbolen.
+            if data.kind ~= "stat" and data.kind ~= "droprow"
+                and (row.detail:GetText() or "") ~= "" then
                 row.detail:ClearAllPoints()
                 row.detail:SetPoint("TOPLEFT", row.title, "BOTTOMLEFT", 0, -2)
                 row.detail:SetPoint("RIGHT", row, "RIGHT", -60, 0)
@@ -5717,14 +5732,19 @@ function UI.Refresh()
         S:Recolor(hintText, "warning")
     end
 
-    local missing = ns.List.BuyCount(shown)
-    local countText = missing > 0 and L["COUNT_MISSING"]:format(missing) or ""
-    -- Deckt die Liste mehr als die gezeigte Spec ab, muss das sichtbar
-    -- sein: sonst drueckt jemand den Knopf und bekommt mehr, als er sieht.
+    -- KEINE ZAHL MEHR OBEN RECHTS.
+    --
+    -- "2 zu kaufen" stand ueber einer Liste, in der jede Zeile selbst
+    -- sagt, wie viel ihr fehlt. Zweimal dieselbe Auskunft, und die
+    -- obere hing in der Ecke, wo sonst nichts steht.
+    --
+    -- WAS BLEIBT, ist der Hinweis auf mehrere Speccs: der sagt etwas,
+    -- das in keiner Zeile steht - dass der Knopf unten mehr einkauft,
+    -- als diese Seite zeigt.
     local specCount = #ns.Profile.ShoppingSpecs()
+    local countText = ""
     if specCount > 1 and MASS.SHOPPING[section.key] then
         countText = L["COUNT_SPECS"]:format(specCount)
-            .. (missing > 0 and ("  ·  " .. L["COUNT_MISSING"]:format(missing)) or "")
     end
     sectionCount:SetText(countText)
 
@@ -7105,7 +7125,9 @@ local TP_WIDTH = 260
 local TP_ROWS = 7
 local TP_ROW_H = 38
 -- So hoch, wie die Liste braucht: Kopf, Waehler, sieben Zeilen, Fuss.
-local TP_HEIGHT = 74 + 7 * (38 + 2) + 46
+-- Wo die erste Zeile anfaengt: unter Titel und Waehler.
+local TP_TOP = 62
+local TP_HEIGHT = TP_TOP + 7 * (38 + 2) + 46
 
 ---Blizzards Talentfenster, wie es in dieser Fassung heisst.
 ---
@@ -7288,10 +7310,12 @@ local function buildTalentPanel()
     p.title:SetPoint("TOPLEFT", S.space.md, -S.space.md)
     p.title:SetText(L["TP_TITLE"])
 
-    p.note = S:Text(p, "caption", "textSecondary")
-    p.note:SetPoint("TOPLEFT", S.space.md, -S.space.md - 20)
-    p.note:SetWidth(TP_WIDTH - S.space.md * 2)
-    p.note:SetWordWrap(false)
+    -- KEINE ZEILE "GEMESSEN FUER".
+    --
+    -- Darunter stand ein Knopf, auf dem die Aktivitaet steht. Die
+    -- Ueberschrift dazu sagte nichts, was der Knopf nicht selbst sagt -
+    -- und kostete die Zeile, die das Panel schmaler haette machen
+    -- koennen.
 
     p.close = makeButton(p, 20, 20, "X", function() p:Hide() end)
     p.close:SetPoint("TOPRIGHT", -S.space.sm, -S.space.sm)
@@ -7305,14 +7329,14 @@ local function buildTalentPanel()
     p.pick = makeButton(p, TP_WIDTH - S.space.md * 2, 22, "", function(self)
         openTalentModePicker(self)
     end)
-    p.pick:SetPoint("TOPLEFT", S.space.md, -44)
+    p.pick:SetPoint("TOPLEFT", S.space.md, -S.space.md - 22)
 
     p.rows = {}
     for i = 1, TP_ROWS do
         local r = CreateFrame("Button", nil, p)
         r:SetHeight(TP_ROW_H)
-        r:SetPoint("TOPLEFT", S.space.sm, -74 - (i - 1) * (TP_ROW_H + 2))
-        r:SetPoint("TOPRIGHT", -S.space.sm, -74 - (i - 1) * (TP_ROW_H + 2))
+        r:SetPoint("TOPLEFT", S.space.sm, -TP_TOP - (i - 1) * (TP_ROW_H + 2))
+        r:SetPoint("TOPRIGHT", -S.space.sm, -TP_TOP - (i - 1) * (TP_ROW_H + 2))
         r.bg = S:Fill(r, "bgOverlay", 0)
         r.name = S:Text(r, "body", "textPrimary")
         r.name:SetPoint("TOPLEFT", S.space.sm, -4)
@@ -7359,7 +7383,7 @@ function UI.RefreshTalentPanel()
     for _, entry in ipairs(ns.MODES or {}) do
         if entry.key == ns.Profile.Mode() then label = entry.label end
     end
-    talentPanel.note:SetText(L["TP_FROM"])
+
     -- Auf dem Knopf steht, wonach gerade nachgeschlagen wird: der
     -- Dungeon, wenn einer gewaehlt ist, sonst die Aktivitaet.
     local dungeon = ns.Profile.Dungeon("talents")
@@ -7471,9 +7495,24 @@ local function buildTalentButton(f)
         -- Gemerkt wird der Abstand zur Ecke des Talentfensters, nicht
         -- die Bildschirmkoordinate: das Fenster steht nicht immer
         -- gleich, und der Knopf soll mitwandern.
-        local dx = (self:GetLeft() or 0) - (ziel:GetLeft() or 0)
-        local dy = (self:GetBottom() or 0) - (ziel:GetBottom() or 0)
-        ns.Profile.SetTalentButtonPos(dx, dy)
+        -- tonumber, nicht "or 0": GetLeft kann nil liefern, solange die
+        -- Oberflaeche noch nicht gerechnet hat - und in der Attrappe
+        -- kommt ein Kindrahmen zurueck, der wahr ist und sich nicht
+        -- subtrahieren laesst.
+        local bx, by = tonumber(self:GetLeft()), tonumber(self:GetBottom())
+        local zx, zy = tonumber(ziel:GetLeft()), tonumber(ziel:GetBottom())
+        if not (bx and by and zx and zy) then return end
+        local dx, dy = bx - zx, by - zy
+        -- UND ER BLEIBT AM FENSTER.
+        --
+        -- Ziehbar hiess bisher ueberallhin: der Knopf liess sich mitten
+        -- auf den Bildschirm schieben, wo er zu nichts mehr gehoert -
+        -- und beim naechsten Oeffnen stand er dort wieder, ohne dass
+        -- man noch wuesste, warum.
+        local breit = (tonumber(ziel:GetWidth()) or 0) - (tonumber(self:GetWidth()) or 0)
+        local hoch = (tonumber(ziel:GetHeight()) or 0) - (tonumber(self:GetHeight()) or 0)
+        ns.Profile.SetTalentButtonPos(dx, dy, breit, hoch)
+        dx, dy = ns.Profile.TalentButtonPos()
         self:ClearAllPoints()
         self:SetPoint("BOTTOMLEFT", ziel, "BOTTOMLEFT", dx, dy)
         -- Die Liste haengt am Knopf und zieht mit.
@@ -7595,6 +7634,13 @@ end
 local function showTalentPanel()
     local f = talentFrame()
     if not f then return end
+    -- Nur ueber dem Talentbaum. Steht gerade ein anderer Reiter da,
+    -- hat der Knopf dort nichts verloren.
+    local tf = f.TalentsFrame
+    if tf and tf.IsShown and not tf:IsShown() then
+        UI.HideTalentPanel()
+        return
+    end
     if ns.Profile and ns.Profile.TalentPanel and not ns.Profile.TalentPanel() then
         if talentButton then talentButton:Hide() end
         if talentPanel then talentPanel:Hide() end
@@ -7651,11 +7697,27 @@ local function hookTalentFrame()
     if talentHooked then return end
     local f = talentFrame()
     if not f or not f.HookScript then return end
-    f:HookScript("OnShow", showTalentPanel)
+    -- DER KNOPF GEHOERT ZUM TALENTBAUM, NICHT ZUM FENSTER.
+    --
+    -- Dasselbe Fenster zeigt drei Reiter: Spezialisierung, Talente,
+    -- Zauberbuch. Am Fenster angehaengt stand der Knopf ueberall -
+    -- auch ueber dem Zauberbuch, wo er nichts zu suchen hat. Der
+    -- Talentbaum ist ein eigener Rahmen und wird mit dem Reiter
+    -- gezeigt und versteckt.
+    local tf = f.TalentsFrame
+    if tf and tf.HookScript then
+        tf:HookScript("OnShow", showTalentPanel)
+        tf:HookScript("OnHide", function() UI.HideTalentPanel() end)
+    else
+        -- Aeltere Fassungen kennen den Unterrahmen nicht.
+        f:HookScript("OnShow", showTalentPanel)
+    end
+    -- Und mit dem Fenster geht er in jedem Fall zu.
     f:HookScript("OnHide", function() UI.HideTalentPanel() end)
     talentHooked = true
-    -- Schon offen? Dann jetzt.
-    if f:IsShown() then showTalentPanel() end
+    -- Schon offen? Dann jetzt - aber nur, wenn der Talentbaum steht.
+    local offen = (tf and tf.IsShown and tf:IsShown()) or (not tf and f:IsShown())
+    if offen then showTalentPanel() end
 end
 
 local talentWatch = CreateFrame("Frame")

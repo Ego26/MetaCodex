@@ -394,7 +394,6 @@ ns.RegisterLocale("deDE", {
 })
 
 ns.RegisterLocale("deDE", {
-    ["TP_FROM"]            = "Gemessen für",
     ["TP_BUTTON"]          = "Builds",
     ["TP_COMBAT"]          = "Nicht im Kampf – das Spiel lässt dort keine Talentänderung zu.",
     ["TP_NO_IMPORT"]       = "Dieser Client kann keinen Build direkt laden. Der String steht im Kopierfeld.",

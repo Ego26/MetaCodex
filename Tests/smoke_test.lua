@@ -1205,11 +1205,16 @@ end
 -- erntet irgendwann "Diese Aktion ist gesperrt".
 do
     _G.PlayerSpellsFrame = CreateFrame("Frame", "PlayerSpellsFrame", UIParent)
+    -- Dasselbe Fenster zeigt drei Reiter; der Talentbaum ist ein
+    -- eigener Rahmen darin, und nur an dem haengt unser Knopf.
+    _G.PlayerSpellsFrame.TalentsFrame =
+        CreateFrame("Frame", nil, _G.PlayerSpellsFrame)
+    _G.PlayerSpellsFrame.TalentsFrame:Show()
     local erreicht = wow.fire("ADDON_LOADED", "Blizzard_PlayerSpells")
     check("jemand hoert auf das Talentfenster", erreicht > 0, erreicht .. " Rahmen")
 
-    local auf = _G.PlayerSpellsFrame:GetScript("OnShow")
-    if auf then auf(_G.PlayerSpellsFrame) end
+    local auf = _G.PlayerSpellsFrame.TalentsFrame:GetScript("OnShow")
+    if auf then auf(_G.PlayerSpellsFrame.TalentsFrame) end
 
     -- Erst der Knopf, noch keine Liste.
     check("die Liste springt nicht von selbst auf",
@@ -1237,6 +1242,26 @@ do
             check("ein Klick laeuft durch",
                 pcall(erste:GetScript("OnClick"), erste) == true)
         end
+
+        -- DER KNOPF BLEIBT AM TALENTFENSTER.
+        --
+        -- Ziehbar hiess ueberallhin: er liess sich mitten auf den
+        -- Bildschirm schieben, wo er zu nichts mehr gehoert.
+        ns.Profile.SetTalentButtonPos(99999, 99999, 600, 400)
+        local x, y = ns.Profile.TalentButtonPos()
+        check("zu weit rechts wird zurueckgeholt", x == 600 and y == 400,
+            x .. "/" .. y)
+        ns.Profile.SetTalentButtonPos(-50, -50, 600, 400)
+        x, y = ns.Profile.TalentButtonPos()
+        check("und zu weit links auch", x == 0 and y == 0, x .. "/" .. y)
+        ns.Profile.SetTalentButtonPos(120, 80, 600, 400)
+        x, y = ns.Profile.TalentButtonPos()
+        check("was passt, bleibt wie es ist", x == 120 and y == 80, x .. "/" .. y)
+        -- Ohne bekannte Masse wird nichts beschnitten.
+        ns.Profile.SetTalentButtonPos(99999, 1)
+        x = ns.Profile.TalentButtonPos()
+        check("ohne Masse keine Grenze", x == 99999, tostring(x))
+        ns.Profile.SetTalentButtonPos(12, 12)
 
         -- LADEN GEHT UEBER BLIZZARDS EIGENEN WEG - oder gar nicht.
         --
@@ -1266,10 +1291,10 @@ do
         -- Abschaltbar - und dann gibt es auch keinen Knopf.
         check("standardmaessig an", ns.Profile.TalentPanel() == true)
         ns.Profile.SetTalentPanel(false)
-        if auf then auf(_G.PlayerSpellsFrame) end
+        if auf then auf(_G.PlayerSpellsFrame.TalentsFrame) end
         check("abgeschaltet bleibt beides zu", panel:IsShown() == false)
         ns.Profile.SetTalentPanel(true)
-        if auf then auf(_G.PlayerSpellsFrame) end
+        if auf then auf(_G.PlayerSpellsFrame.TalentsFrame) end
 
         -- Mit dem Talentfenster geht alles zu.
         ns.UI.ShowTalentPanel()
@@ -2310,6 +2335,30 @@ do
     rowsInSection("talents")
     check("und in M+ 'Alle Dungeons'",
         _G.MetaCodexFrame.dungeonButton.label:GetText() == ns.L["DUNGEON_ALL"])
+end
+
+-- OHNE WAEHLER KEIN PLATZ FUER WAEHLER.
+--
+-- Jeder Abschnitt hat denselben Aufbau: Titel, Hinweis, Waehlerreihe,
+-- Liste. Die Erinnerung hat keinen einzigen Waehler - dort stand die
+-- Liste siebzig Pixel tiefer als noetig, mit einem leeren Streifen
+-- darueber.
+do
+    local f = ns.UI.Frame()
+    local function listenstart()
+        for i = #f.scroll.__points, 1, -1 do
+            local p = f.scroll.__points[i]
+            if p[1] == "TOPLEFT" then return -(tonumber(p[#p]) or 0) end
+        end
+        return 0
+    end
+    rowsInSection("gear")
+    local mitWaehlern = listenstart()
+    rowsInSection("remind")
+    local ohneWaehler = listenstart()
+    check("ohne Waehler faengt die Liste frueher an",
+        ohneWaehler > 0 and ohneWaehler < mitWaehlern,
+        ohneWaehler .. " gegen " .. mitWaehlern)
 end
 
 -- DAS MENUE BESTIMMT DIE MINDESTHOEHE.
@@ -3521,11 +3570,17 @@ do
     f:SetWidth(960)
     rowsInSection("gear")
     local wide = buttonY()
-    check("breit: Knoepfe stehen neben dem Titel", wide > -30, tostring(wide))
+    -- IMMER UNTER DEM TITEL, egal wie breit.
+    --
+    -- Frueher hingen die Waehler rechts neben dem Titel und rutschten
+    -- erst bei schmalem Fenster darunter - und wanderten ausserdem mit
+    -- ihrer Zahl. Wer zwischen zwei Abschnitten wechselt, sucht sie
+    -- dann jedes Mal neu.
+    check("breit: die Reihe steht unter dem Titel", wide < -30, tostring(wide))
     f:SetWidth(520)
     rowsInSection("gear")
     local narrow = buttonY()
-    check("schmal: Knoepfe rutschen unter den Titel", narrow <= wide - 20,
+    check("schmal: sie steht genauso", narrow == wide,
         narrow .. " statt " .. wide)
     check("schmal: die Liste folgt nach unten",
         (function()
@@ -3986,7 +4041,12 @@ if top then
         -- "Zurueck zu Top-Spieler" auf dem Satz.
         local hint = ns.UI.Frame().hintText
         local full = ns.UI.Frame():GetWidth() - 196 - 24 * 2 - 20
-        check("Hinweis weicht dem Zurueck-Knopf aus", hint ~= nil and (tonumber(hint:GetWidth()) or 0) > 0 and tonumber(hint:GetWidth()) <= full - 175,
+        -- Der Hinweis braucht dem Zurueck-Knopf nicht mehr
+        -- auszuweichen: der steht jetzt in der Reihe DARUNTER. Er darf
+        -- dafuer die ganze Breite nehmen - und nicht mehr.
+        check("Hinweis nimmt die Breite, aber nicht mehr",
+            hint ~= nil and (tonumber(hint:GetWidth()) or 0) > 0
+            and tonumber(hint:GetWidth()) <= full + 196,
             hint and (hint:GetWidth() .. " von " .. full) or "kein Hinweis")
         if button then
             button.__scripts.OnClick(button)

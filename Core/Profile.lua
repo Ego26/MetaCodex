@@ -523,7 +523,17 @@ end
 
 ---@param x number
 ---@param y number
-function Profile.SetTalentButtonPos(x, y)
+---@param maxX number|nil  wie weit er nach rechts darf
+---@param maxY number|nil  und nach oben
+function Profile.SetTalentButtonPos(x, y, maxX, maxY)
+    -- INNERHALB DES FENSTERS, wenn wir dessen Masse kennen.
+    --
+    -- Ziehbar hiess sonst ueberallhin: der Knopf liess sich mitten auf
+    -- den Bildschirm schieben, wo er zu nichts mehr gehoert - und beim
+    -- naechsten Oeffnen stand er dort wieder, ohne dass man noch
+    -- wuesste, warum.
+    if maxX and maxX > 0 then x = math.max(0, math.min(maxX, x)) end
+    if maxY and maxY > 0 then y = math.max(0, math.min(maxY, y)) end
     MetaCodexDB.talentButton = { x = x, y = y }
 end
 

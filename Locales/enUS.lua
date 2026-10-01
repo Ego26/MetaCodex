@@ -399,7 +399,6 @@ ns.RegisterLocale("enUS", {
 
 ns.RegisterLocale("enUS", {
     -- Two groups, because they answer two different questions.
-    ["TP_FROM"]            = "Measured for",
     ["TP_BUTTON"]          = "Builds",
     ["TP_COMBAT"]          = "Not in combat - the game does not allow changing talents there.",
     ["TP_NO_IMPORT"]       = "This client cannot load a build directly. The string is in the copy box.",
