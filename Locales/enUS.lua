@@ -67,6 +67,7 @@ ns.RegisterLocale("enUS", {
     ["SET_GROUP_WINDOW"] = "Window",
     ["SET_MINIMAP"] = "Minimap button",
     ["SET_CHARBTN"] = "Button on the character frame",
+    ["SET_TALENTBTN"] = "Builds button at the talent frame",
     ["SET_SCALE"] = "Text size",
     ["SET_LANG"] = "Language",
     ["SET_LANG_AUTO"] = "Follows the client",
@@ -167,9 +168,11 @@ ns.RegisterLocale("enUS", {
 })
 
 ns.RegisterLocale("enUS", {
-    ["SOCKETS"] = "%d sockets, %d empty",
-    ["SOCKETS_OTHER"] = "%d sockets · %d with a different gem",
-    ["SOCKETS_BOTH"] = "%d sockets · %d empty · %d with a different gem",
+    ["SOCKET_COUNT"] = "%d sockets",
+    ["SOCKET_COUNT_ONE"] = "1 socket",
+    ["SOCKETS"] = "%s, %d empty",
+    ["SOCKETS_OTHER"] = "%s · %d with a different gem",
+    ["SOCKETS_BOTH"] = "%s · %d empty · %d with a different gem",
     ["IN_BAGS"] = "already in your bags",
 })
 
@@ -178,6 +181,7 @@ ns.RegisterLocale("enUS", {
     ["SOURCE_LINE"]  = "Recommendations: %s, %s",
     ["SOURCE_SAMPLE"] = "· %d measurements",
     ["SHARE_GEAR"]   = "Percent = share of the measured players wearing it.",
+    ["SHARE_TALENTS"] = "Percent = share of the measured players running it. Every string comes from a real player's client.",
     ["SHARE_CONSUM"] = "Percent = share of the measured players.",
     ["SHARE_ENCHANTS"] = "Percent: for enchants, share of those seen on that slot; for gems, share of all gems worn.",
     ["SOURCE_KEYS"]  = "from runs +%d to +%d",
@@ -339,6 +343,7 @@ ns.RegisterLocale("enUS", {
     ["REMIND_GROUP_SETTINGS"] = "Settings",
     ["REMIND_HAVE"]    = "%d of %d",
     ["REMIND_STATE_OK"]   = "enough",
+    ["REMIND_STATE_QUIET"] = "no warning",
     ["REMIND_STATE_LOW"]  = "low",
     ["REMIND_STATE_NONE"] = "none",
     ["REMIND_OPT_ON"]  = "Reminders",
@@ -494,10 +499,15 @@ ns.RegisterLocale("enUS", {
     -- One line, not an opening window. Someone at the auction house is
     -- usually there for something else.
     ["AH_PANEL_TITLE"] = "Shopping list",
-    ["AH_PANEL_COUNT_1"] = "1 thing missing — click it to search",
+    ["AH_PANEL_COUNT_1"] = "1 thing missing — click to search",
     ["AH_PANEL_LIST"] = "Create list",
     ["AH_PANEL_SEARCH"] = "Search",
-    ["AH_PANEL_COUNT"] = "%d things missing — click one to search for it",
+    -- KURZ GENUG FUER DIE PANEELBREITE.
+    --
+    -- "click one to search for it" lief ueber den Rand und stand im
+    -- Spiel als "click one to search for" da - ein Satz, der mitten im
+    -- Wort aufhoert, sieht aus wie ein Fehler und ist einer.
+    ["AH_PANEL_COUNT"] = "%d things missing — click to search",
     ["AH_PANEL_EMPTY"] = "Nothing open. You have it all.",
     ["AH_PANEL_OF"] = "%d of %d",
     ["AH_PANEL_MORE"] = "and %d more",

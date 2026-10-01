@@ -656,6 +656,19 @@ local function slotCount(n)
     return L["SLOT_COUNT"]:format(n)
 end
 
+---Dasselbe fuer Sockel: "1 socket", nicht "1 sockets".
+---
+---Im Deutschen heisst beides "Sockel", im Englischen nicht - und dort
+---stand am besonderen Sockel, von dem es nur einen gibt, dauerhaft
+---"1 sockets, 0 empty".
+---@param n number|nil
+---@return string
+local function socketCount(n)
+    n = tonumber(n) or 0
+    if n == 1 then return L["SOCKET_COUNT_ONE"] end
+    return L["SOCKET_COUNT"]:format(n)
+end
+
 ---Woher ein Gegenstand kommt - in absteigender Sicherheit.
 ---
 ---1. Das Abenteuerjournal: Boss und Instanz. Auch fuer die alten
@@ -2060,6 +2073,16 @@ local function settingsRows()
     switch(L["SET_TOOLTIP"], L["SET_GROUP_OPEN"], ns.Profile.TooltipOn(), function(value)
         ns.Profile.SetTooltipOn(value)
     end)
+    -- UND DER FUENFTE: der Knopf am Talentfenster.
+    --
+    -- Er setzt sich ungefragt in fremde Oberflaeche - an genau die
+    -- Ecke, an der bei anderen schon Raider.IO sitzt. Wer ihn nicht
+    -- will, hatte bisher keine Stelle, an der er ihn abschalten konnte;
+    -- der Schalter war da, nur nirgends zu sehen.
+    switch(L["SET_TALENTBTN"], L["SET_GROUP_OPEN"], ns.Profile.TalentPanel(), function(value)
+        ns.Profile.SetTalentPanel(value)
+        if not value then UI.HideTalentPanel() end
+    end)
 
     -- Schriftgroesse: dieselben Stufen wie /mc scale, zum Auswaehlen.
     --
@@ -3124,7 +3147,25 @@ end
 -- Kaestchen, das bei jedem Bildlauf neu entsteht, waere ein Leck.
 local DROP_ROW_HEIGHT = 54
 local DROP_CELL_W, DROP_CELL_H = 38, 46
-local DROP_NAME_W = 150
+
+-- DIE NAMENSSPALTE WAECHST MIT DEM FENSTER.
+--
+-- Sie war fest 150 breit. Das reicht fuer "Moerdergasse" und schneidet
+-- "Der Tempel von Sethraliss" mittendrin ab - und zwar auch dann, wenn
+-- rechts neben den Kaestchen noch vierhundert Punkte leer stehen: ein
+-- Dungeon hat drei Kaestchen, der Raid vierzehn, und die Spalte war fuer
+-- den Raid bemessen.
+--
+-- Jetzt nimmt sie knapp ein Drittel der Breite, nie weniger als vorher
+-- und nie mehr als 300 - darueber hinaus hilft sie keinem Namen mehr,
+-- und die Kaestchen sollen nicht umbrechen muessen, nur damit die Spalte
+-- Luft hat. Was dann immer noch nicht passt, wird gekuerzt und steht im
+-- Zeiger vollstaendig.
+local DROP_NAME_MIN = 150
+local function dropNameW()
+    local w = tonumber(contentWidth()) or 0
+    return math.max(DROP_NAME_MIN, math.min(300, math.floor(w * 0.3)))
+end
 
 local function dropCell(row, i)
     local list = cellsOf[row]
@@ -3258,7 +3299,7 @@ end
 ---Eine Zeile des Rasters fuellen.
 -- Schmaler als die Textspalte: ein Balken, der bis an ihren Rand
 -- laeuft, liest sich wie ein Fortschritt, der gleich voll ist.
-local DROP_BAR_W = DROP_NAME_W - 40
+local function dropBarW() return dropNameW() - 40 end
 
 local function dropBar(row)
     local b = barOf[row]
@@ -3268,7 +3309,6 @@ local function dropBar(row)
     b.track:SetTexture("Interface\\Buttons\\WHITE8X8")
     b.track:SetVertexColor(S:Color("bgOverlay"))
     b.track:SetHeight(S:Pixel(3))
-    b.track:SetWidth(DROP_BAR_W)
     b.track:SetPoint("TOPLEFT", S.space.sm, -40)
     b.fill = row:CreateTexture(nil, "OVERLAY")
     b.fill:SetTexture("Interface\\Buttons\\WHITE8X8")
@@ -3296,10 +3336,11 @@ local function setDropRow(row, data)
     row.dropName = name
     row.title:ClearAllPoints()
     row.title:SetPoint("TOPLEFT", S.space.sm, -S.space.sm)
-    -- Die schmale Spalte gilt auch dann noch, wenn der Zeichner
-    -- gleich die Zeilenbreite neu setzt.
-    row.__textW = DROP_NAME_W
-    row.title:SetWidth(DROP_NAME_W)
+    -- Die eigene Spalte gilt auch dann noch, wenn der Zeichner gleich
+    -- die Zeilenbreite neu setzt.
+    local nameW = dropNameW()
+    row.__textW = nameW
+    row.title:SetWidth(nameW)
     row.title:SetWordWrap(false)
     row.title:SetText(name)
 
@@ -3307,7 +3348,7 @@ local function setDropRow(row, data)
     -- schon alles traegt, soll das lesen und weitergehen.
     row.detail:ClearAllPoints()
     row.detail:SetPoint("TOPLEFT", S.space.sm, -S.space.sm - 16)
-    row.detail:SetWidth(DROP_NAME_W)
+    row.detail:SetWidth(nameW)
     row.detail:SetWordWrap(false)
     -- WIEVIEL und WIE GUT in einer Zeile.
     --
@@ -3343,9 +3384,11 @@ local function setDropRow(row, data)
     do
         local b = dropBar(row)
         local anteil = tonumber(data.rel) or 0
+        local barW = dropBarW()
+        b.track:SetWidth(barW)
         if anteil > 0 then
             b.track:Show()
-            b.fill:SetWidth(math.max(1, DROP_BAR_W * math.min(1, anteil)))
+            b.fill:SetWidth(math.max(1, barW * math.min(1, anteil)))
             -- Die Zeile, an der man gemessen hat, traegt die
             -- Akzentfarbe; alles darunter die ruhige.
             -- Gedaempft, nicht bunt. Die Zeile oben traegt die
@@ -3366,7 +3409,7 @@ local function setDropRow(row, data)
     local kombi = ns.Profile.DropsCombine()
     local gewaehlt = 0
     for _ in pairs(wunsch) do gewaehlt = gewaehlt + 1 end
-    local frei = (contentWidth() or 0) - DROP_NAME_W - S.space.md - S.space.lg
+    local frei = (contentWidth() or 0) - nameW - S.space.md - S.space.lg
     local proReihe = math.max(1, math.floor(frei / (DROP_CELL_W + 2)))
     local shown = 0
     for i, item in ipairs(data.items or {}) do
@@ -3374,7 +3417,7 @@ local function setDropRow(row, data)
         local spalte = (i - 1) % proReihe
         local c = dropCell(row, i)
         c:ClearAllPoints()
-        c:SetPoint("TOPLEFT", DROP_NAME_W + S.space.md + spalte * (DROP_CELL_W + 2),
+        c:SetPoint("TOPLEFT", nameW + S.space.md + spalte * (DROP_CELL_W + 2),
             -4 - reihe * (DROP_CELL_H + 2))
         local _, link, icon = ns.Compat.ItemInfo(item.id)
         if not icon then ns.Compat.RequestItem(item.id) end
@@ -3619,9 +3662,24 @@ local function setItemRow(row, data)
         row.detail:ClearAllPoints()
         row.detail:SetPoint("TOPLEFT", S.space.sm + 38, -S.space.sm - 16)
         local token = data.state == "ok" and "success" or data.state == "low" and "warning" or "danger"
+        -- "REICHT" NEBEN "6 FEHLEN" IST EIN WIDERSPRUCH.
+        --
+        -- "ok" heisst nicht, dass der Vorrat die Zielmenge erfuellt - es
+        -- heisst, dass nicht gewarnt wird. Die Schwelle dafuer steht
+        -- unter Einstellungen und liegt ab Werk bei der Haelfte. Wer 14
+        -- von 20 hatte, las darum "14 von 20 · reicht" und daneben "6
+        -- fehlen", und beides war nach seiner eigenen Lesart wahr.
+        --
+        -- Die Zahl bleibt, das Wort wird genau: "reicht" nur, wenn es
+        -- wirklich reicht, sonst "kein Hinweis" - was der Zustand
+        -- tatsaechlich bedeutet.
+        local wort = data.state
+        if wort == "ok" and (tonumber(data.owned) or 0) < (tonumber(data.need) or 0) then
+            wort = "quiet"
+        end
         row.detail:SetText(("%s  \194\183  %s  \194\183  |cff%s%s|r"):format(
             L["CONSUM_" .. data.ckind], L["REMIND_HAVE"]:format(data.owned, data.need),
-            S:Hex(token), L["REMIND_STATE_" .. data.state:upper()]))
+            S:Hex(token), L["REMIND_STATE_" .. wort:upper()]))
         row.share:SetText(data.buy > 0 and L["NEED"]:format(data.buy) or "")
         S:Recolor(row.share, token)
         -- Wie unter Verbrauchsguetern: Klick waehlt die Zielmenge.
@@ -4079,12 +4137,13 @@ local function setItemRow(row, data)
         -- dieselbe Zahl; der Satz sagt jetzt, woraus sie besteht.
         local leer = data.empty or data.missing or 0
         local anders = math.max(0, (data.missing or 0) - leer)
+        local wieviele = socketCount(data.need)
         if leer > 0 and anders > 0 then
-            parts[#parts + 1] = L["SOCKETS_BOTH"]:format(data.need, leer, anders)
+            parts[#parts + 1] = L["SOCKETS_BOTH"]:format(wieviele, leer, anders)
         elseif anders > 0 then
-            parts[#parts + 1] = L["SOCKETS_OTHER"]:format(data.need, anders)
+            parts[#parts + 1] = L["SOCKETS_OTHER"]:format(wieviele, anders)
         else
-            parts[#parts + 1] = L["SOCKETS"]:format(data.need, leer)
+            parts[#parts + 1] = L["SOCKETS"]:format(wieviele, leer)
         end
     else
         parts[#parts + 1] = slotCount(data.need)
@@ -5156,7 +5215,15 @@ function UI.Refresh()
         currentRows, fromSource = withFallback(function(source)
             return BAU.talentRows(specID, mode, source)
         end)
-        hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted) or "")
+        -- EIN SATZ WIE AUF JEDER ANDEREN SEITE.
+        --
+        -- Hier stand "Gemessen fuer ..." - das wusste man schon, es steht
+        -- oben im Waehler. Entfernt blieb ein Loch: Titel, Leerzeile,
+        -- Waehler. Was hier fehlt, ist nicht die Wiederholung der
+        -- Auswahl, sondern wofuer die Prozente stehen - genau wie bei
+        -- Beliebt und bei den Verbrauchsguetern.
+        hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted)
+            or L["SHARE_TALENTS"])
     elseif section.key == "folio" then
         currentRows, fromSource = withFallback(function(source)
             return UI.FolioRows(specID, mode, source)
@@ -7121,7 +7188,11 @@ end
 -- Stelle. Dieses Panel haengt an UIParent und dockt nur an die
 -- Aussenkante an, genau wie die Einkaufsliste am Auktionshaus.
 local talentPanel
-local TP_WIDTH = 260
+-- Breit genug, dass ein Buildname mehr als zwei Woerter zeigt. Bei 260
+-- stand in jeder Zeile "Totemische Projektion, Wolfsaffinitaet d..." -
+-- sieben Zeilen, die alle an derselben Stelle aufhoeren, unterscheiden
+-- nichts. Breiter als 320 wird die Leiste zum zweiten Fenster.
+local TP_WIDTH = 320
 local TP_ROWS = 7
 local TP_ROW_H = 38
 -- So hoch, wie die Liste braucht: Kopf, Waehler, sieben Zeilen, Fuss.
@@ -7348,8 +7419,29 @@ local function buildTalentPanel()
         r.note:SetPoint("RIGHT", -S.space.sm, 0)
         r.note:SetJustifyH("LEFT")
         r.note:SetWordWrap(false)
-        r:SetScript("OnEnter", function(self) self.bg:SetAlpha(0.6) end)
-        r:SetScript("OnLeave", function(self) self.bg:SetAlpha(0) end)
+        -- GEKUERZT HEISST NICHT UNLESBAR.
+        --
+        -- "Totemische Projektion, Wolfsaffinitaet der Ahnen statt
+        -- Kettenheilung" passt in keine Leiste, die neben ein
+        -- Talentfenster soll. Dieselbe Regel wie in der Einkaufsliste
+        -- und im Fundort-Raster: was abgeschnitten wird, steht im Zeiger
+        -- vollstaendig.
+        r:SetScript("OnEnter", function(self)
+            self.bg:SetAlpha(0.6)
+            local voll = self.name:GetText()
+            if type(voll) ~= "string" or voll == "" then return end
+            GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+            GameTooltip:SetText(voll, 1, 1, 1, 1, true)
+            local note = self.note:GetText()
+            if type(note) == "string" and note ~= "" then
+                GameTooltip:AddLine(note, 0.7, 0.7, 0.7, true)
+            end
+            GameTooltip:Show()
+        end)
+        r:SetScript("OnLeave", function(self)
+            self.bg:SetAlpha(0)
+            GameTooltip:Hide()
+        end)
         r:SetScript("OnClick", function(self)
             if not self.text then return end
             -- Shift kopiert, wie ueberall im Addon. Ohne Shift wird

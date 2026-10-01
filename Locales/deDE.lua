@@ -67,6 +67,7 @@ ns.RegisterLocale("deDE", {
     ["SET_GROUP_WINDOW"] = "Fenster",
     ["SET_MINIMAP"] = "Knopf an der Minimap",
     ["SET_CHARBTN"] = "Knopf am Charakterfenster",
+    ["SET_TALENTBTN"] = "Build-Knopf am Talentfenster",
     ["SET_SCALE"] = "Schriftgröße",
     ["SET_LANG"] = "Sprache",
     ["SET_LANG_AUTO"] = "Folgt dem Client",
@@ -167,9 +168,11 @@ ns.RegisterLocale("deDE", {
 })
 
 ns.RegisterLocale("deDE", {
-    ["SOCKETS"] = "%d Sockel, davon %d leer",
-    ["SOCKETS_OTHER"] = "%d Sockel · %d anders belegt",
-    ["SOCKETS_BOTH"] = "%d Sockel · %d leer · %d anders belegt",
+    ["SOCKET_COUNT"] = "%d Sockel",
+    ["SOCKET_COUNT_ONE"] = "1 Sockel",
+    ["SOCKETS"] = "%s, davon %d leer",
+    ["SOCKETS_OTHER"] = "%s · %d anders belegt",
+    ["SOCKETS_BOTH"] = "%s · %d leer · %d anders belegt",
     ["IN_BAGS"] = "liegt schon in der Tasche",
 })
 
@@ -178,6 +181,7 @@ ns.RegisterLocale("deDE", {
     ["SOURCE_LINE"]  = "Empfehlungen: %s, %s",
     ["SOURCE_SAMPLE"] = "· %d Messungen",
     ["SHARE_GEAR"]   = "Prozent = Anteil der gemessenen Spieler, die es tragen.",
+    ["SHARE_TALENTS"] = "Prozent = Anteil der gemessenen Spieler, die ihn spielen. Jeder String stammt aus dem Client eines echten Spielers.",
     ["SHARE_CONSUM"] = "Prozent = Anteil der gemessenen Spieler.",
     ["SHARE_ENCHANTS"] = "Prozent: bei Verzauberungen der Anteil an denen auf diesem Platz, bei Steinen der an allen getragenen Steinen.",
     ["SOURCE_KEYS"]  = "aus Läufen +%d bis +%d",
@@ -337,6 +341,7 @@ ns.RegisterLocale("deDE", {
     ["REMIND_GROUP_SETTINGS"] = "Einstellungen",
     ["REMIND_HAVE"]    = "%d von %d",
     ["REMIND_STATE_OK"]   = "reicht",
+    ["REMIND_STATE_QUIET"] = "kein Hinweis",
     ["REMIND_STATE_LOW"]  = "knapp",
     ["REMIND_STATE_NONE"] = "leer",
     ["REMIND_OPT_ON"]  = "Erinnerungen",
