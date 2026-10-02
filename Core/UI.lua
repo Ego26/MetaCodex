@@ -2831,10 +2831,17 @@ end
 ---@param removed number[]|nil  Zauber-IDs, die er dafuer nicht nimmt
 ---@return boolean  ob etwas geschrieben wurde
 local function swapLines(added, removed)
+    -- MIT SYMBOL. Im Talentbaum erkennt man ein Talent am Bild, nicht am
+    -- Namen - und der Zeiger steht neben genau diesem Baum. Die Nummer
+    -- kommt aus derselben Abfrage wie der Name, es wird nichts geraten;
+    -- fehlt sie, steht der Name eben allein da.
     local function spellName(id)
         local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(id)
         local name = info and info.name
-        return type(name) == "string" and name or ("#" .. tostring(id))
+        name = type(name) == "string" and name or ("#" .. tostring(id))
+        local icon = tonumber(info and info.iconID)
+        if icon then return ("|T%d:16:16:0:0|t %s"):format(icon, name) end
+        return name
     end
     local function spellText(id)
         local get = C_Spell and C_Spell.GetSpellDescription
@@ -7858,6 +7865,63 @@ function UI.TalentAPIs()
     sag("  .GetConfigIDsBySpecID", C_ClassTalents and C_ClassTalents.GetConfigIDsBySpecID ~= nil)
     sag("C_Traits.GenerateImportString", C_Traits and C_Traits.GenerateImportString ~= nil)
     sag("C_Traits.GetConfigInfo", C_Traits and C_Traits.GetConfigInfo ~= nil)
+
+    -- WAS DER BAUM SELBST HERGIBT.
+    --
+    -- Fuer eine Vorschau IM Baum - gruen, was dazukaeme, rot, was
+    -- wegfiele - brauchen wir zweierlei: die Uebersetzung von einer
+    -- Zauber-Nummer auf einen Knoten, und den Rahmen, der diesen Knoten
+    -- zeichnet. Beides kann nur der Client beantworten, und beides
+    -- aendert sich mit jeder Fassung. Also wird es hier nicht
+    -- aufgezaehlt, sondern einmal gegangen.
+    ns.Print(" ")
+    local tab = tf
+    sag("  :GetTalentButtonByNodeID", tab and tab.GetTalentButtonByNodeID ~= nil)
+    sag("  :EnumerateAllTalentButtons", tab and tab.EnumerateAllTalentButtons ~= nil)
+    sag("  .nodeIDToButton", tab and rawget(tab, "nodeIDToButton") ~= nil)
+    sag("C_Traits.GetTreeNodes", C_Traits and C_Traits.GetTreeNodes ~= nil)
+    sag("C_Traits.GetNodeInfo", C_Traits and C_Traits.GetNodeInfo ~= nil)
+    sag("C_Traits.GetEntryInfo", C_Traits and C_Traits.GetEntryInfo ~= nil)
+    sag("C_Traits.GetDefinitionInfo", C_Traits and C_Traits.GetDefinitionInfo ~= nil)
+
+    local configID = C_ClassTalents and C_ClassTalents.GetActiveConfigID
+        and C_ClassTalents.GetActiveConfigID()
+    ns.Print(("%-46s %s"):format("aktive Konfiguration", tostring(configID)))
+    if not (configID and C_Traits and C_Traits.GetConfigInfo) then return end
+
+    local info = C_Traits.GetConfigInfo(configID)
+    local baeume = info and info.treeIDs or {}
+    ns.Print(("%-46s %d"):format("Baeume", #baeume))
+
+    -- Einmal die ganze Kette: Baum -> Knoten -> Eintrag -> Definition ->
+    -- Zauber. Gezaehlt wird, wie viele Zauber dabei herauskommen und wie
+    -- viele davon einen Rahmen im Baum haben.
+    local knoten, zauber, rahmen, erster = 0, 0, 0, nil
+    for _, treeID in ipairs(baeume) do
+        for _, nodeID in ipairs(C_Traits.GetTreeNodes(configID, treeID) or {}) do
+            knoten = knoten + 1
+            local node = C_Traits.GetNodeInfo(configID, nodeID)
+            for _, entryID in ipairs((node and node.entryIDs) or {}) do
+                local entry = C_Traits.GetEntryInfo(configID, entryID)
+                local def = entry and entry.definitionID
+                    and C_Traits.GetDefinitionInfo(entry.definitionID)
+                if def and def.spellID then
+                    zauber = zauber + 1
+                    if not erster then erster = { nodeID = nodeID, spellID = def.spellID } end
+                end
+            end
+            if tab and tab.GetTalentButtonByNodeID then
+                local ok, b = pcall(tab.GetTalentButtonByNodeID, tab, nodeID)
+                if ok and b then rahmen = rahmen + 1 end
+            end
+        end
+    end
+    ns.Print(("%-46s %d"):format("Knoten gesamt", knoten))
+    ns.Print(("%-46s %d"):format("davon mit Zauber-Nummer", zauber))
+    ns.Print(("%-46s %d"):format("davon mit sichtbarem Rahmen", rahmen))
+    if erster then
+        ns.Print(("%-46s Knoten %d = Zauber %d"):format("Beispiel", erster.nodeID, erster.spellID))
+    end
 end
 
 ---Knopf und Liste am Talentfenster schliessen.
