@@ -8324,16 +8324,18 @@ function UI.TalentAPIs()
         local gefunden = 0
         for _, kind in ipairs(kinder) do
             local ok = type(kind) == "table" and kind.GetBottom and kind.IsShown
-            local y = ok and tonumber(kind:GetBottom())
-            local x = ok and tonumber(kind:GetLeft())
+            -- Klammern: siehe Core/Tree.lua. Ein Aufruf ohne
+            -- Rueckgabe liefert sonst kein Argument statt nil.
+            local y = ok and tonumber((kind:GetBottom()))
+            local x = ok and tonumber((kind:GetLeft()))
             -- Nur was wirklich unten links steht und zu sehen ist.
             if y and x and kind:IsShown() and (y - unten) < 120 and (x - links) < 400 then
                 gefunden = gefunden + 1
                 zeile(("  %-28s x+%-5d y+%-5d %dx%d"):format(
                     tostring(kind.GetName and kind:GetName() or "ohne Namen"),
                     math.floor(x - links), math.floor(y - unten),
-                    math.floor(tonumber(kind:GetWidth()) or 0),
-                    math.floor(tonumber(kind:GetHeight()) or 0)))
+                    math.floor(tonumber((kind:GetWidth())) or 0),
+                    math.floor(tonumber((kind:GetHeight())) or 0)))
             end
         end
         if gefunden == 0 then zeile("  nichts gefunden") end

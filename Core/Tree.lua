@@ -375,8 +375,16 @@ function Tree.Show(spells)
         -- platziert wurden. IsVisible zaehlt auch die Eltern mit, und
         -- genau daran haengt es: der Knopf ist gezeigt, seine Leiste
         -- nicht.
+        -- KLAMMERN UM DEN AUFRUF, und zwar mit Absicht.
+        --
+        -- Ein Funktionsaufruf als letztes Argument wird auf ALLE
+        -- seine Rueckgaben ausgepackt. Gibt ein fremder Rahmen gar
+        -- keine zurueck - nicht nil, sondern nichts -, bekommt
+        -- tonumber null Argumente und wirft "value expected". Die
+        -- Klammern schneiden auf genau einen Wert, und aus nichts
+        -- wird nil.
         if not (button and button.IsVisible and button:IsVisible()
-            and button.GetLeft and tonumber(button:GetLeft())) then
+            and button.GetLeft and tonumber((button:GetLeft()))) then
             warum(spell, nodeID)
             return false
         end

@@ -1461,6 +1461,24 @@ do
         tostring(grund))
     check("  und beim Namen genannt", welcher == "Totemist", tostring(welcher))
 
+    -- EIN RAHMEN, DER GAR NICHTS ZURUECKGIBT.
+    --
+    -- Nicht nil - NICHTS. Ein Funktionsaufruf als letztes Argument wird
+    -- auf alle seine Rueckgaben ausgepackt, und bei keiner bekommt
+    -- tonumber null Argumente: "bad argument #1 to '?' (value
+    -- expected)". Im Spiel ist genau das passiert, an einem fremden
+    -- Rahmen; hier gestellt, damit es nicht wiederkommt.
+    _G.PlayerSpellsFrame.TalentsFrame = {
+        GetTalentButtonByNodeID = function()
+            return {
+                IsVisible = function() return true end,
+                GetLeft = function() end,
+            }
+        end,
+    }
+    check("ein Rahmen ohne Rueckgabe sprengt die Vorschau nicht",
+        pcall(ns.Tree.Show, wollen) == true)
+
     -- ZWEI NUMMERN, EIN TALENT.
     --
     -- Im Spiel gemessen: der Baum traegt 443454 "Schnelligkeit der
