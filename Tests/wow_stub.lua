@@ -105,6 +105,18 @@ Mock.methods.GetWidth = function(self) return rawget(self, "__w") or 0 end
 -- Eine nie gesetzte Hoehe kam darum als Tabelle zurueck statt als
 -- Zahl, und der erste Code, der damit rechnen wollte, ist gescheitert.
 Mock.methods.GetHeight = function(self) return rawget(self, "__h") or 0 end
+-- Durchsichtigkeit ist ein Zustand, den das Addon liest, nicht nur
+-- setzt: ein festgehaltener Knopf ist voll da, ein ruhender halb. Ohne
+-- diese beiden gab GetAlpha ein Kind zurueck, und jeder Vergleich mit
+-- einer Zahl starb.
+Mock.methods.SetAlpha = function(self, a) self.__alpha = a end
+Mock.methods.GetAlpha = function(self) return rawget(self, "__alpha") or 1 end
+-- Der Elternrahmen, und zwar DERSELBE: ohne diese Zeile beantwortete
+-- der Mock GetParent mit einem frischen Kind, und jeder Vergleich
+-- "gehoert dieser Knopf zu jener Zeile" war falsch - im Spiel aber
+-- richtig. Ein Test, der an einer Stelle anders antwortet als das Spiel,
+-- misst sich selbst.
+Mock.methods.GetParent = function(self) return rawget(self, "__parent") or nil end
 -- Wie hoch ein Text gesetzt waere: das Erinnerungsfenster waechst mit
 -- ihm, und ein Mock, der hier ein Kind zurueckgibt, liesse die Rechnung
 -- mit einem Laufzeitfehler sterben.

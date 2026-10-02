@@ -411,6 +411,8 @@ ns.RegisterLocale("enUS", {
     ["TP_LOADED"]          = "Loaded: %s",
     ["TP_HINT2"]           = "Click loads the build · Shift-click copies the string · Drag to move the list",
     ["TP_DRAG"]            = "Drag to move",
+    ["TP_PIN"]             = "Hold this preview",
+    ["TP_PIN_HINT"]        = "The frames stay in the tree, so you can go up and read what a talent does.",
     ["TP_TOOLTIP"]         = "The builds the best of your spec play",
     ["TP_TITLE"]           = "Builds",
     ["TP_NODES"]           = "%d talents",

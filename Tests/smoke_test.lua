@@ -1313,6 +1313,44 @@ do
         px = ns.Profile.TalentPanelPos()
         check("  und laesst sich wieder vergessen", px == nil, tostring(px))
 
+        -- FESTHALTEN, DAMIT MAN IM BAUM NACHSEHEN KANN.
+        --
+        -- Die Vorschau hing am Zeiger: sichtbar nur, solange die Maus
+        -- auf der Zeile stand - und genau dann kam man nicht hinauf, um
+        -- ein markiertes Talent anzuschauen. Was Blizzard ueber ein
+        -- Talent sagt, steht an seinem Symbol.
+        ns.UI.ShowTalentPanel()
+        local fest
+        for _, r in ipairs(panel.rows) do
+            if r:IsShown() and rawget(r, "spells") and not fest then fest = r end
+        end
+        check("eine Zeile laesst sich festhalten", fest ~= nil and fest.pin ~= nil)
+        if fest and fest.pin then
+            fest.pin.__scripts.OnClick(fest.pin)
+            check("  festgehalten faellt sie auf", fest.pin.icon:GetAlpha() == 1,
+                tostring(fest.pin.icon:GetAlpha()))
+
+            local gezeigt = 0
+            local echtShow = ns.Tree.Show
+            ns.Tree.Show = function() gezeigt = gezeigt + 1 return 0, 0, 0 end
+            fest.__scripts.OnLeave(fest)
+            ns.Tree.Show = echtShow
+            check("  und bleibt stehen, wenn die Maus geht", gezeigt == 1,
+                gezeigt .. " mal gezeichnet")
+
+            -- Losgelassen raeumt sie sich weg.
+            fest.pin.__scripts.OnClick(fest.pin)
+            check("  losgelassen tritt sie zurueck", fest.pin.icon:GetAlpha() < 1,
+                tostring(fest.pin.icon:GetAlpha()))
+            local versteckt = 0
+            local echtHide = ns.Tree.Hide
+            ns.Tree.Hide = function() versteckt = versteckt + 1 end
+            fest.__scripts.OnLeave(fest)
+            ns.Tree.Hide = echtHide
+            check("  und die Maus raeumt wieder auf", versteckt == 1,
+                versteckt .. " mal")
+        end
+
         -- Mit dem Talentfenster geht alles zu.
         ns.UI.ShowTalentPanel()
         local zu = _G.PlayerSpellsFrame:GetScript("OnHide")

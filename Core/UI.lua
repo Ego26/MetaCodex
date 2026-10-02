@@ -7306,6 +7306,11 @@ local talentPanel
 local TP_WIDTH = 320
 local TP_ROWS = 7
 local TP_ROW_H = 38
+-- Der Knopf zum Festhalten, rechts in jeder Zeile.
+local TP_PIN = 18
+-- Welche Zeile gerade festgehalten wird. Nil heisst: keine, und dann
+-- gilt wieder der Zeiger.
+local pinnedRow
 -- So hoch, wie die Liste braucht: Kopf, Waehler, sieben Zeilen, Fuss.
 -- Wo die erste Zeile anfaengt: unter Titel und Waehler.
 local TP_TOP = 62
@@ -7584,14 +7589,47 @@ local function buildTalentPanel()
         r.bg = S:Fill(r, "bgOverlay", 0)
         r.name = S:Text(r, "body", "textPrimary")
         r.name:SetPoint("TOPLEFT", S.space.sm, -4)
-        r.name:SetPoint("RIGHT", -S.space.sm, 0)
+        r.name:SetPoint("RIGHT", -S.space.sm - TP_PIN, 0)
         r.name:SetJustifyH("LEFT")
         r.name:SetWordWrap(false)
         r.note = S:Text(r, "caption", "textSecondary")
         r.note:SetPoint("TOPLEFT", S.space.sm, -20)
-        r.note:SetPoint("RIGHT", -S.space.sm, 0)
+        r.note:SetPoint("RIGHT", -S.space.sm - TP_PIN, 0)
         r.note:SetJustifyH("LEFT")
         r.note:SetWordWrap(false)
+
+        -- FESTHALTEN, damit man im Baum nachsehen kann.
+        --
+        -- Die Vorschau hing am Zeiger: man sah die Rahmen nur, solange
+        -- die Maus auf der Zeile stand - und genau dann konnte man nicht
+        -- hinauffahren und ein markiertes Talent anschauen. Was Blizzard
+        -- selbst ueber ein Talent sagt, steht an seinem Symbol; dorthin
+        -- muss man kommen duerfen.
+        r.pin = CreateFrame("Button", nil, r)
+        r.pin:SetSize(TP_PIN, TP_PIN)
+        r.pin:SetPoint("RIGHT", -S.space.sm, 0)
+        r.pin.icon = r.pin:CreateTexture(nil, "ARTWORK")
+        r.pin.icon:SetAllPoints()
+        r.pin.icon:SetTexture("Interface\\Common\\FavoritesIcon")
+        r.pin.icon:SetAlpha(0.3)
+        r.pin:SetScript("OnClick", function()
+            local zeile = r
+            if pinnedRow == zeile then
+                pinnedRow = nil
+                if ns.Tree then ns.Tree.Hide() end
+            else
+                pinnedRow = zeile
+                if ns.Tree then ns.Tree.Show(rawget(zeile, "spells")) end
+            end
+            UI.UpdateTalentPins()
+        end)
+        r.pin:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetText(L["TP_PIN"], 1, 1, 1)
+            GameTooltip:AddLine(L["TP_PIN_HINT"], 0.7, 0.7, 0.7, true)
+            GameTooltip:Show()
+        end)
+        r.pin:SetScript("OnLeave", function() GameTooltip:Hide() end)
         -- GEKUERZT HEISST NICHT UNLESBAR.
         --
         -- "Totemische Projektion, Wolfsaffinitaet der Ahnen statt
@@ -7634,10 +7672,17 @@ local function buildTalentPanel()
             if type(note) == "string" and note ~= "" then
                 GameTooltip:AddLine(note, 0.7, 0.7, 0.7, true)
             end
-            -- Und darunter, was dieser Build gegen was tauscht.
-            swapLines(rawget(self, "swapAdded"), rawget(self, "swapRemoved"))
+            -- KEINE LISTE "NIMMT / STATT" MEHR.
+            --
+            -- Sie stand hier mit Namen, Symbolen und Beschreibungen -
+            -- und sagte damit dasselbe wie der Baum daneben, nur
+            -- schlechter: im Baum steht an jedem Talent Blizzards
+            -- eigenes Tooltip, vollstaendig, mit Rangstufen. Zwei
+            -- Auskuenfte zur selben Frage, von denen eine die bessere
+            -- ist, sind eine zu viel. Im grossen Fenster bleibt sie: da
+            -- gibt es keinen Baum, in den man schauen koennte.
 
-            -- UND DIE VORSCHAU IM BAUM, waehrend der Zeiger hier steht.
+            -- DIE VORSCHAU IM BAUM, waehrend der Zeiger hier steht.
             --
             -- Sie ist das eigentliche Mittel: zwei Namen in einer Zeile
             -- sagen nicht, wo man hinklicken muss. Nur beim Hovern, und
@@ -7663,7 +7708,15 @@ local function buildTalentPanel()
         r:SetScript("OnLeave", function(self)
             self.bg:SetAlpha(0)
             GameTooltip:Hide()
-            if ns.Tree then ns.Tree.Hide() end
+            -- Was festgehalten ist, bleibt stehen. Sonst waere das
+            -- Festhalten sinnlos: man nimmt die Maus ja gerade weg, um
+            -- im Baum nachzusehen.
+            if not ns.Tree then return end
+            if pinnedRow then
+                ns.Tree.Show(rawget(pinnedRow, "spells"))
+            else
+                ns.Tree.Hide()
+            end
         end)
         r:SetScript("OnClick", function(self)
             if not self.text then return end
@@ -7688,9 +7741,30 @@ local function buildTalentPanel()
     return p
 end
 
+---Zeigt an, welche Zeile gerade festgehalten wird.
+function UI.UpdateTalentPins()
+    if not talentPanel then return end
+    for _, r in ipairs(talentPanel.rows or {}) do
+        if r.pin then
+            local an = (pinnedRow == r)
+            r.pin.icon:SetAlpha(an and 1 or 0.3)
+            if an then
+                local pr, pg, pb = S:Color("gold")
+                r.pin.icon:SetVertexColor(pr, pg, pb)
+            else
+                r.pin.icon:SetVertexColor(1, 1, 1)
+            end
+        end
+    end
+end
+
 ---Das Panel mit dem aktuellen Stand fuellen.
 function UI.RefreshTalentPanel()
     if not talentPanel or not talentPanel:IsShown() then return end
+    -- Eine andere Aktivitaet heisst andere Builds: was festgehalten war,
+    -- steht jetzt vielleicht gar nicht mehr in der Liste.
+    pinnedRow = nil
+    if ns.Tree then ns.Tree.Hide() end
     local rows = talentPanelRows()
     -- Woraus die Builds stammen, steht dabei: eine Kette ohne ihre
     -- Aktivitaet ist eine Zahl ohne Frage.
@@ -7730,6 +7804,7 @@ function UI.RefreshTalentPanel()
             r:Hide()
         end
     end
+    UI.UpdateTalentPins()
     if #rows == 0 then
         talentPanel.hint:SetText(L["TP_EMPTY"])
     else
@@ -8259,9 +8334,12 @@ end
 function UI.HideTalentPanel()
     if talentPanel then talentPanel:Hide() end
     if talentButton then talentButton:Hide() end
-    -- Und die Vorschau mit. Sonst bleiben gruene Rahmen auf einem Baum
-    -- stehen, dessen Liste nicht mehr da ist.
+    -- Und die Vorschau mit, festgehalten oder nicht. Sonst bleiben
+    -- gruene Rahmen auf einem Baum stehen, dessen Liste nicht mehr da
+    -- ist.
+    pinnedRow = nil
     if ns.Tree then ns.Tree.Hide() end
+    UI.UpdateTalentPins()
 end
 
 -- Angehaengt wird NUR ueber HookScript.

@@ -406,6 +406,8 @@ ns.RegisterLocale("deDE", {
     ["TP_LOADED"]          = "Geladen: %s",
     ["TP_HINT2"]           = "Klick lädt den Build · Shift-Klick kopiert den String · Ziehen verschiebt die Liste",
     ["TP_DRAG"]            = "Ziehen verschiebt ihn",
+    ["TP_PIN"]             = "Diese Vorschau festhalten",
+    ["TP_PIN_HINT"]        = "Die Rahmen bleiben im Baum stehen, damit du hinauffahren und nachlesen kannst, was ein Talent tut.",
     ["TP_TOOLTIP"]         = "Die Builds, die die Besten deiner Spec spielen",
     ["TP_TITLE"]           = "Builds",
     ["TP_NODES"]           = "%d Talente",
