@@ -8293,6 +8293,36 @@ function UI.TalentAPIs()
         zeile(("%-46s %s"):format("Held-Baeume", table.concat(namen, ", ")))
     end
 
+    -- WAS UNTEN LINKS IM TALENTFENSTER SCHON STEHT.
+    --
+    -- Unsere Vorgabe setzt den Knopf auf 12/12 von der linken unteren
+    -- Ecke - und Spieler melden, dass er dort auf Blizzards eigener
+    -- Belegungsauswahl liegt. Welcher Rahmen das ist, kann nur der
+    -- Client sagen; eine Zahl, die bei mir passt, ist keine Vorgabe.
+    if tab and tab.GetChildren then
+        zeile(" ")
+        zeile("Rahmen unten links im Talentbaum:")
+        local unten = tonumber(tab.GetBottom and tab:GetBottom()) or 0
+        local links = tonumber(tab.GetLeft and tab:GetLeft()) or 0
+        local kinder = { tab:GetChildren() }
+        local gefunden = 0
+        for _, kind in ipairs(kinder) do
+            local ok = type(kind) == "table" and kind.GetBottom and kind.IsShown
+            local y = ok and tonumber(kind:GetBottom())
+            local x = ok and tonumber(kind:GetLeft())
+            -- Nur was wirklich unten links steht und zu sehen ist.
+            if y and x and kind:IsShown() and (y - unten) < 120 and (x - links) < 400 then
+                gefunden = gefunden + 1
+                zeile(("  %-28s x+%-5d y+%-5d %dx%d"):format(
+                    tostring(kind.GetName and kind:GetName() or "ohne Namen"),
+                    math.floor(x - links), math.floor(y - unten),
+                    math.floor(tonumber(kind:GetWidth()) or 0),
+                    math.floor(tonumber(kind:GetHeight()) or 0)))
+            end
+        end
+        if gefunden == 0 then zeile("  nichts gefunden") end
+    end
+
     -- UND DIE ENTSCHEIDENDE ZAHL: was von einem echten Build ankommt.
     --
     -- Alles davor sind Eigenschaften des Baumes. Was der Spieler sieht,
