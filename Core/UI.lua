@@ -8040,6 +8040,81 @@ function UI.TalentAPIs()
             zeile(("%-46s Knoten %d = Zauber %d"):format("Beispiel",
                 erster.nodeID, erster.spellID))
         end
+
+        -- DER HELD-BAUM.
+        --
+        -- Er ist kein eigener Baum, sondern ein Unterbaum im selben:
+        -- seine Knoten tragen eine subTreeID. Und es gibt mehrere je
+        -- Spec, von denen nur einer gewaehlt ist - was die Luecke
+        -- zwischen 282 Knoten und 121 Rahmen zum Teil erklaert. Ob die
+        -- Knoten des GEWAEHLTEN einen Rahmen haben, ist die Frage, und
+        -- sie wird hier gestellt statt beantwortet.
+        zeile(" ")
+        sag("C_Traits.GetSubTreeInfo", C_Traits.GetSubTreeInfo ~= nil)
+        sag("  .HeroTalentsContainer", tab and rawget(tab, "HeroTalentsContainer") ~= nil)
+
+        local imUnter, mitRahmen, aktiv, aktivRahmen, aktivGeskillt = 0, 0, {}, 0, 0
+        for _, treeID in ipairs(baeume) do
+            for _, nodeID in ipairs(knotenVon(treeID)) do
+                local ok2, node = pcall(C_Traits.GetNodeInfo, configID, nodeID)
+                node = ok2 and node or nil
+                local sub = node and tonumber(node.subTreeID)
+                if sub then
+                    imUnter = imUnter + 1
+                    local hatRahmen = false
+                    if tab and tab.GetTalentButtonByNodeID then
+                        local okB, b = pcall(tab.GetTalentButtonByNodeID, tab, nodeID)
+                        hatRahmen = okB and b ~= nil
+                    end
+                    if hatRahmen then mitRahmen = mitRahmen + 1 end
+                    -- Welcher Unterbaum gerade gilt, sagt der Client.
+                    local istAktiv = false
+                    if C_Traits.GetSubTreeInfo then
+                        local okS, sInfo = pcall(C_Traits.GetSubTreeInfo, configID, sub)
+                        istAktiv = okS and sInfo and sInfo.isActive or false
+                        if okS and sInfo then aktiv[sub] = sInfo.name or tostring(sub) end
+                    end
+                    if istAktiv then
+                        if hatRahmen then aktivRahmen = aktivRahmen + 1 end
+                        if (tonumber(node.ranksPurchased) or 0) > 0 then
+                            aktivGeskillt = aktivGeskillt + 1
+                        end
+                    end
+                end
+            end
+        end
+        zeile(("%-46s %d"):format("Knoten im Held-Baum", imUnter))
+        zeile(("%-46s %d"):format("  davon mit Rahmen", mitRahmen))
+        zeile(("%-46s %d"):format("  im GEWAEHLTEN mit Rahmen", aktivRahmen))
+        zeile(("%-46s %d"):format("  im GEWAEHLTEN geskillt", aktivGeskillt))
+        local namen = {}
+        for id, name in pairs(aktiv) do namen[#namen + 1] = name .. " (" .. id .. ")" end
+        zeile(("%-46s %s"):format("Held-Baeume", table.concat(namen, ", ")))
+    end
+
+    -- UND DIE ENTSCHEIDENDE ZAHL: was von einem echten Build ankommt.
+    --
+    -- Alles davor sind Eigenschaften des Baumes. Was der Spieler sieht,
+    -- haengt daran, wie viele Talente UNSERER Empfehlung einen Rahmen
+    -- bekommen - und das misst nur dieser Durchlauf.
+    zeile(" ")
+    local reihen = talentPanelRows()
+    local erste = reihen[1]
+    zeile(("%-46s %d"):format("Builds in der Liste", #reihen))
+    zeile(("%-46s %d"):format("Talente im ersten Build",
+        #((erste and erste.spells) or {})))
+    if erste and erste.spells and ns.Tree then
+        local plus, minus, fehlt = ns.Tree.Show(erste.spells)
+        ns.Tree.Hide()
+        zeile(("%-46s %d"):format("  gruen gezeigt", plus))
+        zeile(("%-46s %d"):format("  rot gezeigt", minus))
+        zeile(("%-46s %d"):format("  ohne Rahmen geblieben", fehlt))
+        local map = ns.Tree.Map() or {}
+        local ohneKnoten = 0
+        for _, spell in ipairs(erste.spells) do
+            if not map[spell] then ohneKnoten = ohneKnoten + 1 end
+        end
+        zeile(("%-46s %d"):format("  davon ohne Knoten ueberhaupt", ohneKnoten))
     end
 
     -- Und alles zusammen zum Kopieren, wie beim Probe-Bericht.
