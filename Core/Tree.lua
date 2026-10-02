@@ -176,9 +176,15 @@ local TOENUNG = 0.22
 local function marker(i)
     if markers[i] then return markers[i] end
     local m = CreateFrame("Frame", nil, UIParent)
-    -- Ueber dem Talentfenster. Darunter waere er zwar da, aber unter dem
-    -- Symbol, auf das er zeigt.
-    m:SetFrameStrata("DIALOG")
+    -- UEBER DEM BAUM, ABER UNTER UNSEREN EIGENEN FENSTERN.
+    --
+    -- Auf DIALOG lagen die Rahmen ueber allem - auch ueber der
+    -- Buildliste. Knoten, die hinter ihr liegen, bekamen dann ein
+    -- gruenes Kaestchen auf das Fenster gemalt, waehrend ihr Symbol
+    -- darunter verborgen blieb: es sah aus, als schwebten Kaestchen im
+    -- Leeren. Sie gehoeren zum Knopf, also knapp ueber ihn - und die
+    -- Liste darueber.
+    m:SetFrameStrata("HIGH")
 
     -- Die Flaeche zuerst, damit die Striche darueber liegen.
     m.tint = m:CreateTexture(nil, "BACKGROUND")
@@ -273,6 +279,10 @@ function Tree.Show(spells)
         m:ClearAllPoints()
         m:SetPoint("TOPLEFT", button, "TOPLEFT", -RAND, RAND)
         m:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", RAND, -RAND)
+        -- Knapp ueber dem Knopf, zu dem er gehoert. Eine feste Zahl waere
+        -- geraten; die des Knopfes plus zwei ist gemessen.
+        local ebene = tonumber(button.GetFrameLevel and button:GetFrameLevel())
+        if ebene then m:SetFrameLevel(ebene + 2) end
         recolor(m, token)
         m:Show()
         return true

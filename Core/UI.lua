@@ -7493,7 +7493,9 @@ local function buildTalentPanel()
     if talentPanel then return talentPanel end
     local p = CreateFrame("Frame", "MetaCodexTalentList", UIParent)
     p:SetWidth(TP_WIDTH)
-    p:SetFrameStrata("HIGH")
+    -- Ueber den Rahmen der Vorschau, die auf HIGH liegen: was hinter
+    -- dieser Liste steckt, soll nicht durch sie hindurchleuchten.
+    p:SetFrameStrata("DIALOG")
     S:Fill(p, "bgBase")
     S:Border(p, "borderSubtle")
     p:Hide()
@@ -7930,13 +7932,19 @@ function UI.ShowTalentPanel()
 
     if not (platzLinks or platzRechts) then
         -- NIRGENDS PLATZ: ein fast bildschirmbreites Talentfenster laesst
-        -- aussen keine 100 Pixel. Dann ueber den Knopf, wie frueher - es
-        -- deckt etwas zu, aber es ist wenigstens da, und ziehen kann man
-        -- es.
+        -- aussen keine 100 Pixel.
+        --
+        -- Dann NEBEN den Knopf, nicht ueber ihn. Ueber ihm wuchs die
+        -- Liste senkrecht in den Baum hinein und deckte die Spalte zu,
+        -- vor der man gerade steht. Rechts daneben, auf seiner Hoehe
+        -- beginnend, bleibt die Leiste unten frei und die Liste steht
+        -- neben dem Baum statt darin - soweit sie reicht. Ganz ohne
+        -- Ueberdeckung geht es bei einem Fenster dieser Groesse nicht,
+        -- und darum ist sie ziehbar.
         if talentButton then
-            p:SetPoint("BOTTOMLEFT", talentButton, "TOPLEFT", 0, 4)
+            p:SetPoint("BOTTOMLEFT", talentButton, "BOTTOMRIGHT", S.space.md, 0)
         else
-            p:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 12, 40)
+            p:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 12, 12)
         end
     elseif nachLinks then
         p:SetPoint("TOPRIGHT", f, "TOPLEFT", -S.space.md, 0)
