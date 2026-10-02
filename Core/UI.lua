@@ -7900,14 +7900,59 @@ function UI.TalentAPIs()
         local baeume = info and info.treeIDs or {}
         zeile(("%-46s %d"):format("Baeume", #baeume))
 
+        -- WELCHE SIGNATUR, DAS SAGT DER CLIENT.
+        --
+        -- Der erste Versuch rief GetTreeNodes(configID, treeID) auf und
+        -- bekam null Knoten zurueck - kein Fehler, nur eine leere
+        -- Liste, und eine leere Liste sieht aus wie "gibt es nicht".
+        -- Also werden beide Formen probiert und BEIDE Zahlen gemeldet;
+        -- welche von beiden stimmt, ist dann keine Meinung mehr.
+        local treeID = baeume[1]
+        if treeID and C_Traits.GetTreeNodes then
+            local okA, a = pcall(C_Traits.GetTreeNodes, configID, treeID)
+            local okB, b = pcall(C_Traits.GetTreeNodes, treeID)
+            zeile(("%-46s %d"):format("GetTreeNodes(configID, treeID)",
+                (okA and type(a) == "table") and #a or -1))
+            zeile(("%-46s %d"):format("GetTreeNodes(treeID)",
+                (okB and type(b) == "table") and #b or -1))
+        end
+
+        -- Und der Weg ueber die Rahmen, die der Baum schon gebaut hat.
+        -- Er braucht gar keine Knotenliste: wer einen Rahmen hat, hat
+        -- auch dessen Knoten.
+        if tab and tab.EnumerateAllTalentButtons then
+            local n, beispiel = 0, nil
+            local ok = pcall(function()
+                for b in tab:EnumerateAllTalentButtons() do
+                    n = n + 1
+                    if not beispiel then
+                        local nodeID = b.GetNodeID and b:GetNodeID() or rawget(b, "nodeID")
+                        beispiel = tonumber(nodeID)
+                    end
+                end
+            end)
+            zeile(("%-46s %s"):format("EnumerateAllTalentButtons",
+                ok and (n .. " Rahmen") or "stolpert"))
+            zeile(("%-46s %s"):format("  erster Knoten daraus", tostring(beispiel)))
+        end
+
         -- Einmal die ganze Kette: Baum -> Knoten -> Eintrag ->
         -- Definition -> Zauber. Gezaehlt wird, wie viele Zauber dabei
         -- herauskommen, wie viele davon einen Rahmen im Baum haben und
         -- wie viele gerade geskillt sind - das letzte, weil die Vorschau
         -- gegen den eigenen Baum rechnen soll, nicht gegen einen leeren.
+        -- Die Form, die etwas liefert, gewinnt.
+        local function knotenVon(tree)
+            local ok, list = pcall(C_Traits.GetTreeNodes, configID, tree)
+            if ok and type(list) == "table" and #list > 0 then return list end
+            ok, list = pcall(C_Traits.GetTreeNodes, tree)
+            if ok and type(list) == "table" and #list > 0 then return list end
+            return {}
+        end
+
         local knoten, zauber, rahmen, geskillt, erster = 0, 0, 0, 0, nil
         for _, treeID in ipairs(baeume) do
-            for _, nodeID in ipairs(C_Traits.GetTreeNodes(configID, treeID) or {}) do
+            for _, nodeID in ipairs(knotenVon(treeID)) do
                 knoten = knoten + 1
                 local node = C_Traits.GetNodeInfo(configID, nodeID)
                 if node and (tonumber(node.ranksPurchased) or 0) > 0 then
