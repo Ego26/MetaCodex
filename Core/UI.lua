@@ -8034,35 +8034,80 @@ end
 ---200x30) und das Suchfeld (x+268, y+26, 183x30). Ein 30 Pixel hoher
 ---Knopf auf y+12 schneidet beide an.
 ---
----Also wird geschaut statt gezaehlt: ueber allem, was flach unten links
----steht, und buendig mit dessen linker Kante. Verschiebt Blizzard die
----Leiste, verschiebt sich der Knopf mit; gibt es nichts zu finden,
----bleibt es bei der alten Ecke.
----@param tf table  der Talentbaum
+---UND NEBEN ALLES, NICHT NUR NEBEN BLIZZARDS. Die erste Fassung setzte
+---ihn ueber die Leiste - also genau dorthin, wo bei vielen schon der
+---Knopf von Raider.IO steht. Das war derselbe Fehler eine Etage
+---hoeher: fremde Oberflaeche zudecken, nur eine andere.
+---
+---Also: eine Zeile ueber der Leiste, und von links nach rechts an
+---allem vorbei, was dort schon liegt - egal von wem. Gefunden wird es
+---ueber die Rahmen selbst, nicht ueber Namen: ein Addon, das wir nicht
+---kennen, zaehlt genauso. Was an UIParent haengt statt am
+---Talentfenster, sehen wir nicht - dann hilft nur Ziehen, und das geht.
+---@param f table  das Talentfenster
+---@param tf table|nil  der Talentbaum darin
+---@param breit number  wie breit unser Knopf ist
+---@param hoch number  und wie hoch
 ---@return number x, number y
-local function freierPlatz(tf)
-    local unten = tonumber((tf and tf.GetBottom and tf:GetBottom()))
-    local links = tonumber((tf and tf.GetLeft and tf:GetLeft()))
-    if not (unten and links and tf.GetChildren) then return 12, 12 end
+local function freierPlatz(f, tf, breit, hoch)
+    local bezug = tf or f
+    local unten = tonumber((bezug and bezug.GetBottom and bezug:GetBottom()))
+    local links = tonumber((bezug and bezug.GetLeft and bezug:GetLeft()))
+    if not (unten and links) then return 12, 12 end
 
-    -- Flach und unten: das ist die Leiste. Der Baum selbst ist hoch und
-    -- faellt damit heraus, ohne dass wir ihn kennen muessen.
-    local oberkante, linkeste
-    for _, kind in ipairs({ tf:GetChildren() }) do
-        local y = tonumber((kind.GetBottom and kind:GetBottom()))
-        local x = tonumber((kind.GetLeft and kind:GetLeft()))
-        local h = tonumber((kind.GetHeight and kind:GetHeight()))
-        local sichtbar = kind.IsShown and kind:IsShown()
-        if y and x and h and sichtbar and h <= 44 and (y - unten) < 80 then
-            local top = (y - unten) + h
-            if not oberkante or top > oberkante then oberkante = top end
-            if not linkeste or (x - links) < linkeste then linkeste = x - links end
+    -- Alles Flache unten einsammeln, aus beiden Rahmen: Blizzards
+    -- Felder haengen am Baum, fremde Knoepfe oft am Fenster.
+    local kaesten = {}
+    for _, wirt in ipairs({ f, tf }) do
+        if wirt and wirt.GetChildren then
+            for _, kind in ipairs({ wirt:GetChildren() }) do
+                local y = tonumber((kind.GetBottom and kind:GetBottom()))
+                local x = tonumber((kind.GetLeft and kind:GetLeft()))
+                local w = tonumber((kind.GetWidth and kind:GetWidth()))
+                local h = tonumber((kind.GetHeight and kind:GetHeight()))
+                local sichtbar = kind.IsShown and kind:IsShown()
+                -- Flach und unten. Der Baum selbst ist hoch und faellt
+                -- heraus, ohne dass wir ihn kennen muessen.
+                if y and x and w and h and sichtbar and h <= 44
+                    and (y - unten) < 130 then
+                    kaesten[#kaesten + 1] = {
+                        x = x - links, y = y - unten, w = w, h = h,
+                    }
+                end
+            end
         end
     end
-    if not oberkante then return 12, 12 end
-    return math.floor(linkeste or 12), math.floor(oberkante + S.space.sm)
-end
+    if #kaesten == 0 then return 12, 12 end
 
+    -- Die Leiste ist, was ganz unten liegt. Darueber faengt unsere
+    -- Zeile an.
+    local leiste, linkeste = 0, nil
+    for _, k in ipairs(kaesten) do
+        if k.y < 60 then
+            if k.y + k.h > leiste then leiste = k.y + k.h end
+            if not linkeste or k.x < linkeste then linkeste = k.x end
+        end
+    end
+    local y = leiste > 0 and (leiste + S.space.sm) or 12
+    local x = linkeste or 12
+
+    -- Und jetzt nach rechts an allem vorbei, was in dieser Zeile schon
+    -- liegt. Hoechstens zehn Schritte: ein Rahmen, der sich beim
+    -- Messen bewegt, soll keine Endlosschleife ergeben.
+    for _ = 1, 10 do
+        local stoerer
+        for _, k in ipairs(kaesten) do
+            local trifftY = (k.y < y + hoch) and (k.y + k.h > y)
+            local trifftX = (k.x < x + breit) and (k.x + k.w > x)
+            if trifftY and trifftX then
+                if not stoerer or (k.x + k.w) > stoerer then stoerer = k.x + k.w end
+            end
+        end
+        if not stoerer then break end
+        x = stoerer + S.space.sm
+    end
+    return math.floor(x), math.floor(y)
+end
 ---Die Buildliste oeffnen - vom Knopf aus.
 function UI.ShowTalentPanel()
     local f = talentFrame()
@@ -8132,7 +8177,10 @@ local function showTalentPanel()
     -- den Knopf mitnehmen.
     b:ClearAllPoints()
     local x, y = ns.Profile.TalentButtonPos()
-    if not (x and y) then x, y = freierPlatz(f.TalentsFrame or f) end
+    if not (x and y) then
+        x, y = freierPlatz(f, f.TalentsFrame,
+            tonumber((b:GetWidth())) or 160, tonumber((b:GetHeight())) or 30)
+    end
     b:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", x, y)
     b:Show()
 end

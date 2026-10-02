@@ -53,10 +53,13 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
   war fest 12/12 von der linken unteren Ecke; im Client gemessen stehen
   dort zwei Felder auf derselben Höhe: die Auswahl bei x+48, y+26,
   200×30, und das Suchfeld bei x+268. Ein 30 Pixel hoher Knopf auf y+12
-  schneidet beide an. Jetzt wird geschaut statt gezählt: über allem, was
-  flach in dieser Leiste steht, bündig mit dessen linker Kante.
-  Verschiebt ein Patch die Leiste, verschiebt sich der Knopf mit; ist
-  nichts zu finden, bleibt es bei der alten Ecke.
+  schneidet beide an. Jetzt wird geschaut statt gezählt: eine Zeile über dieser
+  Leiste, und dann von links nach rechts an allem vorbei, was dort schon
+  liegt – egal von wem. Dem Knopf eines anderen Addons wird ausgewichen
+  statt ihn zuzudecken; gefunden wird über die Rahmen selbst, also zählt
+  auch eines, von dem wir nie gehört haben. Verschiebt ein Patch die
+  Leiste, verschiebt sich der Knopf mit; ist nichts zu finden, bleibt es
+  bei der alten Ecke.
 - **Fundorte schnitt die Instanznamen ab, obwohl die Zeile halb leer
   war.** Die Namensspalte war fest 150 Punkte breit, bemessen für die
   Raidzeile mit ihren vierzehn Kästchen; ein Dungeon hat drei. Sie nimmt

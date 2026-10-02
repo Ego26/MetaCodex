@@ -1354,6 +1354,34 @@ do
                 gesetzt ~= nil and tonumber(gesetzt[4]) == 48,
                 tostring(gesetzt and gesetzt[4]))
         end
+        -- UND NEBEN EINEN FREMDEN KNOPF, nicht darauf.
+        --
+        -- Die Zeile ueber Blizzards Leiste ist genau die, in der bei
+        -- vielen schon Raider.IO sitzt. Sich dorthin zu setzen waere
+        -- derselbe Fehler eine Etage hoeher - fremde Oberflaeche
+        -- zudecken, nur eine andere.
+        _G.PlayerSpellsFrame.TalentsFrame = {
+            GetLeft = function() return 0 end,
+            GetBottom = function() return 0 end,
+            GetChildren = function()
+                return feld(48, 26, 200, 30), feld(268, 26, 183, 30),
+                    -- Ein fremder Knopf, genau dort, wo wir hinwollten.
+                    feld(48, 64, 150, 26)
+            end,
+        }
+        MetaCodexDB.talentButton = nil
+        if auf then auf(_G.PlayerSpellsFrame.TalentsFrame) end
+        if knopf then
+            local daneben
+            for _, punkt in ipairs(knopf.__points or {}) do
+                if punkt[1] == "BOTTOMLEFT" then daneben = punkt end
+            end
+            check("  und weicht einem fremden Knopf nach rechts aus",
+                daneben ~= nil and tonumber(daneben[4]) ~= nil
+                    and tonumber(daneben[4]) >= 198,
+                tostring(daneben and daneben[4]) .. "/" .. tostring(daneben and daneben[5]))
+        end
+
         _G.PlayerSpellsFrame.TalentsFrame = echteTF
         ns.Profile.SetTalentButtonPos(12, 12)
 
