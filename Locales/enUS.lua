@@ -665,7 +665,8 @@ ns.RegisterLocale("enUS", {
     ["SWAP_TAKES"]    = "Takes",
     ["SWAP_DROPS"]    = "Instead of",
     ["TREE_PREVIEW"]  = "In the tree: %d green to take, %d red to drop",
-    ["TREE_MISSING"]  = "%d of them are not drawn in the tree right now",
+    ["TREE_OTHER_HERO"] = "This build plays the %s hero tree: %s",
+    ["TREE_NOT_DRAWN"]  = "Not drawn in this tree: %s",
     ["TALENT_PLUS"]   = "additionally %s",
     ["TALENT_MINUS"]  = "without %s",
 })

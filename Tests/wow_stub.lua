@@ -475,6 +475,14 @@ function M.install(opts)
             { entry = 1004, spell = 500004, maxRanks = 1 },
         } },
         { node = 104, entries = { { entry = 1005, spell = 500005, maxRanks = 3 } } },
+        -- ZWEI HELD-BAEUME, einer gewaehlt. Held-Talente sind keine
+        -- eigenen Baeume, sondern Knoten mit einer subTreeID im selben;
+        -- von mehreren je Spec ist einer aktiv, und die Knoten der
+        -- anderen werden gar nicht gezeichnet. Ohne diesen Fall konnte
+        -- kein Test bemerken, dass ein Build einen anderen Held-Baum
+        -- spielt als der Spieler.
+        { node = 105, sub = 11, entries = { { entry = 1006, spell = 500006, maxRanks = 1 } } },
+        { node = 106, sub = 12, entries = { { entry = 1007, spell = 500007, maxRanks = 1 } } },
     }
     -- Was der Spieler gerade gewaehlt hat.
     -- Knoten 102 ist GESCHENKT: aktiv, aber nicht gekauft. Genau dieser
@@ -541,6 +549,7 @@ function M.install(opts)
                 -- Aktiv ist auch, was geschenkt wurde.
                 activeRank = picked and (picked.granted and 1 or picked.rank) or 0,
                 activeEntry = picked and { entryID = n.entries[picked.index].entry } or nil,
+                subTreeID = n.sub,
             }
         end,
         GetEntryInfo = function(_, entryID)
@@ -551,6 +560,12 @@ function M.install(opts)
         GetDefinitionInfo = function(defID)
             local hit = byEntry[defID]
             return hit and { spellID = hit.e.spell } or nil
+        end,
+        -- Welcher Held-Baum gilt. 11 ist gewaehlt, 12 nicht.
+        GetSubTreeInfo = function(_, subTreeID)
+            if subTreeID == 11 then return { name = "Sturmbringer", isActive = true } end
+            if subTreeID == 12 then return { name = "Totemist", isActive = false } end
+            return nil
         end,
         GetTreeHash = function() return { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 } end,
         GetLoadoutSerializationVersion = function() return 2 end,

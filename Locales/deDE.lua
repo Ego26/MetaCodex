@@ -619,7 +619,8 @@ ns.RegisterLocale("deDE", {
     ["SWAP_TAKES"]    = "Nimmt",
     ["SWAP_DROPS"]    = "Statt",
     ["TREE_PREVIEW"]  = "Im Baum: %d grün dazu, %d rot weg",
-    ["TREE_MISSING"]  = "%d davon sind gerade nicht im Baum gezeichnet",
+    ["TREE_OTHER_HERO"] = "Dieser Build spielt den Held-Baum %s: %s",
+    ["TREE_NOT_DRAWN"]  = "Nicht in diesem Baum gezeichnet: %s",
     ["TALENT_PLUS"]   = "zusätzlich %s",
     ["TALENT_MINUS"]  = "ohne %s",
 })

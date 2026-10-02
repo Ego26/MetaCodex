@@ -82,7 +82,7 @@ end
 -- kein Vergessen von aussen: ein Specwechsel bringt eine andere Nummer
 -- mit, und was geskillt ist, wird ohnehin bei jeder Vorschau neu
 -- gelesen.
-local mapConfig, spellToNode
+local mapConfig, spellToNode, nodeSubTree
 
 ---Zauber-Nummer -> Knoten im Baum.
 ---@return table<number, number>|nil
@@ -96,11 +96,21 @@ function Tree.Map()
     local ok, info = pcall(C_Traits.GetConfigInfo, configID)
     if not (ok and info and info.treeIDs) then return nil end
 
-    local out = {}
+    local out, subs = {}, {}
     for _, treeID in ipairs(info.treeIDs) do
         for _, nodeID in ipairs(nodesOf(configID, treeID)) do
             local ok2, node = pcall(C_Traits.GetNodeInfo, configID, nodeID)
-            for _, entryID in ipairs((ok2 and node and node.entryIDs) or {}) do
+            node = ok2 and node or nil
+            -- ZU WELCHEM HELD-BAUM EIN KNOTEN GEHOERT.
+            --
+            -- Held-Talente sind keine eigenen Baeume, sondern Knoten mit
+            -- einer subTreeID im selben Baum - und es gibt mehrere je
+            -- Spec, von denen einer gewaehlt ist. Wer das nicht
+            -- mitfuehrt, kann spaeter nur sagen "ein Talent fehlt" statt
+            -- "dieser Build will einen anderen Held-Baum".
+            local sub = node and tonumber(node.subTreeID)
+            if sub then subs[nodeID] = sub end
+            for _, entryID in ipairs((node and node.entryIDs) or {}) do
                 local spell = spellOfEntry(configID, entryID)
                 -- Der erste gewinnt: derselbe Zauber kann an zwei Stellen
                 -- haengen, und ein zweiter Treffer wuerde den ersten
@@ -110,8 +120,26 @@ function Tree.Map()
             end
         end
     end
-    mapConfig, spellToNode = configID, out
+    mapConfig, spellToNode, nodeSubTree = configID, out, subs
     return out
+end
+
+---Der Held-Baum eines Knotens, wenn er zu einem gehoert.
+---@param nodeID number
+---@return number|nil subTreeID
+local function subTreeOf(nodeID)
+    return nodeSubTree and nodeSubTree[nodeID] or nil
+end
+
+---Name und Zustand eines Held-Baums.
+---@param subTreeID number
+---@return string|nil name, boolean aktiv
+local function subTreeInfo(subTreeID)
+    local configID = activeConfig()
+    if not (configID and C_Traits and C_Traits.GetSubTreeInfo) then return nil, false end
+    local ok, info = pcall(C_Traits.GetSubTreeInfo, configID, subTreeID)
+    if not (ok and info) then return nil, false end
+    return info.name, info.isActive and true or false
 end
 
 ---Was du gerade geskillt hast, als Menge von Zauber-Nummern.
@@ -233,13 +261,17 @@ end
 ---@param spells number[]|nil  die vollstaendige Talentliste des Builds
 ---@return number plus   wie viele dazukaemen
 ---@return number minus  wie viele wegfielen
----@return number fehlt  wie viele davon im Baum nicht zu finden waren
+---@return table fehlt   { { spell, why, hero } } - was keinen Rahmen bekam
+---  why ist "node" (gar nicht in diesem Baum), "hero" (gehoert zu einem
+---  anderen Held-Baum, dessen Name dann in hero steht) oder "hidden"
+---  (Knoten da, aber nicht gezeichnet).
 function Tree.Show(spells)
     Tree.Hide()
-    if type(spells) ~= "table" or #spells == 0 then return 0, 0, 0 end
+    local fehlt = {}
+    if type(spells) ~= "table" or #spells == 0 then return 0, 0, fehlt end
     local map = Tree.Map()
     local tab = tabFrame()
-    if not (map and tab and tab.GetTalentButtonByNodeID) then return 0, 0, 0 end
+    if not (map and tab and tab.GetTalentButtonByNodeID) then return 0, 0, fehlt end
 
     local worn = Tree.Worn()
     local wanted = {}
@@ -248,7 +280,33 @@ function Tree.Show(spells)
         if id then wanted[id] = true end
     end
 
-    local plus, minus, fehlt = 0, 0, 0
+    local plus, minus = 0, 0
+
+    ---Warum dieses Talent keinen Rahmen bekommt.
+    ---
+    ---DREI GRUENDE, UND SIE BEDEUTEN VERSCHIEDENES. "Gar nicht in diesem
+    ---Baum" heisst meist ein PvP-Talent. "Gehoert zu einem anderen
+    ---Held-Baum" ist die wichtigste Auskunft von allen: dieser Build
+    ---spielt nicht den, den du gewaehlt hast - das sieht man dem Baum
+    ---nicht an, weil der andere gar nicht gezeichnet wird. "Knoten da,
+    ---nicht gezeichnet" bleibt als ehrliches Uebrig.
+    ---@param spell number
+    ---@param nodeID number|nil
+    local function warum(spell, nodeID)
+        if not nodeID then
+            fehlt[#fehlt + 1] = { spell = spell, why = "node" }
+            return
+        end
+        local sub = subTreeOf(nodeID)
+        if sub then
+            local name, aktiv = subTreeInfo(sub)
+            if not aktiv then
+                fehlt[#fehlt + 1] = { spell = spell, why = "hero", hero = name }
+                return
+            end
+        end
+        fehlt[#fehlt + 1] = { spell = spell, why = "hidden" }
+    end
 
     ---@param spell number
     ---@param token string
@@ -271,7 +329,7 @@ function Tree.Show(spells)
         -- nicht.
         if not (button and button.IsVisible and button:IsVisible()
             and button.GetLeft and tonumber(button:GetLeft())) then
-            fehlt = fehlt + 1
+            warum(spell, nodeID)
             return false
         end
         used = used + 1

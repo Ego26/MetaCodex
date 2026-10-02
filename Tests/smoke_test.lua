@@ -1404,7 +1404,7 @@ do
     check("  ein Zugang steht gruen im Baum", plus == (dazu and 1 or 0),
         plus .. " gruen")
     check("  ein Abgang rot", minus == 1, minus .. " rot")
-    check("  und keines geht still verloren", fehlt == 0, fehlt .. " nicht gefunden")
+    check("  und keines geht still verloren", #fehlt == 0, #fehlt .. " nicht gefunden")
 
     -- Ohne Knopf wird gezaehlt statt verschwiegen.
     _G.PlayerSpellsFrame.TalentsFrame = {
@@ -1412,7 +1412,7 @@ do
     }
     local p2, m2, f2 = ns.Tree.Show(wollen)
     check("  was der Baum nicht zeichnet, wird gemeldet",
-        p2 == 0 and m2 == 0 and f2 > 0, f2 .. " gemeldet")
+        p2 == 0 and m2 == 0 and #f2 > 0, #f2 .. " gemeldet")
 
     -- UND EIN VERSTECKTER KNOPF IST KEINER.
     --
@@ -1429,7 +1429,28 @@ do
     }
     local p3, m3, f3 = ns.Tree.Show(wollen)
     check("  ein versteckter Knopf bekommt keinen Rahmen",
-        p3 == 0 and m3 == 0 and f3 > 0, f3 .. " gemeldet")
+        p3 == 0 and m3 == 0 and #f3 > 0, #f3 .. " gemeldet")
+
+    -- UND DER GRUND WIRD GENANNT, nicht nur die Zahl.
+    --
+    -- "1 davon ist gerade nicht im Baum gezeichnet" ist wahr und
+    -- nutzlos. Der haeufigste Grund ist die wichtigste Auskunft
+    -- ueberhaupt: dieser Build spielt einen anderen Held-Baum als du -
+    -- und das sieht man dem Baum nicht an, weil der andere gar nicht
+    -- gezeichnet wird.
+    _G.PlayerSpellsFrame.TalentsFrame = {
+        GetTalentButtonByNodeID = function() return nil end,
+    }
+    -- 500007 haengt an Knoten 106, und der gehoert zu Held-Baum 12 -
+    -- dem nicht gewaehlten.
+    local _, _, f4 = ns.Tree.Show({ 500007 })
+    local grund, welcher
+    for _, luecke in ipairs(f4) do
+        if luecke.spell == 500007 then grund, welcher = luecke.why, luecke.hero end
+    end
+    check("  ein fremder Held-Baum wird als solcher erkannt", grund == "hero",
+        tostring(grund))
+    check("  und beim Namen genannt", welcher == "Totemist", tostring(welcher))
 
     ns.Tree.Hide()
     _G.PlayerSpellsFrame.TalentsFrame = echt

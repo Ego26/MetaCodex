@@ -7308,6 +7308,40 @@ local TP_ROWS = 7
 local TP_ROW_H = 38
 -- Der Knopf zum Festhalten, rechts in jeder Zeile.
 local TP_PIN = 18
+
+---Schreibt in den Zeiger, was im Baum keinen Rahmen bekommen hat.
+---@param fehlt table  aus Tree.Show: { { spell, why, hero } }
+local function treeGaps(fehlt)
+    if type(fehlt) ~= "table" or #fehlt == 0 then return end
+
+    local function name(id)
+        local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(id)
+        local n = info and info.name
+        return type(n) == "string" and n or ("#" .. tostring(id))
+    end
+
+    -- Nach Grund gebuendelt: drei Zeilen "gehoert zu Totemist" sind eine
+    -- Zeile mit drei Namen.
+    local heroNames, heroWhich, andere = {}, nil, {}
+    for _, gap in ipairs(fehlt) do
+        if gap.why == "hero" then
+            heroNames[#heroNames + 1] = name(gap.spell)
+            heroWhich = heroWhich or gap.hero
+        else
+            andere[#andere + 1] = name(gap.spell)
+        end
+    end
+
+    local wr, wg, wb = S:Color("warning")
+    if #heroNames > 0 then
+        GameTooltip:AddLine(L["TREE_OTHER_HERO"]:format(
+            heroWhich or "?", table.concat(heroNames, ", ")), wr, wg, wb, true)
+    end
+    if #andere > 0 then
+        GameTooltip:AddLine(L["TREE_NOT_DRAWN"]:format(
+            table.concat(andere, ", ")), wr, wg, wb, true)
+    end
+end
 -- Welche Zeile gerade festgehalten wird. Nil heisst: keine, und dann
 -- gilt wieder der Zeiger.
 local pinnedRow
@@ -7695,13 +7729,15 @@ local function buildTalentPanel()
                     GameTooltip:AddLine(" ")
                     GameTooltip:AddLine(L["TREE_PREVIEW"]:format(plus, minus), mr, mg, mb)
                 end
-                -- Was wir nicht im Baum finden, wird gesagt. Eine
-                -- Vorschau, die drei Talente stillschweigend auslaesst,
-                -- ist schlimmer als eine, die zugibt, dass sie es tut.
-                if fehlt > 0 then
-                    local wr, wg, wb = S:Color("warning")
-                    GameTooltip:AddLine(L["TREE_MISSING"]:format(fehlt), wr, wg, wb)
-                end
+                -- WAS KEINEN RAHMEN BEKAM, WIRD BEIM NAMEN GENANNT.
+                --
+                -- "1 davon ist gerade nicht im Baum gezeichnet" ist
+                -- wahr und nutzlos: es sagt weder welches noch warum.
+                -- Und der haeufigste Grund ist die wichtigste Auskunft
+                -- ueberhaupt - dieser Build spielt einen anderen
+                -- Held-Baum als du. Das sieht man dem Baum nicht an,
+                -- weil der andere gar nicht gezeichnet wird.
+                treeGaps(fehlt)
             end
             GameTooltip:Show()
         end)
@@ -8312,7 +8348,7 @@ function UI.TalentAPIs()
         ns.Tree.Hide()
         zeile(("%-46s %d"):format("  gruen gezeigt", plus))
         zeile(("%-46s %d"):format("  rot gezeigt", minus))
-        zeile(("%-46s %d"):format("  ohne Rahmen geblieben", fehlt))
+        zeile(("%-46s %d"):format("  ohne Rahmen geblieben", #fehlt))
         local map = ns.Tree.Map() or {}
         local ohneKnoten = 0
         for _, spell in ipairs(erste.spells) do
