@@ -8111,6 +8111,22 @@ function UI.TalentAPIs()
     -- Probe-Bericht, der denselben Weg geht.
     local zeilen = {}
     local function zeile(text) zeilen[#zeilen + 1] = text end
+
+    -- UND EIN BERICHT, DER SEINEN EIGENEN FEHLER MITBRINGT.
+    --
+    -- Eine Sonde, die stirbt, sagt gar nichts - und ausgerechnet die
+    -- Stelle, an der sie stirbt, ist die interessanteste. Was bis
+    -- dahin gemessen wurde, steht trotzdem im Fenster, und darunter,
+    -- woran es lag.
+    local function sammeln()
+
+    -- UND EIN BERICHT, DER SEINEN EIGENEN FEHLER MITBRINGT.
+    --
+    -- Eine Sonde, die stirbt, sagt gar nichts - und ausgerechnet die
+    -- Stelle, an der sie stirbt, ist die interessanteste. Was bis
+    -- dahin gemessen wurde, steht trotzdem im Fenster, und darunter,
+    -- woran es lag.
+    local function sammeln()
     local function sag(name, wert)
         zeile(("%-46s %s"):format(name, wert and "ja" or "nein"))
     end
@@ -8404,6 +8420,22 @@ function UI.TalentAPIs()
                 zeile(("    %-38s %s"):format("dessen Knoten", tostring(map[zwilling])))
             end
         end
+    end
+
+    end
+
+    local ok, fehler = pcall(sammeln)
+    if not ok then
+        zeile(" ")
+        zeile("ABGEBROCHEN: " .. tostring(fehler))
+    end
+
+    end
+
+    local ok, fehler = pcall(sammeln)
+    if not ok then
+        zeile(" ")
+        zeile("ABGEBROCHEN: " .. tostring(fehler))
     end
 
     -- Und alles zusammen zum Kopieren, wie beim Probe-Bericht.

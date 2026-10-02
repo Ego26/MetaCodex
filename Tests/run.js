@@ -147,6 +147,45 @@ const VERBOTEN = [
   console.log('  ok   nur Lua 5.1, wie im Spiel');
 }
 
+// 200 LOKALE VARIABLEN JE FUNKTION - und die Hauptebene einer Datei
+// ist eine.
+//
+// Dieselbe Art Klippe wie die 60 Upvalues: beim Ueberschreiten laedt
+// die Datei im Spiel gar nicht, ohne Fehlermeldung, die jemand suchen
+// wuerde - das Addon ist still weg. Fengari ist Lua 5.3 und laesst
+// 200 Upvalues wie 200 Locals grosszuegiger durch, merkt es also nie.
+//
+// Gezaehlt wird nur, was auf Spaltennull steht: tiefer eingerueckte
+// Locals gehoeren einer inneren Funktion und zaehlen dort.
+{
+  const warnAb = 185;
+  const grenze = 200;
+  const klagen = [];
+  for (const dir of ['Core', 'Locales']) {
+    const voll = path.join(base, dir);
+    if (!fs.existsSync(voll)) continue;
+    for (const name of fs.readdirSync(voll)) {
+      if (!name.endsWith('.lua')) continue;
+      const text = fs.readFileSync(path.join(voll, name), 'utf8');
+      let n = 0;
+      for (const zeile of text.split(String.fromCharCode(10))) {
+        if (!/^local[\s]/.test(zeile)) continue;
+        if (/^local function/.test(zeile)) { n += 1; continue; }
+        // 'local a, b, c = ...' sind drei.
+        const namen = zeile.replace(/^local[\s]+/, '').split('=')[0];
+        n += namen.split(',').length;
+      }
+      if (n >= warnAb) klagen.push(dir + '/' + name + ': ' + n + ' von ' + grenze);
+    }
+  }
+  if (klagen.length) {
+    console.error('  FAIL unter der 200-Locals-Grenze von Lua 5.1');
+    for (const k of klagen) console.error('       ' + k);
+    process.exit(1);
+  }
+  console.log('  ok   unter der 200-Locals-Grenze von Lua 5.1');
+}
+
 const code = fs.readFileSync(file, 'utf8');
 if (lauxlib.luaL_dostring(L, to_luastring(code)) !== lua.LUA_OK) {
   console.error('LUA-FEHLER: ' + lua.lua_tojsstring(L, -1));
