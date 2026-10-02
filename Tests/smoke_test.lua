@@ -1452,6 +1452,23 @@ do
         tostring(grund))
     check("  und beim Namen genannt", welcher == "Totemist", tostring(welcher))
 
+    -- ZWEI NUMMERN, EIN TALENT.
+    --
+    -- Im Spiel gemessen: der Baum traegt 443454 "Schnelligkeit der
+    -- Ahnen", die Messdaten 448861. Gleicher Name, andere Nummer, und
+    -- GetOverrideSpell verbindet die beiden nicht - ueber die Nummer
+    -- allein findet die Vorschau das Talent also nie, bei keiner Klasse.
+    -- Der Name ist die Bruecke, und beide Seiten holen ihn aus DIESEM
+    -- Client.
+    check("ein Talent mit zweiter Nummer findet seinen Knoten",
+        ns.Tree.NodeFor(900001) == 101, tostring(ns.Tree.NodeFor(900001)))
+    check("  die Nummer selbst geht weiterhin vor",
+        ns.Tree.NodeFor(500001) == 101, tostring(ns.Tree.NodeFor(500001)))
+    -- ABER NUR, WENN DER NAME EINDEUTIG IST. Knoten 107 und 108 heissen
+    -- gleich; ein Rahmen um den falschen sieht aus wie eine Auskunft.
+    check("  bei zwei gleichnamigen Knoten wird nicht geraten",
+        ns.Tree.NodeFor(900005) == nil, tostring(ns.Tree.NodeFor(900005)))
+
     ns.Tree.Hide()
     _G.PlayerSpellsFrame.TalentsFrame = echt
 end

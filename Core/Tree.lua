@@ -82,7 +82,16 @@ end
 -- kein Vergessen von aussen: ein Specwechsel bringt eine andere Nummer
 -- mit, und was geskillt ist, wird ohnehin bei jeder Vorschau neu
 -- gelesen.
-local mapConfig, spellToNode, nodeSubTree
+local mapConfig, spellToNode, nodeSubTree, nameToNode
+
+---Wie der Zauber heisst - in der Sprache dieses Clients.
+---@param id number
+---@return string|nil
+local function spellName(id)
+    local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(id)
+    local name = info and info.name
+    return type(name) == "string" and name ~= "" and name or nil
+end
 
 ---Zauber-Nummer -> Knoten im Baum.
 ---@return table<number, number>|nil
@@ -96,7 +105,7 @@ function Tree.Map()
     local ok, info = pcall(C_Traits.GetConfigInfo, configID)
     if not (ok and info and info.treeIDs) then return nil end
 
-    local out, subs = {}, {}
+    local out, subs, byName = {}, {}, {}
     for _, treeID in ipairs(info.treeIDs) do
         for _, nodeID in ipairs(nodesOf(configID, treeID)) do
             local ok2, node = pcall(C_Traits.GetNodeInfo, configID, nodeID)
@@ -117,11 +126,50 @@ function Tree.Map()
                 -- ueberschreiben, ohne dass einer der beiden falscher
                 -- waere.
                 if spell and not out[spell] then out[spell] = nodeID end
+                -- UND UNTER SEINEM NAMEN.
+                --
+                -- Dasselbe Talent kann zwei Nummern haben: der Baum
+                -- traegt 443454 "Schnelligkeit der Ahnen", die Messdaten
+                -- 448861 - gleicher Name, anderer Zauber, und
+                -- GetOverrideSpell verbindet die beiden nicht. Gemessen
+                -- im Spiel, nicht vermutet.
+                --
+                -- Der Name ist die Bruecke, weil ihn beide Seiten aus
+                -- DIESEM Client holen: unsere Daten speichern nur
+                -- Nummern, der Name kommt immer von GetSpellInfo. Damit
+                -- stimmt er auf jedem Sprachclient.
+                --
+                -- NUR WENN ER EINDEUTIG IST. Tragen zwei Knoten
+                -- denselben Namen, wird nichts gewaehlt: ein Rahmen um
+                -- den falschen Knoten ist schlimmer als keiner, weil er
+                -- aussieht wie eine Auskunft.
+                local name = spell and spellName(spell)
+                if name then
+                    if byName[name] == nil then
+                        byName[name] = nodeID
+                    elseif byName[name] ~= nodeID then
+                        byName[name] = false
+                    end
+                end
             end
         end
     end
-    mapConfig, spellToNode, nodeSubTree = configID, out, subs
+    mapConfig, spellToNode, nodeSubTree, nameToNode = configID, out, subs, byName
     return out
+end
+
+---Der Knoten zu einem Zauber - ueber die Nummer, sonst ueber den Namen.
+---@param spell number
+---@return number|nil nodeID
+function Tree.NodeFor(spell)
+    local map = Tree.Map()
+    if not map then return nil end
+    local nodeID = map[spell]
+    if nodeID then return nodeID end
+    local name = spellName(spell)
+    -- false heisst "zweimal vergeben" und faellt hier mit durch.
+    local hit = name and nameToNode and nameToNode[name]
+    return hit or nil
 end
 
 ---Der Held-Baum eines Knotens, wenn er zu einem gehoert.
@@ -311,7 +359,7 @@ function Tree.Show(spells)
     ---@param spell number
     ---@param token string
     local function mark(spell, token)
-        local nodeID = map[spell]
+        local nodeID = Tree.NodeFor(spell)
         local button = nodeID and select(2, pcall(tab.GetTalentButtonByNodeID, tab, nodeID))
         -- EIN NICHT GEFUNDENES TALENT WIRD GEZAEHLT, NICHT VERSCHWIEGEN.
         -- Von 282 Knoten tragen nur die des gewaehlten Held-Baums und

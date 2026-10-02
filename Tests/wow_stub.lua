@@ -483,6 +483,11 @@ function M.install(opts)
         -- spielt als der Spieler.
         { node = 105, sub = 11, entries = { { entry = 1006, spell = 500006, maxRanks = 1 } } },
         { node = 106, sub = 12, entries = { { entry = 1007, spell = 500007, maxRanks = 1 } } },
+        -- Zwei Knoten, EIN Name: 900004 heisst wie 900003. Ueber den
+        -- Namen darf dann nichts gefunden werden - ein Rahmen um den
+        -- falschen Knoten sieht aus wie eine Auskunft.
+        { node = 107, entries = { { entry = 1008, spell = 900003, maxRanks = 1 } } },
+        { node = 108, entries = { { entry = 1009, spell = 900004, maxRanks = 1 } } },
     }
     -- Was der Spieler gerade gewaehlt hat.
     -- Knoten 102 ist GESCHENKT: aktiv, aber nicht gekauft. Genau dieser
@@ -627,9 +632,20 @@ function M.install(opts)
     end
 
     G.C_Spell = {
+        -- ZWEI NUMMERN, EIN NAME.
+        --
+        -- Im Spiel gemessen: der Baum traegt 443454 "Schnelligkeit der
+        -- Ahnen", die Messdaten 448861 - gleicher Name, andere Nummer,
+        -- und GetOverrideSpell verbindet die beiden nicht. Hier heisst
+        -- 900001 wie 500001 (im Baum) und 900003 wie 900004, damit auch
+        -- der mehrdeutige Fall geprueft werden kann.
         GetSpellInfo = function(id)
             if not id then return nil end
-            return { name = "Zauber " .. tostring(id), iconID = 134400, spellID = id }
+            local heisst = id
+            if id == 900001 then heisst = 500001 end
+            if id == 900004 then heisst = 900003 end
+            if id == 900005 then heisst = 900003 end
+            return { name = "Zauber " .. tostring(heisst), iconID = 134400, spellID = id }
         end,
         -- Was ein Talent tut. Im Spiel ein ganzer Satz, hier einer, an
         -- dem ein Test ihn wiedererkennt.

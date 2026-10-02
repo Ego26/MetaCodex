@@ -8350,11 +8350,69 @@ function UI.TalentAPIs()
         zeile(("%-46s %d"):format("  rot gezeigt", minus))
         zeile(("%-46s %d"):format("  ohne Rahmen geblieben", #fehlt))
         local map = ns.Tree.Map() or {}
-        local ohneKnoten = 0
+        local ohneKnoten, ueberNamen = 0, 0
         for _, spell in ipairs(erste.spells) do
-            if not map[spell] then ohneKnoten = ohneKnoten + 1 end
+            if not ns.Tree.NodeFor(spell) then
+                ohneKnoten = ohneKnoten + 1
+            elseif not map[spell] then
+                -- Gefunden, aber nicht ueber die Nummer: dasselbe Talent
+                -- traegt im Baum eine andere. Wie oft das vorkommt,
+                -- gehoert gemessen - danach richtet sich, wie sehr diese
+                -- Bruecke traegt.
+                ueberNamen = ueberNamen + 1
+            end
         end
         zeile(("%-46s %d"):format("  davon ohne Knoten ueberhaupt", ohneKnoten))
+        zeile(("%-46s %d"):format("  ueber den Namen gefunden", ueberNamen))
+
+        -- WARUM EIN TALENT KEINEN KNOTEN FINDET.
+        --
+        -- "Schnelligkeit der Ahnen" steht im Baum, unsere Zuordnung
+        -- kennt sie nicht. Der Zauber ersetzt laut Tooltip einen
+        -- anderen - die Vermutung ist also, dass der Knoten den
+        -- ERSETZTEN traegt und die Messdaten den ersetzenden. Statt das
+        -- zu glauben, wird hier je fehlendem Zauber ausgegeben, was der
+        -- Client ueber ihn sagt und ob irgendein Knoten denselben NAMEN
+        -- traegt.
+        local nameOf = function(id)
+            local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(id)
+            return (info and info.name) or "?"
+        end
+        local fehlende = {}
+        for _, spell in ipairs(erste.spells) do
+            if not ns.Tree.NodeFor(spell) and #fehlende < 6 then
+                fehlende[#fehlende + 1] = spell
+            end
+        end
+        if #fehlende > 0 then
+            zeile(" ")
+            zeile("Zauber ohne Knoten, einzeln:")
+        end
+        for _, spell in ipairs(fehlende) do
+            local gesucht = nameOf(spell)
+            zeile(("  %d  %s"):format(spell, gesucht))
+
+            local ueber
+            if C_Spell and C_Spell.GetOverrideSpell then
+                local okU, wert = pcall(C_Spell.GetOverrideSpell, spell)
+                if okU then ueber = wert end
+            end
+            zeile(("    %-38s %s"):format("GetOverrideSpell", tostring(ueber)))
+
+            -- Traegt ein Zauber IM BAUM denselben Namen? Dann ist es
+            -- derselbe Knoten unter anderer Nummer.
+            local zwilling
+            for kandidat in pairs(map) do
+                if kandidat ~= spell and nameOf(kandidat) == gesucht then
+                    zwilling = kandidat
+                    break
+                end
+            end
+            zeile(("    %-38s %s"):format("gleicher Name im Baum", tostring(zwilling)))
+            if zwilling then
+                zeile(("    %-38s %s"):format("dessen Knoten", tostring(map[zwilling])))
+            end
+        end
     end
 
     -- Und alles zusammen zum Kopieren, wie beim Probe-Bericht.
