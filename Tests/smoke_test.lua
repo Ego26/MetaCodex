@@ -1296,6 +1296,67 @@ do
         ns.Profile.SetTalentPanel(true)
         if auf then auf(_G.PlayerSpellsFrame.TalentsFrame) end
 
+        -- DIE VORGABE DES KNOPFS KOMMT AUS DEM FENSTER.
+        --
+        -- Sie war 12/12 von der linken unteren Ecke, und Spieler
+        -- meldeten, dass der Knopf dort auf Blizzards Belegungsauswahl
+        -- liegt. Im Client gemessen: unten links stehen zwei Felder auf
+        -- derselben Hoehe - die Auswahl bei x+48, y+26, 200x30, und das
+        -- Suchfeld bei x+268, y+26, 183x30. Genau diese Masse stehen
+        -- hier, damit der Test dieselbe Frage stellt wie das Spiel.
+        -- Den Knopf findet der Test ueber die Liste, die an ihm haengt.
+        ns.UI.ShowTalentPanel()
+        local knopf
+        for _, punkt in ipairs(panel.__points or {}) do
+            local ziel = punkt[2]
+            local label = type(ziel) == "table" and rawget(ziel, "label")
+            if label and label.GetText and label:GetText() == ns.L["TP_BUTTON"] then
+                knopf = ziel
+            end
+        end
+
+        local echteTF = _G.PlayerSpellsFrame.TalentsFrame
+        local function feld(x, y, w, h)
+            return {
+                GetLeft = function() return x end,
+                GetBottom = function() return y end,
+                GetHeight = function() return h end,
+                GetWidth = function() return w end,
+                IsShown = function() return true end,
+            }
+        end
+        _G.PlayerSpellsFrame.TalentsFrame = {
+            GetLeft = function() return 0 end,
+            GetBottom = function() return 0 end,
+            GetChildren = function()
+                -- Belegungsauswahl, Suchfeld - und der Baum selbst, der
+                -- hoch ist und darum nicht zur Leiste zaehlt.
+                return feld(48, 26, 200, 30), feld(268, 26, 183, 30),
+                    feld(0, 81, 1612, 774)
+            end,
+        }
+        MetaCodexDB.talentButton = nil
+        check("ungezogen hat der Knopf keine gemerkte Lage",
+            select(1, ns.Profile.TalentButtonPos()) == nil)
+        -- Platziert wird er beim Oeffnen des Talentbaums, nicht beim
+        -- Oeffnen der Liste.
+        if auf then auf(_G.PlayerSpellsFrame.TalentsFrame) end
+        if knopf then
+            local gesetzt
+            for _, punkt in ipairs(knopf.__points or {}) do
+                if punkt[1] == "BOTTOMLEFT" then gesetzt = punkt end
+            end
+            check("  und steht ueber Blizzards Leiste, nicht darauf",
+                gesetzt ~= nil and tonumber(gesetzt[5]) ~= nil
+                    and tonumber(gesetzt[5]) >= 56,
+                tostring(gesetzt and gesetzt[4]) .. "/" .. tostring(gesetzt and gesetzt[5]))
+            check("  buendig mit deren linker Kante",
+                gesetzt ~= nil and tonumber(gesetzt[4]) == 48,
+                tostring(gesetzt and gesetzt[4]))
+        end
+        _G.PlayerSpellsFrame.TalentsFrame = echteTF
+        ns.Profile.SetTalentButtonPos(12, 12)
+
         -- DIE LISTE HAENGT AM KNOPF, UND NUR AM KNOPF.
         --
         -- Sie hatte einmal eine eigene gemerkte Lage. Dann liessen sich

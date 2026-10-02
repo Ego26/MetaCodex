@@ -513,12 +513,15 @@ end
 ---je nach Addon-Sammlung schon andere Knoepfe - Raider.IO unten links,
 ---anderes anderswo. Welche Ecke frei ist, weiss nur der Spieler; er
 ---zieht ihn hin, wir merken es uns.
----@return number x, number y  Abstand von der linken unteren Ecke
+---NIL HEISST "NOCH NIE GEZOGEN". Dann sucht sich der Knopf seinen Platz
+---am Talentfenster selbst, und zwar aus dem, was dort steht - eine feste
+---Zahl lag bei Spielern mitten auf Blizzards Belegungsauswahl.
+---@return number|nil x, number|nil y  Abstand von der linken unteren Ecke
 function Profile.TalentButtonPos()
     local db = MetaCodexDB or {}
     local p = db.talentButton
-    if type(p) ~= "table" then return 12, 12 end
-    return tonumber(p.x) or 12, tonumber(p.y) or 12
+    if type(p) ~= "table" then return nil, nil end
+    return tonumber(p.x), tonumber(p.y)
 end
 
 ---@param x number

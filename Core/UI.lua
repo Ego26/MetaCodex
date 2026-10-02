@@ -8025,6 +8025,44 @@ function UI.LoadBuild(text, label)
     end
 end
 
+---Wo der Knopf hin soll, wenn ihn noch niemand gezogen hat.
+---
+---NICHT GERATEN, SONDERN NACHGESEHEN. Die Vorgabe war 12/12 von der
+---linken unteren Ecke, und Spieler meldeten, dass der Knopf dort auf
+---Blizzards Belegungsauswahl liegt. Im Client gemessen: unten links
+---stehen zwei Felder auf derselben Hoehe - die Auswahl (x+48, y+26,
+---200x30) und das Suchfeld (x+268, y+26, 183x30). Ein 30 Pixel hoher
+---Knopf auf y+12 schneidet beide an.
+---
+---Also wird geschaut statt gezaehlt: ueber allem, was flach unten links
+---steht, und buendig mit dessen linker Kante. Verschiebt Blizzard die
+---Leiste, verschiebt sich der Knopf mit; gibt es nichts zu finden,
+---bleibt es bei der alten Ecke.
+---@param tf table  der Talentbaum
+---@return number x, number y
+local function freierPlatz(tf)
+    local unten = tonumber((tf and tf.GetBottom and tf:GetBottom()))
+    local links = tonumber((tf and tf.GetLeft and tf:GetLeft()))
+    if not (unten and links and tf.GetChildren) then return 12, 12 end
+
+    -- Flach und unten: das ist die Leiste. Der Baum selbst ist hoch und
+    -- faellt damit heraus, ohne dass wir ihn kennen muessen.
+    local oberkante, linkeste
+    for _, kind in ipairs({ tf:GetChildren() }) do
+        local y = tonumber((kind.GetBottom and kind:GetBottom()))
+        local x = tonumber((kind.GetLeft and kind:GetLeft()))
+        local h = tonumber((kind.GetHeight and kind:GetHeight()))
+        local sichtbar = kind.IsShown and kind:IsShown()
+        if y and x and h and sichtbar and h <= 44 and (y - unten) < 80 then
+            local top = (y - unten) + h
+            if not oberkante or top > oberkante then oberkante = top end
+            if not linkeste or (x - links) < linkeste then linkeste = x - links end
+        end
+    end
+    if not oberkante then return 12, 12 end
+    return math.floor(linkeste or 12), math.floor(oberkante + S.space.sm)
+end
+
 ---Die Buildliste oeffnen - vom Knopf aus.
 function UI.ShowTalentPanel()
     local f = talentFrame()
@@ -8094,6 +8132,7 @@ local function showTalentPanel()
     -- den Knopf mitnehmen.
     b:ClearAllPoints()
     local x, y = ns.Profile.TalentButtonPos()
+    if not (x and y) then x, y = freierPlatz(f.TalentsFrame or f) end
     b:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", x, y)
     b:Show()
 end

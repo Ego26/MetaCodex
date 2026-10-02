@@ -43,6 +43,15 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ### Fixed
 
+- **The builds button at the talent frame sat on Blizzard's own loadout
+  dropdown** for anyone who had never dragged it. The default was a
+  fixed 12/12 from the bottom left corner; measured in the client, two
+  fields stand there on the same line - the loadout dropdown at x+48,
+  y+26, 200x30, and the search box at x+268. A 30 pixel button at y+12
+  clips both. It now looks instead of counting: above whatever sits flat
+  in that bottom strip, flush with its left edge. Move that bar in a
+  patch and the button moves with it; find nothing and it falls back to
+  the old corner.
 - **Sources cut its instance names although the row was half empty.**
   The name column was fixed at 150 points, measured for the raid row and
   its fourteen boxes; a dungeon has three. It now takes a third of the
