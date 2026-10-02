@@ -1313,7 +1313,11 @@ do
                 woran = punkt[1]
             end
         end
-        check("die Liste haengt am Knopf", woran ~= nil, tostring(woran))
+        -- OBEN am Knopf: unten buendig wuchs sie nach oben, also in den
+        -- Baum hinein, ueber dem der Knopf steht.
+        check("die Liste haengt oben am Knopf",
+            type(woran) == "string" and woran:find("TOP", 1, true) == 1,
+            tostring(woran))
         check("  und laesst sich nicht selbst ziehen",
             rawget(panel, "__scripts") == nil
                 or panel.__scripts.OnDragStart == nil)

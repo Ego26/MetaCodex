@@ -8048,16 +8048,27 @@ function UI.ShowTalentPanel()
     if not b then
         p:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 12, 12)
     else
-        -- Nur wenn rechts der Bildschirm zu Ende ist, auf die andere
-        -- Seite. Eine Liste, die halb draussen steht, ist keine.
+        -- OBEN BUENDIG, NACH UNTEN AUFGEHEND.
+        --
+        -- Unten buendig wuchs sie nach oben - also genau in den Baum
+        -- hinein, ueber dem der Knopf steht. Oben am Knopf angesetzt
+        -- haengt sie unter ihm, und wer sie aus dem Weg haben will,
+        -- zieht den Knopf nach oben: die Liste folgt nach unten, wo
+        -- weniger steht.
+        local links = tonumber(b.GetLeft and b:GetLeft())
         local rechts = tonumber(b.GetRight and b:GetRight())
-        local schirm = tonumber(UIParent and UIParent.GetRight and UIParent:GetRight())
-        local passt = not (rechts and schirm) or (schirm - rechts) >= (TP_WIDTH + S.space.md)
-        if passt then
-            p:SetPoint("BOTTOMLEFT", b, "BOTTOMRIGHT", S.space.md, 0)
-        else
-            p:SetPoint("BOTTOMRIGHT", b, "BOTTOMLEFT", -S.space.md, 0)
-        end
+        local oben = tonumber(b.GetTop and b:GetTop())
+        local breit = tonumber(UIParent and UIParent.GetRight and UIParent:GetRight())
+        local nachRechts = not (rechts and breit)
+            or (breit - rechts) >= (TP_WIDTH + S.space.md)
+        -- Und nach oben nur dann, wenn nach unten der Bildschirm zu Ende
+        -- ist. Eine Liste, die halb draussen steht, ist keine.
+        local nachUnten = not oben or (oben - TP_HEIGHT) >= 0
+
+        local meine = nachUnten and "TOP" or "BOTTOM"
+        local seine = meine .. (nachRechts and "RIGHT" or "LEFT")
+        local abstand = nachRechts and S.space.md or -S.space.md
+        p:SetPoint(meine .. (nachRechts and "LEFT" or "RIGHT"), b, seine, abstand, 0)
     end
     p:Show()
     UI.RefreshTalentPanel()
