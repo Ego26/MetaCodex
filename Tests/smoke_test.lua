@@ -3578,6 +3578,21 @@ do
     check("  die Ausruestung erbt ihn nicht", rest == 0, rest .. " Zeilen")
 end
 
+-- Der Messbefehl fuer den Talentbaum: er darf nicht stolpern, und sein
+-- Bericht gehoert ins Kopierfenster, nicht in den Chat. Dreissig Zeilen
+-- Messwerte liest dort niemand, und herausholen kann man sie gar nicht.
+do
+    local gesehen
+    local echt = ns.UI.ShowText
+    ns.UI.ShowText = function(text) gesehen = text end
+    local ok, err = pcall(ns.UI.TalentAPIs)
+    ns.UI.ShowText = echt
+    check("/mc talents laeuft durch", ok, tostring(err))
+    check("  und legt den Bericht zum Kopieren hin",
+        type(gesehen) == "string" and gesehen:find("\n", 1, true) ~= nil,
+        type(gesehen) == "string" and (#gesehen .. " Zeichen") or "nichts")
+end
+
 -- ------------------------------------ Rangliste nach dem Neuladen
 
 -- Stand beim Abmelden noch ein Dungeon in der Auswahl, suchte der

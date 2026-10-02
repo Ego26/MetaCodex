@@ -7846,8 +7846,15 @@ end
 ---geschuetzt, und welcher Weg in DIESER Fassung offensteht, sagt nur
 ---der Client. Was es hier nicht gibt, wird auch nicht aufgerufen.
 function UI.TalentAPIs()
+    -- IN EIN FENSTER, NICHT IN DEN CHAT.
+    --
+    -- Dreissig Zeilen Messwerte im Chat liest niemand, und
+    -- herauskopieren kann man sie dort schon gar nicht - genau wie beim
+    -- Probe-Bericht, der denselben Weg geht.
+    local zeilen = {}
+    local function zeile(text) zeilen[#zeilen + 1] = text end
     local function sag(name, wert)
-        ns.Print(("%-46s %s"):format(name, wert and "ja" or "nein"))
+        zeile(("%-46s %s"):format(name, wert and "ja" or "nein"))
     end
     sag("PlayerSpellsFrame", _G.PlayerSpellsFrame ~= nil)
     sag("ClassTalentFrame", _G.ClassTalentFrame ~= nil)
@@ -7874,7 +7881,7 @@ function UI.TalentAPIs()
     -- zeichnet. Beides kann nur der Client beantworten, und beides
     -- aendert sich mit jeder Fassung. Also wird es hier nicht
     -- aufgezaehlt, sondern einmal gegangen.
-    ns.Print(" ")
+    zeile(" ")
     local tab = tf
     sag("  :GetTalentButtonByNodeID", tab and tab.GetTalentButtonByNodeID ~= nil)
     sag("  :EnumerateAllTalentButtons", tab and tab.EnumerateAllTalentButtons ~= nil)
@@ -7886,41 +7893,59 @@ function UI.TalentAPIs()
 
     local configID = C_ClassTalents and C_ClassTalents.GetActiveConfigID
         and C_ClassTalents.GetActiveConfigID()
-    ns.Print(("%-46s %s"):format("aktive Konfiguration", tostring(configID)))
-    if not (configID and C_Traits and C_Traits.GetConfigInfo) then return end
+    zeile(("%-46s %s"):format("aktive Konfiguration", tostring(configID)))
 
-    local info = C_Traits.GetConfigInfo(configID)
-    local baeume = info and info.treeIDs or {}
-    ns.Print(("%-46s %d"):format("Baeume", #baeume))
+    if configID and C_Traits and C_Traits.GetConfigInfo then
+        local info = C_Traits.GetConfigInfo(configID)
+        local baeume = info and info.treeIDs or {}
+        zeile(("%-46s %d"):format("Baeume", #baeume))
 
-    -- Einmal die ganze Kette: Baum -> Knoten -> Eintrag -> Definition ->
-    -- Zauber. Gezaehlt wird, wie viele Zauber dabei herauskommen und wie
-    -- viele davon einen Rahmen im Baum haben.
-    local knoten, zauber, rahmen, erster = 0, 0, 0, nil
-    for _, treeID in ipairs(baeume) do
-        for _, nodeID in ipairs(C_Traits.GetTreeNodes(configID, treeID) or {}) do
-            knoten = knoten + 1
-            local node = C_Traits.GetNodeInfo(configID, nodeID)
-            for _, entryID in ipairs((node and node.entryIDs) or {}) do
-                local entry = C_Traits.GetEntryInfo(configID, entryID)
-                local def = entry and entry.definitionID
-                    and C_Traits.GetDefinitionInfo(entry.definitionID)
-                if def and def.spellID then
-                    zauber = zauber + 1
-                    if not erster then erster = { nodeID = nodeID, spellID = def.spellID } end
+        -- Einmal die ganze Kette: Baum -> Knoten -> Eintrag ->
+        -- Definition -> Zauber. Gezaehlt wird, wie viele Zauber dabei
+        -- herauskommen, wie viele davon einen Rahmen im Baum haben und
+        -- wie viele gerade geskillt sind - das letzte, weil die Vorschau
+        -- gegen den eigenen Baum rechnen soll, nicht gegen einen leeren.
+        local knoten, zauber, rahmen, geskillt, erster = 0, 0, 0, 0, nil
+        for _, treeID in ipairs(baeume) do
+            for _, nodeID in ipairs(C_Traits.GetTreeNodes(configID, treeID) or {}) do
+                knoten = knoten + 1
+                local node = C_Traits.GetNodeInfo(configID, nodeID)
+                if node and (tonumber(node.ranksPurchased) or 0) > 0 then
+                    geskillt = geskillt + 1
+                end
+                for _, entryID in ipairs((node and node.entryIDs) or {}) do
+                    local entry = C_Traits.GetEntryInfo(configID, entryID)
+                    local def = entry and entry.definitionID
+                        and C_Traits.GetDefinitionInfo(entry.definitionID)
+                    if def and def.spellID then
+                        zauber = zauber + 1
+                        if not erster then
+                            erster = { nodeID = nodeID, spellID = def.spellID }
+                        end
+                    end
+                end
+                if tab and tab.GetTalentButtonByNodeID then
+                    local ok, b = pcall(tab.GetTalentButtonByNodeID, tab, nodeID)
+                    if ok and b then rahmen = rahmen + 1 end
                 end
             end
-            if tab and tab.GetTalentButtonByNodeID then
-                local ok, b = pcall(tab.GetTalentButtonByNodeID, tab, nodeID)
-                if ok and b then rahmen = rahmen + 1 end
-            end
+        end
+        zeile(("%-46s %d"):format("Knoten gesamt", knoten))
+        zeile(("%-46s %d"):format("davon mit Zauber-Nummer", zauber))
+        zeile(("%-46s %d"):format("davon mit sichtbarem Rahmen", rahmen))
+        zeile(("%-46s %d"):format("davon gerade geskillt", geskillt))
+        if erster then
+            zeile(("%-46s Knoten %d = Zauber %d"):format("Beispiel",
+                erster.nodeID, erster.spellID))
         end
     end
-    ns.Print(("%-46s %d"):format("Knoten gesamt", knoten))
-    ns.Print(("%-46s %d"):format("davon mit Zauber-Nummer", zauber))
-    ns.Print(("%-46s %d"):format("davon mit sichtbarem Rahmen", rahmen))
-    if erster then
-        ns.Print(("%-46s Knoten %d = Zauber %d"):format("Beispiel", erster.nodeID, erster.spellID))
+
+    -- Und alles zusammen zum Kopieren, wie beim Probe-Bericht.
+    local ganz = table.concat(zeilen, "\n")
+    if UI.ShowText then
+        UI.ShowText(ganz)
+    else
+        for _, z in ipairs(zeilen) do ns.Print(z) end
     end
 end
 
