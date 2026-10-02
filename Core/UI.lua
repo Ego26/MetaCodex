@@ -7579,8 +7579,32 @@ local function buildTalentPanel()
             self.bg:SetAlpha(0.6)
             local voll = self.name:GetText()
             if type(voll) ~= "string" or voll == "" then return end
-            local seite = talentPanel and rawget(talentPanel, "side")
-            GameTooltip:SetOwner(self, "ANCHOR_" .. (seite == "LEFT" and "LEFT" or "RIGHT"))
+
+            -- DER ZEIGER STEHT NEBEN DER LISTE, nicht neben der Zeile.
+            --
+            -- ANCHOR_RIGHT setzt ihn an die rechte obere Ecke der Zeile
+            -- und laesst ihn von dort nach oben wachsen. Bei einem
+            -- Zeiger mit vierzehn Zeilen heisst das: er schiesst ueber
+            -- die Liste hinaus mitten in den Baum, und man liest zwei
+            -- Dinge an zwei weit auseinanderliegenden Stellen.
+            --
+            -- Fest an die Liste, oben buendig: Knopf, Liste, Zeiger -
+            -- drei Sachen nebeneinander, immer an derselben Stelle. Und
+            -- wenn rechts kein Platz mehr ist, auf die andere Seite.
+            local p = talentPanel
+            if p then
+                GameTooltip:SetOwner(self, "ANCHOR_NONE")
+                GameTooltip:ClearAllPoints()
+                local rechts = tonumber(p.GetRight and p:GetRight())
+                local schirm = tonumber(UIParent and UIParent.GetRight and UIParent:GetRight())
+                if rechts and schirm and (schirm - rechts) < 320 then
+                    GameTooltip:SetPoint("TOPRIGHT", p, "TOPLEFT", -S.space.sm, 0)
+                else
+                    GameTooltip:SetPoint("TOPLEFT", p, "TOPRIGHT", S.space.sm, 0)
+                end
+            else
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            end
             GameTooltip:SetText(voll, 1, 1, 1, 1, true)
             local note = self.note:GetText()
             if type(note) == "string" and note ~= "" then
@@ -7895,7 +7919,6 @@ function UI.ShowTalentPanel()
     local gx, gy = ns.Profile.TalentPanelPos()
     if gx and gy then
         p:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", gx, gy)
-        p.side = "RIGHT"
         p:Show()
         UI.RefreshTalentPanel()
         return
@@ -7951,9 +7974,6 @@ function UI.ShowTalentPanel()
     else
         p:SetPoint("TOPLEFT", f, "TOPRIGHT", S.space.md, 0)
     end
-    -- Der Zeiger geht nach aussen, vom Fenster weg. Nach innen deckte er
-    -- wieder den Baum zu - und das ist das, was er erklaeren soll.
-    p.side = nachLinks and "LEFT" or "RIGHT"
     p:Show()
     UI.RefreshTalentPanel()
 end
