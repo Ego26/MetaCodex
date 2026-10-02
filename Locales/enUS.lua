@@ -412,7 +412,7 @@ ns.RegisterLocale("enUS", {
     ["TP_HINT2"]           = "Click loads the build · Shift-click copies the string",
     ["TP_DRAG"]            = "Drag to move",
     ["TP_PIN"]             = "Hold this preview",
-    ["TP_PVP_ROW"]         = "PvP talent · %d %% of the measured players",
+    ["TP_PVP_SHARE"]       = "%d %% of the measured players",
     ["TP_PIN_HINT"]        = "The frames stay in the tree, so you can go up and read what a talent does.",
     ["TP_TOOLTIP"]         = "The builds the best of your spec play",
     ["TP_TITLE"]           = "Builds",

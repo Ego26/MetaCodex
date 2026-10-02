@@ -407,7 +407,7 @@ ns.RegisterLocale("deDE", {
     ["TP_HINT2"]           = "Klick lädt den Build · Shift-Klick kopiert den String",
     ["TP_DRAG"]            = "Ziehen verschiebt ihn",
     ["TP_PIN"]             = "Diese Vorschau festhalten",
-    ["TP_PVP_ROW"]         = "PvP-Talent · %d %% der gemessenen Spieler",
+    ["TP_PVP_SHARE"]       = "%d %% der gemessenen Spieler",
     ["TP_PIN_HINT"]        = "Die Rahmen bleiben im Baum stehen, damit du hinauffahren und nachlesen kannst, was ein Talent tut.",
     ["TP_TOOLTIP"]         = "Die Builds, die die Besten deiner Spec spielen",
     ["TP_TITLE"]           = "Builds",

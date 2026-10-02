@@ -7311,6 +7311,10 @@ local TP_ROWS = 10
 local TP_ROW_H = 38
 -- Der Knopf zum Festhalten, rechts in jeder Zeile.
 local TP_PIN = 18
+-- Das Symbol links, und wie hoch eine Ueberschrift ist. Sie braucht
+-- keine 38 Pixel: sie traegt ein Wort, keine Entscheidung.
+local TP_ICON = 20
+local TP_HEAD_H = 20
 
 ---Schreibt in den Zeiger, was im Baum keinen Rahmen bekommen hat.
 ---@param fehlt table  aus Tree.Show: { { spell, why, hero } }
@@ -7491,12 +7495,19 @@ local function talentPanelRows()
                 and C_Spell.GetSpellInfo(pick.spell)
             pvp[#pvp + 1] = {
                 name = (info and info.name) or ("#" .. tostring(pick.spell)),
-                note = L["TP_PVP_ROW"]:format(pick.pct or 0),
+                note = L["TP_PVP_SHARE"]:format(pick.pct or 0),
                 spellID = pick.spell,
+                icon = tonumber(info and info.iconID),
             }
         end
     end
-    for _, zeile in ipairs(pvp) do out[#out + 1] = zeile end
+    if #pvp > 0 then
+        -- EINE UEBERSCHRIFT DAVOR. Ohne sie hingen drei Zeilen unter den
+        -- Builds, die sich lesen wie weitere Builds - und genau das sind
+        -- sie nicht: man laedt sie nicht, man waehlt sie woanders.
+        out[#out + 1] = { head = true, name = L["TALENT_PVP"] }
+        for _, zeile in ipairs(pvp) do out[#out + 1] = zeile end
+    end
     return out
 end
 
@@ -7635,16 +7646,18 @@ local function buildTalentPanel()
     for i = 1, TP_ROWS do
         local r = CreateFrame("Button", nil, p)
         r:SetHeight(TP_ROW_H)
-        r:SetPoint("TOPLEFT", S.space.sm, -TP_TOP - (i - 1) * (TP_ROW_H + 2))
-        r:SetPoint("TOPRIGHT", -S.space.sm, -TP_TOP - (i - 1) * (TP_ROW_H + 2))
         r.bg = S:Fill(r, "bgOverlay", 0)
+        -- EIN SYMBOL, wo es eines gibt. Ein PvP-Talent erkennt man im
+        -- Spiel am Bild; ein Build hat keines, denn er ist kein Zauber.
+        r.icon = r:CreateTexture(nil, "ARTWORK")
+        r.icon:SetSize(TP_ICON, TP_ICON)
+        r.icon:SetPoint("LEFT", S.space.sm, 0)
+        r.icon:Hide()
         r.name = S:Text(r, "body", "textPrimary")
-        r.name:SetPoint("TOPLEFT", S.space.sm, -4)
         r.name:SetPoint("RIGHT", -S.space.sm - TP_PIN, 0)
         r.name:SetJustifyH("LEFT")
         r.name:SetWordWrap(false)
         r.note = S:Text(r, "caption", "textSecondary")
-        r.note:SetPoint("TOPLEFT", S.space.sm, -20)
         r.note:SetPoint("RIGHT", -S.space.sm - TP_PIN, 0)
         r.note:SetJustifyH("LEFT")
         r.note:SetWordWrap(false)
@@ -7842,9 +7855,51 @@ function UI.RefreshTalentPanel()
         if d.key == dungeon then dLabel = unitName(d) end
     end
     talentPanel.pick.label:SetText(dLabel or label or ns.Profile.Mode() or "")
+
+    -- DIE ZEILEN SETZEN SICH SELBST.
+    --
+    -- Vorher sass jede an i mal Zeilenhoehe. Das geht, solange alle
+    -- gleich hoch sind - eine Ueberschrift ist es nicht: sie traegt ein
+    -- Wort, keine Entscheidung, und 38 Pixel dafuer sind ein Loch in
+    -- der Liste.
+    local y = TP_TOP
     for i, r in ipairs(talentPanel.rows) do
         local row = rows[i]
         if row then
+            local kopf = row.head == true
+            local hoch = kopf and TP_HEAD_H or TP_ROW_H
+            r:SetHeight(hoch)
+            r:ClearAllPoints()
+            r:SetPoint("TOPLEFT", S.space.sm, -y)
+            r:SetPoint("TOPRIGHT", -S.space.sm, -y)
+            y = y + hoch + 2
+
+            -- Das Symbol, wo es eines gibt - und der Text rueckt dann
+            -- nach rechts, damit er nicht darauf liegt.
+            local bild = tonumber(row.icon)
+            r.icon:SetShown(bild ~= nil)
+            if bild then r.icon:SetTexture(bild) end
+            local ein = S.space.sm + (bild and (TP_ICON + S.space.sm) or 0)
+
+            r.name:ClearAllPoints()
+            r.note:ClearAllPoints()
+            r.note:SetShown(not kopf)
+            if kopf then
+                -- Eine Ueberschrift sitzt mittig in ihrer Zeile, klein
+                -- und ruhig: sie trennt, sie wirbt nicht.
+                S:ApplyRole(r.name, "head")
+                r.name:SetPoint("LEFT", S.space.sm, 0)
+                r.name:SetPoint("RIGHT", -S.space.sm, 0)
+            else
+                S:ApplyRole(r.name, "title")
+                r.name:SetPoint("TOPLEFT", ein, -4)
+                r.name:SetPoint("RIGHT", -S.space.sm - TP_PIN, 0)
+                r.note:SetPoint("TOPLEFT", ein, -20)
+                r.note:SetPoint("RIGHT", -S.space.sm - TP_PIN, 0)
+            end
+            -- Eine Ueberschrift ist kein Knopf.
+            r:EnableMouse(not kopf)
+
             r.name:SetText(row.name or "")
             r.note:SetText(row.note or "")
             r.text = row.text
@@ -7871,9 +7926,9 @@ function UI.RefreshTalentPanel()
     end
     UI.UpdateTalentPins()
     -- So hoch, wie die Liste wirklich ist: in einer PvP-Klammer kommen
-    -- bis zu drei Zeilen dazu, und eine feste Hoehe liesse sie entweder
+    -- bis zu vier Zeilen dazu, und eine feste Hoehe liesse sie entweder
     -- abgeschnitten oder mit einem leeren Streifen darunter stehen.
-    talentPanel:SetHeight(tpHeight(math.min(#rows, TP_ROWS)))
+    talentPanel:SetHeight(y + 46 - 2)
     if #rows == 0 then
         talentPanel.hint:SetText(L["TP_EMPTY"])
     else

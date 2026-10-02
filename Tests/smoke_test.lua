@@ -1426,10 +1426,24 @@ do
         end
         check("PvP-Talente stehen in der Liste", pvpZeile ~= nil,
             pvpZeile and (pvpZeile.name:GetText() or "") or "keine")
+        -- UNTER EIGENER UEBERSCHRIFT. Ohne sie lesen sich drei Zeilen wie
+        -- weitere Builds - und genau das sind sie nicht.
+        local ueberschrift
+        for _, r in ipairs(panel.rows) do
+            if r:IsShown() and r.name:GetText() == ns.L["TALENT_PVP"] then
+                ueberschrift = r
+            end
+        end
+        check("  unter eigener Ueberschrift", ueberschrift ~= nil)
+        if ueberschrift then
+            check("    die kein Knopf ist",
+                ueberschrift.note:IsShown() == false)
+        end
         if pvpZeile then
             check("  mit ihrem Anteil",
                 (pvpZeile.note:GetText() or ""):find("%%") ~= nil,
                 tostring(pvpZeile.note:GetText()))
+            check("  und mit Symbol", pvpZeile.icon:IsShown() == true)
             -- Nichts zu laden, also auch nichts festzuhalten.
             check("  ohne Stern zum Festhalten", pvpZeile.pin:IsShown() == false)
             check("  und ohne Kette", rawget(pvpZeile, "text") == nil)
