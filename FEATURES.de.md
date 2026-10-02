@@ -131,8 +131,20 @@ die Builds deiner Spec; ein Klick lädt einen davon, über dieselbe
 Methode, die auch Blizzards Import-Dialog benutzt. Je Dungeon und je
 Boss wählbar, gegliedert wie im Fenster. Shift-Klick kopiert statt zu
 laden, im Kampf sagt es das, und scheitert es, landet der String im
-Kopierfeld. Der Knopf ist ziehbar — welche Ecke bei dir frei ist,
-wissen wir nicht.
+Kopierfeld. Knopf und Liste sind beide ziehbar — welche Ecke bei dir
+frei ist, wissen wir nicht.
+
+**Die Vorschau im Baum** — Wer mit der Maus über einen Build fährt,
+sieht ihn im Talentbaum selbst: grün um das, was dazukäme, rot um das,
+was wegfiele. Gegen **deinen** Baum, nicht gegen den häufigsten Build:
+in den Daten steht je Build die vollständige Talentliste, der Client
+sagt, welche Knoten du gekauft hast, und der Unterschied dieser beiden
+Mengen ist die Antwort. Ein Stern je Zeile hält die Vorschau fest, damit
+du die Maus wegnehmen und nachlesen kannst, was ein markiertes Talent
+tut — an jedem Talent steht Blizzards eigenes Tooltip. Was keinen Rahmen
+bekommt, wird mit Grund benannt, und der nützlichste davon ist *dieser
+Build spielt einen anderen Held-Baum als du* — was der Baum dir nicht
+zeigen kann, weil der andere gar nicht gezeichnet wird.
 
 **Erinnerung** — Was das Addon prüft, bevor es losgeht: je Verbrauchsart
 der Stand gegen dein Ziel (reicht / knapp / leer), die Verzauberungen und

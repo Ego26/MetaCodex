@@ -4,11 +4,42 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ## [Unreleased]
 
+## [1.1.11] - 2026-10-02
+
 ### Added
 
+- **The preview in the talent tree.** Hovering a build draws it on the
+  tree itself: green around what you would gain, red around what you
+  would lose. Two names in a row do not say where to click.
+- **Against your own tree**, not against the most common build. The data
+  carry the complete talent list per build - 76 nodes on average - and
+  the client says which nodes you have purchased; the difference between
+  those two sets is the answer.
+- **A pin on each row holds the preview**, so you can take the mouse off
+  the list and go read what a marked talent does. At every talent in the
+  tree stands Blizzard's own tooltip, complete, with ranks.
+- **What gets no frame is named, with the reason.** Three reasons that
+  mean different things - and the most common is the most valuable thing
+  the preview can say: this build plays a different hero tree than you.
+  That cannot be seen in the tree, because the other one is not drawn.
+- In the window, a build's row says in its tooltip **which talent goes in
+  for which**, with icons and with what each one does.
 - A switch for the builds button at the talent frame, beside the other
   ways in. It sits in Blizzard's window at the corner where others keep
   Raider.IO - the setting existed, only the row to reach it was missing.
+- The builds list is draggable and remembers where. On a talent window
+  nearly as wide as the screen there is no placement that covers
+  nothing, and which corner hurts least is visible only to whoever is
+  sitting there.
+
+### Changed
+
+- The list opens beside its button instead of above it, and the tooltip
+  is pinned to the list rather than to the hovered row: button, list,
+  tooltip in a row, always in the same place.
+- `/mc talents` writes its report into the copy window instead of the
+  chat, like the probe report. Thirty lines of measurements in the chat
+  are read by nobody and cannot be copied out of it at all.
 
 ### Fixed
 
@@ -25,6 +56,17 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
   the full text nowhere. It is wider, and it answers on hover.
 - The special socket, of which there is one, reported "1 sockets".
 - The shopping list beside the auction house ended mid-sentence.
+- **Green and red boxes stood in empty space.** They were real nodes
+  sitting behind the builds list: the frames were drawn above everything
+  including that list, while the icon they belong to stayed hidden
+  underneath. The frames now sit just above their own button.
+- **The frames were two hairlines and vanished.** On a talent icon that
+  already wears a golden frame, one pixel is invisible. Three pixels and
+  a light wash of the same colour answer from two metres away.
+- **Descriptions were dropped once a swap passed six talents**, so that
+  one line named an effect and the next did not, with nothing saying
+  why. Every talent carries its text now; past six it is cut at a word
+  boundary, with an ellipsis, so the cut is visible rather than guessed.
 
 ## [1.1.10] - 2026-10-01
 

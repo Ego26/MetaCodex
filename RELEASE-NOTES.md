@@ -1,3 +1,34 @@
+## v1.1.11 — see the build on your own tree
+
+### Added
+
+- **The preview in the talent tree.** Hover a build and it is drawn on
+  the tree itself: **green** around what you would gain, **red** around
+  what you would lose. Two names in a row do not say where to click.
+- **Against your own tree**, not against the most common build. That is
+  the question you actually ask when you look at an alternative.
+- **A pin on each row holds the preview**, so you can take the mouse off
+  the list and read what a marked talent does — at every talent stands
+  Blizzard's own tooltip, complete, with ranks.
+- **What gets no frame is named, with the reason.** The most useful one:
+  *this build plays a different hero tree than you* — which the tree
+  cannot show you, because the other one is not drawn at all.
+- In the window, a build now says in its tooltip **which talent goes in
+  for which**, with icons and with what each one does.
+- A switch for the builds button under Settings, and the list can be
+  dragged where you want it.
+
+### Fixed
+
+- **Sources cut its instance names** although four hundred points stood
+  empty beside them.
+- **A consumable at 14 of 20 said "enough" and "need 6" in one row.**
+- **Talents had no sentence under its title**, only the gap where one
+  belongs.
+- Green and red boxes stood in empty space — real nodes hidden behind
+  the builds list.
+- The special socket, of which there is one, reported "1 sockets".
+
 ## v1.1.10 — the builds where the decision is made
 
 ### Added

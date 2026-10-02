@@ -125,8 +125,20 @@ visible - a set piece can be worth having a rank lower.
 your spec; a click loads one, through the same method Blizzard's own
 Import dialog uses. Per dungeon and per boss, grouped like the window.
 Shift-click copies instead of loading, in combat it says so, and when
-it fails the string lands in the copy box. The button is draggable —
-we cannot know which corner is free on your screen.
+it fails the string lands in the copy box. Button and list are both
+draggable — we cannot know which corner is free on your screen.
+
+**The preview in the tree** — Hover a build and it is drawn on the tree
+itself: green around what you would gain, red around what you would
+lose. Against **your** tree, not against the most common build: the data
+carry the complete talent list per build, the client says which nodes
+you have purchased, and the difference between those two sets is the
+answer. A pin on each row holds the preview, so you can take the mouse
+off the list and read what a marked talent does — at every talent stands
+Blizzard's own tooltip. What gets no frame is named with its reason, and
+the most useful of them is *this build plays a different hero tree than
+you*, which the tree cannot show you because the other one is not drawn
+at all.
 
 **Reminder** — What the addon checks before you go in: per consumable kind
 the stand against your target (enough / low / none), the enchants and gems

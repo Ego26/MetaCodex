@@ -4,12 +4,47 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ## [Unveröffentlicht]
 
+## [1.1.11] - 2026-10-02
+
 ### Neu
 
+- **Die Vorschau im Talentbaum.** Wer mit der Maus über einen Build
+  fährt, sieht ihn im Baum selbst: grün um das, was dazukäme, rot um
+  das, was wegfiele. Zwei Namen in einer Zeile sagen nicht, wo man
+  hinklicken muss.
+- **Gegen deinen eigenen Baum**, nicht gegen den häufigsten Build. In
+  den Daten steht je Build die vollständige Talentliste – im Mittel 76
+  Knoten –, und der Client sagt, welche Knoten du gekauft hast. Der
+  Unterschied dieser beiden Mengen ist die Antwort.
+- **Ein Stern je Zeile hält die Vorschau fest**, damit du die Maus
+  wegnehmen und nachlesen kannst, was ein markiertes Talent tut. An
+  jedem Talent im Baum steht Blizzards eigenes Tooltip, vollständig, mit
+  Rangstufen.
+- **Was keinen Rahmen bekommt, wird beim Namen genannt, mit Grund.**
+  Drei Gründe, die Verschiedenes bedeuten – und der häufigste ist die
+  wertvollste Auskunft überhaupt: dieser Build spielt einen anderen
+  Held-Baum als du. Das sieht man dem Baum nicht an, weil der andere gar
+  nicht gezeichnet wird.
+- Im Fenster sagt die Zeile eines Builds im Zeiger, **welches Talent
+  gegen welches** getauscht wird – mit Symbolen und mit dem, was die
+  einzelnen tun.
 - Ein Schalter für den Build-Knopf am Talentfenster, neben den anderen
   Wegen hinein. Er setzt sich in Blizzards Fenster an genau die Ecke, an
   der bei anderen Raider.IO sitzt – die Einstellung gab es, nur die
   Zeile, über die man sie erreicht, fehlte.
+- Die Build-Liste ist ziehbar und merkt sich, wohin. Bei einem fast
+  bildschirmbreiten Talentfenster gibt es keine Stelle, die nichts
+  verdeckt, und welche Ecke am wenigsten stört, sieht nur der, der
+  davorsitzt.
+
+### Geändert
+
+- Die Liste geht neben ihrem Knopf auf statt über ihm, und der Zeiger
+  hängt an der Liste statt an der Zeile: Knopf, Liste, Zeiger
+  nebeneinander, immer an derselben Stelle.
+- `/mc talents` schreibt seinen Bericht ins Kopierfenster statt in den
+  Chat, wie der Probe-Bericht auch. Dreißig Zeilen Messwerte im Chat
+  liest niemand, und herausholen kann man sie dort gar nicht.
 
 ### Behoben
 
@@ -27,6 +62,19 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
   ganzen Text nirgends. Sie ist breiter, und sie antwortet im Zeiger.
 - Der besondere Sockel, von dem es einen gibt, meldete „1 sockets".
 - Die Einkaufsliste neben dem Auktionshaus hörte mitten im Satz auf.
+- **Grüne und rote Kästchen standen im leeren Raum.** Das waren echte
+  Knoten hinter der Build-Liste: die Rahmen lagen über allem, auch über
+  dieser Liste, während das Symbol darunter verdeckt blieb. Die Rahmen
+  sitzen jetzt knapp über ihrem eigenen Knopf.
+- **Die Rahmen waren zwei Haarlinien und verschwanden.** Auf einem
+  Talentsymbol, das selbst schon eine goldene Fassung trägt, sieht man
+  einen Pixel nicht. Drei Pixel und eine leichte Einfärbung beantworten
+  die Frage aus zwei Metern Abstand.
+- **Ab sieben Talenten fielen die Beschreibungen ganz weg**, und dann
+  nannte eine Zeile eine Wirkung und die nächste nicht, ohne dass man
+  sah, warum. Jetzt trägt jedes Talent seinen Text; ab sieben gekürzt,
+  am Wortende, mit Auslassungspunkten – damit man das Kürzen sieht statt
+  es zu erraten.
 
 ## [1.1.10] - 2026-10-01
 
