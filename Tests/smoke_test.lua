@@ -1411,6 +1411,39 @@ do
             rawget(panel, "__scripts") == nil
                 or panel.__scripts.OnDragStart == nil)
 
+        -- IN EINER PVP-KLAMMER STEHEN AUCH DIE PVP-TALENTE DA.
+        --
+        -- Blizzards Importkette enthaelt sie nicht - sie sitzen in drei
+        -- eigenen Plaetzen, nicht im Baum. Ein Build laedt sie also nie.
+        -- Wer in einer Klammer vor dieser Liste steht, hat sie trotzdem
+        -- zu waehlen, und gemessen sind sie: 347 Eintraege in den Daten.
+        local vorher = ns.Profile.Mode()
+        ns.Profile.SetMode("2v2")
+        ns.UI.RefreshTalentPanel()
+        local pvpZeile
+        for _, r in ipairs(panel.rows) do
+            if r:IsShown() and rawget(r, "spellID") and not pvpZeile then pvpZeile = r end
+        end
+        check("PvP-Talente stehen in der Liste", pvpZeile ~= nil,
+            pvpZeile and (pvpZeile.name:GetText() or "") or "keine")
+        if pvpZeile then
+            check("  mit ihrem Anteil",
+                (pvpZeile.note:GetText() or ""):find("%%") ~= nil,
+                tostring(pvpZeile.note:GetText()))
+            -- Nichts zu laden, also auch nichts festzuhalten.
+            check("  ohne Stern zum Festhalten", pvpZeile.pin:IsShown() == false)
+            check("  und ohne Kette", rawget(pvpZeile, "text") == nil)
+            local gezeigt
+            local echtSpell = GameTooltip.SetSpellByID
+            GameTooltip.SetSpellByID = function(_, id) gezeigt = id end
+            pvpZeile.__scripts.OnEnter(pvpZeile)
+            GameTooltip.SetSpellByID = echtSpell
+            check("  der Zeiger zeigt Blizzards Zaubertooltip",
+                gezeigt == pvpZeile.spellID, tostring(gezeigt))
+        end
+        ns.Profile.SetMode(vorher)
+        ns.UI.RefreshTalentPanel()
+
         -- FESTHALTEN, DAMIT MAN IM BAUM NACHSEHEN KANN.
         --
         -- Die Vorschau hing am Zeiger: sichtbar nur, solange die Maus

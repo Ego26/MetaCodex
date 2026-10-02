@@ -41,6 +41,17 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
   chat, like the probe report. Thirty lines of measurements in the chat
   are read by nobody and cannot be copied out of it at all.
 
+### Added
+
+- **In a PvP bracket the list now carries the PvP talents too.**
+  Blizzard's loadout string does not contain them - they sit in three
+  slots of their own, not in the tree - so no build ever loads them and
+  the preview cannot frame them. They are measured all the same, and
+  whoever stands in front of that list in a bracket still has to pick
+  them. They stand there without a string and without a click, with
+  their share and Blizzard's own spell tooltip. A line that loads
+  nothing is more honest than a missing answer.
+
 ### Fixed
 
 - **The builds button at the talent frame sat on Blizzard's own loadout

@@ -7304,7 +7304,10 @@ local talentPanel
 -- sieben Zeilen, die alle an derselben Stelle aufhoeren, unterscheiden
 -- nichts. Breiter als 320 wird die Leiste zum zweiten Fenster.
 local TP_WIDTH = 320
-local TP_ROWS = 7
+-- Der Vorrat an Zeilen. Sieben Builds, und in einer PvP-Klammer
+-- kommen bis zu drei PvP-Talente dazu - die Hoehe folgt der Zahl, nicht
+-- umgekehrt.
+local TP_ROWS = 10
 local TP_ROW_H = 38
 -- Der Knopf zum Festhalten, rechts in jeder Zeile.
 local TP_PIN = 18
@@ -7348,7 +7351,13 @@ local pinnedRow
 -- So hoch, wie die Liste braucht: Kopf, Waehler, sieben Zeilen, Fuss.
 -- Wo die erste Zeile anfaengt: unter Titel und Waehler.
 local TP_TOP = 62
-local TP_HEIGHT = TP_TOP + 7 * (38 + 2) + 46
+---Wie hoch die Liste bei so vielen Zeilen ist.
+---@param n number
+---@return number
+local function tpHeight(n)
+    return TP_TOP + math.max(1, n) * (38 + 2) + 46
+end
+local TP_HEIGHT = tpHeight(7)
 
 ---Blizzards Talentfenster, wie es in dieser Fassung heisst.
 ---
@@ -7463,6 +7472,31 @@ local function talentPanelRows()
             }
         end
     end
+
+    -- DIE PVP-TALENTE GEHOEREN DAZU - auch wenn kein Build sie traegt.
+    --
+    -- Blizzards Importkette enthaelt sie nicht: sie sitzen in drei
+    -- eigenen Plaetzen, nicht im Baum. Ein Build laedt sie also nie, und
+    -- die Vorschau kann sie nicht einrahmen. Wer in einer PvP-Klammer
+    -- vor dieser Liste steht, hat sie aber trotzdem zu waehlen - und
+    -- gemessen sind sie.
+    --
+    -- Darum stehen sie hier als eigene Zeilen: ohne Kette, ohne Klick,
+    -- mit ihrem Anteil. Eine Zeile, die nichts laedt, ist ehrlicher als
+    -- eine fehlende Auskunft.
+    local pvp = {}
+    for _, pick in ipairs(picks or {}) do
+        if pick.pvp and #pvp < 3 then
+            local info = C_Spell and C_Spell.GetSpellInfo
+                and C_Spell.GetSpellInfo(pick.spell)
+            pvp[#pvp + 1] = {
+                name = (info and info.name) or ("#" .. tostring(pick.spell)),
+                note = L["TP_PVP_ROW"]:format(pick.pct or 0),
+                spellID = pick.spell,
+            }
+        end
+    end
+    for _, zeile in ipairs(pvp) do out[#out + 1] = zeile end
     return out
 end
 
@@ -7684,6 +7718,14 @@ local function buildTalentPanel()
             else
                 GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             end
+            -- Ein PvP-Talent ist ein Zauber, kein Build: dann zeigt der
+            -- Zeiger, was Blizzard selbst darueber sagt.
+            local zauber = rawget(self, "spellID")
+            if zauber and GameTooltip.SetSpellByID then
+                GameTooltip:SetSpellByID(zauber)
+                GameTooltip:Show()
+                return
+            end
             GameTooltip:SetText(voll, 1, 1, 1, 1, true)
             local note = self.note:GetText()
             if type(note) == "string" and note ~= "" then
@@ -7818,12 +7860,20 @@ function UI.RefreshTalentPanel()
             r.swapAdded = row.added
             r.swapRemoved = row.removed
             r.spells = row.spells
+            r.spellID = row.spellID
+            -- Eine Zeile ohne Talentliste gibt es nichts festzuhalten:
+            -- ein Stern, der nichts tut, ist ein kaputter Stern.
+            r.pin:SetShown(row.spells ~= nil)
             r:Show()
         else
             r:Hide()
         end
     end
     UI.UpdateTalentPins()
+    -- So hoch, wie die Liste wirklich ist: in einer PvP-Klammer kommen
+    -- bis zu drei Zeilen dazu, und eine feste Hoehe liesse sie entweder
+    -- abgeschnitten oder mit einem leeren Streifen darunter stehen.
+    talentPanel:SetHeight(tpHeight(math.min(#rows, TP_ROWS)))
     if #rows == 0 then
         talentPanel.hint:SetText(L["TP_EMPTY"])
     else

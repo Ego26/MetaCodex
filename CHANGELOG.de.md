@@ -46,6 +46,17 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
   Chat, wie der Probe-Bericht auch. Dreißig Zeilen Messwerte im Chat
   liest niemand, und herausholen kann man sie dort gar nicht.
 
+### Neu
+
+- **In einer PvP-Klammer stehen jetzt auch die PvP-Talente in der
+  Liste.** Blizzards Importkette enthält sie nicht – sie sitzen in drei
+  eigenen Plätzen, nicht im Baum –, also lädt sie kein Build, und die
+  Vorschau kann sie nicht einrahmen. Gemessen sind sie trotzdem, und wer
+  in einer Klammer vor dieser Liste steht, hat sie zu wählen. Sie stehen
+  dort ohne String und ohne Klick, mit ihrem Anteil und Blizzards
+  eigenem Zaubertooltip. Eine Zeile, die nichts lädt, ist ehrlicher als
+  eine fehlende Auskunft.
+
 ### Behoben
 
 - **Der Build-Knopf am Talentfenster lag auf Blizzards eigener
