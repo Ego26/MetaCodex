@@ -161,20 +161,46 @@ local markers, used = {}, 0
 ---der sich aendert - und das sind selten mehr als ein Dutzend.
 ---@param i number
 ---@return table
+local WHITE = "Interface\\Buttons\\WHITE8X8"
+
+-- SO DICK, DASS MAN ES SIEHT.
+--
+-- Erst waren es zwei Striche von je einem Pixel. Auf einem Talentsymbol,
+-- das selbst schon eine goldene Fassung traegt, verschwinden die - auf
+-- dem Bildschirm war kaum zu erkennen, welcher Knoten gemeint ist. Drei
+-- Pixel und eine leichte Einfaerbung der Flaeche beantworten die Frage
+-- aus zwei Metern Abstand, ohne das Symbol zuzudecken.
+local RAND = 3
+local TOENUNG = 0.22
+
 local function marker(i)
     if markers[i] then return markers[i] end
     local m = CreateFrame("Frame", nil, UIParent)
     -- Ueber dem Talentfenster. Darunter waere er zwar da, aber unter dem
     -- Symbol, auf das er zeigt.
     m:SetFrameStrata("DIALOG")
-    m.lines = S:Border(m, "success")
-    -- Zweiter Rahmen, einen Pixel weiter innen: ein einzelner Strich auf
-    -- einem Symbol mit eigener Umrandung verschwindet.
-    local innen = CreateFrame("Frame", nil, m)
-    innen:SetPoint("TOPLEFT", 1, -1)
-    innen:SetPoint("BOTTOMRIGHT", -1, 1)
-    m.innerLines = S:Border(innen, "success")
-    m.inner = innen
+
+    -- Die Flaeche zuerst, damit die Striche darueber liegen.
+    m.tint = m:CreateTexture(nil, "BACKGROUND")
+    m.tint:SetTexture(WHITE)
+    m.tint:SetAllPoints(m)
+
+    m.lines = {}
+    local dicke = S:Pixel(RAND)
+    local function strich(p1, p2, waagrecht)
+        local t = m:CreateTexture(nil, "OVERLAY")
+        t:SetTexture(WHITE)
+        t:SetPoint(p1)
+        t:SetPoint(p2)
+        if waagrecht then t:SetHeight(dicke) else t:SetWidth(dicke) end
+        m.lines[#m.lines + 1] = t
+        return t
+    end
+    strich("TOPLEFT", "TOPRIGHT", true)
+    strich("BOTTOMLEFT", "BOTTOMRIGHT", true)
+    strich("TOPLEFT", "BOTTOMLEFT", false)
+    strich("TOPRIGHT", "BOTTOMRIGHT", false)
+
     m:Hide()
     markers[i] = m
     return m
@@ -183,11 +209,9 @@ end
 ---@param m table
 ---@param token string
 local function recolor(m, token)
-    for _, lines in ipairs({ m.lines, m.innerLines }) do
-        for _, texture in pairs(lines or {}) do
-            texture:SetVertexColor(S:Color(token))
-        end
-    end
+    local r, g, b = S:Color(token)
+    for _, texture in ipairs(m.lines) do texture:SetVertexColor(r, g, b, 1) end
+    m.tint:SetVertexColor(r, g, b, TOENUNG)
 end
 
 ---Alle Rahmen weg.
@@ -226,19 +250,29 @@ function Tree.Show(spells)
         local nodeID = map[spell]
         local button = nodeID and select(2, pcall(tab.GetTalentButtonByNodeID, tab, nodeID))
         -- EIN NICHT GEFUNDENES TALENT WIRD GEZAEHLT, NICHT VERSCHWIEGEN.
-        -- Von 282 Knoten tragen 121 einen sichtbaren Rahmen; was im
-        -- Held-Baum sitzt oder gerade nicht gezeichnet wird, hat keinen.
-        -- Eine Vorschau, die stillschweigend drei Talente auslaesst, ist
-        -- schlimmer als eine, die sagt, dass sie es tut.
-        if not (button and button.GetLeft and tonumber(button:GetLeft())) then
+        -- Von 282 Knoten tragen nur die des gewaehlten Held-Baums und
+        -- der eigenen Spec einen gezeichneten Rahmen. Eine Vorschau, die
+        -- stillschweigend drei Talente auslaesst, ist schlimmer als
+        -- eine, die sagt, dass sie es tut.
+        --
+        -- UND SICHTBAR MUSS ER SEIN, nicht nur vorhanden. Es gibt den
+        -- Knopf auch fuer die nicht gewaehlten Held-Baeume: er
+        -- existiert, hat eine Position und ist versteckt. Nur auf
+        -- GetLeft geprueft, standen gruene und rote Kaestchen im leeren
+        -- Raum, alle auf derselben Hoehe - die Knoepfe, die nie
+        -- platziert wurden. IsVisible zaehlt auch die Eltern mit, und
+        -- genau daran haengt es: der Knopf ist gezeigt, seine Leiste
+        -- nicht.
+        if not (button and button.IsVisible and button:IsVisible()
+            and button.GetLeft and tonumber(button:GetLeft())) then
             fehlt = fehlt + 1
             return false
         end
         used = used + 1
         local m = marker(used)
         m:ClearAllPoints()
-        m:SetPoint("TOPLEFT", button, "TOPLEFT", -2, 2)
-        m:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", 2, -2)
+        m:SetPoint("TOPLEFT", button, "TOPLEFT", -RAND, RAND)
+        m:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", RAND, -RAND)
         recolor(m, token)
         m:Show()
         return true

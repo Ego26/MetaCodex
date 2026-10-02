@@ -537,6 +537,31 @@ function Profile.SetTalentButtonPos(x, y, maxX, maxY)
     MetaCodexDB.talentButton = { x = x, y = y }
 end
 
+---Wohin die Buildliste geschoben wurde, relativ zum Talentfenster.
+---
+---OHNE VORGABE. Nil heisst "noch nie geschoben", und dann sucht sich
+---die Liste selbst einen Platz: aussen neben das Fenster, wo Platz ist.
+---Bei einem fast bildschirmbreiten Talentfenster ist aber nirgends
+---Platz, und dann deckt sie etwas zu, egal was wir waehlen. Wer sie
+---einmal hinschiebt, hat entschieden - und das gilt ab da.
+---@return number|nil x, number|nil y  Abstand zur linken unteren Ecke
+function Profile.TalentPanelPos()
+    local db = MetaCodexDB or {}
+    local p = db.talentPanelPos
+    if type(p) ~= "table" then return nil, nil end
+    return tonumber(p.x), tonumber(p.y)
+end
+
+---@param x number|nil  nil vergisst die Lage wieder
+---@param y number|nil
+function Profile.SetTalentPanelPos(x, y)
+    if x == nil or y == nil then
+        MetaCodexDB.talentPanelPos = nil
+        return
+    end
+    MetaCodexDB.talentPanelPos = { x = x, y = y }
+end
+
 ---Zeigt das Fenster die Builds neben dem Talentfenster?
 ---
 ---Vorgabe an: wer das Talentfenster oeffnet, trifft genau diese

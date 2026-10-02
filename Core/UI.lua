@@ -7503,6 +7503,31 @@ local function buildTalentPanel()
     p.title:SetPoint("TOPLEFT", S.space.md, -S.space.md)
     p.title:SetText(L["TP_TITLE"])
 
+    -- ZIEHBAR, und die Lage wird gemerkt.
+    --
+    -- Von selbst stellt sich die Liste neben das Talentfenster. Ist das
+    -- aber fast so breit wie der Bildschirm - und bei manchem ist es
+    -- das -, bleibt aussen kein Platz, und dann deckt sie etwas zu, egal
+    -- wohin wir sie stellen. Welche Stelle am wenigsten stoert, sieht
+    -- nur der, der davorsitzt.
+    p:SetMovable(true)
+    p:EnableMouse(true)
+    p:RegisterForDrag("LeftButton")
+    p:SetScript("OnDragStart", function(self) self:StartMoving() end)
+    p:SetScript("OnDragStop", function(self)
+        self:StopMovingOrSizing()
+        local ziel = talentFrame()
+        if not ziel then return end
+        -- Gemerkt wird der Abstand zur Ecke des Talentfensters, nicht
+        -- die Bildschirmkoordinate: das Fenster steht nicht immer
+        -- gleich, und die Liste soll mitwandern.
+        local dx = (tonumber(self:GetLeft()) or 0) - (tonumber(ziel:GetLeft()) or 0)
+        local dy = (tonumber(self:GetBottom()) or 0) - (tonumber(ziel:GetBottom()) or 0)
+        ns.Profile.SetTalentPanelPos(dx, dy)
+        self:ClearAllPoints()
+        self:SetPoint("BOTTOMLEFT", ziel, "BOTTOMLEFT", dx, dy)
+    end)
+
     -- KEINE ZEILE "GEMESSEN FUER".
     --
     -- Darunter stand ein Knopf, auf dem die Aktivitaet steht. Die
@@ -7552,7 +7577,8 @@ local function buildTalentPanel()
             self.bg:SetAlpha(0.6)
             local voll = self.name:GetText()
             if type(voll) ~= "string" or voll == "" then return end
-            GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+            local seite = talentPanel and rawget(talentPanel, "side")
+            GameTooltip:SetOwner(self, "ANCHOR_" .. (seite == "LEFT" and "LEFT" or "RIGHT"))
             GameTooltip:SetText(voll, 1, 1, 1, 1, true)
             local note = self.note:GetText()
             if type(note) == "string" and note ~= "" then
@@ -7861,14 +7887,65 @@ function UI.ShowTalentPanel()
     if not f then return end
     local p = buildTalentPanel()
     p:ClearAllPoints()
-    -- Ueber dem Knopf, nach oben wachsend: dort ist Platz, und der
-    -- Blick kommt ohnehin von dort.
-    if talentButton then
-        p:SetPoint("BOTTOMLEFT", talentButton, "TOPLEFT", 0, 4)
-    else
-        p:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 12, 40)
-    end
     p:SetHeight(TP_HEIGHT)
+
+    -- WER SIE EINMAL HINGESCHOBEN HAT, HAT ENTSCHIEDEN.
+    local gx, gy = ns.Profile.TalentPanelPos()
+    if gx and gy then
+        p:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", gx, gy)
+        p.side = "RIGHT"
+        p:Show()
+        UI.RefreshTalentPanel()
+        return
+    end
+
+    -- NEBEN DAS FENSTER, NICHT DARAUF.
+    --
+    -- Ueber dem Knopf wachsend stand die Liste mitten im Talentbaum -
+    -- und zwar genau dort, wo die Vorschau ihre Rahmen zeichnet. Man
+    -- deckte mit dem Lesen zu, was man sehen wollte.
+    --
+    -- Also an die AUSSENKANTE, dieselbe Regel wie bei der Einkaufsliste
+    -- am Auktionshaus: an die Seite, auf der der Knopf steht, und wenn
+    -- dort kein Platz mehr ist, auf die andere. Der Bildschirm gehoert
+    -- dem Spieler, nicht uns.
+    local links = tonumber(f.GetLeft and f:GetLeft())
+    local rechts = tonumber(f.GetRight and f:GetRight())
+    local schirm = tonumber(UIParent and UIParent.GetRight and UIParent:GetRight())
+    local luft = TP_WIDTH + S.space.md
+
+    local platzLinks = (links or 0) >= luft
+    local platzRechts = (schirm and rechts) and (schirm - rechts) >= luft or false
+
+    local nachLinks = false
+    if platzLinks or platzRechts then
+        -- Auf welcher Seite steht der Knopf? Dort sucht der Blick die
+        -- Liste. Aber Platz geht vor Gewohnheit.
+        local knopfX = talentButton and tonumber(talentButton.GetLeft and talentButton:GetLeft())
+        local mitte = (links and rechts) and (links + rechts) / 2 or nil
+        nachLinks = (knopfX and mitte) and (knopfX < mitte) or false
+        if nachLinks and not platzLinks then nachLinks = false end
+        if not nachLinks and not platzRechts then nachLinks = true end
+    end
+
+    if not (platzLinks or platzRechts) then
+        -- NIRGENDS PLATZ: ein fast bildschirmbreites Talentfenster laesst
+        -- aussen keine 100 Pixel. Dann ueber den Knopf, wie frueher - es
+        -- deckt etwas zu, aber es ist wenigstens da, und ziehen kann man
+        -- es.
+        if talentButton then
+            p:SetPoint("BOTTOMLEFT", talentButton, "TOPLEFT", 0, 4)
+        else
+            p:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 12, 40)
+        end
+    elseif nachLinks then
+        p:SetPoint("TOPRIGHT", f, "TOPLEFT", -S.space.md, 0)
+    else
+        p:SetPoint("TOPLEFT", f, "TOPRIGHT", S.space.md, 0)
+    end
+    -- Der Zeiger geht nach aussen, vom Fenster weg. Nach innen deckte er
+    -- wieder den Baum zu - und das ist das, was er erklaeren soll.
+    p.side = nachLinks and "LEFT" or "RIGHT"
     p:Show()
     UI.RefreshTalentPanel()
 end

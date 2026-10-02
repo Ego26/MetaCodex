@@ -1296,6 +1296,23 @@ do
         ns.Profile.SetTalentPanel(true)
         if auf then auf(_G.PlayerSpellsFrame.TalentsFrame) end
 
+        -- DIE LISTE IST ZIEHBAR, und geschoben gilt geschoben.
+        --
+        -- Von selbst stellt sie sich neben das Talentfenster. Ist das
+        -- fast bildschirmbreit, bleibt aussen kein Platz, und dann deckt
+        -- sie etwas zu - welche Stelle am wenigsten stoert, sieht nur
+        -- der, der davorsitzt.
+        local px, py = ns.Profile.TalentPanelPos()
+        check("ungeschoben merkt sie sich nichts", px == nil and py == nil,
+            tostring(px) .. "/" .. tostring(py))
+        ns.Profile.SetTalentPanelPos(240, 60)
+        px, py = ns.Profile.TalentPanelPos()
+        check("  geschoben wird sie gemerkt", px == 240 and py == 60,
+            tostring(px) .. "/" .. tostring(py))
+        ns.Profile.SetTalentPanelPos(nil, nil)
+        px = ns.Profile.TalentPanelPos()
+        check("  und laesst sich wieder vergessen", px == nil, tostring(px))
+
         -- Mit dem Talentfenster geht alles zu.
         ns.UI.ShowTalentPanel()
         local zu = _G.PlayerSpellsFrame:GetScript("OnHide")
@@ -1324,7 +1341,10 @@ do
     -- schlichte Tabelle und keine Attrappe: die beantwortet jede Frage
     -- mit etwas Wahrem, und dann misst der Test sich selbst.
     local echt = _G.PlayerSpellsFrame.TalentsFrame
-    local knopf = { GetLeft = function() return 100 end }
+    local knopf = {
+        GetLeft = function() return 100 end,
+        IsVisible = function() return true end,
+    }
     _G.PlayerSpellsFrame.TalentsFrame = {
         GetTalentButtonByNodeID = function() return knopf end,
     }
@@ -1355,6 +1375,23 @@ do
     local p2, m2, f2 = ns.Tree.Show(wollen)
     check("  was der Baum nicht zeichnet, wird gemeldet",
         p2 == 0 and m2 == 0 and f2 > 0, f2 .. " gemeldet")
+
+    -- UND EIN VERSTECKTER KNOPF IST KEINER.
+    --
+    -- Die nicht gewaehlten Held-Baeume haben ihre Knoepfe trotzdem: sie
+    -- existieren, haben eine Position und sind versteckt. Nur auf die
+    -- Position geprueft, standen gruene und rote Kaestchen im leeren
+    -- Raum, alle auf derselben Hoehe.
+    local versteckt = {
+        GetLeft = function() return 100 end,
+        IsVisible = function() return false end,
+    }
+    _G.PlayerSpellsFrame.TalentsFrame = {
+        GetTalentButtonByNodeID = function() return versteckt end,
+    }
+    local p3, m3, f3 = ns.Tree.Show(wollen)
+    check("  ein versteckter Knopf bekommt keinen Rahmen",
+        p3 == 0 and m3 == 0 and f3 > 0, f3 .. " gemeldet")
 
     ns.Tree.Hide()
     _G.PlayerSpellsFrame.TalentsFrame = echt
