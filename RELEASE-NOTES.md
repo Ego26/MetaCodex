@@ -15,8 +15,8 @@
   cannot show you, because the other one is not drawn at all.
 - In the window, a build now says in its tooltip **which talent goes in
   for which**, with icons and with what each one does.
-- A switch for the builds button under Settings, and the list can be
-  dragged where you want it.
+- A switch for the builds button under Settings. The button is
+  draggable; the list hangs off it and comes along.
 
 ### Fixed
 

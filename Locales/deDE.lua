@@ -404,7 +404,7 @@ ns.RegisterLocale("deDE", {
     ["TP_NO_IMPORT"]       = "Dieser Client kann keinen Build direkt laden. Der String steht im Kopierfeld.",
     ["TP_IMPORT_FAILED"]   = "Laden fehlgeschlagen (%s). Der String steht im Kopierfeld.",
     ["TP_LOADED"]          = "Geladen: %s",
-    ["TP_HINT2"]           = "Klick lädt den Build · Shift-Klick kopiert den String · Ziehen verschiebt die Liste",
+    ["TP_HINT2"]           = "Klick lädt den Build · Shift-Klick kopiert den String",
     ["TP_DRAG"]            = "Ziehen verschiebt ihn",
     ["TP_PIN"]             = "Diese Vorschau festhalten",
     ["TP_PIN_HINT"]        = "Die Rahmen bleiben im Baum stehen, damit du hinauffahren und nachlesen kannst, was ein Talent tut.",

@@ -7568,30 +7568,13 @@ local function buildTalentPanel()
     p.title:SetPoint("TOPLEFT", S.space.md, -S.space.md)
     p.title:SetText(L["TP_TITLE"])
 
-    -- ZIEHBAR, und die Lage wird gemerkt.
+    -- NICHT ZIEHBAR. Sie haengt am Knopf, und der ist es.
     --
-    -- Von selbst stellt sich die Liste neben das Talentfenster. Ist das
-    -- aber fast so breit wie der Bildschirm - und bei manchem ist es
-    -- das -, bleibt aussen kein Platz, und dann deckt sie etwas zu, egal
-    -- wohin wir sie stellen. Welche Stelle am wenigsten stoert, sieht
-    -- nur der, der davorsitzt.
-    p:SetMovable(true)
+    -- Eine Zeitlang war sie es auch, mit eigener gemerkter Lage. Dann
+    -- gab es zwei Dinge, die sich unabhaengig verschieben liessen - und
+    -- wer den Knopf nach oben zog, hatte die Liste unten stehen, ohne
+    -- sichtbaren Zusammenhang. Eine Sache zum Verschieben genuegt.
     p:EnableMouse(true)
-    p:RegisterForDrag("LeftButton")
-    p:SetScript("OnDragStart", function(self) self:StartMoving() end)
-    p:SetScript("OnDragStop", function(self)
-        self:StopMovingOrSizing()
-        local ziel = talentFrame()
-        if not ziel then return end
-        -- Gemerkt wird der Abstand zur Ecke des Talentfensters, nicht
-        -- die Bildschirmkoordinate: das Fenster steht nicht immer
-        -- gleich, und die Liste soll mitwandern.
-        local dx = (tonumber(self:GetLeft()) or 0) - (tonumber(ziel:GetLeft()) or 0)
-        local dy = (tonumber(self:GetBottom()) or 0) - (tonumber(ziel:GetBottom()) or 0)
-        ns.Profile.SetTalentPanelPos(dx, dy)
-        self:ClearAllPoints()
-        self:SetPoint("BOTTOMLEFT", ziel, "BOTTOMLEFT", dx, dy)
-    end)
 
     -- KEINE ZEILE "GEMESSEN FUER".
     --
@@ -8050,64 +8033,31 @@ function UI.ShowTalentPanel()
     p:ClearAllPoints()
     p:SetHeight(TP_HEIGHT)
 
-    -- WER SIE EINMAL HINGESCHOBEN HAT, HAT ENTSCHIEDEN.
-    local gx, gy = ns.Profile.TalentPanelPos()
-    if gx and gy then
-        p:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", gx, gy)
-        p:Show()
-        UI.RefreshTalentPanel()
-        return
-    end
-
-    -- NEBEN DAS FENSTER, NICHT DARAUF.
+    -- SIE HAENGT AM KNOPF. IMMER.
     --
-    -- Ueber dem Knopf wachsend stand die Liste mitten im Talentbaum -
-    -- und zwar genau dort, wo die Vorschau ihre Rahmen zeichnet. Man
-    -- deckte mit dem Lesen zu, was man sehen wollte.
+    -- Vorher suchte sie sich ihren Platz selbst - aussen neben das
+    -- Talentfenster, wenn dort Platz war, sonst neben den Knopf - und
+    -- liess sich zusaetzlich frei verschieben. Damit gab es zwei
+    -- ziehbare Dinge, die auseinanderlaufen konnten: wer den Knopf
+    -- nach oben zog, hatte seine Liste unten stehen und keinen
+    -- Zusammenhang mehr zwischen beiden.
     --
-    -- Also an die AUSSENKANTE, dieselbe Regel wie bei der Einkaufsliste
-    -- am Auktionshaus: an die Seite, auf der der Knopf steht, und wenn
-    -- dort kein Platz mehr ist, auf die andere. Der Bildschirm gehoert
-    -- dem Spieler, nicht uns.
-    local links = tonumber(f.GetLeft and f:GetLeft())
-    local rechts = tonumber(f.GetRight and f:GetRight())
-    local schirm = tonumber(UIParent and UIParent.GetRight and UIParent:GetRight())
-    local luft = TP_WIDTH + S.space.md
-
-    local platzLinks = (links or 0) >= luft
-    local platzRechts = (schirm and rechts) and (schirm - rechts) >= luft or false
-
-    local nachLinks = false
-    if platzLinks or platzRechts then
-        -- Auf welcher Seite steht der Knopf? Dort sucht der Blick die
-        -- Liste. Aber Platz geht vor Gewohnheit.
-        local knopfX = talentButton and tonumber(talentButton.GetLeft and talentButton:GetLeft())
-        local mitte = (links and rechts) and (links + rechts) / 2 or nil
-        nachLinks = (knopfX and mitte) and (knopfX < mitte) or false
-        if nachLinks and not platzLinks then nachLinks = false end
-        if not nachLinks and not platzRechts then nachLinks = true end
-    end
-
-    if not (platzLinks or platzRechts) then
-        -- NIRGENDS PLATZ: ein fast bildschirmbreites Talentfenster laesst
-        -- aussen keine 100 Pixel.
-        --
-        -- Dann NEBEN den Knopf, nicht ueber ihn. Ueber ihm wuchs die
-        -- Liste senkrecht in den Baum hinein und deckte die Spalte zu,
-        -- vor der man gerade steht. Rechts daneben, auf seiner Hoehe
-        -- beginnend, bleibt die Leiste unten frei und die Liste steht
-        -- neben dem Baum statt darin - soweit sie reicht. Ganz ohne
-        -- Ueberdeckung geht es bei einem Fenster dieser Groesse nicht,
-        -- und darum ist sie ziehbar.
-        if talentButton then
-            p:SetPoint("BOTTOMLEFT", talentButton, "BOTTOMRIGHT", S.space.md, 0)
-        else
-            p:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 12, 12)
-        end
-    elseif nachLinks then
-        p:SetPoint("TOPRIGHT", f, "TOPLEFT", -S.space.md, 0)
+    -- Eine Regel statt vier: rechts neben dem Knopf, auf seiner Hoehe
+    -- beginnend. Verschoben wird der Knopf, die Liste kommt mit.
+    local b = talentButton
+    if not b then
+        p:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 12, 12)
     else
-        p:SetPoint("TOPLEFT", f, "TOPRIGHT", S.space.md, 0)
+        -- Nur wenn rechts der Bildschirm zu Ende ist, auf die andere
+        -- Seite. Eine Liste, die halb draussen steht, ist keine.
+        local rechts = tonumber(b.GetRight and b:GetRight())
+        local schirm = tonumber(UIParent and UIParent.GetRight and UIParent:GetRight())
+        local passt = not (rechts and schirm) or (schirm - rechts) >= (TP_WIDTH + S.space.md)
+        if passt then
+            p:SetPoint("BOTTOMLEFT", b, "BOTTOMRIGHT", S.space.md, 0)
+        else
+            p:SetPoint("BOTTOMRIGHT", b, "BOTTOMLEFT", -S.space.md, 0)
+        end
     end
     p:Show()
     UI.RefreshTalentPanel()

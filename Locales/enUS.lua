@@ -409,7 +409,7 @@ ns.RegisterLocale("enUS", {
     ["TP_NO_IMPORT"]       = "This client cannot load a build directly. The string is in the copy box.",
     ["TP_IMPORT_FAILED"]   = "Loading failed (%s). The string is in the copy box.",
     ["TP_LOADED"]          = "Loaded: %s",
-    ["TP_HINT2"]           = "Click loads the build · Shift-click copies the string · Drag to move the list",
+    ["TP_HINT2"]           = "Click loads the build · Shift-click copies the string",
     ["TP_DRAG"]            = "Drag to move",
     ["TP_PIN"]             = "Hold this preview",
     ["TP_PIN_HINT"]        = "The frames stay in the tree, so you can go up and read what a talent does.",

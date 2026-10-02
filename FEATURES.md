@@ -125,8 +125,9 @@ visible - a set piece can be worth having a rank lower.
 your spec; a click loads one, through the same method Blizzard's own
 Import dialog uses. Per dungeon and per boss, grouped like the window.
 Shift-click copies instead of loading, in combat it says so, and when
-it fails the string lands in the copy box. Button and list are both
-draggable — we cannot know which corner is free on your screen.
+it fails the string lands in the copy box. The button is draggable and
+the list hangs off it — we cannot know which corner is free on your
+screen.
 
 **The preview in the tree** — Hover a build and it is drawn on the tree
 itself: green around what you would gain, red around what you would

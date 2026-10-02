@@ -1296,22 +1296,27 @@ do
         ns.Profile.SetTalentPanel(true)
         if auf then auf(_G.PlayerSpellsFrame.TalentsFrame) end
 
-        -- DIE LISTE IST ZIEHBAR, und geschoben gilt geschoben.
+        -- DIE LISTE HAENGT AM KNOPF, UND NUR AM KNOPF.
         --
-        -- Von selbst stellt sie sich neben das Talentfenster. Ist das
-        -- fast bildschirmbreit, bleibt aussen kein Platz, und dann deckt
-        -- sie etwas zu - welche Stelle am wenigsten stoert, sieht nur
-        -- der, der davorsitzt.
-        local px, py = ns.Profile.TalentPanelPos()
-        check("ungeschoben merkt sie sich nichts", px == nil and py == nil,
-            tostring(px) .. "/" .. tostring(py))
-        ns.Profile.SetTalentPanelPos(240, 60)
-        px, py = ns.Profile.TalentPanelPos()
-        check("  geschoben wird sie gemerkt", px == 240 and py == 60,
-            tostring(px) .. "/" .. tostring(py))
-        ns.Profile.SetTalentPanelPos(nil, nil)
-        px = ns.Profile.TalentPanelPos()
-        check("  und laesst sich wieder vergessen", px == nil, tostring(px))
+        -- Sie hatte einmal eine eigene gemerkte Lage. Dann liessen sich
+        -- zwei Dinge unabhaengig verschieben, und wer den Knopf nach
+        -- oben zog, hatte seine Liste unten stehen.
+        ns.UI.ShowTalentPanel()
+        -- Woran sie haengt, erkennt der Test am Knopf selbst: an seiner
+        -- Beschriftung. rawget, weil eine Attrappe jedes unbekannte Feld
+        -- mit einem Kind beantwortet - und dann haengt sie an allem.
+        local woran
+        for _, punkt in ipairs(panel.__points or {}) do
+            local ziel = punkt[2]
+            local label = type(ziel) == "table" and rawget(ziel, "label")
+            if label and label.GetText and label:GetText() == ns.L["TP_BUTTON"] then
+                woran = punkt[1]
+            end
+        end
+        check("die Liste haengt am Knopf", woran ~= nil, tostring(woran))
+        check("  und laesst sich nicht selbst ziehen",
+            rawget(panel, "__scripts") == nil
+                or panel.__scripts.OnDragStart == nil)
 
         -- FESTHALTEN, DAMIT MAN IM BAUM NACHSEHEN KANN.
         --

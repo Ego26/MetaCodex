@@ -32,10 +32,10 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
   Wegen hinein. Er setzt sich in Blizzards Fenster an genau die Ecke, an
   der bei anderen Raider.IO sitzt – die Einstellung gab es, nur die
   Zeile, über die man sie erreicht, fehlte.
-- Die Build-Liste ist ziehbar und merkt sich, wohin. Bei einem fast
-  bildschirmbreiten Talentfenster gibt es keine Stelle, die nichts
-  verdeckt, und welche Ecke am wenigsten stört, sieht nur der, der
-  davorsitzt.
+- Die Build-Liste hängt am Knopf, immer, und wandert mit ihm. Nur eine
+  Sache lässt sich verschieben, denn zwei, die das unabhängig tun,
+  laufen auseinander – und dann steht der Knopf oben im Baum und seine
+  Liste unten.
 
 ### Geändert
 

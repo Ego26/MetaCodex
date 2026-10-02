@@ -131,8 +131,8 @@ die Builds deiner Spec; ein Klick lädt einen davon, über dieselbe
 Methode, die auch Blizzards Import-Dialog benutzt. Je Dungeon und je
 Boss wählbar, gegliedert wie im Fenster. Shift-Klick kopiert statt zu
 laden, im Kampf sagt es das, und scheitert es, landet der String im
-Kopierfeld. Knopf und Liste sind beide ziehbar — welche Ecke bei dir
-frei ist, wissen wir nicht.
+Kopierfeld. Der Knopf ist ziehbar, die Liste hängt an ihm — welche Ecke
+bei dir frei ist, wissen wir nicht.
 
 **Die Vorschau im Baum** — Wer mit der Maus über einen Build fährt,
 sieht ihn im Talentbaum selbst: grün um das, was dazukäme, rot um das,

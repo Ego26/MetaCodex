@@ -27,10 +27,10 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 - A switch for the builds button at the talent frame, beside the other
   ways in. It sits in Blizzard's window at the corner where others keep
   Raider.IO - the setting existed, only the row to reach it was missing.
-- The builds list is draggable and remembers where. On a talent window
-  nearly as wide as the screen there is no placement that covers
-  nothing, and which corner hurts least is visible only to whoever is
-  sitting there.
+- The builds list hangs off the button, always, and moves with it. Only
+  one thing is draggable, because two that move independently drift
+  apart - and then the button is up in the tree and its list down at the
+  bottom.
 
 ### Changed
 
