@@ -2822,11 +2822,13 @@ end
 ---darunter, was dafuer faellt, jeweils mit der Beschreibung aus dem
 ---Spiel.
 ---
----BESCHREIBUNGEN NUR, WENN ES WENIGE SIND. Ein Build kann sich in zehn
----Talenten unterscheiden - zehn Beschreibungen sind laenger als der
----Bildschirm, und ein Zeiger, den man scrollen muesste, beantwortet
----nichts. Ab sieben stehen nur noch die Namen, und dann sind es die
----vollstaendigen Namen, nicht die zwei aus der Zeile.
+---JEDES TALENT BEKOMMT TEXT, LANGE NUR WENIGE. Ein Build kann sich in
+---zehn Talenten unterscheiden, und zehn volle Beschreibungen sind
+---laenger als der Bildschirm. Vorher fielen sie darum ab sieben Talenten
+---ganz weg - mit dem Ergebnis, dass manche Zeilen eine Wirkung nannten
+---und andere nicht, ohne dass man sah, warum. Jetzt steht ueberall
+---etwas; bei vielen eben gekuerzt, mit Auslassungspunkten, damit man
+---das Kuerzen sieht statt es zu erraten.
 ---@param added number[]|nil  Zauber-IDs, die dieser Build zusaetzlich nimmt
 ---@param removed number[]|nil  Zauber-IDs, die er dafuer nicht nimmt
 ---@return boolean  ob etwas geschrieben wurde
@@ -2853,7 +2855,24 @@ local function swapLines(added, removed)
 
     local n = #(added or {}) + #(removed or {})
     if n == 0 then return false end
-    local mitText = n <= 6
+    -- Wie viel Text je Talent noch hineinpasst. Bei sechsen die ganze
+    -- Beschreibung, darueber die ersten neunzig Zeichen - das sind ein
+    -- bis zwei Zeilen, und auch bei zehn Talenten bleibt der Zeiger
+    -- kuerzer als der Bildschirm.
+    local deckel = (n <= 6) and 0 or 90
+
+    ---Auf ganze Woerter gekuerzt, mit sichtbarem Schnitt.
+    ---@param text string
+    ---@return string
+    local function kuerzen(text)
+        if deckel == 0 or #text <= deckel then return text end
+        local kurz = text:sub(1, deckel)
+        -- Bis zum letzten Leerzeichen zurueck: mitten im Wort
+        -- abzuschneiden liest sich wie ein Fehler.
+        local luecke = kurz:find("%s[^%s]*$")
+        if luecke and luecke > deckel / 2 then kurz = kurz:sub(1, luecke - 1) end
+        return kurz .. "\226\128\166"
+    end
 
     local function block(list, token, heading)
         if #(list or {}) == 0 then return end
@@ -2863,8 +2882,13 @@ local function swapLines(added, removed)
         GameTooltip:AddLine(heading, hr, hg, hb)
         for _, id in ipairs(list) do
             GameTooltip:AddLine(spellName(id), r, g, b, true)
-            local text = mitText and spellText(id)
-            if text then GameTooltip:AddLine(text, 0.7, 0.7, 0.7, true) end
+            local text = spellText(id)
+            if text then
+                -- Zeilenumbrueche der Spielbeschreibung weg: sie trennen
+                -- Rangstufen, und hier steht ohnehin nur ein Auszug.
+                text = text:gsub("%s*\n%s*", " ")
+                GameTooltip:AddLine(kuerzen(text), 0.7, 0.7, 0.7, true)
+            end
         end
     end
 

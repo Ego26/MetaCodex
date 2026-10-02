@@ -3632,11 +3632,17 @@ end
 do
     ns.Profile.SetMode("mplus")
     rowsInSection("talents")
-    local alt
+    -- Der GROESSTE Tausch, nicht der erste: an ihm haengt die Frage, ab
+    -- wann die Beschreibungen gekuerzt werden.
+    local alt, groesse = nil, -1
     for _, row in ipairs(wow.rows()) do
-        if row:IsShown() and rawget(row, "swapAdded") then alt = row break end
+        if row:IsShown() and rawget(row, "swapAdded") then
+            local n = #(rawget(row, "swapAdded") or {}) + #(rawget(row, "swapRemoved") or {})
+            if n > groesse then alt, groesse = row, n end
+        end
     end
-    check("ein Alternativbuild kennt seinen Tausch", alt ~= nil)
+    check("ein Alternativbuild kennt seinen Tausch", alt ~= nil,
+        groesse .. " Talente")
     if alt then
         local lines = {}
         local echtAdd, echtText = GameTooltip.AddLine, GameTooltip.SetText
@@ -3650,13 +3656,60 @@ do
                 ganz:find(L["SWAP_TAKES"], 1, true) ~= nil, kurz)
             local erste = alt.swapAdded[1]
             check("  mit Namen", ganz:find("Zauber " .. tostring(erste), 1, true) ~= nil)
-            -- Nur bei wenigen: zehn Beschreibungen waeren laenger als der
-            -- Bildschirm.
-            if #(alt.swapAdded or {}) + #(alt.swapRemoved or {}) <= 6 then
-                check("  und mit Wirkung",
-                    ganz:find("Wirkung von " .. tostring(erste), 1, true) ~= nil)
+            -- JEDES Talent traegt eine Wirkung, nicht nur manche.
+            --
+            -- Vorher fielen die Beschreibungen ab sieben Talenten ganz
+            -- weg - und dann nannte eine Zeile eine Wirkung und die
+            -- naechste nicht, ohne dass man sah, warum.
+            local ohne = {}
+            for _, id in ipairs(alt.swapAdded) do
+                if not ganz:find("Wirkung von " .. tostring(id), 1, true) then
+                    ohne[#ohne + 1] = id
+                end
+            end
+            check("  und jedes mit seiner Wirkung", #ohne == 0,
+                #ohne .. " ohne Text")
+        end
+
+        -- UND BEI VIELEN WIRD GEKUERZT.
+        --
+        -- Die Messdaten hier kennen nur Tausche mit vier Talenten; im
+        -- Spiel gibt es welche mit zehn, und genau dort entschied sich,
+        -- ob ueberhaupt noch Text kommt. Also wird der Fall gestellt,
+        -- statt auf ihn zu warten.
+        local echtPlus, echtMinus = alt.swapAdded, alt.swapRemoved
+        alt.swapAdded = { 101, 102, 103, 104, 105 }
+        alt.swapRemoved = { 201, 202, 203, 204, 205 }
+        local viele = {}
+        GameTooltip.AddLine = function(_, text) viele[#viele + 1] = tostring(text) end
+        GameTooltip.SetText = function(_, text) viele[#viele + 1] = tostring(text) end
+        alt.__scripts.OnEnter(alt)
+        GameTooltip.AddLine, GameTooltip.SetText = echtAdd, echtText
+        local langeListe = table.concat(viele, "\n")
+        local fehlend = 0
+        for _, id in ipairs({ 101, 102, 103, 104, 105, 201, 202, 203, 204, 205 }) do
+            if not langeListe:find("Wirkung von " .. id, 1, true) then
+                fehlend = fehlend + 1
             end
         end
+        check("  auch zehn Talente tragen alle ihren Text", fehlend == 0,
+            fehlend .. " ohne Text")
+        check("  dann aber gekuerzt, mit sichtbarer Auslassung",
+            langeListe:find("\226\128\166", 1, true) ~= nil)
+        -- UND AM WORT GESCHNITTEN, nicht mitten hinein.
+        --
+        -- Geprueft gegen die ganze Beschreibung: das Gekuerzte muss ihr
+        -- Anfang sein, und an der Schnittstelle muss im Original ein
+        -- Leerzeichen stehen. Ein "unterschie…" waere sonst genauso
+        -- gruen wie ein "unterschiedlich…".
+        local ganzerText = C_Spell.GetSpellDescription(101)
+        local auszug = langeListe:match("(Wirkung von 101[^\n]-)\226\128\166")
+        check("  und am Wort geschnitten",
+            type(auszug) == "string"
+                and ganzerText:sub(1, #auszug) == auszug
+                and ganzerText:sub(#auszug + 1, #auszug + 1) == " ",
+            tostring(auszug))
+        alt.swapAdded, alt.swapRemoved = echtPlus, echtMinus
         if #(alt.swapRemoved or {}) > 0 then
             check("  und wofuer es weicht",
                 ganz:find(L["SWAP_DROPS"], 1, true) ~= nil, kurz)

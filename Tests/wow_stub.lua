@@ -608,7 +608,14 @@ function M.install(opts)
         -- dem ein Test ihn wiedererkennt.
         GetSpellDescription = function(id)
             if not id then return nil end
+            -- Lang genug, dass das Kuerzen im Zeiger geprueft werden
+            -- kann: im Spiel sind Talentbeschreibungen zwei bis vier
+            -- Zeilen, und genau daran haengt die Entscheidung, ab wann
+            -- sie abgeschnitten werden.
             return "Wirkung von " .. tostring(id)
+                .. ", und zwar in aller Ausfuehrlichkeit beschrieben, damit"
+                .. " der Zeiger etwas zu kuerzen hat, wenn ein Build sich in"
+                .. " vielen Talenten unterscheidet."
         end,
     }
 
