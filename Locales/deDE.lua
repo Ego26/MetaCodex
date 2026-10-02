@@ -408,6 +408,7 @@ ns.RegisterLocale("deDE", {
     ["TP_DRAG"]            = "Ziehen verschiebt ihn",
     ["TP_PIN"]             = "Diese Vorschau festhalten",
     ["TP_PVP_SHARE"]       = "%d %% der gemessenen Spieler",
+    ["TP_PVP_HINT"]        = "Drei Plätze, gewählt am PvP-Knopf – kein Build trägt sie.",
     ["TP_PIN_HINT"]        = "Die Rahmen bleiben im Baum stehen, damit du hinauffahren und nachlesen kannst, was ein Talent tut.",
     ["TP_TOOLTIP"]         = "Die Builds, die die Besten deiner Spec spielen",
     ["TP_TITLE"]           = "Builds",

@@ -7298,23 +7298,40 @@ end
 -- gesperrt" - und zwar irgendwann spaeter, an einer ganz anderen
 -- Stelle. Dieses Panel haengt an UIParent und dockt nur an die
 -- Aussenkante an, genau wie die Einkaufsliste am Auktionshaus.
-local talentPanel
--- Breit genug, dass ein Buildname mehr als zwei Woerter zeigt. Bei 260
--- stand in jeder Zeile "Totemische Projektion, Wolfsaffinitaet d..." -
--- sieben Zeilen, die alle an derselben Stelle aufhoeren, unterscheiden
--- nichts. Breiter als 320 wird die Leiste zum zweiten Fenster.
-local TP_WIDTH = 320
--- Der Vorrat an Zeilen. Sieben Builds, und in einer PvP-Klammer
--- kommen bis zu drei PvP-Talente dazu - die Hoehe folgt der Zahl, nicht
--- umgekehrt.
-local TP_ROWS = 10
-local TP_ROW_H = 38
--- Der Knopf zum Festhalten, rechts in jeder Zeile.
-local TP_PIN = 18
--- Das Symbol links, und wie hoch eine Ueberschrift ist. Sie braucht
--- keine 38 Pixel: sie traegt ein Wort, keine Entscheidung.
-local TP_ICON = 20
-local TP_HEAD_H = 20
+-- Die beiden Fenster am Talentbaum und das, was sie fuellt. Hier
+-- angekuendigt, weil RefreshTalentPanel weiter oben steht als ihr Aufbau
+-- - in Lua muss ein Local deklariert sein, bevor jemand es ruft.
+local talentPanel, pvpPanel, zeigePvp
+-- DIE MASSE DER BUILDLISTE, in einer Tabelle statt als zehn Locals.
+--
+-- Lua 5.1 erlaubt 200 lokale Variablen je Funktion, und die
+-- Hauptebene dieser Datei ist eine. Jede neue Konstante kostet davon
+-- eine; zusammengefasst kostet der ganze Satz eine einzige. Dieselbe
+-- Rechnung wie bei MASS weiter oben.
+--
+-- WIDTH: breit genug, dass ein Buildname mehr als zwei Woerter zeigt.
+-- Bei 260 stand in jeder Zeile "Totemische Projektion, Wolfsaffinitaet
+-- d..." - sieben Zeilen, die alle an derselben Stelle aufhoeren,
+-- unterscheiden nichts. Breiter als 320 wird die Leiste zum zweiten
+-- Fenster.
+--
+-- HEAD_H: eine Ueberschrift traegt ein Wort, keine Entscheidung, und
+-- braucht darum keine 38 Pixel.
+local TP = {
+    WIDTH = 320,
+    -- Der Vorrat an Zeilen; wie viele davon stehen, entscheidet die
+    -- Liste, und die Hoehe folgt ihr.
+    ROWS = 10,
+    ROW_H = 38,
+    HEAD_H = 20,
+    ICON = 20,
+    -- Der Stern zum Festhalten, rechts in jeder Zeile.
+    PIN = 18,
+    -- Wo die erste Zeile anfaengt: unter Titel und Waehler.
+    TOP = 62,
+    -- Und im PvP-Fenster, das nur einen Titel hat.
+    PVP_TOP = 34,
+}
 
 ---Schreibt in den Zeiger, was im Baum keinen Rahmen bekommen hat.
 ---@param fehlt table  aus Tree.Show: { { spell, why, hero } }
@@ -7353,15 +7370,10 @@ end
 -- gilt wieder der Zeiger.
 local pinnedRow
 -- So hoch, wie die Liste braucht: Kopf, Waehler, sieben Zeilen, Fuss.
--- Wo die erste Zeile anfaengt: unter Titel und Waehler.
-local TP_TOP = 62
----Wie hoch die Liste bei so vielen Zeilen ist.
----@param n number
----@return number
-local function tpHeight(n)
-    return TP_TOP + math.max(1, n) * (38 + 2) + 46
-end
-local TP_HEIGHT = tpHeight(7)
+-- Die Hoehe bei sieben Zeilen - fuer die Frage, ob die Liste nach
+-- unten noch auf den Bildschirm passt. Gefuellt rechnet sie ihre
+-- wirkliche Hoehe selbst aus.
+TP.HEIGHT = TP.TOP + 7 * (TP.ROW_H + 2) + 46
 
 ---Blizzards Talentfenster, wie es in dieser Fassung heisst.
 ---
@@ -7477,7 +7489,7 @@ local function talentPanelRows()
         end
     end
 
-    -- DIE PVP-TALENTE GEHOEREN DAZU - auch wenn kein Build sie traegt.
+    -- DIE PVP-TALENTE GEHOEREN DAZU - aber nicht in diese Liste.
     --
     -- Blizzards Importkette enthaelt sie nicht: sie sitzen in drei
     -- eigenen Plaetzen, nicht im Baum. Ein Build laedt sie also nie, und
@@ -7485,12 +7497,15 @@ local function talentPanelRows()
     -- vor dieser Liste steht, hat sie aber trotzdem zu waehlen - und
     -- gemessen sind sie.
     --
-    -- Darum stehen sie hier als eigene Zeilen: ohne Kette, ohne Klick,
-    -- mit ihrem Anteil. Eine Zeile, die nichts laedt, ist ehrlicher als
-    -- eine fehlende Auskunft.
+    -- Sie standen zuerst unter den Builds, mit einer Ueberschrift
+    -- dazwischen. Dann waren es elf Zeilen, und die untersten standen
+    -- ueber dem Bildschirmrand hinaus. Also bekommen sie ein eigenes
+    -- Fenster daneben - und werden hier getrennt zurueckgegeben.
     local pvp = {}
     for _, pick in ipairs(picks or {}) do
-        if pick.pvp and #pvp < 3 then
+        -- Drei Plaetze hat man, mehr als sechs zur Auswahl zu zeigen
+        -- waere eine Liste statt einer Antwort.
+        if pick.pvp and #pvp < 6 then
             local info = C_Spell and C_Spell.GetSpellInfo
                 and C_Spell.GetSpellInfo(pick.spell)
             pvp[#pvp + 1] = {
@@ -7501,14 +7516,7 @@ local function talentPanelRows()
             }
         end
     end
-    if #pvp > 0 then
-        -- EINE UEBERSCHRIFT DAVOR. Ohne sie hingen drei Zeilen unter den
-        -- Builds, die sich lesen wie weitere Builds - und genau das sind
-        -- sie nicht: man laedt sie nicht, man waehlt sie woanders.
-        out[#out + 1] = { head = true, name = L["TALENT_PVP"] }
-        for _, zeile in ipairs(pvp) do out[#out + 1] = zeile end
-    end
-    return out
+    return out, pvp
 end
 
 ---Aktivitaet, Dungeon und Boss fuer das Panel waehlen.
@@ -7600,7 +7608,7 @@ end
 local function buildTalentPanel()
     if talentPanel then return talentPanel end
     local p = CreateFrame("Frame", "MetaCodexTalentList", UIParent)
-    p:SetWidth(TP_WIDTH)
+    p:SetWidth(TP.WIDTH)
     -- Ueber den Rahmen der Vorschau, die auf HIGH liegen: was hinter
     -- dieser Liste steckt, soll nicht durch sie hindurchleuchten.
     p:SetFrameStrata("DIALOG")
@@ -7637,28 +7645,28 @@ local function buildTalentPanel()
     -- dieses Panel neben dem Talentfenster steht. Wer dafuer erst in
     -- unser Fenster wechseln muesste, koennte auch gleich dort den
     -- String kopieren.
-    p.pick = makeButton(p, TP_WIDTH - S.space.md * 2, 22, "", function(self)
+    p.pick = makeButton(p, TP.WIDTH - S.space.md * 2, 22, "", function(self)
         openTalentModePicker(self)
     end)
     p.pick:SetPoint("TOPLEFT", S.space.md, -S.space.md - 22)
 
     p.rows = {}
-    for i = 1, TP_ROWS do
+    for i = 1, TP.ROWS do
         local r = CreateFrame("Button", nil, p)
-        r:SetHeight(TP_ROW_H)
+        r:SetHeight(TP.ROW_H)
         r.bg = S:Fill(r, "bgOverlay", 0)
         -- EIN SYMBOL, wo es eines gibt. Ein PvP-Talent erkennt man im
         -- Spiel am Bild; ein Build hat keines, denn er ist kein Zauber.
         r.icon = r:CreateTexture(nil, "ARTWORK")
-        r.icon:SetSize(TP_ICON, TP_ICON)
+        r.icon:SetSize(TP.ICON, TP.ICON)
         r.icon:SetPoint("LEFT", S.space.sm, 0)
         r.icon:Hide()
         r.name = S:Text(r, "body", "textPrimary")
-        r.name:SetPoint("RIGHT", -S.space.sm - TP_PIN, 0)
+        r.name:SetPoint("RIGHT", -S.space.sm - TP.PIN, 0)
         r.name:SetJustifyH("LEFT")
         r.name:SetWordWrap(false)
         r.note = S:Text(r, "caption", "textSecondary")
-        r.note:SetPoint("RIGHT", -S.space.sm - TP_PIN, 0)
+        r.note:SetPoint("RIGHT", -S.space.sm - TP.PIN, 0)
         r.note:SetJustifyH("LEFT")
         r.note:SetWordWrap(false)
 
@@ -7670,7 +7678,7 @@ local function buildTalentPanel()
         -- selbst ueber ein Talent sagt, steht an seinem Symbol; dorthin
         -- muss man kommen duerfen.
         r.pin = CreateFrame("Button", nil, r)
-        r.pin:SetSize(TP_PIN, TP_PIN)
+        r.pin:SetSize(TP.PIN, TP.PIN)
         r.pin:SetPoint("RIGHT", -S.space.sm, 0)
         r.pin.icon = r.pin:CreateTexture(nil, "ARTWORK")
         r.pin.icon:SetAllPoints()
@@ -7839,7 +7847,7 @@ function UI.RefreshTalentPanel()
     -- steht jetzt vielleicht gar nicht mehr in der Liste.
     pinnedRow = nil
     if ns.Tree then ns.Tree.Hide() end
-    local rows = talentPanelRows()
+    local rows, pvpListe = talentPanelRows()
     -- Woraus die Builds stammen, steht dabei: eine Kette ohne ihre
     -- Aktivitaet ist eine Zahl ohne Frage.
     local label
@@ -7862,12 +7870,12 @@ function UI.RefreshTalentPanel()
     -- gleich hoch sind - eine Ueberschrift ist es nicht: sie traegt ein
     -- Wort, keine Entscheidung, und 38 Pixel dafuer sind ein Loch in
     -- der Liste.
-    local y = TP_TOP
+    local y = TP.TOP
     for i, r in ipairs(talentPanel.rows) do
         local row = rows[i]
         if row then
             local kopf = row.head == true
-            local hoch = kopf and TP_HEAD_H or TP_ROW_H
+            local hoch = kopf and TP.HEAD_H or TP.ROW_H
             r:SetHeight(hoch)
             r:ClearAllPoints()
             r:SetPoint("TOPLEFT", S.space.sm, -y)
@@ -7879,7 +7887,7 @@ function UI.RefreshTalentPanel()
             local bild = tonumber(row.icon)
             r.icon:SetShown(bild ~= nil)
             if bild then r.icon:SetTexture(bild) end
-            local ein = S.space.sm + (bild and (TP_ICON + S.space.sm) or 0)
+            local ein = S.space.sm + (bild and (TP.ICON + S.space.sm) or 0)
 
             r.name:ClearAllPoints()
             r.note:ClearAllPoints()
@@ -7893,9 +7901,9 @@ function UI.RefreshTalentPanel()
             else
                 S:ApplyRole(r.name, "title")
                 r.name:SetPoint("TOPLEFT", ein, -4)
-                r.name:SetPoint("RIGHT", -S.space.sm - TP_PIN, 0)
+                r.name:SetPoint("RIGHT", -S.space.sm - TP.PIN, 0)
                 r.note:SetPoint("TOPLEFT", ein, -20)
-                r.note:SetPoint("RIGHT", -S.space.sm - TP_PIN, 0)
+                r.note:SetPoint("RIGHT", -S.space.sm - TP.PIN, 0)
             end
             -- Eine Ueberschrift ist kein Knopf.
             r:EnableMouse(not kopf)
@@ -7925,6 +7933,8 @@ function UI.RefreshTalentPanel()
         end
     end
     UI.UpdateTalentPins()
+    -- Und die PvP-Talente daneben, wo es welche gibt.
+    zeigePvp(pvpListe or {})
     -- So hoch, wie die Liste wirklich ist: in einer PvP-Klammer kommen
     -- bis zu vier Zeilen dazu, und eine feste Hoehe liesse sie entweder
     -- abgeschnitten oder mit einem leeren Streifen darunter stehen.
@@ -8213,13 +8223,122 @@ local function freierPlatz(f, tf, breit, hoch)
     end
     return math.floor(x), math.floor(y)
 end
+-- EIN EIGENES FENSTER FUER DIE PVP-TALENTE.
+--
+-- Sie standen zuerst unter den Builds, mit einer Ueberschrift
+-- dazwischen. In einer Klammer wurden daraus elf Zeilen, und die
+-- untersten standen ueber dem Bildschirmrand hinaus - abgeschnitten,
+-- ohne dass man es der Liste ansah.
+--
+-- Daneben statt darunter: dieselbe Reihe wie sonst - Knopf, Builds,
+-- PvP-Talente -, und keine der beiden Listen wird laenger, weil die
+-- andere etwas zu sagen hat.
+
+local function buildPvpPanel()
+    if pvpPanel then return pvpPanel end
+    local p = CreateFrame("Frame", "MetaCodexPvpTalents", UIParent)
+    p:SetWidth(TP.WIDTH)
+    p:SetFrameStrata("DIALOG")
+    S:Fill(p, "bgBase")
+    S:Border(p, "borderSubtle")
+    p:Hide()
+
+    p.title = S:Text(p, "title", "textPrimary")
+    p.title:SetPoint("TOPLEFT", S.space.md, -S.space.md)
+    p.title:SetText(L["TALENT_PVP"])
+
+    p.rows = {}
+    for i = 1, 6 do
+        local r = CreateFrame("Button", nil, p)
+        r:SetHeight(TP.ROW_H)
+        r:SetPoint("TOPLEFT", S.space.sm, -TP.PVP_TOP - (i - 1) * (TP.ROW_H + 2))
+        r:SetPoint("TOPRIGHT", -S.space.sm, -TP.PVP_TOP - (i - 1) * (TP.ROW_H + 2))
+        r.bg = S:Fill(r, "bgOverlay", 0)
+        r.icon = r:CreateTexture(nil, "ARTWORK")
+        r.icon:SetSize(TP.ICON, TP.ICON)
+        r.icon:SetPoint("LEFT", S.space.sm, 0)
+        r.name = S:Text(r, "body", "textPrimary")
+        r.name:SetPoint("TOPLEFT", S.space.sm + TP.ICON + S.space.sm, -4)
+        r.name:SetPoint("RIGHT", -S.space.sm, 0)
+        r.name:SetJustifyH("LEFT")
+        r.name:SetWordWrap(false)
+        r.note = S:Text(r, "caption", "textSecondary")
+        r.note:SetPoint("TOPLEFT", S.space.sm + TP.ICON + S.space.sm, -20)
+        r.note:SetPoint("RIGHT", -S.space.sm, 0)
+        r.note:SetJustifyH("LEFT")
+        r.note:SetWordWrap(false)
+        -- Ein PvP-Talent ist ein Zauber: der Zeiger zeigt, was
+        -- Blizzard selbst darueber sagt.
+        r:SetScript("OnEnter", function(self)
+            self.bg:SetAlpha(0.6)
+            local id = rawget(self, "spellID")
+            if not (id and GameTooltip.SetSpellByID) then return end
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetSpellByID(id)
+            GameTooltip:Show()
+        end)
+        r:SetScript("OnLeave", function(self)
+            self.bg:SetAlpha(0)
+            GameTooltip:Hide()
+        end)
+        r:Hide()
+        p.rows[i] = r
+    end
+
+    p.hint = S:Text(p, "caption", "textMuted")
+    p.hint:SetPoint("BOTTOMLEFT", S.space.md, S.space.md)
+    p.hint:SetPoint("BOTTOMRIGHT", -S.space.md, S.space.md)
+    p.hint:SetWordWrap(true)
+    p.hint:SetJustifyH("LEFT")
+    p.hint:SetText(L["TP_PVP_HINT"])
+    pvpPanel = p
+    return p
+end
+
+---Die PvP-Talente neben die Builds stellen - oder wegraeumen.
+---@param liste table[]
+zeigePvp = function(liste)
+    if #liste == 0 then
+        if pvpPanel then pvpPanel:Hide() end
+        return
+    end
+    local p = buildPvpPanel()
+    for i, r in ipairs(p.rows) do
+        local row = liste[i]
+        if row then
+            r.spellID = row.spellID
+            r.name:SetText(row.name or "")
+            r.note:SetText(row.note or "")
+            local bild = tonumber(row.icon)
+            r.icon:SetShown(bild ~= nil)
+            if bild then r.icon:SetTexture(bild) end
+            r:Show()
+        else
+            r:Hide()
+        end
+    end
+    p:SetHeight(TP.PVP_TOP + math.min(#liste, #p.rows) * (TP.ROW_H + 2) + 34)
+    -- Rechts neben die Builds, oben buendig. Ist dort kein Platz mehr,
+    -- auf die andere Seite - dieselbe Regel wie fuer die Liste selbst.
+    p:ClearAllPoints()
+    local rechts = tonumber((talentPanel and talentPanel.GetRight and talentPanel:GetRight()))
+    local schirm = tonumber((UIParent and UIParent.GetRight and UIParent:GetRight()))
+    local passt = not (rechts and schirm) or (schirm - rechts) >= (TP.WIDTH + S.space.md)
+    if passt then
+        p:SetPoint("TOPLEFT", talentPanel, "TOPRIGHT", S.space.md, 0)
+    else
+        p:SetPoint("TOPRIGHT", talentPanel, "TOPLEFT", -S.space.md, 0)
+    end
+    p:SetShown(talentPanel and talentPanel:IsShown() and true or false)
+end
+
 ---Die Buildliste oeffnen - vom Knopf aus.
 function UI.ShowTalentPanel()
     local f = talentFrame()
     if not f then return end
     local p = buildTalentPanel()
     p:ClearAllPoints()
-    p:SetHeight(TP_HEIGHT)
+    p:SetHeight(TP.HEIGHT)
 
     -- SIE HAENGT AM KNOPF. IMMER.
     --
@@ -8248,10 +8367,10 @@ function UI.ShowTalentPanel()
         local oben = tonumber(b.GetTop and b:GetTop())
         local breit = tonumber(UIParent and UIParent.GetRight and UIParent:GetRight())
         local nachRechts = not (rechts and breit)
-            or (breit - rechts) >= (TP_WIDTH + S.space.md)
+            or (breit - rechts) >= (TP.WIDTH + S.space.md)
         -- Und nach oben nur dann, wenn nach unten der Bildschirm zu Ende
         -- ist. Eine Liste, die halb draussen steht, ist keine.
-        local nachUnten = not oben or (oben - TP_HEIGHT) >= 0
+        local nachUnten = not oben or (oben - TP.HEIGHT) >= 0
 
         local meine = nachUnten and "TOP" or "BOTTOM"
         local seine = meine .. (nachRechts and "RIGHT" or "LEFT")
@@ -8645,6 +8764,7 @@ end
 function UI.HideTalentPanel()
     if talentPanel then talentPanel:Hide() end
     if talentButton then talentButton:Hide() end
+    if pvpPanel then pvpPanel:Hide() end
     -- Und die Vorschau mit, festgehalten oder nicht. Sonst bleiben
     -- gruene Rahmen auf einem Baum stehen, dessen Liste nicht mehr da
     -- ist.

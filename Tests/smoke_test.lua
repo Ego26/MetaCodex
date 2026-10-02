@@ -1420,33 +1420,30 @@ do
         local vorher = ns.Profile.Mode()
         ns.Profile.SetMode("2v2")
         ns.UI.RefreshTalentPanel()
+        local pvpFenster = _G.MetaCodexPvpTalents
+        check("PvP-Talente bekommen ein eigenes Fenster",
+            pvpFenster ~= nil and pvpFenster:IsShown() == true)
+        -- NEBEN DEN BUILDS, nicht darunter. Unter ihnen wurden daraus elf
+        -- Zeilen, und die untersten standen ueber dem Bildschirmrand
+        -- hinaus - abgeschnitten, ohne dass man es der Liste ansah.
+        if pvpFenster then
+            local woran
+            for _, punkt in ipairs(pvpFenster.__points or {}) do
+                if punkt[2] == panel then woran = punkt[1] end
+            end
+            check("  und haengt an der Buildliste", woran ~= nil, tostring(woran))
+        end
         local pvpZeile
-        for _, r in ipairs(panel.rows) do
+        for _, r in ipairs((pvpFenster and pvpFenster.rows) or {}) do
             if r:IsShown() and rawget(r, "spellID") and not pvpZeile then pvpZeile = r end
         end
-        check("PvP-Talente stehen in der Liste", pvpZeile ~= nil,
+        check("  mit einer Zeile je Talent", pvpZeile ~= nil,
             pvpZeile and (pvpZeile.name:GetText() or "") or "keine")
-        -- UNTER EIGENER UEBERSCHRIFT. Ohne sie lesen sich drei Zeilen wie
-        -- weitere Builds - und genau das sind sie nicht.
-        local ueberschrift
-        for _, r in ipairs(panel.rows) do
-            if r:IsShown() and r.name:GetText() == ns.L["TALENT_PVP"] then
-                ueberschrift = r
-            end
-        end
-        check("  unter eigener Ueberschrift", ueberschrift ~= nil)
-        if ueberschrift then
-            check("    die kein Knopf ist",
-                ueberschrift.note:IsShown() == false)
-        end
         if pvpZeile then
             check("  mit ihrem Anteil",
                 (pvpZeile.note:GetText() or ""):find("%%") ~= nil,
                 tostring(pvpZeile.note:GetText()))
             check("  und mit Symbol", pvpZeile.icon:IsShown() == true)
-            -- Nichts zu laden, also auch nichts festzuhalten.
-            check("  ohne Stern zum Festhalten", pvpZeile.pin:IsShown() == false)
-            check("  und ohne Kette", rawget(pvpZeile, "text") == nil)
             local gezeigt
             local echtSpell = GameTooltip.SetSpellByID
             GameTooltip.SetSpellByID = function(_, id) gezeigt = id end
@@ -1455,8 +1452,19 @@ do
             check("  der Zeiger zeigt Blizzards Zaubertooltip",
                 gezeigt == pvpZeile.spellID, tostring(gezeigt))
         end
+        -- Und die Buildliste bleibt davon unberuehrt.
+        local fremde = 0
+        for _, r in ipairs(panel.rows) do
+            if r:IsShown() and rawget(r, "spellID") then fremde = fremde + 1 end
+        end
+        check("  die Buildliste bleibt bei den Builds", fremde == 0,
+            fremde .. " fremde Zeilen")
+
+        -- Ausserhalb einer Klammer gibt es das Fenster nicht.
         ns.Profile.SetMode(vorher)
         ns.UI.RefreshTalentPanel()
+        check("  ausserhalb einer Klammer bleibt es zu",
+            pvpFenster == nil or pvpFenster:IsShown() == false)
 
         -- FESTHALTEN, DAMIT MAN IM BAUM NACHSEHEN KANN.
         --

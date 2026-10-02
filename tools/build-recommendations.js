@@ -303,11 +303,19 @@ function emitNodePool(out, target, indent) {
 function emitTalents(out, entry, indent) {
   if (entry.talents && entry.talents.length) {
     // Nur die UMSTRITTENEN Talente: was 98 % nehmen, steht im Build; was
-    // 4 % nehmen, sagt nichts. PvP-Talente ausserhalb des Deckels, es
-    // sind hoechstens elf.
+    // 4 % nehmen, sagt nichts.
+    //
+    // PVP-TALENTE GANZ AUSSERHALB DIESER REGEL, nicht nur ausserhalb des
+    // Deckels. Fuer sie gibt es keinen Build, in dem das Einhellige
+    // stuende - sie sitzen in drei eigenen Plaetzen, die keine
+    // Importkette traegt. Was 95 % von ihnen nehmen, als "nicht
+    // umstritten" wegzuwerfen, loescht die Auskunft also ganz: beim
+    // Elementar-Schamanen in 3v3 blieben dadurch null von elf uebrig,
+    // waehrend 2v2 vier hatte. Gerade die Einhelligkeit ist hier die
+    // Antwort - man hat drei Plaetze und will wissen, welche drei.
     const contested = entry.talents.filter((t) => t.pct >= 15 && t.pct <= 85);
     const worth = contested.filter((t) => !t.pvp).slice(0, 24)
-      .concat(contested.filter((t) => t.pvp));
+      .concat(entry.talents.filter((t) => t.pvp));
     if (worth.length) {
       out.push(indent + 'talents = { ' + worth
         .map((t) => `{ spell = ${t.spell}, rank = ${t.rank}, pct = ${t.pct}${t.pvp ? ', pvp = true' : ''} }`)
