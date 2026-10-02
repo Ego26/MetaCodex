@@ -17,8 +17,20 @@
   for which**, with icons and with what each one does.
 - A switch for the builds button under Settings. The button is
   draggable; the list hangs off it and comes along.
+- **In a PvP bracket the PvP talents get a window of their own**, beside
+  the builds — with icon, share and the game's own spell tooltip. No
+  build ever loads them: they sit in three slots that no import string
+  touches.
 
 ### Fixed
+
+- **The builds button sat on Blizzard's own loadout dropdown** for
+  anyone who had never dragged it. It now looks for its corner instead
+  of counting to it, and steps around whatever is already there — an
+  addon we have never heard of included.
+- **PvP talents were missing from some brackets entirely**, because the
+  collector dropped what everyone takes. For a PvP talent that is the
+  answer. Takes effect with the next nightly run.
 
 - **Sources cut its instance names** although four hundred points stood
   empty beside them.

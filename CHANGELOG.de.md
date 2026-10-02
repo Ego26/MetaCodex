@@ -45,17 +45,19 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 - `/mc talents` schreibt seinen Bericht ins Kopierfenster statt in den
   Chat, wie der Probe-Bericht auch. Dreißig Zeilen Messwerte im Chat
   liest niemand, und herausholen kann man sie dort gar nicht.
-
-### Neu
-
-- **In einer PvP-Klammer stehen jetzt auch die PvP-Talente in der
-  Liste.** Blizzards Importkette enthält sie nicht – sie sitzen in drei
-  eigenen Plätzen, nicht im Baum –, also lädt sie kein Build, und die
-  Vorschau kann sie nicht einrahmen. Gemessen sind sie trotzdem, und wer
-  in einer Klammer vor dieser Liste steht, hat sie zu wählen. Sie stehen
-  dort ohne String und ohne Klick, mit ihrem Anteil und Blizzards
-  eigenem Zaubertooltip. Eine Zeile, die nichts lädt, ist ehrlicher als
-  eine fehlende Auskunft.
+- **In einer PvP-Klammer bekommen die PvP-Talente ein eigenes Fenster**
+  neben den Builds. Blizzards Importkette enthält sie nicht – sie sitzen
+  in drei Plätzen, die keine Importkette berührt –, also lädt sie kein
+  Build, und die Vorschau kann sie nicht einrahmen. Gemessen sind sie
+  trotzdem, und wer dort in einer Klammer steht, hat drei Plätze zu
+  füllen. Mit Symbol, Anteil und dem Zaubertooltip des Spiels.
+- **In manchen Klammern fehlten sie ganz.** Der Sammler behält nur
+  Talente zwischen 15 und 85 Prozent – was 98 Prozent nehmen, steht
+  ohnehin im Build. Für ein PvP-Talent gibt es aber keinen Build, und
+  das Einhellige wegzuwerfen löschte die Auskunft damit komplett: beim
+  Elementar-Schamanen in 3v3 blieben null von elf übrig, während 2v2
+  vier hatte. Gerade die Einhelligkeit ist hier die Antwort. Greift mit
+  dem nächsten Nachtlauf.
 
 ### Behoben
 

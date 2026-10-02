@@ -40,17 +40,18 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 - `/mc talents` writes its report into the copy window instead of the
   chat, like the probe report. Thirty lines of measurements in the chat
   are read by nobody and cannot be copied out of it at all.
-
-### Added
-
-- **In a PvP bracket the list now carries the PvP talents too.**
-  Blizzard's loadout string does not contain them - they sit in three
-  slots of their own, not in the tree - so no build ever loads them and
-  the preview cannot frame them. They are measured all the same, and
-  whoever stands in front of that list in a bracket still has to pick
-  them. They stand there without a string and without a click, with
-  their share and Blizzard's own spell tooltip. A line that loads
-  nothing is more honest than a missing answer.
+- **In a PvP bracket the PvP talents get a window of their own**, beside
+  the builds. Blizzard's loadout string does not contain them - they sit
+  in three slots that no import string touches - so no build ever loads
+  them and the preview cannot frame them. They are measured all the
+  same, and whoever stands there in a bracket still has three picks to
+  make. Icon, share, and the game's own spell tooltip on hover.
+- **They were missing from some brackets entirely.** The collector keeps
+  only talents between 15 and 85 per cent - what 98 per cent take stands
+  in the build anyway. But no build carries a PvP talent, so throwing
+  away the unanimous ones deleted the answer completely: zero of eleven
+  for elemental shaman in 3v3, while 2v2 had four. Unanimity is exactly
+  the answer there. Takes effect with the next nightly run.
 
 ### Fixed
 
