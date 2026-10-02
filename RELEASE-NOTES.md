@@ -27,6 +27,11 @@
   belongs.
 - Green and red boxes stood in empty space — real nodes hidden behind
   the builds list.
+- **A talent the tree holds under a second spell id got no frame.** The
+  tree carries 443454 "Ancestral Swiftness", the data carry 448861 —
+  same name, different number, and nothing in the API links the two. The
+  name is the bridge now, taken from your own client on both sides, so
+  it is right in any language and for any class.
 - The special socket, of which there is one, reported "1 sockets".
 
 ## v1.1.10 — the builds where the decision is made

@@ -75,6 +75,20 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
   sah, warum. Jetzt trägt jedes Talent seinen Text; ab sieben gekürzt,
   am Wortende, mit Auslassungspunkten – damit man das Kürzen sieht statt
   es zu erraten.
+- **Ein Talent, das der Baum unter einer zweiten Zauber-Nummer führt,
+  bekam keinen Rahmen.** Im Spiel gemessen: der Baum trägt 443454
+  „Schnelligkeit der Ahnen", unsere Daten 448861 – gleicher Name, andere
+  Nummer, und `GetOverrideSpell` verbindet die beiden nicht. Über die
+  Nummer allein hätte die Vorschau dieses Talent nie gefunden, bei
+  keiner Klasse. Der Name ist die Brücke, und beide Seiten holen ihn aus
+  deinem eigenen Client: unsere Daten speichern nur Nummern, der Name
+  kommt immer aus dem Spiel. Damit stimmt er auf jedem Sprachclient und
+  braucht keine Liste, die jemand pflegt. Die Nummer hat weiter Vorrang;
+  der Name antwortet nur, wo sie nichts fand, und nur, wenn er eindeutig
+  ist – tragen zwei Knoten denselben, wird keiner gewählt, denn ein
+  Rahmen um den falschen sieht aus wie eine Auskunft. Auf dem Client, an
+  dem sie gebaut wurde, brauchte sie ein Talent von siebenundsiebzig,
+  und `/mc talents` zählt das mit, damit es eine gemessene Zahl bleibt.
 
 ## [1.1.10] - 2026-10-01
 

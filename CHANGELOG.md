@@ -67,6 +67,19 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
   one line named an effect and the next did not, with nothing saying
   why. Every talent carries its text now; past six it is cut at a word
   boundary, with an ellipsis, so the cut is visible rather than guessed.
+- **A talent the tree holds under a second spell id got no frame.**
+  Measured in the game: the tree carries 443454 "Ancestral Swiftness",
+  our data carry 448861 - same name, different number, and
+  GetOverrideSpell links neither to the other. By number alone the
+  preview could never have found that talent, in any class. The name is
+  the bridge, and both sides take it from your own client: our data
+  store only ids, the name always comes from the game. That makes it
+  right on any language client and needs no list anybody maintains. The
+  id still goes first; the name only answers where the id found nothing,
+  and only where it is unique - two nodes sharing one make it choose
+  neither, because a frame around the wrong node looks like an answer.
+  On the client it was built against, one talent of seventy-seven needed
+  it, and `/mc talents` counts that so it stays a measured number.
 
 ## [1.1.10] - 2026-10-01
 
