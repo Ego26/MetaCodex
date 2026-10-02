@@ -662,6 +662,8 @@ ns.RegisterLocale("enUS", {
     ["TALENT_SWAP"]   = "%s instead of %s",
     ["SWAP_TAKES"]    = "Takes",
     ["SWAP_DROPS"]    = "Instead of",
+    ["TREE_PREVIEW"]  = "In the tree: %d green to take, %d red to drop",
+    ["TREE_MISSING"]  = "%d of them are not drawn in the tree right now",
     ["TALENT_PLUS"]   = "additionally %s",
     ["TALENT_MINUS"]  = "without %s",
 })

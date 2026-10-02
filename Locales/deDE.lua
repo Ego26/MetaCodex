@@ -616,6 +616,8 @@ ns.RegisterLocale("deDE", {
     ["TALENT_SWAP"]   = "%s statt %s",
     ["SWAP_TAKES"]    = "Nimmt",
     ["SWAP_DROPS"]    = "Statt",
+    ["TREE_PREVIEW"]  = "Im Baum: %d grün dazu, %d rot weg",
+    ["TREE_MISSING"]  = "%d davon sind gerade nicht im Baum gezeichnet",
     ["TALENT_PLUS"]   = "zusätzlich %s",
     ["TALENT_MINUS"]  = "ohne %s",
 })

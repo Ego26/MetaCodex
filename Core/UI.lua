@@ -7330,6 +7330,36 @@ local function talentPanelRows()
         ns.Recommend.ALL, hero)
     if not ok or not picks then return {} end
 
+    -- DIE GANZE TALENTLISTE, nicht nur der Unterschied.
+    --
+    -- Fuer die Vorschau im Baum braucht es die vollstaendige Liste eines
+    -- Builds: gruen ist, was du nicht hast, rot, was du hast und er
+    -- nicht. In den Daten steht sie beim haeufigsten Build (im Mittel 76
+    -- Knoten); eine Alternative ist diese Liste plus ihre Zugaenge,
+    -- minus ihre Abgaenge. So traegt jede Zeile ihre eigene,
+    -- vollstaendige Liste, und die Vorschau rechnet gegen DEINEN Baum
+    -- statt gegen den haeufigsten Build.
+    local basis = {}
+    for _, node in ipairs((build and build.nodes) or {}) do
+        local spell = tonumber(node) or tonumber(node and node.spell)
+        if spell then basis[#basis + 1] = spell end
+    end
+
+    ---@param added number[]|nil
+    ---@param removed number[]|nil
+    ---@return number[]
+    local function listeMit(added, removed)
+        if #basis == 0 then return {} end
+        local weg = {}
+        for _, spell in ipairs(removed or {}) do weg[spell] = true end
+        local liste = {}
+        for _, spell in ipairs(basis) do
+            if not weg[spell] then liste[#liste + 1] = spell end
+        end
+        for _, spell in ipairs(added or {}) do liste[#liste + 1] = spell end
+        return liste
+    end
+
     local out = {}
     if build and build.text and build.text ~= "" then
         out[#out + 1] = {
@@ -7337,6 +7367,7 @@ local function talentPanelRows()
             note = L["TP_NODES"]:format(#(build.nodes or {})),
             text = build.text,
             label = modeLabel,
+            spells = listeMit(nil, nil),
         }
     end
     local okOther, others = pcall(ns.Recommend.OtherBuilds, specID, mode,
@@ -7364,6 +7395,8 @@ local function talentPanelRows()
                 text = other.text,
                 -- Fuer den Zeiger: welches Talent gegen welches.
                 added = other.added, removed = other.removed,
+                -- Und fuer die Vorschau im Baum die ganze Liste.
+                spells = listeMit(other.added, other.removed),
             }
         end
     end
@@ -7527,11 +7560,34 @@ local function buildTalentPanel()
             end
             -- Und darunter, was dieser Build gegen was tauscht.
             swapLines(rawget(self, "swapAdded"), rawget(self, "swapRemoved"))
+
+            -- UND DIE VORSCHAU IM BAUM, waehrend der Zeiger hier steht.
+            --
+            -- Sie ist das eigentliche Mittel: zwei Namen in einer Zeile
+            -- sagen nicht, wo man hinklicken muss. Nur beim Hovern, und
+            -- sie aendert nichts - wer die Maus wegnimmt, hat denselben
+            -- Baum wie vorher.
+            if ns.Tree then
+                local plus, minus, fehlt = ns.Tree.Show(rawget(self, "spells"))
+                if plus + minus > 0 then
+                    local mr, mg, mb = S:Color("textMuted")
+                    GameTooltip:AddLine(" ")
+                    GameTooltip:AddLine(L["TREE_PREVIEW"]:format(plus, minus), mr, mg, mb)
+                end
+                -- Was wir nicht im Baum finden, wird gesagt. Eine
+                -- Vorschau, die drei Talente stillschweigend auslaesst,
+                -- ist schlimmer als eine, die zugibt, dass sie es tut.
+                if fehlt > 0 then
+                    local wr, wg, wb = S:Color("warning")
+                    GameTooltip:AddLine(L["TREE_MISSING"]:format(fehlt), wr, wg, wb)
+                end
+            end
             GameTooltip:Show()
         end)
         r:SetScript("OnLeave", function(self)
             self.bg:SetAlpha(0)
             GameTooltip:Hide()
+            if ns.Tree then ns.Tree.Hide() end
         end)
         r:SetScript("OnClick", function(self)
             if not self.text then return end
@@ -7592,6 +7648,7 @@ function UI.RefreshTalentPanel()
             r.buildName = row.label
             r.swapAdded = row.added
             r.swapRemoved = row.removed
+            r.spells = row.spells
             r:Show()
         else
             r:Hide()
@@ -7998,6 +8055,9 @@ end
 function UI.HideTalentPanel()
     if talentPanel then talentPanel:Hide() end
     if talentButton then talentButton:Hide() end
+    -- Und die Vorschau mit. Sonst bleiben gruene Rahmen auf einem Baum
+    -- stehen, dessen Liste nicht mehr da ist.
+    if ns.Tree then ns.Tree.Hide() end
 end
 
 -- Angehaengt wird NUR ueber HookScript.

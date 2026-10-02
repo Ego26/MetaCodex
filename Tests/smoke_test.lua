@@ -1304,6 +1304,62 @@ do
     end
 end
 
+-- DIE VORSCHAU IM TALENTBAUM.
+--
+-- Gruen, was dazukaeme, rot, was wegfiele - gegen DEINEN Baum, nicht
+-- gegen den haeufigsten Build. Der Unterschied zum haeufigsten ist eine
+-- andere Frage, und eine, die nur stellt, wer den haeufigsten spielt.
+do
+    local map = ns.Tree.Map()
+    local inMap = 0
+    for _ in pairs(map or {}) do inMap = inMap + 1 end
+    check("der Baum ist auf Zauber abgebildet", inMap > 0, inMap .. " Zauber")
+
+    local worn = ns.Tree.Worn()
+    local geskillt = 0
+    for _ in pairs(worn) do geskillt = geskillt + 1 end
+    check("  und was geskillt ist, ist bekannt", geskillt > 0, geskillt .. " Zauber")
+
+    -- Ein Knopf je Knoten, damit die Vorschau etwas anheften kann. Eine
+    -- schlichte Tabelle und keine Attrappe: die beantwortet jede Frage
+    -- mit etwas Wahrem, und dann misst der Test sich selbst.
+    local echt = _G.PlayerSpellsFrame.TalentsFrame
+    local knopf = { GetLeft = function() return 100 end }
+    _G.PlayerSpellsFrame.TalentsFrame = {
+        GetTalentButtonByNodeID = function() return knopf end,
+    }
+
+    -- Ein Build, der genau einen geskillten Zauber weglaesst und genau
+    -- einen ungeskillten dazunimmt.
+    local wollen, weggelassen = {}, nil
+    for spell in pairs(worn) do
+        if not weggelassen then weggelassen = spell
+        else wollen[#wollen + 1] = spell end
+    end
+    local dazu
+    for spell in pairs(map or {}) do
+        if not worn[spell] and not dazu then dazu = spell end
+    end
+    if dazu then wollen[#wollen + 1] = dazu end
+
+    local plus, minus, fehlt = ns.Tree.Show(wollen)
+    check("  ein Zugang steht gruen im Baum", plus == (dazu and 1 or 0),
+        plus .. " gruen")
+    check("  ein Abgang rot", minus == 1, minus .. " rot")
+    check("  und keines geht still verloren", fehlt == 0, fehlt .. " nicht gefunden")
+
+    -- Ohne Knopf wird gezaehlt statt verschwiegen.
+    _G.PlayerSpellsFrame.TalentsFrame = {
+        GetTalentButtonByNodeID = function() return nil end,
+    }
+    local p2, m2, f2 = ns.Tree.Show(wollen)
+    check("  was der Baum nicht zeichnet, wird gemeldet",
+        p2 == 0 and m2 == 0 and f2 > 0, f2 .. " gemeldet")
+
+    ns.Tree.Hide()
+    _G.PlayerSpellsFrame.TalentsFrame = echt
+end
+
 -- ZEILEN SITZEN AUF GANZEN BILDSCHIRMPIXELN.
 --
 -- Die Hoehe haengt an der Schriftskala und war darum krumm: 46,8 statt

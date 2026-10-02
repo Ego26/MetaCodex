@@ -53,6 +53,7 @@ Core\Profile.lua
 Core\Gear.lua
 Core\List.lua
 Core\Drops.lua
+Core\Tree.lua
 Core\Auctionator.lua
 Core\Guides.lua
 Core\UI.lua
