@@ -604,6 +604,12 @@ function M.install(opts)
             if not id then return nil end
             return { name = "Zauber " .. tostring(id), iconID = 134400, spellID = id }
         end,
+        -- Was ein Talent tut. Im Spiel ein ganzer Satz, hier einer, an
+        -- dem ein Test ihn wiedererkennt.
+        GetSpellDescription = function(id)
+            if not id then return nil end
+            return "Wirkung von " .. tostring(id)
+        end,
     }
 
     G.C_Item = {

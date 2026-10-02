@@ -2813,6 +2813,59 @@ local function tipOutside(owner)
     end
 end
 
+---Was ein Alternativbuild gegen was tauscht - mit Namen und Wirkung.
+---
+---WELCHES GEGEN WELCHES, das ist die Frage. In der Zeile steht
+---"Totemische Projektion, Wolfsaffinitaet der Ahnen" und mehr passt da
+---auch nicht hin; welches Talent dafuer weichen muss und was die beiden
+---ueberhaupt tun, stand nirgends. Also hier: links, was dazukommt,
+---darunter, was dafuer faellt, jeweils mit der Beschreibung aus dem
+---Spiel.
+---
+---BESCHREIBUNGEN NUR, WENN ES WENIGE SIND. Ein Build kann sich in zehn
+---Talenten unterscheiden - zehn Beschreibungen sind laenger als der
+---Bildschirm, und ein Zeiger, den man scrollen muesste, beantwortet
+---nichts. Ab sieben stehen nur noch die Namen, und dann sind es die
+---vollstaendigen Namen, nicht die zwei aus der Zeile.
+---@param added number[]|nil  Zauber-IDs, die dieser Build zusaetzlich nimmt
+---@param removed number[]|nil  Zauber-IDs, die er dafuer nicht nimmt
+---@return boolean  ob etwas geschrieben wurde
+local function swapLines(added, removed)
+    local function spellName(id)
+        local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(id)
+        local name = info and info.name
+        return type(name) == "string" and name or ("#" .. tostring(id))
+    end
+    local function spellText(id)
+        local get = C_Spell and C_Spell.GetSpellDescription
+        if not get then return nil end
+        local ok, text = pcall(get, id)
+        if ok and type(text) == "string" and text ~= "" then return text end
+        return nil
+    end
+
+    local n = #(added or {}) + #(removed or {})
+    if n == 0 then return false end
+    local mitText = n <= 6
+
+    local function block(list, token, heading)
+        if #(list or {}) == 0 then return end
+        local hr, hg, hb = S:Color("textMuted")
+        local r, g, b = S:Color(token)
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine(heading, hr, hg, hb)
+        for _, id in ipairs(list) do
+            GameTooltip:AddLine(spellName(id), r, g, b, true)
+            local text = mitText and spellText(id)
+            if text then GameTooltip:AddLine(text, 0.7, 0.7, 0.7, true) end
+        end
+    end
+
+    block(added, "success", L["SWAP_TAKES"])
+    block(removed, "danger", L["SWAP_DROPS"])
+    return true
+end
+
 local function acquireRow(index)
     rows = rows or {}
     if rows[index] then return rows[index] end
@@ -2923,6 +2976,25 @@ local function acquireRow(index)
             if type(self.dropNote) == "string" then
                 GameTooltip:AddLine(self.dropNote, 0.7, 0.7, 0.7)
             end
+            GameTooltip:Show()
+            return
+        end
+        -- Ein Alternativbuild: was er gegen was tauscht.
+        --
+        -- RAWGET, wie bei __textW. Im Spiel gibt ein Rahmen fuer ein
+        -- nicht gesetztes Feld nil zurueck; im Test gibt der Mock fuer
+        -- jedes unbekannte Feld ein Kind zurueck, und das ist wahr. Mit
+        -- self.swapAdded fiel jede Zeile in diesen Zweig - die
+        -- Verzierungen verloren ihr zweites Tooltip und ein Talent sein
+        -- eigenes.
+        if rawget(self, "swapAdded") or rawget(self, "swapRemoved") then
+            tipOutside(self)
+            GameTooltip:SetText(self.title:GetText() or "", 1, 1, 1)
+            local note = self.detail:GetText()
+            if type(note) == "string" and note ~= "" then
+                GameTooltip:AddLine(note, 0.7, 0.7, 0.7)
+            end
+            swapLines(rawget(self, "swapAdded"), rawget(self, "swapRemoved"))
             GameTooltip:Show()
             return
         end
@@ -3046,6 +3118,10 @@ local function resetRow(row)
     -- ueber einem Helm. Hier laeuft jede Zeile durch.
     row.dropName = nil
     row.dropNote = nil
+    -- Auch der Tausch: eine wiederverwendete Zeile zeigte sonst den
+    -- Zeiger ihres Vorgaengers.
+    row.swapAdded = nil
+    row.swapRemoved = nil
 
     -- UND DIE BREITE DER TEXTSPALTEN.
     --
@@ -3809,6 +3885,10 @@ local function setItemRow(row, data)
                 end
                 return table.concat(out, ", ")
             end
+            -- Die Zeile zeigt zwei Namen, der Zeiger alle - mit dem,
+            -- was sie tun, und mit dem, was dafuer weicht.
+            row.swapAdded = data.added
+            row.swapRemoved = data.removed
             local plus, minus = names(data.added), names(data.removed)
             if plus ~= "" and minus ~= "" then
                 row.title:SetText(L["TALENT_SWAP"]:format(plus, minus))
@@ -7275,6 +7355,8 @@ local function talentPanelRows()
                 note = (#worin > 0 and table.concat(worin, ", ")
                     or L["TP_NODES"]:format(other.count or 0)),
                 text = other.text,
+                -- Fuer den Zeiger: welches Talent gegen welches.
+                added = other.added, removed = other.removed,
             }
         end
     end
@@ -7436,6 +7518,8 @@ local function buildTalentPanel()
             if type(note) == "string" and note ~= "" then
                 GameTooltip:AddLine(note, 0.7, 0.7, 0.7, true)
             end
+            -- Und darunter, was dieser Build gegen was tauscht.
+            swapLines(rawget(self, "swapAdded"), rawget(self, "swapRemoved"))
             GameTooltip:Show()
         end)
         r:SetScript("OnLeave", function(self)
@@ -7499,6 +7583,8 @@ function UI.RefreshTalentPanel()
             -- danach durchsucht - der Test tut es -, ruft darauf
             -- GetText auf und findet eine Zeichenkette.
             r.buildName = row.label
+            r.swapAdded = row.added
+            r.swapRemoved = row.removed
             r:Show()
         else
             r:Hide()

@@ -660,6 +660,8 @@ ns.RegisterLocale("enUS", {
     -- change is the question behind every talent comparison.
     ["TALENT_OTHERS"] = "Other builds",
     ["TALENT_SWAP"]   = "%s instead of %s",
+    ["SWAP_TAKES"]    = "Takes",
+    ["SWAP_DROPS"]    = "Instead of",
     ["TALENT_PLUS"]   = "additionally %s",
     ["TALENT_MINUS"]  = "without %s",
 })

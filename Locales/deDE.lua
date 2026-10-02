@@ -614,6 +614,8 @@ ns.RegisterLocale("deDE", {
 ns.RegisterLocale("deDE", {
     ["TALENT_OTHERS"] = "Weitere Builds",
     ["TALENT_SWAP"]   = "%s statt %s",
+    ["SWAP_TAKES"]    = "Nimmt",
+    ["SWAP_DROPS"]    = "Statt",
     ["TALENT_PLUS"]   = "zusätzlich %s",
     ["TALENT_MINUS"]  = "ohne %s",
 })

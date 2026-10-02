@@ -3531,6 +3531,53 @@ do
     end
 end
 
+-- ------------------------------ Welches Talent gegen welches
+
+-- In die Zeile eines Alternativbuilds passen zwei Namen. Welches Talent
+-- dafuer weicht und was die beiden tun, stand nirgends - jetzt im
+-- Zeiger, mit Namen und Wirkung.
+do
+    ns.Profile.SetMode("mplus")
+    rowsInSection("talents")
+    local alt
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() and rawget(row, "swapAdded") then alt = row break end
+    end
+    check("ein Alternativbuild kennt seinen Tausch", alt ~= nil)
+    if alt then
+        local lines = {}
+        local echtAdd, echtText = GameTooltip.AddLine, GameTooltip.SetText
+        GameTooltip.AddLine = function(_, text) lines[#lines + 1] = tostring(text) end
+        GameTooltip.SetText = function(_, text) lines[#lines + 1] = tostring(text) end
+        alt.__scripts.OnEnter(alt)
+        GameTooltip.AddLine, GameTooltip.SetText = echtAdd, echtText
+        local ganz = table.concat(lines, "\n")
+        if #(alt.swapAdded or {}) > 0 then
+            check("  der Zeiger sagt, was er nimmt",
+                ganz:find(L["SWAP_TAKES"], 1, true) ~= nil, kurz)
+            local erste = alt.swapAdded[1]
+            check("  mit Namen", ganz:find("Zauber " .. tostring(erste), 1, true) ~= nil)
+            -- Nur bei wenigen: zehn Beschreibungen waeren laenger als der
+            -- Bildschirm.
+            if #(alt.swapAdded or {}) + #(alt.swapRemoved or {}) <= 6 then
+                check("  und mit Wirkung",
+                    ganz:find("Wirkung von " .. tostring(erste), 1, true) ~= nil)
+            end
+        end
+        if #(alt.swapRemoved or {}) > 0 then
+            check("  und wofuer es weicht",
+                ganz:find(L["SWAP_DROPS"], 1, true) ~= nil, kurz)
+        end
+    end
+    -- Zeilen werden wiederverwendet: der Tausch darf nicht mitwandern.
+    rowsInSection("gear")
+    local rest = 0
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() and rawget(row, "swapAdded") then rest = rest + 1 end
+    end
+    check("  die Ausruestung erbt ihn nicht", rest == 0, rest .. " Zeilen")
+end
+
 -- ------------------------------------ Rangliste nach dem Neuladen
 
 -- Stand beim Abmelden noch ein Dungeon in der Auswahl, suchte der
