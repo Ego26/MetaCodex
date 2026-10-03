@@ -4360,6 +4360,13 @@ end
 do
     CharacterFrame = CreateFrame("Frame", "CharacterFrame")
     CharacterFrame.CloseButton = CreateFrame("Button", nil, CharacterFrame)
+    -- Blizzards Wertekasten, und darin noch einer: genau darunter lag
+    -- der Knopf, nachdem man ihn dorthin gezogen hatte - und war damit
+    -- auch nicht mehr zu greifen.
+    local kasten = CreateFrame("Frame", nil, CharacterFrame)
+    kasten:SetFrameLevel(60)
+    local darin = CreateFrame("Frame", nil, kasten)
+    darin:SetFrameLevel(75)
     local button = ns.UI.AttachCharacterButton()
     check("Knopf im Charakterfenster gebaut", button ~= nil and button.icon ~= nil)
     check("ein zweiter Aufruf baut keinen zweiten", ns.UI.AttachCharacterButton() == button)
@@ -4385,6 +4392,23 @@ do
         local anchor = button.__points[#button.__points]
         check("Vorgabeplatz ist rechts", anchor ~= nil and anchor[3] == "TOPRIGHT",
             anchor and tostring(anchor[3]) or "kein Anker")
+
+        -- UEBER ALLEM, WAS IM FENSTER LIEGT.
+        --
+        -- Zog man ihn ueber den Wertekasten, war er dahinter - und wer
+        -- darueber zeichnet, bekommt auch die Maus: der Knopf liess sich
+        -- nicht einmal mehr wegziehen.
+        check("der Knopf liegt ueber dem Inhalt des Fensters",
+            tonumber(button:GetFrameLevel()) ~= nil
+                and button:GetFrameLevel() > darin:GetFrameLevel(),
+            tostring(button:GetFrameLevel()) .. " gegen " .. tostring(darin:GetFrameLevel()))
+        -- Und er steigt nicht bei jedem Neusetzen weiter.
+        local ebene = button:GetFrameLevel()
+        ns.UI.UpdateCharacterButton()
+        ns.UI.UpdateCharacterButton()
+        check("  und steigt dabei nicht immer weiter",
+            button:GetFrameLevel() == ebene,
+            tostring(ebene) .. " -> " .. tostring(button:GetFrameLevel()))
         IsShiftKeyDown = nil
         -- Tooltip nennt beides: oeffnen und verschieben.
         GameTooltip.__lines = {}

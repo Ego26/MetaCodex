@@ -111,6 +111,21 @@ Mock.methods.GetHeight = function(self) return rawget(self, "__h") or 0 end
 -- einer Zahl starb.
 Mock.methods.SetAlpha = function(self, a) self.__alpha = a end
 Mock.methods.GetAlpha = function(self) return rawget(self, "__alpha") or 1 end
+-- WER UEBER WEM LIEGT. Das Addon hebt seinen Knopf im
+-- Charakterfenster ueber dessen Inhalt - ohne diese beiden kam auf
+-- GetFrameLevel ein Kind zurueck, und jeder Vergleich war wahr, egal
+-- was das Addon gesetzt hatte.
+Mock.methods.SetFrameLevel = function(self, l) self.__level = l end
+Mock.methods.GetFrameLevel = function(self) return rawget(self, "__level") or 1 end
+-- Und die Kinder eines Rahmens, in der Reihenfolge ihrer Entstehung.
+Mock.methods.GetChildren = function(self)
+    local kinder = rawget(self, "__kids") or {}
+    -- NICHT "unpack and unpack(k) or table.unpack(k)": ein oder schneidet
+    -- den Aufruf auf einen Wert, und dann hat jeder Rahmen genau ein
+    -- Kind. Dieselbe Falle wie bei tonumber(f:GetLeft()).
+    local aus = unpack or table.unpack
+    return aus(kinder)
+end
 -- Der Elternrahmen, und zwar DERSELBE: ohne diese Zeile beantwortete
 -- der Mock GetParent mit einem frischen Kind, und jeder Vergleich
 -- "gehoert dieser Knopf zu jener Zeile" war falsch - im Spiel aber
@@ -221,6 +236,17 @@ function M.install(opts)
     G.CreateFrame = function(art, name, parent, template)
         local frame = Mock.new(name or "anon")
         frame.__parent = parent or false
+        -- Beim Elternteil eintragen, damit GetChildren etwas zu sagen
+        -- hat: das Addon durchsucht das Charakterfenster nach dem,
+        -- was schon darin liegt.
+        if type(parent) == "table" then
+            -- NICHT __children: so heisst im Mock schon die Ablage fuer
+            -- unbekannte Felder, und eine Liste von Rahmen gehoert nicht
+            -- in dieselbe Tabelle wie Platzhalter.
+            local liste = rawget(parent, "__kids")
+            if not liste then liste = {}; parent.__kids = liste end
+            liste[#liste + 1] = frame
+        end
         M.frames[#M.frames + 1] = frame
         if name then G[name] = frame end
         -- Blizzards Scroll-Vorlage bringt eine Leiste und zwei

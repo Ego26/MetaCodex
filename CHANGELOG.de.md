@@ -4,6 +4,17 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ## [Unveröffentlicht]
 
+### Behoben
+
+- **Der Knopf am Charakterfenster ließ sich hinter den Wertekasten
+  ziehen und dann nicht mehr zurück.** Er lag zwanzig Rahmenebenen über
+  dem Fenster, und Blizzards Kästen liegen höher – wer darüber zeichnet,
+  bekommt auch die Maus, also steckte der Knopf dort fest. Zwanzig war
+  geraten; jetzt wird gemessen, wie hoch die Rahmen in diesem Fenster
+  wirklich liegen, und der Knopf sitzt fünf darüber. Umschalt-Rechtsklick
+  setzt ihn weiterhin zurück, aber danach greift niemand, der gerade
+  feststeckt.
+
 ## [1.1.11] - 2026-10-02
 
 ### Neu

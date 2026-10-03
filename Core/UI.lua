@@ -7149,6 +7149,38 @@ local function placeCharacterButton(button, host)
     else
         button:SetPoint("CENTER", host, "TOPRIGHT", CHAR_DEFAULT_X, CHAR_DEFAULT_Y)
     end
+
+    -- UEBER ALLES, WAS IM FENSTER SCHON LIEGT.
+    --
+    -- Der Knopf lag auf "Fensterebene plus zwanzig". Zog man ihn ueber
+    -- den Wertekasten, war er dahinter - und wer darueber zeichnet,
+    -- bekommt auch die Maus: der Knopf liess sich dann nicht einmal mehr
+    -- wegziehen. Eine Sackgasse, aus der nur Umschalt-Rechtsklick half,
+    -- und den kennt niemand, der gerade nicht weiterkommt.
+    --
+    -- Zwanzig war geraten. Gemessen wird jetzt, wie hoch die Rahmen in
+    -- diesem Fenster wirklich liegen - zwei Ebenen tief, das deckt
+    -- Blizzards Kaesten und deren Inhalt - und fuenf darueber ist der
+    -- Knopf. Verschiebt ein Patch die Ebenen, verschiebt sich der Knopf
+    -- mit.
+    local hoechste = tonumber((host.GetFrameLevel and host:GetFrameLevel())) or 0
+    local function schau(eltern, tiefe)
+        if tiefe > 2 or not (eltern and eltern.GetChildren) then return end
+        for _, kind in ipairs({ eltern:GetChildren() }) do
+            -- Uns selbst nicht mitzaehlen: sonst stiege der Knopf bei
+            -- jedem Aufruf um weitere fuenf Ebenen.
+            if kind ~= button then
+                local ebene = tonumber((kind.GetFrameLevel and kind:GetFrameLevel()))
+                if ebene and ebene > hoechste then hoechste = ebene end
+                schau(kind, tiefe + 1)
+            end
+        end
+    end
+    schau(host, 0)
+    -- Und eine Lage hoeher als das Fenster selbst: liegt es in MEDIUM,
+    -- reicht die Ebene allein nicht gegen Kinder in HIGH.
+    button:SetFrameStrata("HIGH")
+    button:SetFrameLevel(hoechste + 5)
 end
 
 ---Fenster auf Anfang: Lage, Groesse und Skalierung wie beim ersten Mal.
@@ -7191,10 +7223,7 @@ function UI.AttachCharacterButton()
     -- unter; das Logo erkennt man aus dem Augenwinkel.
     local button = CreateFrame("Button", "MetaCodexCharacterButton", host)
     button:SetSize(40, 40)
-    -- Ueber die Rahmenkunst: das Charakterfenster zeichnet seinen Rand
-    -- zuletzt, und darunter war vom Knopf nur ein Rand zu sehen.
-    button:SetFrameStrata(host.GetFrameStrata and host:GetFrameStrata() or "MEDIUM")
-    button:SetFrameLevel((host.GetFrameLevel and host:GetFrameLevel() or 0) + 20)
+    -- Lage und Ebene setzt placeCharacterButton, gemessen am Fenster.
     button:SetMovable(true)
     button:SetClampedToScreen(true)
     button:RegisterForDrag("LeftButton")

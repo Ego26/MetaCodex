@@ -4,6 +4,16 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The button on the character frame could be dragged behind the stat
+  panel and then not be dragged back.** It sat twenty frame levels above
+  the window, and Blizzard's panels sit higher - whatever draws on top
+  also takes the mouse, so the button was stuck there. Twenty was a
+  guess; it now measures how high the frames in that window actually lie
+  and sits five above them. Shift-right-click still resets it, but
+  nobody reaches for that while stuck.
+
 ## [1.1.11] - 2026-10-02
 
 ### Added
