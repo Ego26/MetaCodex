@@ -1,3 +1,15 @@
+## v1.1.12 — the button stays on top
+
+### Fixed
+
+- **The button on the character frame could be dragged behind the stat
+  panel and then not be dragged back.** Whatever draws on top takes the
+  mouse too, so it was stuck there.
+- It sat twenty frame levels above the window, which was a guess, and
+  Blizzard's panels sit higher. It now measures how high the frames in
+  that window actually lie and sits above them - so a patch that moves
+  them moves the button along.
+
 ## v1.1.11 — see the build on your own tree
 
 ### Added

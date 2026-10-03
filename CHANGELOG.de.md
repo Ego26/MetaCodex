@@ -4,6 +4,8 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ## [Unveröffentlicht]
 
+## [1.1.12] - 2026-10-03
+
 ### Behoben
 
 - **Der Knopf am Charakterfenster ließ sich hinter den Wertekasten

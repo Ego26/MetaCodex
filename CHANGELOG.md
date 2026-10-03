@@ -4,6 +4,8 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ## [Unreleased]
 
+## [1.1.12] - 2026-10-03
+
 ### Fixed
 
 - **The button on the character frame could be dragged behind the stat
