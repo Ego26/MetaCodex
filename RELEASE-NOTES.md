@@ -1,3 +1,23 @@
+## v1.1.13 — the set bonuses of the spec you are looking at
+
+### Added
+
+- **Tier set bonuses for the spec you picked**, not the one you happen
+  to be playing. The game draws a tier piece's bonuses for your active
+  spec, so looking up restoration as elemental showed the wrong bonuses
+  on the right piece — with nothing saying so.
+- They stand under the tooltip now, named, with **Set (2):** and
+  **Set (4):** in front, and a line saying whose the block above is.
+- Measured before it was built: the same piece returns different spells
+  per spec. No class and no spec is written down anywhere — we ask your
+  client with the number you picked, which is why it holds for every
+  class and every spec.
+
+### Fixed
+
+- **The button on the character frame could be dragged behind the stat
+  panel and then not be dragged back.**
+
 ## v1.1.12 — the button stays on top
 
 ### Fixed

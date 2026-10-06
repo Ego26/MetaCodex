@@ -4,6 +4,8 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ## [Unveröffentlicht]
 
+## [1.1.13] - 2026-10-07
+
 ### Neu
 
 - **Tier-Set-Boni für die Spec, die du ansiehst**, nicht für die, die du

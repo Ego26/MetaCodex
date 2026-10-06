@@ -4,6 +4,8 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ## [Unreleased]
 
+## [1.1.13] - 2026-10-07
+
 ### Added
 
 - **Tier set bonuses for the spec you are looking at**, not the one you
