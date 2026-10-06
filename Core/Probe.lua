@@ -186,6 +186,46 @@ function Probe.Run()
                     ok and (#teile > 0 and table.concat(teile, ", ") or tostring(antwort))
                     or "stolpert")
             end
+            -- UND WAS WIRKLICH IM TOOLTIP STEHT.
+            --
+            -- Ersetzt wird eine Zeile nur, wenn sich die Beschreibung
+            -- des Zaubers darin wiederfindet. Ob sie das tut, ist eine
+            -- Frage an den Client und keine Vermutung: hier stehen die
+            -- Zeilen im Klartext und darunter, ob die Beschreibung der
+            -- GESPIELTEN Spec darin vorkommt.
+            local eigene = ns.Compat.CurrentSpec()
+            local tip = _G.MetaCodexProbeTip
+                or CreateFrame("GameTooltip", "MetaCodexProbeTip", UIParent, "GameTooltipTemplate")
+            tip:SetOwner(UIParent, "ANCHOR_NONE")
+            tip:ClearLines()
+            local okT = pcall(tip.SetHyperlink, tip, "item:" .. stueck)
+            local zeilen = okT and tonumber((tip.NumLines and tip:NumLines())) or 0
+            line("  %-46s %s", "Zeilen im Tooltip", tostring(zeilen))
+            local gesucht
+            if C_Spell and C_Spell.GetSpellDescription and eigene then
+                local ids = ns.Compat.SetBonusSpells(eigene, stueck)
+                if ids[1] then
+                    local okD, text = pcall(C_Spell.GetSpellDescription, ids[1])
+                    if okD then gesucht = text end
+                end
+            end
+            line("  %-46s %s", "Beschreibung der gespielten Spec",
+                gesucht and ('"' .. gesucht:sub(1, 60) .. '..."') or "keine")
+            local getroffen = false
+            for i = 1, zeilen do
+                local fs = _G["MetaCodexProbeTipTextLeft" .. i]
+                local text = fs and fs.GetText and fs:GetText()
+                if type(text) == "string" and text ~= "" then
+                    local treffer = gesucht and text:find(gesucht, 1, true) ~= nil
+                    if treffer then getroffen = true end
+                    line("    %2d %s%s", i, treffer and "TREFFER  " or "         ",
+                        text:sub(1, 70))
+                end
+            end
+            line("  %-46s %s", "Beschreibung im Tooltip gefunden",
+                yesno(getroffen))
+            tip:Hide()
+
             -- Und wie ein Eintrag aussieht: ohne die Feldnamen laesst
             -- sich daraus nichts zeichnen.
             local ok, antwort = pcall(fn, specID, stueck)

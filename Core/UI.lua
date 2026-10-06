@@ -3143,6 +3143,16 @@ local function acquireRow(index)
         if not link then return end
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetHyperlink(link)
+        -- ERST ZEIGEN, DANN UMSCHREIBEN.
+        --
+        -- Blizzards Tooltips bauen sich seit 10.0 aus Daten auf, und
+        -- Show() laeuft noch einmal darueber. Vorher gesetzter Text war
+        -- danach wieder der alte: im Spiel stand weiter der Bonus der
+        -- gespielten Spec, waehrend wir dachten, wir haetten ihn
+        -- ersetzt - und weil das Ersetzen Erfolg meldete, fiel auch das
+        -- Anhaengen weg. Zwei Fehler, die sich gegenseitig verdeckt
+        -- haben.
+        GameTooltip:Show()
 
         -- DIE SET-BONI DER GEZEIGTEN SPEC, nicht der gespielten.
         --
@@ -3182,9 +3192,12 @@ local function acquireRow(index)
                             0.7, 0.7, 0.7, true)
                     end
                 end
+                -- Angehaengte Zeilen brauchen ein zweites Show, damit der
+                -- Rahmen mitwaechst. Ersetzte brauchen es nicht - und
+                -- duerfen es nicht, weil Show sie wieder ueberschreibt.
+                GameTooltip:Show()
             end
         end
-        GameTooltip:Show()
     end)
     row:SetScript("OnLeave", function(self)
         self.bg:SetAlpha(self.__header and 0 or 0.5)
