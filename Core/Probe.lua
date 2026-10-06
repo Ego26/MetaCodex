@@ -124,6 +124,48 @@ function Probe.Run()
 
     Probe.Level()
 
+    -- WAS DER CLIENT UEBER SET-BONI SAGT.
+    --
+    -- Im Tooltip eines Tier-Teils stehen die Boni der Spec, die man
+    -- GERADE SPIELT - Blizzard zeichnet sie so, und wer als Elementar
+    -- den Wiederherstellungs-Schamanen nachschlaegt, liest die falschen.
+    -- Ob sich die Boni einer ANDEREN Spec ueberhaupt abfragen lassen,
+    -- weiss nur der Client, und Namen zu raten hilft hier nicht.
+    line(" ")
+    line("Set-Boni:")
+    for _, name in ipairs({
+        "GetSetBonusesForSpecializationByItemID",
+        "GetItemSetInfo",
+        "GetItemSpecInfo",
+    }) do
+        local wo = (C_Item and C_Item[name]) or _G[name]
+        line("  %-46s %s", name, yesno(wo ~= nil))
+    end
+    do
+        -- Und einmal gerufen, mit einem Tier-Teil der laufenden Saison
+        -- und der GEWAEHLTEN Spec: ob eine Funktion da ist, sagt noch
+        -- nicht, ob sie antwortet.
+        local specID = ns.Profile.SelectedSpec()
+        local stueck
+        local gear = ns.Recommend.Gear(specID, ns.Profile.Mode(), ns.Recommend.ALL)
+        for _, liste in pairs(gear or {}) do
+            for _, item in ipairs(liste) do
+                local art = item.kind or ns.Catalog.ItemKind(item.id)
+                if not stueck and art == "set" then stueck = item.id end
+            end
+        end
+        line("  %-46s %s / %s", "Spec und Tier-Teil", tostring(specID), tostring(stueck))
+        local fn = C_Item and C_Item.GetSetBonusesForSpecializationByItemID
+        if fn and specID and stueck then
+            local ok, antwort = pcall(fn, specID, stueck)
+            local wieviele = (ok and type(antwort) == "table") and 0 or nil
+            if wieviele then for _ in pairs(antwort) do wieviele = wieviele + 1 end end
+            line("  %-46s %s", "Antwort darauf",
+                ok and (wieviele and (wieviele .. " Eintraege") or tostring(antwort))
+                or "stolpert")
+        end
+    end
+
     -- Und alles zusammen zum Kopieren.
     if ns.UI and ns.UI.ShowText then
         ns.UI.ShowText(table.concat(buffer, "\n"))

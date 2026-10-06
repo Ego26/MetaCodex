@@ -3083,6 +3083,12 @@ wow.printed = {}
 _G.SlashCmdList.METACODEX("probe")
 local probeText = table.concat(wow.printed, "\n")
 check("Sonde laeuft", #wow.printed > 5, #wow.printed .. " Zeilen")
+-- Und sie fragt nach den Set-Boni: im Tooltip eines Tier-Teils stehen
+-- die der Spec, die man GERADE SPIELT - wer eine andere nachschlaegt,
+-- liest die falschen. Ob sich fremde abfragen lassen, sagt der Client.
+check("  und fragt nach den Set-Boni",
+    probeText:find("Set%-Boni") ~= nil
+        and probeText:find("GetSetBonusesForSpecializationByItemID", 1, true) ~= nil)
 -- Die Sonde legt ihren Bericht zum Kopieren hin. Der Chat ist zum
 -- Lesen da: lange Zeichenketten brechen dort um, und genau die will man
 -- herausholen.
