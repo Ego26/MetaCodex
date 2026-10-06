@@ -4978,6 +4978,42 @@ do
             check("    und zwar die der GEZEIGTEN Spec",
                 text:find("Zauber " .. (andere * 10 + 1), 1, true) ~= nil,
                 "erwartet Zauber " .. (andere * 10 + 1))
+
+            -- UND WENN BLIZZARDS ZEILEN DA SIND, werden sie ersetzt
+            -- statt ergaenzt.
+            --
+            -- Angehaengt standen beide da - der falsche Block zuerst
+            -- und unbeschriftet, und den liest man als erstes. Erkannt
+            -- werden sie an dem, was der Client ueber die GESPIELTE
+            -- Spec sagt, nicht an einem Muster im Text: ein Muster
+            -- waere eine Wette auf Sprache und Schreibweise.
+            local falsch = C_Spell.GetSpellDescription(eigene * 10 + 1)
+            local richtig = C_Spell.GetSpellDescription(andere * 10 + 1)
+            local function feld(text)
+                local t = text
+                return { GetText = function() return t end,
+                         SetText = function(_, neu) t = neu end }
+            end
+            _G.GameTooltipTextLeft1 = feld("Schlangenkrone")
+            _G.GameTooltipTextLeft2 = feld("Set: " .. falsch)
+            local echtNum = GameTooltip.NumLines
+            GameTooltip.NumLines = function() return 2 end
+
+            ns.Profile.SelectedSpec = function() return andere end
+            local angehaengt = zeiger() or ""
+            ns.Profile.SelectedSpec = echtGewaehlt
+
+            check("  Blizzards Zeile traegt danach die richtige Wirkung",
+                _G.GameTooltipTextLeft2:GetText():find(richtig, 1, true) ~= nil,
+                _G.GameTooltipTextLeft2:GetText():sub(1, 70))
+            check("    und das Praefix bleibt stehen",
+                _G.GameTooltipTextLeft2:GetText():find("Set: ", 1, true) == 1)
+            check("    und nichts wird zusaetzlich angehaengt",
+                angehaengt:find(ns.L["SET_BONUS_FOR"]:format(""), 1, true) == nil,
+                (angehaengt:gsub("\n", " | ")):sub(1, 70))
+
+            GameTooltip.NumLines = echtNum
+            _G.GameTooltipTextLeft1, _G.GameTooltipTextLeft2 = nil, nil
         end
     end
 
