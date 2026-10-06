@@ -171,7 +171,7 @@ function Invoke-Sync {
 
     Sync-Addon -Source $RepoRoot `
                -Target (Join-Path $AddOns "MetaCodex") `
-               -ExcludeDirs  @(".git", ".github", ".release", ".vscode", "docs", "tools", "branding", "Tests", "MetaCodex_Data", "MetaCodex_Dungeons", "MetaCodex_Players", "intern", "node_modules") `
+               -ExcludeDirs  @(".git", ".github", ".release", ".vscode", "docs", "tools", "branding", "Tests", "MetaCodex_Data", "MetaCodex_Dungeons", "MetaCodex_Players", "intern", "node_modules", "Video") `
                -ExcludeFiles @("*.md", "*.ps1", "*.mjs", ".gitignore", ".gitattributes", ".pkgmeta", ".luacheckrc", ".editorconfig")
 
     # Woher die Daten kommen. Der Code kommt immer aus dem Repo.

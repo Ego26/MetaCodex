@@ -29,3 +29,6 @@ branding/
 
 # Battle.net API credentials, same rule as Warcraft Logs: never in git.
 tools/bnet-credentials.json
+
+# Trailer (Remotion). Local only, like branding/: video copy, voice and music, not part of the addon.
+Video/

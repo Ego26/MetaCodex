@@ -157,12 +157,42 @@ function Probe.Run()
         line("  %-46s %s / %s", "Spec und Tier-Teil", tostring(specID), tostring(stueck))
         local fn = C_Item and C_Item.GetSetBonusesForSpecializationByItemID
         if fn and specID and stueck then
+            -- JE SPEC EINMAL. Dass die Funktion eine Spec-Nummer nimmt,
+            -- heisst noch nicht, dass sie sie beachtet - erst wenn sich
+            -- die Antworten unterscheiden, ist es bewiesen. Und wir
+            -- brauchen sie fuer eine ANDERE Spec als die gespielte,
+            -- genau das ist der Fall im Fenster.
+            local klasse = select(3, UnitClass and UnitClass("player"))
+            for _, spec in ipairs(ns.Compat.SpecsForClass(klasse) or {}) do
+                local ok, antwort = pcall(fn, spec.id, stueck)
+                local wieviele
+                if ok and type(antwort) == "table" then
+                    wieviele = 0
+                    for _ in pairs(antwort) do wieviele = wieviele + 1 end
+                end
+                line("  %-30s %-14s %s", spec.name or spec.id, "(" .. spec.id .. ")",
+                    ok and (wieviele and (wieviele .. " Eintraege") or tostring(antwort))
+                    or "stolpert")
+            end
+            -- Und wie ein Eintrag aussieht: ohne die Feldnamen laesst
+            -- sich daraus nichts zeichnen.
             local ok, antwort = pcall(fn, specID, stueck)
-            local wieviele = (ok and type(antwort) == "table") and 0 or nil
-            if wieviele then for _ in pairs(antwort) do wieviele = wieviele + 1 end end
-            line("  %-46s %s", "Antwort darauf",
-                ok and (wieviele and (wieviele .. " Eintraege") or tostring(antwort))
-                or "stolpert")
+            if ok and type(antwort) == "table" then
+                local n = 0
+                for _, eintrag in pairs(antwort) do
+                    n = n + 1
+                    if n > 2 then break end
+                    if type(eintrag) ~= "table" then
+                        line("    Eintrag %d: %s", n, tostring(eintrag))
+                    else
+                        for feld, wert in pairs(eintrag) do
+                            local text = tostring(wert)
+                            if #text > 90 then text = text:sub(1, 90) .. "..." end
+                            line("    %d.%-24s %s", n, feld, text)
+                        end
+                    end
+                end
+            end
         end
     end
 
