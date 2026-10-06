@@ -22,6 +22,11 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
   So the block above is explained instead, in one line, naming the spec
   it belongs to. Unlabelled it reads as the answer to the question you
   just asked; one sentence turns that around.
+  Each line says how many pieces it takes - "Set (2):" and "Set (4):".
+  The number comes out of the spell's own name ("... Class Set 2pc"),
+  not out of the order they arrive in; only where the name carries none
+  does the position decide, and then only for exactly two bonuses,
+  which is how a class set is built.
 
 ## [1.1.12] - 2026-10-03
 

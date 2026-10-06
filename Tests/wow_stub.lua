@@ -671,7 +671,17 @@ function M.install(opts)
             if id == 900001 then heisst = 500001 end
             if id == 900004 then heisst = 900003 end
             if id == 900005 then heisst = 900003 end
-            return { name = "Zauber " .. tostring(heisst), iconID = 134400, spellID = id }
+            -- SET-BONI TRAGEN IHRE TEILEZAHL IM NAMEN. Im Spiel heisst
+            -- ein solcher Zauber "Shaman Restoration 12.1 Class Set 2pc";
+            -- genau diese Zahl liest das Addon heraus, statt sie aus der
+            -- Reihenfolge zu erraten. Hier traegt nur die erste der
+            -- beiden eine, und zwar eine, die NICHT zu ihrer Stelle
+            -- passt (6 statt 4) - sonst waere nicht zu sehen, welcher der
+            -- beiden Wege gewonnen hat.
+            local anhang = ""
+            if id % 10 == 2 then anhang = " Class Set 6pc" end
+            return { name = "Zauber " .. tostring(heisst) .. anhang,
+                iconID = 134400, spellID = id }
         end,
         -- Was ein Talent tut. Im Spiel ein ganzer Satz, hier einer, an
         -- dem ein Test ihn wiedererkennt.

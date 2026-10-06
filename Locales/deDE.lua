@@ -182,6 +182,7 @@ ns.RegisterLocale("deDE", {
     ["SOURCE_SAMPLE"] = "· %d Messungen",
     ["SHARE_GEAR"]   = "Prozent = Anteil der gemessenen Spieler, die es tragen.",
     ["SET_BONUS_FOR"] = "Set-Boni für %s",
+    ["SET_BONUS_PIECES"] = "Set (%d): %s",
     ["SET_BONUS_PLAYED"] = "Oben stehen die von %s – der Spec, die du spielst.",
     ["SHARE_TALENTS"] = "Prozent = Anteil der gemessenen Spieler, die ihn spielen. Jeder String stammt aus dem Client eines echten Spielers.",
     ["SHARE_CONSUM"] = "Prozent = Anteil der gemessenen Spieler.",

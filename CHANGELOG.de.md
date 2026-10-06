@@ -24,6 +24,11 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
   darüber erklärt, in einem Satz, mit dem Namen der Spec, zu der er
   gehört. Unbeschriftet liest man ihn als die Antwort auf die Frage, die
   man gerade gestellt hat; ein Satz dreht das.
+  Jede Zeile sagt, wie viele Teile sie verlangt – „Set (2):“ und
+  „Set (4):“. Die Zahl stammt aus dem Namen des Zaubers selbst
+  („... Class Set 2pc“), nicht aus der Reihenfolge; nur wo im Namen
+  keine steht, entscheidet die Stelle, und das auch nur bei genau zwei
+  Boni – so ist ein Klassenset gebaut.
 
 ## [1.1.12] - 2026-10-03
 

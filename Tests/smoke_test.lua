@@ -4993,6 +4993,17 @@ do
             -- Tooltip nichts als Laerm.
             check("    ohne den inneren Namen des Zaubers",
                 text:find("Zauber " .. (andere * 10 + 1), 1, true) == nil)
+            -- WIEVIELE TEILE, das stand nirgends - zwei Zeilen Gruen,
+            -- und welche davon der Zweier ist, musste man raten.
+            --
+            -- Die Zahl kommt aus dem Namen des Zaubers ("... Class Set
+            -- 2pc"), nicht aus der Reihenfolge. Nur wo keine drinsteht,
+            -- entscheidet die Stelle - und das auch nur bei genau zwei
+            -- Boni, denn so ist ein Klassenset gebaut.
+            check("    mit der Teilezahl davor",
+                text:find(ns.L["SET_BONUS_PIECES"]:format(2, ""), 1, true) ~= nil
+                    and text:find(ns.L["SET_BONUS_PIECES"]:format(6, ""), 1, true) ~= nil,
+                (text:gsub("\n", " | ")):sub(1, 110))
         end
     end
 

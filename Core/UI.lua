@@ -3132,7 +3132,9 @@ local function acquireRow(index)
                 GameTooltip:AddLine(
                     L["SET_BONUS_PLAYED"]:format(ns.Compat.SpecName(eigene) or "?"),
                     mr, mg, mb, true)
-                for _, spell in ipairs(boni) do
+                for i, spell in ipairs(boni) do
+                    local info = C_Spell and C_Spell.GetSpellInfo
+                        and C_Spell.GetSpellInfo(spell)
                     local text
                     if C_Spell and C_Spell.GetSpellDescription then
                         local okD, wert = pcall(C_Spell.GetSpellDescription, spell)
@@ -3140,13 +3142,26 @@ local function acquireRow(index)
                             text = wert
                         end
                     end
-                    -- Die Beschreibung allein, ohne den inneren Namen
-                    -- des Zaubers: der heisst "Shaman Restoration 12.1
-                    -- Class Set 2pc" und ist in einem Tooltip nichts
-                    -- als Laerm. Zwei Zeilen, in der Reihenfolge, in
-                    -- der das Spiel sie auch nennt.
+                    -- WIEVIELE TEILE, das steht im Namen des Zaubers.
+                    --
+                    -- Er heisst "Shaman Restoration 12.1 Class Set 2pc"
+                    -- und taugt darum nicht als Zeile - die Zahl darin
+                    -- aber schon, und sie kommt aus dem Client statt aus
+                    -- einer Annahme ueber die Reihenfolge.
+                    --
+                    -- Findet sich keine, entscheidet die Stelle: bei
+                    -- GENAU ZWEI Boni sind es zwei und vier Teile, so
+                    -- ist ein Klassenset gebaut, und in dieser
+                    -- Reihenfolge nennt sie auch das Spiel. Bei einer
+                    -- anderen Zahl wird nichts behauptet.
+                    local name = info and info.name
+                    local teile = type(name) == "string"
+                        and tonumber(name:match("(%d+)%s*pc")) or nil
+                    if not teile and #boni == 2 then teile = i * 2 end
                     if text then
-                        GameTooltip:AddLine((text:gsub("%s*\n%s*", " ")),
+                        text = text:gsub("%s*\n%s*", " ")
+                        GameTooltip:AddLine(
+                            teile and L["SET_BONUS_PIECES"]:format(teile, text) or text,
                             S:Color("success"))
                     end
                 end
