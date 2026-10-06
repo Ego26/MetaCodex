@@ -3051,7 +3051,11 @@ local function acquireRow(index)
         -- Ein Talent hat keinen Gegenstand, aber ein Tooltip: das des
         -- Zaubers. Vorher stand man ueber "Winde von Al'Akir" und erfuhr
         -- nichts darueber, was es tut.
-        if self.spellID then
+        -- rawget, wie bei swapAdded: im Spiel ist ein nicht gesetztes
+        -- Feld nil, im Test gibt die Attrappe ein Kind zurueck - und das
+        -- ist wahr. Mit self.spellID nahm dort JEDE Zeile diesen Zweig
+        -- und kehrte zurueck, auch die mit einem Gegenstand.
+        if rawget(self, "spellID") then
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             if GameTooltip.SetSpellByID then
                 GameTooltip:SetSpellByID(self.spellID)
@@ -3065,13 +3069,14 @@ local function acquireRow(index)
         -- Ein fertiger Link aus gemessenen Bonus-IDs wird NICHT neu
         -- gebaut: er traegt schon Stufe, Qualitaet, Verzierung und
         -- Werte, und jeder Nachbau verliert davon etwas.
+        --
+        -- Frueher kehrte dieser Zweig gleich hier zurueck. Damit lief
+        -- alles, was unter dem Tooltip noch dazugehoert - die Set-Boni
+        -- der gezeigten Spec - an den Tier-Zeilen vorbei, und
+        -- ausgerechnet dort gehoert es hin.
         if self.fullLink then
-            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            GameTooltip:SetHyperlink(self.fullLink)
-            GameTooltip:Show()
-            return
-        end
-        if self.itemID and self.wantBonus then
+            link = self.fullLink
+        elseif self.itemID and self.wantBonus then
             link = ns.Compat.LinkWith(self.itemID, self.wantBonus, self.statBonus)
         elseif self.itemID and self.wantLevel then
             link = ns.Compat.LinkAtLevel(self.itemID, self.wantLevel, self.statBonus) or link
@@ -3081,6 +3086,45 @@ local function acquireRow(index)
         if not link then return end
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetHyperlink(link)
+
+        -- DIE SET-BONI DER GEZEIGTEN SPEC, nicht der gespielten.
+        --
+        -- Im Tooltip eines Tier-Teils zeichnet Blizzard die Boni der
+        -- Spec, die man GERADE SPIELT. Wer als Elementar den
+        -- Wiederherstellungs-Schamanen nachschlaegt, liest also die
+        -- falschen Boni zum richtigen Teil - und nichts sagt ihm das.
+        --
+        -- Nur wenn beide auseinanderfallen. Stimmen sie ueberein, steht
+        -- oben ohnehin das Richtige, und wir wuerden es ein zweites Mal
+        -- danebenschreiben.
+        local gezeigt = ns.Profile.SelectedSpec()
+        if self.itemID and gezeigt and gezeigt ~= ns.Compat.CurrentSpec() then
+            local boni = ns.Compat.SetBonusSpells(gezeigt, self.itemID)
+            if #boni > 0 then
+                local hr, hg, hb = S:Color("heading")
+                GameTooltip:AddLine(" ")
+                GameTooltip:AddLine(
+                    L["SET_BONUS_FOR"]:format(ns.Compat.SpecName(gezeigt) or "?"),
+                    hr, hg, hb)
+                for _, spell in ipairs(boni) do
+                    local info = C_Spell and C_Spell.GetSpellInfo
+                        and C_Spell.GetSpellInfo(spell)
+                    local name = info and info.name
+                    if type(name) == "string" and name ~= "" then
+                        GameTooltip:AddLine(name, 1, 1, 1, true)
+                    end
+                    local text
+                    if C_Spell and C_Spell.GetSpellDescription then
+                        local okD, wert = pcall(C_Spell.GetSpellDescription, spell)
+                        if okD and type(wert) == "string" and wert ~= "" then text = wert end
+                    end
+                    if text then
+                        GameTooltip:AddLine((text:gsub("%s*\n%s*", " ")),
+                            0.7, 0.7, 0.7, true)
+                    end
+                end
+            end
+        end
         GameTooltip:Show()
     end)
     row:SetScript("OnLeave", function(self)

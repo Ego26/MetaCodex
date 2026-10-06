@@ -181,6 +181,7 @@ ns.RegisterLocale("enUS", {
     ["SOURCE_LINE"]  = "Recommendations: %s, %s",
     ["SOURCE_SAMPLE"] = "· %d measurements",
     ["SHARE_GEAR"]   = "Percent = share of the measured players wearing it.",
+    ["SET_BONUS_FOR"] = "Set bonuses for %s",
     ["SHARE_TALENTS"] = "Percent = share of the measured players running it. Every string comes from a real player's client.",
     ["SHARE_CONSUM"] = "Percent = share of the measured players.",
     ["SHARE_ENCHANTS"] = "Percent: for enchants, share of those seen on that slot; for gems, share of all gems worn.",

@@ -4,6 +4,20 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ## [Unreleased]
 
+### Added
+
+- **Tier set bonuses for the spec you are looking at**, not the one you
+  are playing. Blizzard draws a tier piece's bonuses for your active
+  spec; look up restoration as elemental and you read the wrong bonuses
+  on the right piece, with nothing saying so. The bonuses of the shown
+  spec now stand under the tooltip, named. Only when the two differ -
+  where they agree, Blizzard already has it right.
+  Measured first: the same trousers return different spells per spec
+  (262 gives 1296625/1296626, 263 gives 1296627/1296628, 264 gives
+  1296629/1296630), so the call really does respect the spec. No class
+  or spec is written down anywhere - we ask the client with the chosen
+  number, which is why it holds for every class and every spec.
+
 ## [1.1.12] - 2026-10-03
 
 ### Fixed

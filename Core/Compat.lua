@@ -170,6 +170,36 @@ function Compat.SpecsForClass(classID)
     return out
 end
 
+---Die Set-Boni eines Tier-Teils fuer eine bestimmte Spezialisierung.
+---
+---IM TOOLTIP STEHEN DIE DER GESPIELTEN SPEC. Blizzard zeichnet sie so,
+---und wer als Elementar den Wiederherstellungs-Schamanen nachschlaegt,
+---liest die falschen Boni zum richtigen Teil.
+---
+---Im Client gemessen: dieselbe Hose gibt je Spec andere Zauber zurueck -
+---262 nennt 1296625/1296626, 263 nennt 1296627/1296628, 264 nennt
+---1296629/1296630. Die Funktion beachtet die Spec also wirklich; dass
+---jede zwei Eintraege hat, haette das nicht bewiesen - ein Set hat immer
+---einen Zweier- und einen Vierer-Bonus.
+---
+---Zurueck kommen blanke Zauber-Nummern, keine Tabellen.
+---@param specID number|nil
+---@param itemID number|nil
+---@return number[] spells
+function Compat.SetBonusSpells(specID, itemID)
+    local out = {}
+    local get = C_Item and C_Item.GetSetBonusesForSpecializationByItemID
+    if not (get and specID and itemID) then return out end
+    local ok, antwort = pcall(get, specID, itemID)
+    if not (ok and type(antwort) == "table") then return out end
+    for _, wert in pairs(antwort) do
+        local id = tonumber(wert)
+        if id then out[#out + 1] = id end
+    end
+    table.sort(out)
+    return out
+end
+
 ---Name einer Spezialisierung, egal ob eigene oder fremde.
 ---@param specID number|nil
 ---@return string|nil

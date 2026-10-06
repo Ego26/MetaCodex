@@ -689,6 +689,15 @@ function M.install(opts)
     }
 
     G.C_Item = {
+        -- Set-Boni je Spezialisierung. Im Spiel gemessen: dieselbe Hose
+        -- gibt je Spec ANDERE Zauber zurueck - 262 nennt
+        -- 1296625/1296626, 263 nennt 1296627/1296628. Hier dieselbe
+        -- Rechnung, damit ein Test den Unterschied sehen kann; eine
+        -- feste Antwort haette ihn nie bemerkt.
+        GetSetBonusesForSpecializationByItemID = function(specID, itemID)
+            if not (specID and itemID) then return nil end
+            return { specID * 10 + 1, specID * 10 + 2 }
+        end,
         GetItemInfo = function(id)
             if opts.unknownItems and opts.unknownItems[id] then return nil end
             -- Die vierte Stelle ist die GEGENSTANDSSTUFE. Sie stand

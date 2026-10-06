@@ -4,6 +4,21 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ## [Unveröffentlicht]
 
+### Neu
+
+- **Tier-Set-Boni für die Spec, die du ansiehst**, nicht für die, die du
+  spielst. Blizzard zeichnet die Boni eines Tier-Teils für deine aktive
+  Spec; wer als Elementar den Wiederherstellungs-Schamanen nachschlägt,
+  liest die falschen Boni zum richtigen Teil – und nichts sagt es ihm.
+  Die Boni der gezeigten Spec stehen jetzt unter dem Tooltip, mit Namen.
+  Nur wenn beide auseinanderfallen – stimmen sie überein, steht oben
+  ohnehin das Richtige.
+  Vorher gemessen: dieselbe Hose gibt je Spec andere Zauber zurück (262
+  nennt 1296625/1296626, 263 nennt 1296627/1296628, 264 nennt
+  1296629/1296630), die Abfrage beachtet die Spec also wirklich. Keine
+  Klasse und keine Spec steht im Code – wir fragen den Client mit der
+  gewählten Nummer, und darum gilt es für jede Klasse und jede Spec.
+
 ## [1.1.12] - 2026-10-03
 
 ### Behoben

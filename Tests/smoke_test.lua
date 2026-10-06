@@ -4894,6 +4894,93 @@ do
     check("und keine davon ist aus einem fremden Set", fremd == 0,
         fremd .. " fremde")
 
+    -- DIE SET-BONI DER GEZEIGTEN SPEC, nicht der gespielten.
+    --
+    -- Blizzard zeichnet im Tooltip eines Tier-Teils die Boni der Spec,
+    -- die man gerade SPIELT. Wer eine andere nachschlaegt, liest die
+    -- falschen Boni zum richtigen Teil - und nichts sagt ihm das.
+    --
+    -- Die Attrappe antwortet je Spec anders (specID*10+1/+2), damit der
+    -- Test den Unterschied sehen kann. Keine Klasse steht im Code: wir
+    -- fragen den Client mit der gewaehlten Nummer, und das gilt fuer
+    -- jede Klasse und jede Spec gleichermassen.
+    ns.Profile.SetMode("raid")
+    rowsInSection("tier")
+    local teil
+    for _, row in ipairs(wow.rows()) do
+        if not teil and row:IsShown() and type(rawget(row, "itemID")) == "number" then
+            teil = row
+        end
+    end
+    check("eine Tier-Zeile traegt ihren Gegenstand", teil ~= nil)
+    if teil then
+        local eigene = ns.Compat.CurrentSpec()
+        local andere
+        -- Die Klasse kommt vom Spieler, nicht aus einer festen Zahl:
+        -- dasselbe gilt im Addon, und darum gilt es fuer jede Klasse.
+        local klasse = ns.Compat.PlayerClassID()
+        for _, spec in ipairs(ns.Compat.SpecsForClass(klasse) or {}) do
+            if not andere and spec.id ~= eigene then andere = spec.id end
+        end
+        check("  es gibt eine zweite Spec zum Vergleich", andere ~= nil,
+            tostring(andere))
+
+        -- Die Zeile NACH dem Zeichnen suchen: Zeilen werden
+        -- wiederverwendet, und die von vorhin traegt nach einem
+        -- Specwechsel vielleicht gar keinen Gegenstand mehr.
+        local function zeiger()
+            local zeile
+            for _, r in ipairs(wow.rows()) do
+                if not zeile and r:IsShown()
+                    and type(rawget(r, "itemID")) == "number" then
+                    zeile = r
+                end
+            end
+            if not zeile then return nil end
+            local zeilen = {}
+            local echtAdd = GameTooltip.AddLine
+            GameTooltip.AddLine = function(_, text) zeilen[#zeilen + 1] = tostring(text) end
+            zeile.__scripts.OnEnter(zeile)
+            GameTooltip.AddLine = echtAdd
+            return table.concat(zeilen, "\n")
+        end
+
+        -- Die eigene Spec: Blizzards Tooltip hat sie schon, wir
+        -- schreiben nichts dazu.
+        ns.Profile.SelectActive()
+        rowsInSection("tier")
+        -- Erst die Abfrage selbst, dann der Zeiger: scheitert das
+        -- eine, muss man nicht im anderen suchen.
+        do
+            local ids = ns.Compat.SetBonusSpells(andere, 271483)
+            check("  die Abfrage nennt die Boni der Spec",
+                #ids == 2 and ids[1] == andere * 10 + 1,
+                #ids .. " -> " .. tostring(ids[1]))
+        end
+        local eigenerText = zeiger()
+        check("  der Zeiger findet eine Tier-Zeile", eigenerText ~= nil)
+        check("  bei der eigenen Spec steht nichts doppelt",
+            (eigenerText or ""):find(ns.L["SET_BONUS_FOR"]:format(""), 1, true) == nil)
+
+        if andere then
+            -- Die Zeilen bleiben die der eigenen Spec - fuer die zweite
+            -- gibt es in den Messdaten kein Tier-Teil, und ein Test, der
+            -- erst Daten erfinden muss, prueft die Erfindung. Gefragt
+            -- wird nur, WELCHE Spec der Zeiger nachschlaegt.
+            local echtGewaehlt = ns.Profile.SelectedSpec
+            ns.Profile.SelectedSpec = function() return andere end
+            local text = zeiger() or ""
+            ns.Profile.SelectedSpec = echtGewaehlt
+
+            check("  bei einer fremden Spec stehen ihre Boni dabei",
+                text:find("Set%-Boni") ~= nil or text:find("Set bonuses") ~= nil,
+                (text:gsub("\n", " | ")):sub(1, 90))
+            check("    und zwar die der GEZEIGTEN Spec",
+                text:find("Zauber " .. (andere * 10 + 1), 1, true) ~= nil,
+                "erwartet Zauber " .. (andere * 10 + 1))
+        end
+    end
+
     -- Die engere Frage beantwortet der Katalog, und sie ist WIRKLICH
     -- enger: es gibt Set-Teile, die nicht zum laufenden Tier gehoeren.
     local set, tier = 0, 0
