@@ -18,13 +18,12 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
   1296629/1296630), die Abfrage beachtet die Spec also wirklich. Keine
   Klasse und keine Spec steht im Code – wir fragen den Client mit der
   gewählten Nummer, und darum gilt es für jede Klasse und jede Spec.
-  Die falschen Zeilen werden **ersetzt**, nicht nur ergänzt: angehängt
-  standen beide da, der falsche Block zuerst und unbeschriftet – und den
-  liest man als erstes. Erkannt werden sie an dem, was der Client selbst
-  über die gespielte Spec sagt, nie an einem Muster im Text; ein Muster
-  wäre eine Wette auf Sprache und Schreibweise. Passt keine Zeile, wird
-  nichts verbogen und die Boni stehen unten angehängt: lieber doppelt
-  als falsch.
+  Blizzards eigene Zeilen bleiben stehen: die Tooltips bauen sich aus
+  Daten auf, und was man hineinschreibt, ist beim nächsten Durchlauf
+  wieder weg – versucht und wieder verworfen. Stattdessen wird der Block
+  darüber erklärt, in einem Satz, mit dem Namen der Spec, zu der er
+  gehört. Unbeschriftet liest man ihn als die Antwort auf die Frage, die
+  man gerade gestellt hat; ein Satz dreht das.
 
 ## [1.1.12] - 2026-10-03
 

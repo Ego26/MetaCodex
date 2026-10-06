@@ -2897,63 +2897,6 @@ local function swapLines(added, removed)
     return true
 end
 
----Die Set-Boni im Tooltip auf die GEZEIGTE Spec umschreiben.
----
----Blizzard zeichnet in einem Tier-Teil die Boni der Spec, die man
----gerade SPIELT. Wer als Elementar den Wiederherstellungs-Schamanen
----nachschlaegt, liest die falschen Boni zum richtigen Teil - und
----nichts sagt es ihm.
----
----Anhaengen allein reichte nicht: dann stehen beide da, der falsche
----Block zuerst und unbeschriftet. Also werden die Zeilen ERSETZT -
----und zwar erkannt an dem, was der Client selbst ueber die gespielte
----Spec sagt, nicht an einem Muster im Text. Ein Muster waere eine
----Wette auf Sprache und Schreibweise; die Beschreibung ist dieselbe
----Zeichenkette, die Blizzard dort hingeschrieben hat.
----
----Findet sich keine Zeile wieder - ein Patch formatiert anders -,
----wird nichts verbogen und die Boni stehen unten angehaengt. Lieber
----doppelt als falsch.
----@param itemID number
----@param gezeigt number  die Spec, die das Fenster zeigt
----@return boolean ersetzt  ob im Tooltip etwas umgeschrieben wurde
-local function retypeSetBonus(itemID, gezeigt)
-    local eigene = ns.Compat.CurrentSpec()
-    if not (eigene and gezeigt) then return false end
-    local alt = ns.Compat.SetBonusSpells(eigene, itemID)
-    local neu = ns.Compat.SetBonusSpells(gezeigt, itemID)
-    if #alt == 0 or #alt ~= #neu then return false end
-
-    local function beschreibung(spell)
-        if not (C_Spell and C_Spell.GetSpellDescription) then return nil end
-        local ok, text = pcall(C_Spell.GetSpellDescription, spell)
-        if ok and type(text) == "string" and text ~= "" then return text end
-        return nil
-    end
-
-    local zeilen = tonumber((GameTooltip.NumLines and GameTooltip:NumLines())) or 0
-    local ersetzt = false
-    for i = 1, #alt do
-        local suche, ersatz = beschreibung(alt[i]), beschreibung(neu[i])
-        if suche and ersatz then
-            for zeile = 1, zeilen do
-                local fs = _G["GameTooltipTextLeft" .. zeile]
-                local text = fs and fs.GetText and fs:GetText()
-                if type(text) == "string" and text ~= ""
-                    and text:find(suche, 1, true) then
-                    -- An Ort und Stelle, mit dem Rahmen drumherum:
-                    -- was Blizzard vor die Beschreibung setzt ("Set:"),
-                    -- bleibt stehen.
-                    fs:SetText((text:gsub(suche, ersatz, 1)))
-                    ersetzt = true
-                    break
-                end
-            end
-        end
-    end
-    return ersetzt
-end
-
 local function acquireRow(index)
     rows = rows or {}
     if rows[index] then return rows[index] end
@@ -3159,42 +3102,54 @@ local function acquireRow(index)
         -- Im Tooltip eines Tier-Teils zeichnet Blizzard die Boni der
         -- Spec, die man GERADE SPIELT. Wer als Elementar den
         -- Wiederherstellungs-Schamanen nachschlaegt, liest also die
-        -- falschen Boni zum richtigen Teil - und nichts sagt ihm das.
+        -- falschen Boni zum richtigen Teil.
         --
-        -- Nur wenn beide auseinanderfallen. Stimmen sie ueberein, steht
-        -- oben ohnehin das Richtige, und wir wuerden es ein zweites Mal
-        -- danebenschreiben.
+        -- Ersetzen war der Versuch davor und ist wieder draussen:
+        -- Blizzards Tooltips bauen sich aus Daten auf, und was man
+        -- hineinschreibt, ist beim naechsten Durchlauf wieder weg. Was
+        -- bleibt, ist Anhaengen - und dann muss der Block darueber
+        -- erklaert werden, sonst liest man ihn als den richtigen.
+        --
+        -- Nur wenn beide auseinanderfallen. Stimmen sie ueberein,
+        -- steht oben ohnehin das Richtige.
         local gezeigt = ns.Profile.SelectedSpec()
         local itemID = rawget(self, "itemID")
-        if itemID and gezeigt and gezeigt ~= ns.Compat.CurrentSpec()
-            and not retypeSetBonus(itemID, gezeigt) then
+        local eigene = ns.Compat.CurrentSpec()
+        if itemID and gezeigt and eigene and gezeigt ~= eigene then
             local boni = ns.Compat.SetBonusSpells(gezeigt, itemID)
             if #boni > 0 then
                 local hr, hg, hb = S:Color("heading")
+                local mr, mg, mb = S:Color("textMuted")
                 GameTooltip:AddLine(" ")
                 GameTooltip:AddLine(
                     L["SET_BONUS_FOR"]:format(ns.Compat.SpecName(gezeigt) or "?"),
                     hr, hg, hb)
+                -- WOZU DER BLOCK DARUEBER GEHOERT.
+                --
+                -- Er traegt keine Beschriftung, und darum liest man
+                -- ihn als die Antwort auf die Frage, die man gerade
+                -- gestellt hat. Ein Satz genuegt, um das zu drehen.
+                GameTooltip:AddLine(
+                    L["SET_BONUS_PLAYED"]:format(ns.Compat.SpecName(eigene) or "?"),
+                    mr, mg, mb, true)
                 for _, spell in ipairs(boni) do
-                    local info = C_Spell and C_Spell.GetSpellInfo
-                        and C_Spell.GetSpellInfo(spell)
-                    local name = info and info.name
-                    if type(name) == "string" and name ~= "" then
-                        GameTooltip:AddLine(name, 1, 1, 1, true)
-                    end
                     local text
                     if C_Spell and C_Spell.GetSpellDescription then
                         local okD, wert = pcall(C_Spell.GetSpellDescription, spell)
-                        if okD and type(wert) == "string" and wert ~= "" then text = wert end
+                        if okD and type(wert) == "string" and wert ~= "" then
+                            text = wert
+                        end
                     end
+                    -- Die Beschreibung allein, ohne den inneren Namen
+                    -- des Zaubers: der heisst "Shaman Restoration 12.1
+                    -- Class Set 2pc" und ist in einem Tooltip nichts
+                    -- als Laerm. Zwei Zeilen, in der Reihenfolge, in
+                    -- der das Spiel sie auch nennt.
                     if text then
                         GameTooltip:AddLine((text:gsub("%s*\n%s*", " ")),
-                            0.7, 0.7, 0.7, true)
+                            S:Color("success"))
                     end
                 end
-                -- Angehaengte Zeilen brauchen ein zweites Show, damit der
-                -- Rahmen mitwaechst. Ersetzte brauchen es nicht - und
-                -- duerfen es nicht, weil Show sie wieder ueberschreibt.
                 GameTooltip:Show()
             end
         end

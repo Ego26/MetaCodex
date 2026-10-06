@@ -17,12 +17,11 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
   1296629/1296630), so the call really does respect the spec. No class
   or spec is written down anywhere - we ask the client with the chosen
   number, which is why it holds for every class and every spec.
-  The wrong lines are **replaced**, not merely supplemented: appended,
-  both stood there, the wrong block first and unlabelled, and that is
-  the one you read. They are found by what the client itself says about
-  the played spec, never by a pattern in the text - a pattern would be a
-  bet on language and wording. Where no line matches, nothing is bent
-  and the bonuses stand appended below instead: rather twice than wrong.
+  Blizzard's own lines stay: tooltips are built from data and anything
+  written into them is gone on the next pass - tried and dropped again.
+  So the block above is explained instead, in one line, naming the spec
+  it belongs to. Unlabelled it reads as the answer to the question you
+  just asked; one sentence turns that around.
 
 ## [1.1.12] - 2026-10-03
 
