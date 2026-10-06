@@ -162,7 +162,14 @@ function Probe.Run()
             -- die Antworten unterscheiden, ist es bewiesen. Und wir
             -- brauchen sie fuer eine ANDERE Spec als die gespielte,
             -- genau das ist der Fall im Fenster.
-            local klasse = select(3, UnitClass and UnitClass("player"))
+            -- NICHT select(3, UnitClass and UnitClass("player")).
+            --
+            -- Das "and" schneidet den Aufruf auf einen Wert, und dann
+            -- hat select gar kein drittes - die Schleife lief ins Leere,
+            -- ohne Fehler. Dieselbe Falle wie bei tonumber(f:GetLeft())
+            -- und bei GetChildren in der Attrappe.
+            local klasse
+            if UnitClass then klasse = select(3, UnitClass("player")) end
             for _, spec in ipairs(ns.Compat.SpecsForClass(klasse) or {}) do
                 local ok, antwort = pcall(fn, spec.id, stueck)
                 local wieviele

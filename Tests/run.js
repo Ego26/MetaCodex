@@ -186,6 +186,54 @@ const VERBOTEN = [
   console.log('  ok   unter der 200-Locals-Grenze von Lua 5.1');
 }
 
+// select(n, X and Y()) HOLT NICHTS AB.
+//
+// Ein Funktionsaufruf wird nur dann auf alle seine Rueckgaben
+// ausgepackt, wenn er allein am Ende der Argumentliste steht. Schreibt
+// jemand "select(3, UnitClass and UnitClass('player'))", schneidet das
+// and auf einen Wert - und select findet kein drittes. Kein Fehler,
+// kein Absturz: die Zeile tut einfach nichts.
+//
+// Dreimal passiert, dreimal erst im Spiel aufgefallen. Geprueft wird
+// nur das Innere der Klammern von select, damit "select(...) and x" -
+// was richtig ist - nicht mitgefangen wird.
+{
+  const klagen = [];
+  for (const dir of ['Core', 'Tests']) {
+    const voll = path.join(base, dir);
+    if (!fs.existsSync(voll)) continue;
+    for (const name of fs.readdirSync(voll)) {
+      if (!name.endsWith('.lua')) continue;
+      const text = fs.readFileSync(path.join(voll, name), 'utf8');
+      const zeilen = text.split(String.fromCharCode(10));
+      for (let i = 0; i < zeilen.length; i += 1) {
+        const zeile = zeilen[i].replace(/--.*$/, '');
+        let at = zeile.indexOf('select(');
+        while (at >= 0) {
+          // Bis zur passenden schliessenden Klammer.
+          let tiefe = 0, ende = -1;
+          for (let k = at + 'select'.length; k < zeile.length; k += 1) {
+            if (zeile[k] === '(') tiefe += 1;
+            else if (zeile[k] === ')') { tiefe -= 1; if (tiefe === 0) { ende = k; break; } }
+          }
+          if (ende < 0) break;
+          const drin = zeile.slice(at + 'select('.length, ende);
+          if (drin.indexOf(' and ') >= 0) {
+            klagen.push(dir + '/' + name + ':' + (i + 1) + '  ' + zeile.trim());
+          }
+          at = zeile.indexOf('select(', ende);
+        }
+      }
+    }
+  }
+  if (klagen.length) {
+    console.error('  FAIL select(n, X and Y()) holt nichts ab');
+    for (const k of klagen) console.error('       ' + k);
+    process.exit(1);
+  }
+  console.log('  ok   kein select ueber einem abgeschnittenen Aufruf');
+}
+
 const code = fs.readFileSync(file, 'utf8');
 if (lauxlib.luaL_dostring(L, to_luastring(code)) !== lua.LUA_OK) {
   console.error('LUA-FEHLER: ' + lua.lua_tojsstring(L, -1));
