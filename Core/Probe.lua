@@ -172,13 +172,18 @@ function Probe.Run()
             if UnitClass then klasse = select(3, UnitClass("player")) end
             for _, spec in ipairs(ns.Compat.SpecsForClass(klasse) or {}) do
                 local ok, antwort = pcall(fn, spec.id, stueck)
-                local wieviele
+                -- DIE NUMMERN SELBST, nicht ihre Anzahl. Dass jede Spec
+                -- zwei Boni hat, sagt nichts - jedes Set hat einen
+                -- Zweier und einen Vierer. Erst wenn die IDs sich
+                -- unterscheiden, beachtet die Funktion die Spec.
+                local teile = {}
                 if ok and type(antwort) == "table" then
-                    wieviele = 0
-                    for _ in pairs(antwort) do wieviele = wieviele + 1 end
+                    for _, wert in pairs(antwort) do
+                        teile[#teile + 1] = tostring(wert)
+                    end
                 end
-                line("  %-30s %-14s %s", spec.name or spec.id, "(" .. spec.id .. ")",
-                    ok and (wieviele and (wieviele .. " Eintraege") or tostring(antwort))
+                line("  %-24s %-8s %s", spec.name or spec.id, "(" .. spec.id .. ")",
+                    ok and (#teile > 0 and table.concat(teile, ", ") or tostring(antwort))
                     or "stolpert")
             end
             -- Und wie ein Eintrag aussieht: ohne die Feldnamen laesst
