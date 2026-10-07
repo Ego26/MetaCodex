@@ -107,5 +107,9 @@ jobs:
           # repository secret. Without it the packager builds but uploads
           # nothing.
           CF_API_KEY: ${{ secrets.CF_API_KEY }}
+          # Wago Addons, from https://addons.wago.io/account/apikeys. The
+          # packager only uploads there once the TOC carries X-Wago-ID; until
+          # then this line costs nothing.
+          WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
           # Creates the GitHub release along the way and attaches the zip.
           GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
