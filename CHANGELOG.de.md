@@ -4,6 +4,22 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ## [Unveröffentlicht]
 
+### Behoben
+
+- **Ein einzelner 504 von wago.tools hat eine ganze Aktivität des
+  Nachtlaufs gekostet.** Am 8. Oktober starb er nach 143 Minuten, mit
+  zwei Stunden fertig gesammelter Raiddaten auf der Platte; raid-normal
+  fiel weg, weil ein Katalogabruf beim Gegenüber in eine
+  Zeitüberschreitung lief. Ein solcher Fehler sagt nichts über unsere
+  Anfrage – sie noch einmal zu stellen ist die richtige Antwort darauf.
+  Jetzt vier Versuche mit wachsenden Pausen, und nur bei 5xx und
+  Netzfehlern: einen 404 oder 403 zu wiederholen hieße, dieselbe falsche
+  Frage lauter zu stellen.
+- **Der Build-Lauf hat drei der vier Regeltests ausgeführt.** Sie waren
+  namentlich aufgezählt, ein vierter kam dazu – und wäre nie gelaufen.
+  Ein Test, von dem niemand weiß, dass er nicht läuft, ist schlechter
+  als keiner.
+
 ## [1.1.13] - 2026-10-07
 
 ### Neu

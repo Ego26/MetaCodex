@@ -30,14 +30,19 @@ jobs:
         with:
           node-version: "22"
 
-      # Die Zaehlregel fuer Verbrauchsgueter braucht keine Daten und
-      # keinen Lua-Stapel. Sie laeuft zuerst, weil sie in Sekunden sagt,
-      # ob die Prozente im Fenster noch bedeuten, was sie behaupten.
+      # Die Regeltests brauchen keine Daten und keinen Lua-Stapel. Sie
+      # laufen zuerst, weil sie in Sekunden sagen, ob die Prozente im
+      # Fenster noch bedeuten, was sie behaupten.
+      #
+      # ALLE, nicht die drei, die hier einmal jemand aufgezaehlt hat.
+      # Ein vierter kam dazu und waere nie gelaufen - ein Test, von dem
+      # niemand weiss, dass er nicht laeuft, ist schlechter als keiner.
       - name: Counting rules
         run: |
-          node tools/tests/consumable-window.test.js
-          node tools/tests/share.test.js
-          node tools/tests/merge-tiers.test.js
+          for t in tools/tests/*.test.js; do
+            echo "--- $t"
+            node "$t"
+          done
 
       - name: Fetch the data from the latest nightly
         id: data

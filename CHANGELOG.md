@@ -4,6 +4,19 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A single 504 from wago.tools killed a whole activity of the nightly
+  run.** On 8 October it died after 143 minutes with two hours of raid
+  data already written; raid-normal fell away because one catalog fetch
+  timed out at the other end. A gateway timeout says nothing about our
+  request - asking again is the answer to it. Four attempts now, with
+  growing pauses, and only for 5xx and network errors: repeating a 404
+  or a 403 would be asking the same wrong question louder.
+- **The build job ran three of the four rule tests.** They were listed
+  by name, a fourth was added, and it would never have run. A test
+  nobody knows is not running is worse than none.
+
 ## [1.1.13] - 2026-10-07
 
 ### Added

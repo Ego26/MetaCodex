@@ -22,6 +22,7 @@
 // also rund zwanzig Datensaetze je Abruf statt einem.
 
 const fs = require('fs');
+const { worthRetrying, waitSeconds } = require('./lib/http-retry');
 const path = require('path');
 const https = require('https');
 // Die Zaehlregel fuer Verbrauchsgueter - eigene Datei, eigener Test.
@@ -424,12 +425,14 @@ async function gql(query, variables) {
   }
 }
 
-function fetchText(url) {
+function fetchOnce(url) {
   return new Promise((resolve, reject) => {
     https.get(url, { headers: { 'User-Agent': 'MetaCodex-collector' } }, (res) => {
       if (res.statusCode !== 200) {
         res.resume();
-        return reject(new Error(url + ' -> ' + res.statusCode));
+        const err = new Error(url + ' -> ' + res.statusCode);
+        err.statusCode = res.statusCode;
+        return reject(err);
       }
       let body = '';
       res.setEncoding('utf8');
@@ -437,6 +440,37 @@ function fetchText(url) {
       res.on('end', () => resolve(body));
     }).on('error', reject);
   });
+}
+
+// EIN 504 IST KEINE ANTWORT, SONDERN EIN SCHULTERZUCKEN.
+//
+// Der Lauf vom 8. Oktober ist nach 143 Minuten an einem einzigen
+// "504 Gateway Timeout" von wago.tools gestorben - zwei Stunden
+// gesammelte Raiddaten waren da schon geschrieben, raid-normal fiel
+// trotzdem weg. Ein Zeitueberschreitung beim Gegenueber sagt nichts
+// ueber unsere Anfrage; sie noch einmal zu stellen ist die richtige
+// Antwort darauf.
+//
+// NUR bei 5xx und bei Netzfehlern. Ein 404 oder 403 ist unser Fehler
+// oder ihre Entscheidung - den zu wiederholen hiesse, dieselbe
+// falsche Frage lauter zu stellen.
+async function fetchText(url, versuche = 4) {
+  let letzter;
+  for (let i = 0; i < versuche; i += 1) {
+    try {
+      return await fetchOnce(url);
+    } catch (err) {
+      letzter = err;
+      if (!worthRetrying(err) || i === versuche - 1) throw err;
+      const code = err.statusCode;
+      const warte = waitSeconds(i);
+      console.log(`  ${code || err.code || "Netzfehler"} von `
+        + `${new URL(url).hostname}, nochmal in ${warte}s `
+        + `(Versuch ${i + 2} von ${versuche})`);
+      await sleep(warte * 1000);
+    }
+  }
+  throw letzter;
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

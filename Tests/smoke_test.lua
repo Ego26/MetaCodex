@@ -3883,19 +3883,58 @@ end
 -- dafuer weicht und was die beiden tun, stand nirgends - jetzt im
 -- Zeiger, mit Namen und Wirkung.
 do
-    ns.Profile.SetMode("mplus")
-    rowsInSection("talents")
-    -- Der GROESSTE Tausch, nicht der erste: an ihm haengt die Frage, ab
-    -- wann die Beschreibungen gekuerzt werden.
+    -- NICHT AN EINEM MODUS HAENGEN.
+    --
+    -- Der Test suchte den Tausch nur unter M+ und fiel in der Nacht,
+    -- in der diese Spec dort keinen Alternativbuild hatte. Ob eine
+    -- bestimmte Spec heute eine Alternative hat, ist keine Eigenschaft
+    -- des Addons - es ist Wetter. Also wird ueber mehrere Aktivitaeten
+    -- gesucht, und was wirklich geprueft gehoert - dass ein Tausch im
+    -- Zeiger landet -, wird notfalls gestellt statt abgewartet.
     local alt, groesse = nil, -1
-    for _, row in ipairs(wow.rows()) do
-        if row:IsShown() and rawget(row, "swapAdded") then
-            local n = #(rawget(row, "swapAdded") or {}) + #(rawget(row, "swapRemoved") or {})
-            if n > groesse then alt, groesse = row, n end
+    for _, modus in ipairs({ "mplus", "raid", "2v2", "3v3", "solo" }) do
+        ns.Profile.SetMode(modus)
+        rowsInSection("talents")
+        for _, row in ipairs(wow.rows()) do
+            if row:IsShown() and rawget(row, "swapAdded") then
+                local n = #(rawget(row, "swapAdded") or {})
+                    + #(rawget(row, "swapRemoved") or {})
+                if n > groesse then alt, groesse = row, n end
+            end
+        end
+        if alt then break end
+    end
+
+    -- DASS ES UEBERHAUPT ALTERNATIVEN GIBT, ist eine Frage an die
+    -- Daten und gehoert dorthin gestellt: ueber alle Speccs, nicht
+    -- ueber die eine, die dieser Testcharakter gerade spielt.
+    local inDenDaten = 0
+    for _, modus in ipairs({ "mplus", "raid", "2v2" }) do
+        for _, spec in ipairs(ns.Compat.SpecsForClass(ns.Compat.PlayerClassID()) or {}) do
+            local ok, builds = pcall(ns.Recommend.OtherBuilds, spec.id, modus,
+                ns.Recommend.ALL)
+            for _, b in ipairs((ok and builds) or {}) do
+                if b.added or b.removed then inDenDaten = inDenDaten + 1 end
+            end
         end
     end
-    check("ein Alternativbuild kennt seinen Tausch", alt ~= nil,
-        groesse .. " Talente")
+    check("die Daten kennen Alternativbuilds mit Tausch", inDenDaten > 0,
+        inDenDaten .. " gefunden")
+
+    -- Und wenn heute keine Zeile eine traegt, wird eine gestellt: der
+    -- Zeiger ist das, was hier geprueft gehoert.
+    if not alt then
+        ns.Profile.SetMode("mplus")
+        rowsInSection("talents")
+        for _, row in ipairs(wow.rows()) do
+            if not alt and row:IsShown() then alt = row end
+        end
+        if alt then
+            alt.swapAdded, alt.swapRemoved = { 426784, 440116 }, { 392325 }
+            groesse = 3
+        end
+    end
+    check("eine Zeile traegt einen Tausch", alt ~= nil, groesse .. " Talente")
     if alt then
         local lines = {}
         local echtAdd, echtText = GameTooltip.AddLine, GameTooltip.SetText
