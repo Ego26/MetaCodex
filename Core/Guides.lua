@@ -18,13 +18,24 @@ ns.Guides = Guides
 -- im Fenster auch angezeigt - wer hier klickt, soll wissen, wessen Arbeit
 -- er gleich liest.
 local SITES = {
+    -- Wowheads Rotationsseite heisst seit Midnight anders.
+    --
+    -- Sie hiess /rotation-cooldowns-abilities und ist weg - und zwar
+    -- fuer ALLE vierzig Speccs, nachgemessen. Heute endet die Adresse
+    -- auf die Rolle: overview-pve-dps, -healer, -tank.
+    --
+    -- /overview leitet auf die richtige Seite um, aber nur bei 36 von
+    -- 40: bei den drei Rufern und beim Verschlinger gibt es die
+    -- Umleitung nicht, die Zielseiten aber sehr wohl. Deshalb wird die
+    -- Rolle mitgegeben, wo wir sie kennen - und /overview bleibt der
+    -- Rueckfall, solange der Katalog sie noch nicht traegt.
     {
         key = "wowhead",
         name = "Wowhead",
         icon = "Interface\\Icons\\INV_Misc_Book_11",
-        url = function(cls, spec) return
-            ("https://www.wowhead.com/guide/classes/%s/%s/rotation-cooldowns-abilities")
-                :format(cls, spec)
+        url = function(cls, spec, role) return
+            ("https://www.wowhead.com/guide/classes/%s/%s/%s")
+                :format(cls, spec, role and ("overview-pve-" .. role) or "overview")
         end,
     },
     {
@@ -89,6 +100,7 @@ local SITES = {
 function Guides.For(specID)
     local cls, spec = ns.Catalog.SpecSlug(specID)
     if not cls or not spec then return {} end
+    local role = ns.Catalog.SpecRole and ns.Catalog.SpecRole(specID) or nil
 
     local out = {}
     for _, site in ipairs(SITES) do
@@ -96,7 +108,7 @@ function Guides.For(specID)
             key = site.key,
             site = site.name,
             icon = site.icon,
-            url = site.url(cls, spec),
+            url = site.url(cls, spec, role),
         }
     end
     return out

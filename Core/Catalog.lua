@@ -605,6 +605,24 @@ function Catalog.SpecSlug(specID)
     return entry.cls, entry.spec
 end
 
+---Die Rolle einer Spezialisierung: "tank", "healer" oder "dps".
+---
+---AUS DEN SPIELDATEN, nicht vom Client. Der liefert seit 12.1 schon das
+---Hauptattribut nicht mehr heraus, und was einmal leer zurueckkam, ist
+---als Quelle verbrannt. In ChrSpecialization steht sie als Zahl, und
+---die ist gegengerechnet: acht Nullen sind genau die acht Tanks, sieben
+---Einsen genau die sieben Heiler.
+---
+---Gebraucht wird sie fuer Wowheads Guide-Adresse, die seit Midnight auf
+---die Rolle endet.
+---@param specID number
+---@return string|nil
+function Catalog.SpecRole(specID)
+    local c = data()
+    local entry = c and c.specs and c.specs[specID]
+    return entry and entry.role or nil
+end
+
 ---Die Bonus-ID, die einen Gegenstand um so viele Stufen verschiebt.
 ---
 ---Damit laesst sich ein Gegenstand auf einer ANDEREN Stufe zeigen, mit

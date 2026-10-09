@@ -890,6 +890,38 @@ if links[1] then
         links[1].url)
     check("jede Adresse nennt ihre Quelle", links[1].site ~= nil, links[1].site)
 
+    -- DIE ROTATIONSSEITE HEISST SEIT MIDNIGHT ANDERS.
+    --
+    -- Sie hiess /rotation-cooldowns-abilities und ist weg - bei allen
+    -- vierzig Speccs, nachgemessen. Heute endet die Adresse auf die
+    -- Rolle. Der alte Name darf in keiner Adresse mehr auftauchen.
+    local alteSeite = 0
+    for _, spec in ipairs({ 105, 102, 62, 65, 66, 250, 270, 1473, 581 }) do
+        for _, l in ipairs(ns.Guides.For(spec)) do
+            if l.url:find("rotation-cooldowns-abilities", 1, true) then
+                alteSeite = alteSeite + 1
+            end
+        end
+    end
+    check("keine Adresse zeigt mehr auf die alte Rotationsseite",
+        alteSeite == 0, alteSeite .. " Adressen")
+
+    -- Und wo der Katalog die Rolle kennt, steht sie in der Adresse:
+    -- /overview leitet nur bei 36 von 40 um, die Zielseiten gibt es
+    -- aber fuer alle.
+    do
+        local echt = ns.Catalog.SpecRole
+        ns.Catalog.SpecRole = function() return "healer" end
+        local mitRolle = ns.Guides.For(105)[1].url
+        ns.Catalog.SpecRole = function() return nil end
+        local ohneRolle = ns.Guides.For(105)[1].url
+        ns.Catalog.SpecRole = echt
+        check("  mit bekannter Rolle steht sie in der Adresse",
+            mitRolle:find("overview%-pve%-healer") ~= nil, mitRolle)
+        check("  ohne sie bleibt die Umleitung der Rueckfall",
+            ohneRolle:find("/overview$") ~= nil, ohneRolle)
+    end
+
     -- Jede Zeile braucht ihren Text, sonst steht dort der Schluessel.
     -- Genau so faellt eine neu hinzugefuegte Quelle ohne Uebersetzung auf.
     local ohneText = {}
@@ -1417,12 +1449,32 @@ do
         -- eigenen Plaetzen, nicht im Baum. Ein Build laedt sie also nie.
         -- Wer in einer Klammer vor dieser Liste steht, hat sie trotzdem
         -- zu waehlen, und gemessen sind sie: 347 Eintraege in den Daten.
+        -- NICHT AN EINER KLAMMER HAENGEN.
+        --
+        -- "2v2 hat fuer diese Spec heute PvP-Talente" ist Wetter und
+        -- keine Eigenschaft des Addons. Geprueft gehoert die REGEL:
+        -- das Fenster steht genau dann da, wenn es etwas zu zeigen
+        -- gibt. Dafuer werden die Klammern durchgegangen, bis eine
+        -- welche hat - und hat keine welche, ist auch das richtig.
         local vorher = ns.Profile.Mode()
-        ns.Profile.SetMode("2v2")
-        ns.UI.RefreshTalentPanel()
-        local pvpFenster = _G.MetaCodexPvpTalents
-        check("PvP-Talente bekommen ein eigenes Fenster",
-            pvpFenster ~= nil and pvpFenster:IsShown() == true)
+        local pvpFenster, inDenDaten = nil, 0
+        for _, klammer in ipairs({ "2v2", "3v3", "solo", "rbg", "blitz" }) do
+            ns.Profile.SetMode(klammer)
+            local ok, picks = pcall(ns.Recommend.Talents,
+                ns.Profile.SelectedSpec(), klammer, ns.Recommend.ALL)
+            local hier = 0
+            for _, pick in ipairs((ok and picks) or {}) do
+                if pick.pvp then hier = hier + 1 end
+            end
+            inDenDaten = inDenDaten + hier
+            ns.UI.RefreshTalentPanel()
+            local f = _G.MetaCodexPvpTalents
+            if hier > 0 and f and f:IsShown() then pvpFenster = f break end
+        end
+        check("das PvP-Fenster steht genau dann da, wenn es Talente gibt",
+            (inDenDaten > 0) == (pvpFenster ~= nil),
+            inDenDaten .. " Talente in den Daten, Fenster: "
+                .. tostring(pvpFenster ~= nil))
         -- NEBEN DEN BUILDS, nicht darunter. Unter ihnen wurden daraus elf
         -- Zeilen, und die untersten standen ueber dem Bildschirmrand
         -- hinaus - abgeschnitten, ohne dass man es der Liste ansah.

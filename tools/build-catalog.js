@@ -531,12 +531,24 @@ function emitEnchants(groups) {
     // herausgibt: GetSpecializationInfoByID liefert die Stelle leer, und
     // im Fenster stand "Hauptattribut" statt "Intelligenz".
     const PRIMARY = ['int', 'int', 'agi', 'agi', 'str', 'str'];
+    // Die Rolle, aus derselben Tabelle.
+    //
+    // Wowheads Guide-Adresse endet seit Midnight auf die Rolle -
+    // overview-pve-dps, -healer, -tank. Ohne sie fuehrt der Link ins
+    // Leere, und zwar bei ALLEN vierzig Speccs.
+    //
+    // Die Zahlen sind gegengerechnet, nicht angenommen: acht Nullen sind
+    // genau die acht Tanks, sieben Einsen genau die sieben Heiler, der
+    // Rest Schaden. Vom Client kommt die Rolle nicht - der liefert seit
+    // 12.1 schon das Hauptattribut nicht mehr heraus.
+    const ROLE = ['tank', 'healer', 'dps'];
     specs.push({
       id: Number(spec.ID),
       slug: `${SLUG(cls)}/${SLUG(spec.Name_lang)}`,
       cls: SLUG(cls),
       spec: SLUG(spec.Name_lang),
       stat: PRIMARY[Number(spec.PrimaryStatPriority)] || null,
+      role: ROLE[Number(spec.Role)] || null,
     });
   }
   specs.sort((a, b) => a.id - b.id);
@@ -1340,7 +1352,8 @@ function emitEnchants(groups) {
   out.push('  specs = {');
   for (const sp of specs) {
     const stat = sp.stat ? `, stat = ${luaString(sp.stat)}` : '';
-    out.push(`    [${sp.id}] = { cls = ${luaString(sp.cls)}, spec = ${luaString(sp.spec)}${stat} },`);
+    const role = sp.role ? `, role = ${luaString(sp.role)}` : '';
+    out.push(`    [${sp.id}] = { cls = ${luaString(sp.cls)}, spec = ${luaString(sp.spec)}${stat}${role} },`);
   }
   out.push('  },');
   out.push('');

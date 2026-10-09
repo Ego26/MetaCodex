@@ -6,6 +6,18 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ### Behoben
 
+- **Der Rotations-Link führte ins Leere, bei allen vierzig Speccs.**
+  Wowheads Seite hieß /rotation-cooldowns-abilities und gibt es nicht
+  mehr; seit Midnight endet die Adresse auf die Rolle –
+  overview-pve-dps, -healer, -tank. Gemessen statt angenommen: alle
+  vierzig wurden gefragt, und die drei übrigen Links (Best in Slot,
+  Method, murlok.io) antworten für alle vierzig. Die Rolle kommt aus
+  den Spieltabellen, wo sie eine Zahl ist – gegengerechnet an den
+  Speccs, deren Rolle feststeht: acht Nullen sind genau die acht Tanks.
+  /overview leitet bei 36 von 40 richtig um und bleibt der Rückfall.
+
+### Behoben
+
 - **Ein einzelner 504 von wago.tools hat eine ganze Aktivität des
   Nachtlaufs gekostet.** Am 8. Oktober starb er nach 143 Minuten, mit
   zwei Stunden fertig gesammelter Raiddaten auf der Platte; raid-normal

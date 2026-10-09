@@ -6,6 +6,18 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ### Fixed
 
+- **The rotation link led nowhere, for all forty specs.** Wowhead's
+  page was called /rotation-cooldowns-abilities and is gone; since
+  Midnight the address ends in the role - overview-pve-dps, -healer,
+  -tank. Measured, not assumed: all forty were asked, and the other
+  three links (best in slot, Method, murlok.io) answer for all forty.
+  The role comes from the game's own tables, where it is a number that
+  was checked against the specs whose role is beyond doubt - eight
+  zeroes are exactly the eight tanks. /overview redirects correctly for
+  36 of 40 and stays as the fallback.
+
+### Fixed
+
 - **A single 504 from wago.tools killed a whole activity of the nightly
   run.** On 8 October it died after 143 minutes with two hours of raid
   data already written; raid-normal fell away because one catalog fetch
