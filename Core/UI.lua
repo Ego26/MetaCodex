@@ -4915,6 +4915,14 @@ end
 --
 -- Die Funktionen bleiben, wo sie sind - anderswo werden sie direkt
 -- aufgerufen. Nur Refresh geht ueber diesen Umweg.
+-- Die Zeilen der Ausruestung, auch von aussen lesbar.
+--
+-- Wie UI.DropRows und UI.FolioRows: der Test muss sehen koennen,
+-- WELCHE Herkuenfte in den Zeilen stecken, sonst kann er den
+-- Herkunftsfilter nur an der Anzahl messen - und die haengt an den
+-- Daten der Nacht.
+UI.GearRows = gearRows
+
 local BAU = {
     statRows = statRows,
     talentRows = talentRows,

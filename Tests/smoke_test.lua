@@ -634,8 +634,25 @@ do
     local some = rowsInSection("gear")
     check("die Gruppe Dungeons bleibt gewaehlt",
         ns.Profile.Category("gearSource") == "group:dungeon", some .. " Zeilen")
-    check("und zeigt weniger als alles", some > 0 and some < all,
+    -- Nie mehr als alles, und nie nichts: das gilt immer.
+    check("und zeigt hoechstens alles", some > 0 and some <= all,
         some .. " von " .. all)
+    -- Dass er wirklich etwas WEGNIMMT, laesst sich nur verlangen, wo
+    -- es ueberhaupt mehr als eine Herkunft gibt. Am 9.10. fiel jedes
+    -- empfohlene Stueck in einem Dungeon; "30 von 30" war die richtige
+    -- Antwort, und die Pruefung hielt sie fuer einen Fehler.
+    local gruppen, wieviele = {}, 0
+    for _, row in ipairs(ns.UI.GearRows(ns.Profile.SelectedSpec(),
+            ns.Profile.Mode(), ns.Recommend.ALL) or {}) do
+        local g = row.sourceGroup or "other"
+        if not gruppen[g] then gruppen[g] = true; wieviele = wieviele + 1 end
+    end
+    if wieviele > 1 then
+        check("  und wo es mehrere Herkuenfte gibt, nimmt er etwas weg",
+            some < all, some .. " von " .. all .. " bei " .. wieviele .. " Herkuenften")
+    else
+        say("  -- nur eine Herkunft in diesen Daten, der Filter kann nichts wegnehmen")
+    end
     check("der Knopf nennt die Gruppe",
         ns.UI.Frame().originButton.label:GetText() == L["ORIGIN_GALL_dungeon"],
         tostring(ns.UI.Frame().originButton.label:GetText()))
