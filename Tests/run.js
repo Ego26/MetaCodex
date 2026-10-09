@@ -103,6 +103,46 @@ if (dupes.length) {
 }
 console.log("  ok   kein Sprachschluessel doppelt");
 
+// Und ein Schluessel, den der Code BENUTZT, den es aber nicht gibt.
+//
+// L[] gibt dann nil zurueck, und die naechste Zeile ruft :format()
+// darauf: "attempt to index a nil value" - mitten im Aufbau des
+// Fensters, und das Fenster bleibt leer. Hier kostet derselbe
+// Tippfehler eine Zeile Ausgabe.
+//
+// Nur woertliche Schluessel, keine zusammengesetzten: L["SECTION_" ..
+// key] laesst sich von aussen nicht pruefen, und ein Fehler darin
+// faellt im Spiel sofort auf, weil der ganze Reiter fehlt.
+const defined = new Set();
+for (const line of fs.readFileSync(path.join(base, "Locales", "enUS.lua"), "utf8")
+    .split(String.fromCharCode(10))) {
+  // Nicht am Zeilenanfang verankert: ein Schluessel darf einzeilig
+  // stehen - ns.RegisterLocale("enUS", { ["ILVL"] = "..." }) -, und
+  // verankert fiel genau der durch. Die Pruefung meldete ihn als
+  // fehlend, obwohl er seit Monaten im Fenster steht.
+  for (const m of line.matchAll(/\["([A-Za-z0-9_]+)"\]\s*=/g)) defined.add(m[1]);
+}
+const unknown = new Set();
+for (const dir of ["Core", "Locales"]) {
+  for (const name of fs.readdirSync(path.join(base, dir))) {
+    if (!name.endsWith(".lua")) continue;
+    const text = fs.readFileSync(path.join(base, dir, name), "utf8");
+    for (const line of text.split(String.fromCharCode(10))) {
+      // Kommentarzeilen nicht: dort steht L["Schluessel"] als Beispiel.
+      if (/^\s*--/.test(line)) continue;
+      for (const m of line.matchAll(/\bL\["([A-Za-z0-9_]+)"\]/g)) {
+        if (!defined.has(m[1])) unknown.add(name + ": " + m[1]);
+      }
+    }
+  }
+}
+if (unknown.size) {
+  console.error("  FAIL jeder benutzte Sprachschluessel ist definiert  -> "
+    + [...unknown].join(", "));
+  process.exit(1);
+}
+console.log("  ok   jeder benutzte Sprachschluessel ist definiert");
+
 // Sprachstand pruefen: das Spiel laeuft auf Lua 5.1.
 //
 // Fengari kann 5.3, und genau daran ist es gescheitert: ein "goto
