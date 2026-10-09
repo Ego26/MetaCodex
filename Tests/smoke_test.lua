@@ -637,21 +637,39 @@ do
     -- Nie mehr als alles, und nie nichts: das gilt immer.
     check("und zeigt hoechstens alles", some > 0 and some <= all,
         some .. " von " .. all)
-    -- Dass er wirklich etwas WEGNIMMT, laesst sich nur verlangen, wo
-    -- es ueberhaupt mehr als eine Herkunft gibt. Am 9.10. fiel jedes
-    -- empfohlene Stueck in einem Dungeon; "30 von 30" war die richtige
-    -- Antwort, und die Pruefung hielt sie fuer einen Fehler.
-    local gruppen, wieviele = {}, 0
+    -- Und er zeigt genau die PLAETZE, die aus dieser Herkunft noch
+    -- etwas haben.
+    --
+    -- Nicht "weniger Zeilen": die Liste ist je Platz gefaltet, sie
+    -- zeigt eine Zeile je Platz. Der Filter wirft Stuecke INNERHALB
+    -- der Plaetze weg, und solange jeder Platz noch ein Stueck dieser
+    -- Herkunft hat, bleiben es genau so viele Zeilen. Am 9. Oktober
+    -- fiel in jedem Platz etwas in einem Dungeon - "30 von 30" war die
+    -- richtige Antwort, und die Pruefung hielt sie drei Naechte lang
+    -- fuer einen Fehler und veroeffentlichte nichts.
+    --
+    -- Was der Filter wirklich tut, zeigt daneben die Bossauswahl: ein
+    -- einzelner Boss laesst 6 von 30 stehen.
+    local plaetze, mitDungeon = 0, 0
+    local gesehen, mit = {}, {}
     for _, row in ipairs(ns.UI.GearRows(ns.Profile.SelectedSpec(),
             ns.Profile.Mode(), ns.Recommend.ALL) or {}) do
-        local g = row.sourceGroup or "other"
-        if not gruppen[g] then gruppen[g] = true; wieviele = wieviele + 1 end
+        if row.slot then
+            if not gesehen[row.slot] then
+                gesehen[row.slot] = true; plaetze = plaetze + 1
+            end
+            if (row.sourceGroup or "other") == "dungeon" and not mit[row.slot] then
+                mit[row.slot] = true; mitDungeon = mitDungeon + 1
+            end
+        end
     end
-    if wieviele > 1 then
-        check("  und wo es mehrere Herkuenfte gibt, nimmt er etwas weg",
-            some < all, some .. " von " .. all .. " bei " .. wieviele .. " Herkuenften")
+    if plaetze > 0 and mitDungeon < plaetze then
+        check("  ein Platz ohne Dungeonstueck faellt aus der Liste",
+            some < all, some .. " von " .. all .. ", " .. mitDungeon
+            .. " von " .. plaetze .. " Plaetzen mit Dungeonstueck")
     else
-        say("  -- nur eine Herkunft in diesen Daten, der Filter kann nichts wegnehmen")
+        check("  jeder Platz hat ein Dungeonstueck, also bleibt die Liste ganz",
+            some == all, some .. " von " .. all .. ", alle " .. plaetze .. " Plaetze")
     end
     check("der Knopf nennt die Gruppe",
         ns.UI.Frame().originButton.label:GetText() == L["ORIGIN_GALL_dungeon"],
