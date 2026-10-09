@@ -906,20 +906,29 @@ if links[1] then
     check("keine Adresse zeigt mehr auf die alte Rotationsseite",
         alteSeite == 0, alteSeite .. " Adressen")
 
-    -- Und wo der Katalog die Rolle kennt, steht sie in der Adresse:
-    -- /overview leitet nur bei 36 von 40 um, die Zielseiten gibt es
-    -- aber fuer alle.
+    -- Und die Rolle steht in der Adresse: Wowheads Rotationsseite
+    -- heisst .../rotation-cooldowns-pve-<rolle>. Am 9. Oktober 2026 fuer
+    -- alle vierzig Speccs nachgemessen, je drei Rollen durchprobiert -
+    -- jede hat genau eine Seite. Ohne Rolle bleibt /overview der
+    -- Rueckfall: lieber die Uebersicht als eine 404.
     do
-        local echt = ns.Catalog.SpecRole
-        ns.Catalog.SpecRole = function() return "healer" end
+        local echt = ns.Compat.SpecRole
+        ns.Compat.SpecRole = function() return "healer" end
         local mitRolle = ns.Guides.For(105)[1].url
-        ns.Catalog.SpecRole = function() return nil end
+        ns.Compat.SpecRole = function() return nil end
         local ohneRolle = ns.Guides.For(105)[1].url
-        ns.Catalog.SpecRole = echt
+        ns.Compat.SpecRole = echt
         check("  mit bekannter Rolle steht sie in der Adresse",
-            mitRolle:find("overview%-pve%-healer") ~= nil, mitRolle)
+            mitRolle:find("rotation%-cooldowns%-pve%-healer") ~= nil, mitRolle)
         check("  ohne sie bleibt die Umleitung der Rueckfall",
             ohneRolle:find("/overview$") ~= nil, ohneRolle)
+        -- Und das Wort des Clients wird uebersetzt: er sagt DAMAGER,
+        -- Wowhead schreibt dps.
+        check("  die Rolle kommt vom Client",
+            ns.Compat.SpecRole(105) == "healer"
+            and ns.Compat.SpecRole(250) == "tank"
+            and ns.Compat.SpecRole(62) == "dps",
+            tostring(ns.Compat.SpecRole(62)))
     end
 
     -- Jede Zeile braucht ihren Text, sonst steht dort der Schluessel.

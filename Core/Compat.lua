@@ -1123,3 +1123,34 @@ function Compat.LinkAtLevel(itemID, level, extra)
 
     return linkWith(itemID, bonus, extra, effect)
 end
+
+---Die Rolle einer Spec, vom Client.
+---
+---Wowheads Guide-Adresse endet auf die Rolle: .../rotation-cooldowns-pve-dps,
+----healer, -tank. Gemessen am 9. Oktober 2026 fuer alle vierzig Speccs,
+---und jede hat genau eine Seite - 27 dps, 7 Heiler, 6 Tanks.
+---
+---Gefragt wird der CLIENT und nicht der Katalog: er weiss es ueber jede
+---Spec, auch ueber eine, die man gerade nicht spielt, und er weiss es
+---sofort - der Katalog traegt die Rolle erst, seit sie dort eingebaut
+---wurde, und ein Spieler mit aelteren Daten haette sonst einen Link ins
+---Leere. Der Katalog bleibt der Rueckfall.
+---@param specID number|nil
+---@return string|nil  "dps" | "healer" | "tank"
+function Compat.SpecRole(specID)
+    if not specID then return nil end
+    local frage = (C_SpecializationInfo and C_SpecializationInfo.GetSpecializationRoleByID)
+        or GetSpecializationRoleByID
+    if type(frage) == "function" then
+        -- In Klammern: die Funktion gibt im Spiel mehr als einen Wert
+        -- zurueck, und ein abgeschnittener Aufruf hat hier schon
+        -- zweimal still das Falsche geliefert.
+        local ok, rolle = pcall(frage, specID)
+        if ok and type(rolle) == "string" then
+            if rolle == "TANK" then return "tank" end
+            if rolle == "HEALER" then return "healer" end
+            if rolle == "DAMAGER" then return "dps" end
+        end
+    end
+    return ns.Catalog.SpecRole and ns.Catalog.SpecRole(specID) or nil
+end

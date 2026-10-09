@@ -826,4 +826,13 @@ function M.rows()
     return found
 end
 
+-- Die Rolle einer Spec. Im Spiel beantwortet das der Client fuer jede
+-- Spec, auch fuer eine, die man gerade nicht spielt; hier reichen die
+-- sechs, an denen geprueft wird.
+function GetSpecializationRoleByID(specID)
+    if specID == 105 or specID == 264 or specID == 270 then return "HEALER" end
+    if specID == 250 or specID == 73 or specID == 581 then return "TANK" end
+    return "DAMAGER"
+end
+
 return M

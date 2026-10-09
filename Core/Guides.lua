@@ -18,24 +18,29 @@ ns.Guides = Guides
 -- im Fenster auch angezeigt - wer hier klickt, soll wissen, wessen Arbeit
 -- er gleich liest.
 local SITES = {
-    -- Wowheads Rotationsseite heisst seit Midnight anders.
+    -- Wowheads Rotationsseite: die Adresse endet auf die ROLLE.
     --
-    -- Sie hiess /rotation-cooldowns-abilities und ist weg - und zwar
-    -- fuer ALLE vierzig Speccs, nachgemessen. Heute endet die Adresse
-    -- auf die Rolle: overview-pve-dps, -healer, -tank.
+    -- .../rotation-cooldowns-pve-dps, -healer, -tank. Am 9. Oktober 2026
+    -- fuer alle vierzig Speccs nachgemessen, je drei Rollen durchprobiert:
+    -- jede Spec hat genau eine Seite, 27 dps, 7 Heiler, 6 Tanks, keine
+    -- mehrdeutig.
     --
-    -- /overview leitet auf die richtige Seite um, aber nur bei 36 von
-    -- 40: bei den drei Rufern und beim Verschlinger gibt es die
-    -- Umleitung nicht, die Zielseiten aber sehr wohl. Deshalb wird die
-    -- Rolle mitgegeben, wo wir sie kennen - und /overview bleibt der
-    -- Rueckfall, solange der Katalog sie noch nicht traegt.
+    -- Vorher stand hier /overview-pve-<rolle>. Das war die Uebersicht,
+    -- nicht die Rotation - sie laedt zwar, beantwortet aber die Frage
+    -- nicht, die in der Zeile steht ("Rotation, Abklingzeiten und
+    -- Faehigkeiten"). Ein Link, der irgendwo richtig landet, ist noch
+    -- kein richtiger Link.
+    --
+    -- Ohne bekannte Rolle bleibt /overview der Rueckfall: lieber die
+    -- Uebersicht als eine 404.
     {
         key = "wowhead",
         name = "Wowhead",
         icon = "Interface\\Icons\\INV_Misc_Book_11",
         url = function(cls, spec, role) return
             ("https://www.wowhead.com/guide/classes/%s/%s/%s")
-                :format(cls, spec, role and ("overview-pve-" .. role) or "overview")
+                :format(cls, spec,
+                    role and ("rotation-cooldowns-pve-" .. role) or "overview")
         end,
     },
     {
@@ -100,7 +105,9 @@ local SITES = {
 function Guides.For(specID)
     local cls, spec = ns.Catalog.SpecSlug(specID)
     if not cls or not spec then return {} end
-    local role = ns.Catalog.SpecRole and ns.Catalog.SpecRole(specID) or nil
+    -- Erst der Client, dann der Katalog: der Client weiss die Rolle
+    -- auch dann, wenn die Daten von gestern sind.
+    local role = ns.Compat.SpecRole and ns.Compat.SpecRole(specID) or nil
 
     local out = {}
     for _, site in ipairs(SITES) do
