@@ -454,7 +454,7 @@ function fetchOnce(url) {
 // NUR bei 5xx und bei Netzfehlern. Ein 404 oder 403 ist unser Fehler
 // oder ihre Entscheidung - den zu wiederholen hiesse, dieselbe
 // falsche Frage lauter zu stellen.
-async function fetchText(url, versuche = 4) {
+async function fetchText(url, versuche = 5) {
   let letzter;
   for (let i = 0; i < versuche; i += 1) {
     try {
@@ -1679,9 +1679,30 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
   // dieselbe Rangliste, nach Klasse und Spec gefiltert, und ein paar
   // Berichte daraus nachgelesen. Nur fuer die Luecken - die kosten wenig.
   const MIN_PLAYERS = Number(process.env.MC_MIN_PLAYERS || 15);
-  const specNames = await readSpecNames();
+  // DIE NACHLESE DARF DIE ERNTE NICHT MITNEHMEN.
+  //
+  // Am 10. Oktober starb der Lauf genau hier: zehn Minuten Messung,
+  // 1191 Laeufe, 1000 Berichte - alles fertig im Speicher, nichts
+  // geschrieben. wago.tools antwortete viermal mit 504, und die
+  // Spec-Tabelle fuer die NACHLESE riss den ganzen Abend mit. Die
+  // Nacht veroeffentlichte nichts.
+  //
+  // Die Nachlese ist eine Verfeinerung: sie fragt fuer Speccs mit
+  // duenner Stichprobe gezielt nach. Faellt sie aus, sind es ein
+  // paar Speccs weniger in dieser Nacht - und das Addon zeigt
+  // ohnehin nur, was gemessen wurde. Das ist unvergleichlich
+  // billiger als gar keine Daten.
+  let specNames = null;
+  try {
+    specNames = await readSpecNames();
+  } catch (err) {
+    console.log(`\n  ! Nachlese faellt aus: ${err.message}`);
+    console.log('    Die Messung bleibt, die Luecken bleiben Luecken.');
+  }
   const baseTally = tallyFor(BASE_MODE);
-  const thin = [...specNames.keys()].filter((id) => ((baseTally[id] || {}).players || 0) < MIN_PLAYERS);
+  const thin = specNames
+    ? [...specNames.keys()].filter((id) => ((baseTally[id] || {}).players || 0) < MIN_PLAYERS)
+    : [];
   if (thin.length) {
     console.log(`\nNachlese fuer ${thin.length} Speccs mit unter ${MIN_PLAYERS} Spielern`);
     const extra = new Map();

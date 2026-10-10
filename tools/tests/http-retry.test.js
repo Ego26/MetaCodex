@@ -47,6 +47,16 @@ check('zweiter', waitSeconds(1), WAITS[1]);
 check('dritter', waitSeconds(2), WAITS[2]);
 check('darueber hinaus bleibt es beim letzten', waitSeconds(9), WAITS[WAITS.length - 1]);
 
+// WIE LANGE WIR INSGESAMT WARTEN, IST DIE EIGENTLICHE ENTSCHEIDUNG.
+//
+// Am 10. Oktober war wago.tools laenger als anderthalb Minuten nicht
+// zu sprechen. Die Geduld reichte 85 Sekunden weit, und zehn Minuten
+// gesammelte Messung gingen verloren. Eine Stoerung, die ein paar
+// Minuten dauert, muss ueberlebbar sein - und dass das so bleibt,
+// steht hier und nicht nur in einem Kommentar.
+const geduld = WAITS.reduce((a, b) => a + b, 0);
+check('wir halten eine Stoerung von Minuten aus (' + geduld + 's)', geduld >= 240, true);
+
 // Und sie werden laenger, nicht kuerzer: wer sofort nachsetzt, macht
 // einen ueberlasteten Dienst noch langsamer.
 let steigend = true;

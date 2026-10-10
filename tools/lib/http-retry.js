@@ -35,7 +35,12 @@ function worthRetrying(err) {
 
 // Kurz, laenger, lang. Ein Dienst, der gerade ueberlastet ist, braucht
 // mehr als eine Sekunde - und wer sofort nachsetzt, macht es schlimmer.
-const WAITS = [5, 20, 60];
+//
+// Die vierte Wartezeit kam am 10. Oktober dazu. wago.tools antwortete
+// dreimal mit 504, und nach 85 Sekunden war die Geduld zu Ende - die
+// Stoerung war es noch nicht. Vier Minuten warten kostet nichts, wenn
+// der Dienst laeuft, und rettet eine Nacht, wenn er kurz haengt.
+const WAITS = [5, 20, 60, 180];
 
 /**
  * Wie lange vor dem naechsten Versuch gewartet wird, in Sekunden.
