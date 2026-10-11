@@ -4,27 +4,37 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ## [Unreleased]
 
+## [1.1.14] - 2026-10-11
+
 ### Fixed
 
 - **The rotation link led nowhere, for all forty specs.** Wowhead's
-  page was called /rotation-cooldowns-abilities and is gone; since
-  Midnight the address ends in the role - overview-pve-dps, -healer,
-  -tank. Measured, not assumed: all forty were asked, and the other
-  three links (best in slot, Method, murlok.io) answer for all forty.
-  The role comes from the game's own tables, where it is a number that
-  was checked against the specs whose role is beyond doubt - eight
-  zeroes are exactly the eight tanks. /overview redirects correctly for
-  36 of 40 and stays as the fallback.
-
-### Fixed
-
+  page was called /rotation-cooldowns-abilities and is gone. Since
+  Midnight the address ends in the role:
+  /rotation-cooldowns-pve-dps, -healer, -tank. Measured, not assumed -
+  all forty specs were asked with all three roles, and every one has
+  exactly one page that answers: 27 dps, 7 healer, 6 tank, none
+  ambiguous, none missing. The other three links (best in slot, Method,
+  murlok.io) answer for all forty as well.
+- The role comes from your **client**, which knows it for every spec,
+  also for one you are not playing. The game's own tables carry it as a
+  second source, and both agree on all forty. Where neither answers,
+  /overview stays as the fallback instead of a dead link.
+- **Four nights in a row the data run published nothing.** Twice a check
+  measured the weather instead of a rule - it demanded that a filter
+  show fewer rows, while the honest answer was "all of them". Once ten
+  minutes of finished measurement were thrown away because the lookup
+  for a refinement could not reach its server. The run now writes its
+  harvest even when the refinement falls away, and waits minutes rather
+  than seconds for a service that is briefly down.
 - **A single 504 from wago.tools killed a whole activity of the nightly
   run.** On 8 October it died after 143 minutes with two hours of raid
   data already written; raid-normal fell away because one catalog fetch
   timed out at the other end. A gateway timeout says nothing about our
-  request - asking again is the answer to it. Four attempts now, with
-  growing pauses, and only for 5xx and network errors: repeating a 404
-  or a 403 would be asking the same wrong question louder.
+  request - asking again is the answer to it. Five attempts now, with
+  growing pauses that add up to more than four minutes, and only for
+  5xx and network errors: repeating a 404 or a 403 would be asking the
+  same wrong question louder.
 - **The build job ran three of the four rule tests.** They were listed
   by name, a fourth was added, and it would never have run. A test
   nobody knows is not running is worse than none.

@@ -1,3 +1,23 @@
+## v1.1.14 — the rotation link, measured
+
+### Fixed
+
+- **The link to the rotation guide led nowhere, for all forty specs.**
+  Wowhead's page ends in the role now:
+  `.../rotation-cooldowns-pve-dps`, `-healer`, `-tank`. All forty
+  specs were asked with all three roles, and every one has exactly one
+  page that answers — 27 dps, 7 healer, 6 tank, none ambiguous.
+- The role comes from your client, which knows it for every spec, and
+  from the game's own tables as a second source. Both agree on all
+  forty. Where neither answers, the overview page stays as the fallback
+  instead of a dead link.
+- **The nightly data run published nothing for four nights**, so the
+  numbers in the window were up to four days old. Two checks measured
+  the weather instead of a rule, and one night ten minutes of finished
+  measurement were thrown away because a lookup could not reach its
+  server. Fixed at the root: the run keeps its harvest even when a
+  refinement falls away.
+
 ## v1.1.13 — the set bonuses of the spec you are looking at
 
 ### Added
