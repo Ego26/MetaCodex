@@ -369,7 +369,7 @@ ns.RegisterLocale("zhCN", {
 	["REMIND_GROUP_ENCHANTS"] = "仍缺少的附魔与宝石",
 	["IGNORE_ON"] = "忽略",
 	["IGNORE_OFF"] = "停止忽略",
-	["IGNORE_HINT"] = "开怪前不再提及",
+	["IGNORE_HINT"] = "开怪前不再提醒",
 	["REMIND_GROUP_IGNORED"] = "已忽略",
 	["REMIND_ENCHANTS_OK"] = "所有附魔和插槽都已处理",
 	["REMIND_ENCHANTS"] = "%d 个附魔或宝石未处理",
@@ -451,7 +451,7 @@ ns.RegisterLocale("zhCN", {
 	["ORIGIN_HONOR"]      = "荣誉商人",
 	["ORIGIN_PVPCRAFT"]   = "制造（PvP）",
 	["ORIGIN_NONE"]       = "不是副本掉落",
-	["ORIGIN_EMPTY"]      = "测量中没有人穿戴来自这里的东西。",
+	["ORIGIN_EMPTY"]      = "统计中没有人穿戴这些。",
 	["ORIGIN_ALL_BOSSES"] = "所有首领",
 	["ORIGIN_G_dungeon"]    = "地下城",
 	["ORIGIN_G_raid"]       = "团队副本",
@@ -525,8 +525,8 @@ ns.RegisterLocale("zhCN", {
 	-- "Empty" almost never means "not built yet" any more. It means this
 	-- platform does not measure this, or measures it and has not seen
 	-- this spec often enough.
-	["NO_SOURCE_SECTION"] = "%s 在此活动中没有内容。试试其他平台，或全部平台。",
-	["NO_SPEC_SECTION"]   = "还没有平台在此活动中拥有足够的该专精记录。",
+	["NO_SOURCE_SECTION"] = "%s 在此活动中没有内容。试试其他网站，或全部网站。",
+	["NO_SPEC_SECTION"]   = "还没有网站在此活动中拥有足够的该专精记录。",
 })
 
 ns.RegisterLocale("zhCN", {
@@ -563,7 +563,7 @@ ns.RegisterLocale("zhCN", {
 ns.RegisterLocale("zhCN", {
 	-- A build is not a list of names — nobody types one in. What is
 	-- wanted is the import string: one click, paste, done.
-	["LOADOUT_TITLE"]      = "复制此建造",
+	["LOADOUT_TITLE"]      = "复制此天赋",
 	["LOADOUT_HINT"]       = "%d 个天赋 · 粘贴到天赋窗口的导入框",
 	["LOADOUT_PASTE"]      = "在天赋窗口的导入下粘贴",
 	["LOADOUT_DIFF_HINT"]  = "%d 个天赋不同 · 粘贴到天赋窗口的导入框",
@@ -574,8 +574,8 @@ ns.RegisterLocale("zhCN", {
 	-- What is missing belongs on the right, where the eye lands.
 	-- The rank sat there and was the smaller answer: the order already
 	-- shows it.
-	["STAT_HINT"]  = "测量玩家的中位数，一次一个属性——评分点，而不是角色面板显示的效果。",
-	["STAT_HINT_N"] = "%d 名测量玩家的中位数，一次一个属性——评分点，而不是角色面板显示的效果。",
+	["STAT_HINT"]  = "统计玩家的中位数，一次一个属性——评分点，而不是角色面板显示的效果。",
+	["STAT_HINT_N"] = "%d 名统计玩家的中位数，一次一个属性——评分点，而不是角色面板显示的效果。",
 	["STAT_SHARE"] = "占所有副属性评分的 %d%%",
 	["STAT_YOURS"] = "你有 %d / %d",
 	["STAT_GAP"] = "−%d",
@@ -670,7 +670,7 @@ ns.RegisterLocale("zhCN", {
 	["SWAP_TAKES"]    = "选择",
 	["SWAP_DROPS"]    = "替代",
 	["TREE_PREVIEW"]  = "天赋树中：%d 个绿色选择，%d 个红色放弃",
-	["TREE_OTHER_HERO"] = "此建造使用 %s 英雄树：%s",
+	["TREE_OTHER_HERO"] = "此天赋使用 %s 英雄树：%s",
 	["TREE_NOT_DRAWN"]  = "此树中未绘制：%s",
 	["TALENT_PLUS"]   = "额外 %s",
 	["TALENT_MINUS"]  = "不含 %s",
