@@ -483,7 +483,7 @@ ns.RegisterLocale("zhCN", {
 	["TALENT_PVP"]        = "PvP 天赋",
 	["TRACK_971"]         = "冒险者",
 	["TRACK_972"]         = "老兵",
-	["TRACK_973"]         = "冠军",
+	["TRACK_973"]         = "勇士",
 	["TRACK_974"]         = "英雄",
 	["TRACK_978"]         = "神话",
 	["KEY_STEP_TRACK"]    = "%d · %s（%s %d）",
