@@ -37,6 +37,7 @@ Core\Style.lua
 # --- Sprachen: enUS ist die Basis und muss zuerst geladen werden ---
 Locales\enUS.lua
 Locales\deDE.lua
+Locales\zhCN.lua
 
 # --- Daten ---
 #
