@@ -380,7 +380,25 @@ jobs:
       - name: Say what came back
         run: |
           ls -l tools/data | head -80
-          test -s tools/data/enchant-map.json
+          # LAUT SAGEN, NICHT ABBRECHEN.
+          #
+          # Hier stand "test -s tools/data/enchant-map.json". In der Nacht
+          # zum 13. Oktober war wago.tools nicht zu sprechen, der
+          # Katalog-Sammler starb, die Karte fehlte - und dieser Schritt
+          # nahm die ganze Nacht mit, auch die Daten, die gesammelt
+          # waren. Die Karte benennt Verzauberungen in Spielerprofilen;
+          # ohne sie baut alles weiter, nur stehen dort Nummern.
+          #
+          # Was wirklich fehlen darf und was nicht, entscheidet die
+          # Testsuite zwei Schritte weiter - die hat am 10. Oktober eine
+          # halbe Nacht korrekt zurueckgewiesen.
+          for f in enchant-map.json bonus-map.json journal-drops.json; do
+            if [ -s "tools/data/$f" ]; then
+              echo "ok      $f"
+            else
+              echo "FEHLT   $f - wird ohne sie gebaut" >&2
+            fi
+          done
 
       # Einzelne Quellen nachholen.
       #
