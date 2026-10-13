@@ -828,8 +828,16 @@ function Tooltip.Decorate(tip, link)
     if #passend > 0 then
         tip:AddLine("|cff" .. ns.Style:Hex("brand") .. "MetaCodex|r  "
             .. L["TIP_FIT"], 1, 1, 1)
+        -- NUR DIE NAMEN.
+        --
+        -- Rechts stand "Kritische Trefferwertung #1 - Meisterschaft #2" -
+        -- und durch die Top-2-Regel in JEDER Zeile dasselbe Paar, nur mal
+        -- als #1/#2 und mal als #2/#1. Das wiederholte die Ueberschrift
+        -- und die Wertzeilen des Stuecks, an denen die Nummern ohnehin
+        -- stehen, und machte jede Zeile doppelt so breit. Die Reihenfolge
+        -- bleibt: wer beide Werte genau in dieser Folge misst, steht oben.
         for _, zeile in ipairs(passend) do
-            tip:AddDoubleLine("  " .. zeile.name, zeile.text, 1, 1, 1, 1, 1, 1)
+            tip:AddLine("  " .. zeile.name, 1, 1, 1)
         end
         if passtUebrig > 0 then
             tip:AddLine("  " .. L["TIP_WORN_MORE"]:format(passtUebrig), 0.6, 0.6, 0.6)
