@@ -13,6 +13,7 @@
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
+const { worthRetrying, waitSeconds } = require('./lib/http-retry');
 
 const BASE = process.argv[2];
 if (!BASE) {
@@ -53,18 +54,30 @@ function fetchOnce(url) {
  * verlieren, also fragen wir noch einmal, mit wachsender Pause. Ein 404
  * wird nicht wiederholt: der bleibt einer.
  */
+// Die Geduld steht in lib/http-retry und nicht hier.
+//
+// Hier stand eine eigene: vier Versuche mit 10, 20 und 30 Sekunden,
+// zusammen eine Minute. In der Nacht zum 13. Oktober antwortete
+// wago.tools dreimal mit HTTP 503, der Katalog gab nach genau dieser
+// Minute auf - und die gemeinsame Regel, die fuer diesen Fall
+// geschrieben wurde, haette 4,4 Minuten gewartet. Zwei Geduldsproben
+// fuer dasselbe Problem sind eine zu viel.
+const VERSUCHE = 5;
+
 async function get(url) {
   let last;
-  for (let attempt = 1; attempt <= 4; attempt += 1) {
+  for (let i = 0; i < VERSUCHE; i += 1) {
     try {
       return await fetchOnce(url);
     } catch (err) {
       last = err;
-      if (err.status >= 400 && err.status < 500) break;
-      if (attempt < 4) {
-        console.log('  Noch einmal (' + attempt + '/3): ' + err.message);
-        await sleep(attempt * 10000);
-      }
+      // worthRetrying liest err.statusCode; hier heisst das Feld
+      // err.status, also wird beides mitgegeben.
+      if (!worthRetrying({ statusCode: err.status || err.statusCode })
+        || i === VERSUCHE - 1) break;
+      const warte = waitSeconds(i);
+      console.log('  Noch einmal (' + (i + 2) + '/' + VERSUCHE + ') in ' + warte + 's: ' + err.message);
+      await sleep(warte * 1000);
     }
   }
   throw last;

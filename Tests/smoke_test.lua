@@ -7075,6 +7075,51 @@ do
             mitDruide == 0, mitDruide .. " Druiden")
     end
 
+    -- SEELENGEBUNDEN: DIE MESSUNG BLEIBT, DIE VERMUTUNG GEHT.
+    --
+    -- Die Bindungsregel galt zuerst fuer beide Bloecke. An einem
+    -- seelengebundenen Schmuckstueck verschwand damit auch "wer traegt
+    -- das" - und das ist gemessen und interessiert unabhaengig davon,
+    -- ob man das Stueck noch verschicken kann.
+    do
+        ITEM_SOULBOUND = "Seelengebunden"
+        local getragenes
+        for itemID in pairs((MetaCodex_Recommendations or {}).wornBy or {}) do
+            getragenes = getragenes or itemID
+        end
+        if getragenes then
+            local zeilen = { "Irgendein Stueck", "Seelengebunden", "+112 Krit" }
+            for i, text in ipairs(zeilen) do
+                local slot = { __text = text }
+                function slot:GetText() return self.__text end
+                function slot:SetText(v) self.__text = v end
+                _G["MCBindTipTextLeft" .. i] = slot
+            end
+            local tip = { added = {}, paare = {} }
+            function tip:GetName() return "MCBindTip" end
+            function tip:NumLines() return #zeilen end
+            function tip:AddLine(text) self.added[#self.added + 1] = text end
+            function tip:AddDoubleLine(links, rechts)
+                self.paare[#self.paare + 1] = { links, rechts }
+            end
+            check("Bindung: der Tooltip gilt als gebunden",
+                ns.Tooltip.CanMove(tip) == false)
+            ns.Tooltip.Decorate(tip, "|Hitem:" .. getragenes .. "|h[x]|h")
+            local hatMessung, hatVermutung = false, false
+            for _, text in ipairs(tip.added) do
+                if type(text) == "string" then
+                    if text:find(L["TIP_WORN"], 1, true) then hatMessung = true end
+                    if text:find(L["TIP_FIT"], 1, true) then hatVermutung = true end
+                end
+            end
+            check("Bindung: die Messung steht trotzdem da", hatMessung,
+                #tip.added .. " Zeilen")
+            check("Bindung: die Vermutung bleibt weg", not hatVermutung)
+        else
+            say("  -- kein Stueck mit Traegern in den Daten, Bindungsfall uebersprungen")
+        end
+    end
+
     -- DER GRAUE HAUPTWERT ZAEHLT MIT.
     --
     -- Am 13. Oktober mit /mc fit gemessen: an einer aufwertbaren

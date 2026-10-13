@@ -65,6 +65,26 @@ for (let i = 1; i < WAITS.length; i += 1) {
 }
 check('die Pausen werden laenger', steigend, true);
 
+// WER WIEDERHOLT, NIMMT DIESE REGEL.
+//
+// In der Nacht zum 13. Oktober gab der Katalog nach einer Minute auf,
+// waehrend die gemeinsame Geduld 4,4 Minuten betraegt: er hatte seine
+// eigene Wiederholung, vier Versuche mit 10, 20 und 30 Sekunden. Zwei
+// Geduldsproben fuer dasselbe Problem sind eine zu viel - und die
+// zweite merkt niemand, bis eine Nacht daran stirbt.
+const fs = require('fs');
+const path = require('path');
+const toolDir = path.join(__dirname, '..');
+const ohneRegel = [];
+for (const name of fs.readdirSync(toolDir)) {
+  if (!name.endsWith('.js')) continue;
+  const text = fs.readFileSync(path.join(toolDir, name), 'utf8');
+  // "Noch einmal" steht in jeder unserer Wiederholungen.
+  if (!text.includes('Noch einmal')) continue;
+  if (!text.includes("require('./lib/http-retry')")) ohneRegel.push(name);
+}
+check('wer wiederholt, nimmt die gemeinsame Regel', ohneRegel.join(', '), '');
+
 console.log('');
 if (failed) {
   console.error(`${failed} Fehler`);

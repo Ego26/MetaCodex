@@ -110,9 +110,21 @@ const slug = (text) => String(text).toLowerCase()
   if (!season) throw new Error('Keine Saison gefunden.');
   console.log('  Saison: ' + season);
 
-  const enchantMap = JSON.parse(fs.readFileSync(
-    path.join(BASE, 'tools', 'data', 'enchant-map.json'), 'utf8'));
-  console.log('  Verzauberungs-IDs: ' + Object.keys(enchantMap).length);
+  // OHNE DIE KARTE WIRD TROTZDEM GESAMMELT.
+  //
+  // Sie uebersetzt Verzauberungs-IDs in Gegenstaende, damit im Spiel
+  // ein Name und ein Symbol stehen statt einer Nummer. Geschrieben
+  // wird sie vom Katalog - und als der in der Nacht zum 13. Oktober
+  // an einem HTTP 503 starb, riss ein ENOENT hier die zweite Quelle
+  // mit. Drei Zeilen tiefer macht es die bonus-map seit jeher richtig.
+  let enchantMap = {};
+  try {
+    enchantMap = JSON.parse(fs.readFileSync(
+      path.join(BASE, 'tools', 'data', 'enchant-map.json'), 'utf8'));
+    console.log('  Verzauberungs-IDs: ' + Object.keys(enchantMap).length);
+  } catch (err) {
+    console.log('  ! keine enchant-map.json - Verzauberungen ohne Namen');
+  }
 
   // Welche Bonus-ID welche Werte setzt, und welche eine Verzierung
   // anhaengt. Beides steht in den Spieldaten und wird vom Katalog

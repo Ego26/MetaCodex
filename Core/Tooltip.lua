@@ -556,6 +556,63 @@ function Tooltip.Why()
         sag("  " .. (zeilen[i].sortName or "?"), zeilen[i].text)
     end
 
+    -- WO DIE AUSWAHL AUF NULL FAELLT.
+    --
+    -- Vier Stufen filtern nacheinander. "0 Speccs" allein sagt nicht,
+    -- welche davon es war - und das entscheidet, ob eine Regel zu streng
+    -- ist oder die Messung einfach nichts hergibt.
+    local haupt, hatHaupt = Tooltip.Primaries(GameTooltip, stats)
+    local teile = {}
+    for key in pairs(haupt) do teile[#teile + 1] = key end
+    table.sort(teile)
+    sag("Hauptwerte erkannt", (#teile > 0 and table.concat(teile, ",") or "keine"))
+
+    local fuehrt = classID == 2 and Tooltip.WeaponSpecs(subClassID) or nil
+    if fuehrt then
+        local n = 0
+        for _ in pairs(fuehrt) do n = n + 1 end
+        sag("fuehren diesen Waffentyp", n .. " Speccs (gemessen)")
+    end
+
+    local mode2 = ns.Profile.Mode()
+    local alle, nachArt, nachHaupt, mitRang, nachTop2 = 0, 0, 0, 0, 0
+    for _, klasse in ipairs(ns.Compat.Classes()) do
+        for _, sp in ipairs(ns.Compat.SpecsForClass(klasse.id)) do
+            alle = alle + 1
+            local darf
+            if classID == 2 then
+                darf = fuehrt and fuehrt[sp.id] == true
+            elseif platz == "INVTYPE_CLOAK" or not ARMOR[subClassID] then
+                darf = true
+            else
+                darf = ARMOR[subClassID][klasse.file] == true
+            end
+            if darf then
+                nachArt = nachArt + 1
+                if not hatHaupt or haupt[ns.Catalog.SpecStat(sp.id)] then
+                    nachHaupt = nachHaupt + 1
+                    local ziele = ns.Recommend.Stats(sp.id, mode2, ns.Recommend.ALL)
+                    local reihe = ziele and ziele.priority
+                    if reihe then
+                        mitRang = mitRang + 1
+                        local rang, drin, draussen = {}, 0, false
+                        for i, key in ipairs(reihe) do rang[key] = i end
+                        for _, key in ipairs(ns.SECONDARY) do
+                            local wert = stats and stats[MOD[key]]
+                            if type(wert) == "number" and wert > 0 then
+                                if not rang[key] or rang[key] > 2 then draussen = true
+                                else drin = drin + 1 end
+                            end
+                        end
+                        if drin > 0 and not draussen then nachTop2 = nachTop2 + 1 end
+                    end
+                end
+            end
+        end
+    end
+    sag("Trichter", ("alle %d -> Art %d -> Hauptwert %d -> Rangfolge %d -> Top-2 %d")
+        :format(alle, nachArt, nachHaupt, mitRang, nachTop2))
+
     -- Und wo es haengt: drei Speccs einzeln durchgerechnet.
     local mode = ns.Profile.Mode()
     sag("Aktivitaet", tostring(mode))
@@ -710,8 +767,16 @@ function Tooltip.Decorate(tip, link)
     -- darauf war der haeufigste Vorwurf am Tooltip: zu voll.
     local alle = IsShiftKeyDown and IsShiftKeyDown()
     local wandert = Tooltip.CanMove(tip)
-    local zeilen, uebrig = {}, 0
-    if wandert then zeilen, uebrig = Tooltip.WornLines(itemID, alle) end
+    -- DIE MESSUNG STEHT IMMER DA.
+    --
+    -- Die Bindungsregel galt zuerst fuer beide Bloecke, und damit
+    -- verschwand an einem seelengebundenen Schmuckstueck auch die
+    -- Auskunft, WER es traegt. Die ist aber gemessen und interessiert
+    -- unabhaengig davon, ob man das Stueck noch verschicken kann - sie
+    -- sagt, ob man selbst richtig liegt. Nur die geratene Haelfte
+    -- darunter haengt an der Bindung: die fragt "aufheben fuer einen
+    -- Twink?", und das ist bei Seelengebundenem keine Frage mehr.
+    local zeilen, uebrig = Tooltip.WornLines(itemID, alle)
     if #zeilen > 0 then
         -- Steht alles Gezeigte in derselben Aktivitaet, gehoert sie in
         -- die Ueberschrift. Bei zwei Zeilen ist das fast immer so, und
