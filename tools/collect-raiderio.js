@@ -443,7 +443,9 @@ const slug = (text) => String(text).toLowerCase()
     const specs = {};
     for (const [specID, entry] of Object.entries(tally)) {
       const players = Math.max(1, entry.players);
-      const out = { enchants: {}, gems: [], gear: {} };
+      // Worauf die Prozente ruhen. Derselbe Nenner, der unten in
+      // share() steht - nur dass ihn bisher niemand erfahren hat.
+      const out = { sample: entry.players || 0, enchants: {}, gems: [], gear: {} };
 
       for (const [slotKey, counts] of Object.entries(entry.enchants)) {
         const total = Object.values(counts).reduce((a, b) => a + b, 0);

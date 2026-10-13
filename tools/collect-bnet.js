@@ -253,6 +253,12 @@ function summarise(players) {
   };
   if (!verified.length) return out;
 
+  // Worauf die Prozente ruhen: die Profile, die wirklich gelesen
+  // werden konnten. Bei 2v2 waren das am 13. Oktober zwei - und "50 %"
+  // heisst dann, dass einer von beiden das Stueck anhatte. Wer diese
+  // Zahl nicht mitliefert, laedt zu genau diesem Missverstaendnis ein.
+  out.sample = verified.length;
+
   // Talente als Heatmap - Klassen-, Spec-, Held- und PvP-Talente.
   const tally = {};
   const pvpTally = {};
