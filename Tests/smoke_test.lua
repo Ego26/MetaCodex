@@ -7075,6 +7075,34 @@ do
             mitDruide == 0, mitDruide .. " Druiden")
     end
 
+    -- ZWEI STUNDEN HANDELBAR IST NICHT GEBUNDEN.
+    --
+    -- Beute aus M+ oder Raid: oben "Seelengebunden", weiter unten die
+    -- Restzeit fuer den Handel. Die Pruefung las nur bis zur ersten
+    -- Bindungszeile und hielt den Drop fuer verloren.
+    do
+        ITEM_SOULBOUND = "Seelengebunden"
+        BIND_TRADE_TIME_REMAINING = "Ihr könnt diesen Gegenstand mit Spielern, die ebenfalls berechtigt waren, ihn zu erhalten, für die nächsten %s handeln."
+        local function tipMit(zeilen, name)
+            for i, text in ipairs(zeilen) do
+                local slot = { __text = text }
+                function slot:GetText() return self.__text end
+                _G[name .. "TextLeft" .. i] = slot
+            end
+            return {
+                GetName = function() return name end,
+                NumLines = function() return #zeilen end,
+            }
+        end
+        local gebunden = tipMit({ "Ring", "Seelengebunden", "+100 Tempo" }, "MCTradeA")
+        check("Handel: seelengebunden allein bleibt gebunden",
+            ns.Tooltip.CanMove(gebunden) == false)
+        local handel = tipMit({ "Ring", "Seelengebunden", "+100 Tempo", "Benutzen: irgendwas",
+            "Ihr könnt diesen Gegenstand mit Spielern, die ebenfalls berechtigt waren, ihn zu erhalten, für die nächsten 1 Std. 59 Min. handeln." }, "MCTradeB")
+        check("Handel: mit Restzeit darf der Drop wandern",
+            ns.Tooltip.CanMove(handel) == true)
+    end
+
     -- UMSCHALT WIRKT SOFORT.
     --
     -- Der Tooltip fragt die Taste nur beim Aufbauen. Gemeldet: "Wenn

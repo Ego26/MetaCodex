@@ -492,23 +492,53 @@ local BINDUNG_FEST = {
 ---nichts wissen, soll nicht stillschweigend eine Auskunft verlieren.
 ---@param tip table
 ---@return boolean
+-- "Fuer die naechsten 1 Std. 59 Min. handeln" - als Muster, nicht als
+-- Text. BIND_TRADE_TIME_REMAINING ist ein Formatstring mit %s fuer die
+-- Restzeit; die Luecke wird zum Platzhalter, alles andere bleibt
+-- woertlich. Gebaut einmal, beim ersten Gebrauch.
+local handelMuster
+local function handelbar(text)
+    -- Gemerkt wird nur der Erfolg. Ein gemerktes "gibt es nicht" haette
+    -- einen zu frueh gestellten ersten Aufruf fuer immer festgeschrieben.
+    if not handelMuster then
+        local f = BIND_TRADE_TIME_REMAINING
+        if type(f) == "string" and f:find("%s", 1, true) then
+            -- Erst die Sonderzeichen entschaerfen - Punkte und Klammern
+            -- stehen in jeder Sprache darin -, dann %s zur Luecke.
+            local m = f:gsub("([%(%)%.%+%-%*%?%[%]%^%$])", "%%%1")
+            m = m:gsub("%%s", ".-")
+            handelMuster = "^" .. m .. "$"
+        end
+    end
+    return handelMuster ~= nil and text:find(handelMuster) ~= nil
+end
+
 function Tooltip.CanMove(tip)
     local name = tip and tip.GetName and tip:GetName()
     if not name or not tip.NumLines then return true end
-    local bis = math.min(tip:NumLines(), 8)
-    for i = 2, bis do
+    -- ALLE ZEILEN, NICHT NUR BIS ZUR ERSTEN BINDUNG.
+    --
+    -- Beute aus M+ oder Raid steht oben als "Seelengebunden" und unten
+    -- als "zwei Stunden handelbar". Wer beim ersten Treffer aufhoert,
+    -- haelt einen Drop fuer verloren, den man noch weitergeben darf -
+    -- und versteckt "Werte passen zu" genau dort, wo die Gruppe es
+    -- braucht. Die Handelszeile steht weit unten, deshalb wird bis zum
+    -- Ende gelesen.
+    local fest = false
+    for i = 2, tip:NumLines() do
         local line = _G[name .. "TextLeft" .. i]
         local text = line and line.GetText and line:GetText()
         if type(text) == "string" then
+            if handelbar(text) then return true end
             for _, key in ipairs(BINDUNG_FREI) do
                 if _G[key] and text == _G[key] then return true end
             end
             for _, key in ipairs(BINDUNG_FEST) do
-                if _G[key] and text == _G[key] then return false end
+                if _G[key] and text == _G[key] then fest = true end
             end
         end
     end
-    return true
+    return not fest
 end
 
 ---Warum unter DIESEM Gegenstand nichts steht.
