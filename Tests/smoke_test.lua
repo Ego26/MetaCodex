@@ -47,6 +47,12 @@ wow.install({
         [300001] = { 4, 4 },
         [300002] = { 4, 2 },
         [300003] = { 2, 7 },
+        [300005] = { 2, 10 },
+        [300006] = { 4, 0 },
+        [300007] = { 4, 1 },
+        -- Die gemessene Hauptwaffe der Wiederherstellungs-Druiden.
+        -- Ueber sie findet die Waffenkarte, wer diese Art fuehrt.
+        [268205] = { 2, 10 },
         [300004] = { 4, 0 },
     },
     -- Was der Client fuer eine Pfad-Bonus-ID an Stufe meldet. Die Zahlen
@@ -57,6 +63,14 @@ wow.install({
         [12833] = 280,                     -- Champion 1
         [12837] = 292, [12841] = 292,      -- Champion 5 / Held 1
         [12845] = 311, [12849] = 311,      -- Held 5 / Mythisch 1
+    },
+    -- Welcher Platz: der Schmuck muss als Schmuck erkennbar sein und
+    -- der Umhang als Umhang, sonst prueft der Test etwas anderes.
+    equipLoc = {
+        [300006] = "INVTYPE_TRINKET",
+        [300007] = "INVTYPE_CLOAK",
+        [300001] = "INVTYPE_CHEST",
+        [300002] = "INVTYPE_CHEST",
     },
     equipped = {
         [1]  = link(200001, nil, "111"),   -- Kopf: 2 Sockel, einer belegt
@@ -7012,6 +7026,38 @@ do
     check("Werte-passen-zu: Leder schliesst Platte und Kette aus",
         schwer == 0, schwer .. " fremde")
 
+    -- ZWEI HAUPTWERTE AUF EINEM STUECK.
+    --
+    -- Aufwertbare Kriegsmeutenteile tragen Staerke UND Intelligenz, bis
+    -- sie angelegt werden. Wer sich einen merkt, entscheidet per Zufall
+    -- und zeigt dann gar nichts.
+    do
+        -- Je Seite ihre eigenen gemessenen Top-2: die Platte traegt die
+        -- des Kriegers, das Leder die des Druiden. Sonst prueft man, ob
+        -- zwei Speccs zufaellig dieselbe Rangfolge haben.
+        local zieleK = ns.Recommend.Stats(71, ns.Profile.Mode(), ns.Recommend.ALL)
+        local obenK = (zieleK and zieleK.priority) or {}
+        local beides = { ITEM_MOD_STRENGTH_SHORT = 135, ITEM_MOD_INTELLECT_SHORT = 135 }
+        local beidesK = { ITEM_MOD_STRENGTH_SHORT = 135, ITEM_MOD_INTELLECT_SHORT = 135 }
+        for i = 1, 2 do
+            if oben[i] then beides[MODKEY[oben[i]]] = 100 end
+            if obenK[i] then beidesK[MODKEY[obenK[i]]] = 100 end
+        end
+        mitStats(beides)
+        -- BEIDE RICHTUNGEN, und zwar mit Absicht: wer sich nur einen
+        -- Hauptwert merkt, trifft per Zufall mal den einen und mal den
+        -- anderen. Eine Pruefung, die nur eine Seite ansieht, ist dann
+        -- selbst ein Muenzwurf - genau das ist ihr beim ersten Versuch
+        -- passiert.
+        local zweiLeder = ns.Tooltip.StatFit("|Hitem:300002|h[Leder]|h", true)
+        mitStats(beidesK)
+        local zweiPlatte = ns.Tooltip.StatFit("|Hitem:300001|h[Platte]|h", true)
+        check("Werte-passen-zu: zwei Hauptwerte erreichen die Intelligenz-Seite",
+            #zweiLeder > 0, #zweiLeder .. " Speccs")
+        check("Werte-passen-zu: und die Staerke-Seite",
+            #zweiPlatte > 0, #zweiPlatte .. " Speccs")
+    end
+
     -- Und der Schnitt: ein Wert, der bei dieser Spec ganz unten steht,
     -- wirft das Stueck aus der Liste. Sonst passt jedes Stueck zu
     -- jeder Spec - an einem Schmuckstueck standen so achtunddreissig
@@ -7029,11 +7075,98 @@ do
             mitDruide == 0, mitDruide .. " Druiden")
     end
 
-    -- Eine Waffe beantwortet die Frage nicht: welche Klasse welchen
-    -- Waffentyp fuehren darf, steht bei uns nirgends.
+    -- DER GRAUE HAUPTWERT ZAEHLT MIT.
+    --
+    -- Am 13. Oktober mit /mc fit gemessen: an einer aufwertbaren
+    -- Brustplatte meldete GetItemStats nur Intelligenz, weil eine
+    -- Druidin davorstand - "+135 Staerke" stand im Tooltip grau
+    -- daneben. Damit fiel jeder Plattentraeger durch den Filter, und
+    -- die Zeile blieb leer, obwohl die Rechnung stimmte.
+    do
+        ITEM_MOD_STRENGTH_SHORT = "Stärke"
+        ITEM_MOD_INTELLECT_SHORT = "Intelligenz"
+        local zeilen = {
+            "Preis des Herausforderers",
+            "+135 Intelligenz",
+            "+112 " .. (ITEM_MOD_CRIT_RATING_SHORT or "Krit"),
+            "+60 " .. (ITEM_MOD_MASTERY_RATING_SHORT or "Meisterschaft"),
+            "+135 Stärke",
+        }
+        for i, text in ipairs(zeilen) do
+            local slot = { __text = text }
+            function slot:GetText() return self.__text end
+            _G["MCFitTipTextLeft" .. i] = slot
+        end
+        local tip = {
+            GetName = function() return "MCFitTip" end,
+            NumLines = function() return #zeilen end,
+        }
+        -- Was die Schnittstelle hergibt: nur Intelligenz, dazu die
+        -- beiden Werte, die der Krieger oben misst.
+        -- Die Rangfolge des Kriegers noch einmal: die aus dem Block
+        -- darueber ist dort lokal, und ein Test, der ueber Blockgrenzen
+        -- hinweg zugreift, faellt beim naechsten Umbau um.
+        local kriegerZiele = ns.Recommend.Stats(71, ns.Profile.Mode(), ns.Recommend.ALL)
+        local kriegerOben = (kriegerZiele and kriegerZiele.priority) or {}
+        local nurInt = { ITEM_MOD_INTELLECT_SHORT = 135 }
+        for i = 1, 2 do
+            if kriegerOben[i] then nurInt[MODKEY[kriegerOben[i]]] = 100 end
+        end
+        mitStats(nurInt)
+        local ohneTip = ns.Tooltip.StatFit("|Hitem:300001|h[Platte]|h", true)
+        local mitTip = ns.Tooltip.StatFit("|Hitem:300001|h[Platte]|h", true, tip)
+        check("Werte-passen-zu: ohne den Tooltip faende man niemanden",
+            #ohneTip == 0, #ohneTip .. " Speccs")
+        check("Werte-passen-zu: der graue Hauptwert zaehlt mit",
+            #mitTip > 0, #mitTip .. " Speccs")
+    end
+
+    -- EIN SCHMUCKSTUECK BEANTWORTET DIE FRAGE NICHT.
+    --
+    -- Was es taugt, ist sein Effekt. Nach Werten geurteilt bekam eine
+    -- Eule einen Tank-Schmuck vorgeschlagen, weil beide Meisterschaft
+    -- oben messen.
+    mitStats(lederWerte)
+    local schmuck = ns.Tooltip.StatFit("|Hitem:300006|h[Schmuck]|h", true)
+    check("Werte-passen-zu: ein Schmuckstueck schweigt", #schmuck == 0,
+        #schmuck .. " Zeilen")
+
+    -- EIN UMHANG GEHOERT ALLEN.
+    --
+    -- Er traegt die Unterklasse "Stoff" und waere damit an Magier,
+    -- Priester und Hexenmeister gegangen - jede Klasse traegt einen.
+    local umhang = ns.Tooltip.StatFit("|Hitem:300007|h[Umhang]|h", true)
+    local nurStoff = true
+    for _, z in ipairs(umhang) do
+        if z.sortName:find("Druid") then nurStoff = false end
+    end
+    check("Werte-passen-zu: ein Umhang ist nicht auf Stoff beschraenkt",
+        #umhang > 0 and not nurStoff, #umhang .. " Speccs")
+
+    -- Eine Waffenart, die in keiner Messung vorkommt, beantwortet die
+    -- Frage nicht. Unterklasse 7 taucht in den Stub-Daten nirgends auf,
+    -- also bleibt die Liste leer - und zwar aus dem richtigen Grund.
     local waffe = ns.Tooltip.StatFit("|Hitem:300003|h[Waffe]|h", true)
-    check("Werte-passen-zu: Waffen bleiben aussen vor", #waffe == 0,
-        #waffe .. " Zeilen")
+    check("Werte-passen-zu: eine ungemessene Waffenart schweigt",
+        #waffe == 0, #waffe .. " Zeilen")
+
+    -- UND EINE GEMESSENE ANTWORTET. Welche Spec welchen Waffentyp
+    -- fuehrt, steht in keiner Tabelle von uns - es kommt aus den
+    -- Daten: wer in der Messung so eine Waffe traegt, kann sie
+    -- offensichtlich fuehren.
+    local gemessen = ns.Tooltip.StatFit("|Hitem:300005|h[Stab]|h", true)
+    check("Werte-passen-zu: eine gemessene Waffenart findet ihre Speccs",
+        #gemessen > 0, #gemessen .. " Speccs")
+    -- Und nur Speccs, die so eine Waffe in der Messung tragen. Welche
+    -- das sind, entscheiden die Daten - der Test schreibt es nicht vor,
+    -- er haelt nur fest, dass jede genannte Spec dort wirklich vorkommt.
+    local erlaubteWaffe = ns.Tooltip.WeaponSpecs and ns.Tooltip.WeaponSpecs(10) or {}
+    local fremdeWaffe = 0
+    for _, z in ipairs(gemessen) do
+        if not z.specID or not erlaubteWaffe[z.specID] then fremdeWaffe = fremdeWaffe + 1 end
+    end
+    check("Werte-passen-zu: und nur die, die sie wirklich tragen",
+        fremdeWaffe == 0, fremdeWaffe .. " fremde von " .. #gemessen)
 
     -- Ohne Werte keine Aussage.
     mitStats(nil)

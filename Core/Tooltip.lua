@@ -261,6 +261,93 @@ local function specList()
     return out
 end
 
+
+-- Welche Spec fuehrt welchen Waffentyp?
+--
+-- Fuer Ruestung steht die Zuordnung oben als Tabelle; fuer Waffen waere
+-- sie dreimal so lang, aendert sich mit jeder Erweiterung und muesste von
+-- Hand gepflegt werden. Also wird sie GEMESSEN: wer in unseren Daten
+-- einen Streitkolben traegt, kann offensichtlich einen fuehren.
+--
+-- Die Antwort steht nicht in den Daten, sondern beim Client - er kennt zu
+-- jeder Gegenstandsnummer ihre Unterklasse. Gefragt wird einmal, beim
+-- ersten Waffentooltip, und dann nie wieder: dreitausend Abfragen sind
+-- einmal ein Wimpernschlag und bei jedem Ueberfahren einer Tasche eine
+-- Zumutung.
+local waffenSpecs
+
+local function waffenKarte()
+    if waffenSpecs then return waffenSpecs end
+    local info = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
+    if type(info) ~= "function" then return {} end
+    local out = {}
+    for _, spec in ipairs(specList()) do
+        for _, mode in ipairs(ns.MODES or {}) do
+            local gear = ns.Recommend.Gear(spec.id, mode.key, ns.Recommend.ALL)
+            for _, liste in pairs(gear or {}) do
+                for _, row in ipairs(liste) do
+                    if row.id then
+                        local ok, _, _, _, _, _, classID, subClassID =
+                            pcall(info, row.id)
+                        if ok and classID == 2 and subClassID then
+                            out[subClassID] = out[subClassID] or {}
+                            out[subClassID][spec.id] = true
+                        end
+                    end
+                end
+            end
+        end
+    end
+    waffenSpecs = out
+    return out
+end
+
+---Welche Speccs diese Waffenart in der Messung tragen.
+---@param subClassID number
+---@return table<number, boolean>
+function Tooltip.WeaponSpecs(subClassID)
+    return waffenKarte()[subClassID] or {}
+end
+
+---Welche Hauptwerte traegt dieses Stueck?
+---
+---ZWEI QUELLEN, und die zweite ist nicht Luxus: GetItemStats loest
+---ein aufwertbares Stueck fuer den Charakter auf, der davorsteht. Die
+---Druidin bekommt Intelligenz gemeldet, waehrend im Tooltip daneben
+---grau "+135 Staerke" steht. Wer nur die Schnittstelle fragt, haelt
+---eine Brustplatte fuer Zauberwerk.
+---@param tip table|nil
+---@param stats table|nil
+---@return table<string, boolean> set, boolean irgendeiner
+function Tooltip.Primaries(tip, stats)
+    local out, einer = {}, false
+    for key, mod in pairs(PRIMARY) do
+        local wert = stats and stats[mod]
+        if type(wert) == "number" and wert > 0 then
+            out[key] = true
+            einer = true
+        end
+    end
+    -- Und was im Tooltip steht, auch wenn es grau ist.
+    local name = tip and tip.GetName and tip:GetName()
+    if name and tip.NumLines then
+        for i = 2, tip:NumLines() do
+            local line = _G[name .. "TextLeft" .. i]
+            local text = line and line.GetText and line:GetText()
+            if type(text) == "string" then
+                for key, mod in pairs(PRIMARY) do
+                    local wort = _G[mod]
+                    if wort and wort ~= "" and text:find(wort, 1, true) then
+                        out[key] = true
+                        einer = true
+                    end
+                end
+            end
+        end
+    end
+    return out, einer
+end
+
 ---Fuer welche Speccs passen die Zweitwerte dieses Stuecks?
 ---
 ---Gefiltert, bevor gerechnet wird: wer die Ruestungsart nicht traegt
@@ -276,32 +363,57 @@ end
 ---@param alle boolean|nil  true = vollstaendig, sonst gekuerzt
 ---@return table[] zeilen  je { name, text }
 ---@return number uebrig
-function Tooltip.StatFit(link, alle)
+function Tooltip.StatFit(link, alle, tip)
     if not link then return {}, 0 end
     local stats = ns.Compat.ItemStats(link)
     if not stats then return {}, 0 end
 
-    -- Nur Ruestung. Welche Klasse welche WAFFE fuehren darf, steht bei
-    -- uns nirgends - und zu raten faengt genau dort an, wo dieses Addon
-    -- aufhoert.
+    -- Ruestung aus der Tabelle, Waffen aus der Messung. Alles andere -
+    -- Steine, Verbrauchsgueter, Rezepte - beantwortet die Frage nicht.
     local info = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
     if type(info) ~= "function" then return {}, 0 end
-    local ok, _, _, _, _, _, classID, subClassID = pcall(info, link)
-    if not ok or classID ~= 4 then return {}, 0 end
-    local erlaubt = ARMOR[subClassID]
+    local ok, _, _, _, platz, _, classID, subClassID = pcall(info, link)
+    if not ok or (classID ~= 4 and classID ~= 2) then return {}, 0 end
 
-    -- Traegt das Stueck einen Hauptwert, muss er zur Spec passen. Ringe,
-    -- Hals und Schmuck tragen keinen - dann faellt die Pruefung weg.
-    local hat
-    for key, mod in pairs(PRIMARY) do
-        if type(stats[mod]) == "number" and stats[mod] > 0 then hat = key end
+    -- EIN SCHMUCKSTUECK IST SEIN EFFEKT.
+    --
+    -- Was es taugt, entscheidet fast immer der Anlegeeffekt, und den
+    -- misst hier niemand. Nach Werten geurteilt landet ein
+    -- Tank-Schmuck bei der Eule, weil beide Meisterschaft oben
+    -- messen. Wo ein Schmuckstueck wirklich getragen wird, steht es
+    -- im Block darueber - der ist gemessen.
+    if platz == "INVTYPE_TRINKET" then return {}, 0 end
+
+    -- Umhaenge tragen die Unterklasse "Stoff", und jede Klasse traegt
+    -- einen. Die Ruestungsart sagt hier nichts.
+    local erlaubt = nil
+    if classID == 4 and platz ~= "INVTYPE_CLOAK" then
+        erlaubt = ARMOR[subClassID]
     end
+    local fuehrt = classID == 2 and (waffenKarte()[subClassID] or {}) or nil
+    -- Eine Waffenart, die in keiner Messung vorkommt, beantwortet die
+    -- Frage nicht - dann schweigen wir, statt sie zu erfinden.
+    if fuehrt and not next(fuehrt) then return {}, 0 end
+
+    -- Traegt das Stueck Hauptwerte, muss EINER davon zur Spec passen.
+    --
+    -- Mehrzahl mit Absicht: ein aufwertbares Kriegsmeutenstueck fuehrt
+    -- Staerke UND Intelligenz, bis es angelegt wird. Wer sich hier
+    -- einen merkt, haelt eine Brustplatte fuer Zauberwerk und zeigt
+    -- gar nichts mehr.
+    --
+    -- Ringe, Hals und Schmuck tragen keinen - dann faellt die Pruefung
+    -- weg.
+    local haupt, hatHaupt = Tooltip.Primaries(tip, stats)
 
     local mode = ns.Profile.Mode()
     local treffer = {}
     for _, spec in ipairs(specList()) do
         local passt = (not erlaubt) or erlaubt[spec.file]
-        if passt and hat and ns.Catalog.SpecStat(spec.id) ~= hat then passt = false end
+        if fuehrt then passt = fuehrt[spec.id] == true end
+        if passt and hatHaupt and not haupt[ns.Catalog.SpecStat(spec.id)] then
+            passt = false
+        end
         if passt then
             local ziele = ns.Recommend.Stats(spec.id, mode, ns.Recommend.ALL)
             local reihe = ziele and ziele.priority
@@ -328,6 +440,7 @@ function Tooltip.StatFit(link, alle)
                     if name then
                         local text = className and (name .. " " .. className) or name
                         treffer[#treffer + 1] = {
+                            specID = spec.id,
                             name = ("|cff%s%s|r"):format(ns.Compat.ClassColor(spec.file), text),
                             text = table.concat(teile, "  \194\183  "),
                             summe = summe, sortName = text,
@@ -347,6 +460,112 @@ function Tooltip.StatFit(link, alle)
     local zeilen = {}
     for i = 1, wieviele do zeilen[i] = treffer[i] end
     return zeilen, #treffer - wieviele
+end
+
+-- Kann dieses Stueck ueberhaupt noch zu einem anderen Charakter?
+--
+-- Die Frage entscheidet, ob eine Zeile ueber FREMDE Speccs etwas nuetzt.
+-- Was seelengebunden im Beutel liegt, erreicht keinen Twink mehr - dort
+-- ist "auch gut fuer Schutz-Paladin" nur Laerm. Was kriegsmeutegebunden
+-- ist, beim Anlegen bindet oder gar nicht bindet, kann wandern.
+--
+-- Gelesen wird Blizzards EIGENE Beschriftung, nicht unsere Uebersetzung:
+-- ITEM_ACCOUNTBOUND_UNTIL_EQUIP heisst auf einem deutschen Client
+-- "Kriegsmeutegebunden bis zum Ausruesten" und auf einem franzoesischen
+-- etwas anderes. Wer den Text selbst hinschreibt, hat ihn in zwei
+-- Sprachen falsch.
+local BINDUNG_FREI = {
+    "ITEM_ACCOUNTBOUND_UNTIL_EQUIP",
+    "ITEM_BIND_ON_EQUIP",
+    "ITEM_ACCOUNTBOUND",
+    "ITEM_BNETACCOUNTBOUND",
+}
+local BINDUNG_FEST = {
+    "ITEM_SOULBOUND",
+    "ITEM_BIND_ON_PICKUP",
+}
+
+---Darf dieses Stueck noch wandern?
+---
+---Steht keine der Zeilen da, bindet es gar nicht - dann kann es ohnehin
+---weitergegeben werden. Im Zweifel also ja: ein Stueck, ueber das wir
+---nichts wissen, soll nicht stillschweigend eine Auskunft verlieren.
+---@param tip table
+---@return boolean
+function Tooltip.CanMove(tip)
+    local name = tip and tip.GetName and tip:GetName()
+    if not name or not tip.NumLines then return true end
+    local bis = math.min(tip:NumLines(), 8)
+    for i = 2, bis do
+        local line = _G[name .. "TextLeft" .. i]
+        local text = line and line.GetText and line:GetText()
+        if type(text) == "string" then
+            for _, key in ipairs(BINDUNG_FREI) do
+                if _G[key] and text == _G[key] then return true end
+            end
+            for _, key in ipairs(BINDUNG_FEST) do
+                if _G[key] and text == _G[key] then return false end
+            end
+        end
+    end
+    return true
+end
+
+---Warum unter DIESEM Gegenstand nichts steht.
+---
+---Die Rechnung dahinter hat fuenf Stufen, und jede kann der Grund sein.
+---Offline stimmten sie alle; im Spiel stand trotzdem nichts. Also sagt
+---der Befehl Stufe fuer Stufe, was der Client hergibt - mit der Maus
+---ueber dem Stueck, dann /mc fit.
+function Tooltip.Why()
+    local link = GameTooltip and GameTooltip.GetItem and select(2, GameTooltip:GetItem())
+    if not link then
+        ns.Print("Kein Gegenstand unter der Maus - Tooltip offen lassen und /mc fit.")
+        return
+    end
+    local function sag(was, wert) ns.Print(("  %-26s %s"):format(was, tostring(wert))) end
+
+    ns.Print("|cff8a6ff0MetaCodex|r  Warum steht da nichts?")
+    sag("Link", (link:gsub("|", "||")))
+
+    local info = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
+    local ok, itemID, _, _, platz, _, classID, subClassID = pcall(info, link)
+    sag("GetItemInfoInstant", ok and "ja" or "FEHLER")
+    sag("  Gegenstand", tostring(itemID))
+    sag("  Klasse / Unterklasse", tostring(classID) .. " / " .. tostring(subClassID))
+    sag("  Platz", tostring(platz))
+
+    local stats = ns.Compat.ItemStats(link)
+    sag("GetItemStats", stats and "ja" or "NICHTS")
+    if stats then
+        local teile = {}
+        for schluessel, wert in pairs(stats) do
+            teile[#teile + 1] = schluessel .. "=" .. tostring(wert)
+        end
+        table.sort(teile)
+        sag("  Werte", table.concat(teile, "  "))
+    end
+
+    sag("darf wandern", tostring(Tooltip.CanMove(GameTooltip)))
+    local getragen = ns.Recommend.WornBy(itemID)
+    sag("gemessen getragen von", #getragen .. " Speccs")
+
+    local zeilen, uebrig = Tooltip.StatFit(link, true, GameTooltip)
+    sag("Werte passen zu", #zeilen .. " Speccs (+" .. uebrig .. ")")
+    for i = 1, math.min(#zeilen, 5) do
+        sag("  " .. (zeilen[i].sortName or "?"), zeilen[i].text)
+    end
+
+    -- Und wo es haengt: drei Speccs einzeln durchgerechnet.
+    local mode = ns.Profile.Mode()
+    sag("Aktivitaet", tostring(mode))
+    for _, specID in ipairs({ 70, 251, 102 }) do
+        local ziele = ns.Recommend.Stats(specID, mode, ns.Recommend.ALL)
+        local reihe = ziele and ziele.priority
+        sag("  Spec " .. specID .. " Hauptwert",
+            tostring(ns.Catalog.SpecStat(specID))
+            .. "  Rangfolge: " .. (reihe and table.concat(reihe, ",") or "KEINE"))
+    end
 end
 
 -- --------------------------------------------------------------- Anhaengen
@@ -483,8 +702,16 @@ function Tooltip.Decorate(tip, link)
     -- taugt es einem meiner anderen Charaktere? Gekuerzt, weil 163
     -- der gemessenen Stuecke von mehr als zehn Speccs getragen
     -- werden - die volle Liste gibt es auf Umschalt.
+    -- NUR, WO DAS STUECK NOCH WANDERN KANN.
+    --
+    -- Beide Bloecke darunter beantworten dieselbe Frage: taugt das
+    -- einem anderen Charakter? An einem seelengebundenen Stueck im
+    -- eigenen Beutel ist die Frage gegenstandslos - und die Antwort
+    -- darauf war der haeufigste Vorwurf am Tooltip: zu voll.
     local alle = IsShiftKeyDown and IsShiftKeyDown()
-    local zeilen, uebrig = Tooltip.WornLines(itemID, alle)
+    local wandert = Tooltip.CanMove(tip)
+    local zeilen, uebrig = {}, 0
+    if wandert then zeilen, uebrig = Tooltip.WornLines(itemID, alle) end
     if #zeilen > 0 then
         -- Steht alles Gezeigte in derselben Aktivitaet, gehoert sie in
         -- die Ueberschrift. Bei zwei Zeilen ist das fast immer so, und
@@ -530,7 +757,9 @@ function Tooltip.Decorate(tip, link)
     -- dass Werte passen koennten. Zwei Bloecke uebereinander waren im
     -- Spiel schlicht zu viel.
     local passend, passtUebrig = {}, 0
-    if #zeilen == 0 then passend, passtUebrig = Tooltip.StatFit(link, alle) end
+    if wandert and #zeilen == 0 then
+        passend, passtUebrig = Tooltip.StatFit(link, alle, tip)
+    end
     if #passend > 0 then
         tip:AddLine("|cff" .. ns.Style:Hex("brand") .. "MetaCodex|r  "
             .. L["TIP_FIT"], 1, 1, 1)

@@ -743,7 +743,10 @@ function M.install(opts)
             return { EMPTY_SOCKET_PRISMATIC = sockets }
         end,
         GetItemInfoInstant = function(link)
-            local id = tonumber(link:match("item:(%d+)"))
+            -- Im Spiel nimmt sie beides: eine Nummer oder einen Link.
+            -- Der Stub nahm nur Links, und ein Aufruf mit der Nummer
+            -- lief stillschweigend ins Leere.
+            local id = tonumber(link) or tonumber(tostring(link):match("item:(%d+)"))
             -- Sieben Werte wie im Spiel; Klasse und Unterklasse nur,
             -- wo der Test sie gesetzt hat.
             local art = (opts.itemClass or {})[id]

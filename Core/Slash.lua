@@ -20,6 +20,8 @@ local handlers = {
     -- Bedienelement. Er sagt, was der Client aus unseren Zahlen macht.
     pixel = function() ns.UI.Pixel() end,
     talents = function() ns.UI.TalentAPIs() end,
+    -- Warum unter dem Stueck unter der Maus nichts steht.
+    fit = function() ns.Tooltip.Why() end,
     help = help,
     reset = function()
         ns.Profile.Reset()
