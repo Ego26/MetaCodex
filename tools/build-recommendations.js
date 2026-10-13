@@ -15,6 +15,7 @@ const fs = require('fs');
 const path = require('path');
 const { share } = require('./lib/share');
 const { mergeTiers } = require('./lib/merge-tiers');
+const { wornBy } = require('./lib/worn-by');
 
 const BASE = process.argv[2];
 if (!BASE) {
@@ -757,6 +758,30 @@ for (const id of extraDrops) out.push(`    [${id}] = { enc = ${journalAll[id].en
 out.push('  },');
 console.log('Fundorte aus dem Journal ergaenzt:', extraDrops.length);
 emitNodePool(baseOut, out, '  ');
+
+// --- Wer traegt dieses Stueck sonst noch? ----------------------------
+//
+// Dieselbe Messung, einmal umgedreht: nicht "Spec -> Platz -> Stuecke",
+// sondern "Stueck -> wer traegt es". Die Frage stellt der Tooltip, und
+// sie ueber vierzig Speccs bei jedem Ueberfahren einer Tasche zu
+// beantworten, waere Verschwendung - also steht sie hier fertig.
+//
+// Die Regeln dafuer stehen in lib/worn-by.js und sind geprueft: ohne
+// bekannte Stichprobe keine Zeile, und unter zwanzig Prozent ist es
+// kein "gut fuer".
+const index = wornBy(byMode);
+let wornItems = 0, wornRows = 0;
+if (index.size) {
+  out.push('  wornBy = {');
+  for (const itemID of [...index.keys()].sort((a, b) => a - b)) {
+    const liste = index.get(itemID);
+    wornItems += 1;
+    wornRows += liste.length;
+    const teile = liste.map((e) => `{ ${e.spec}, ${e.pct}, ${luaString(e.mode)} }`);
+    out.push(`    [${itemID}] = { ${teile.join(', ')} },`);
+  }
+  out.push('  },');
+}
 out.push('}');
 out.push('');
 
@@ -845,6 +870,7 @@ const baseModes = Object.keys(byMode).filter((m) => !m.includes('/'));
 const dungeonModes = Object.keys(byMode).filter((m) => m.includes('/'));
 console.log(`\ngeschrieben: ${file} (${kb(file)} KB)`);
 console.log(`  Modi: ${baseModes.join(', ') || 'keine'}`);
+console.log(`  Wer traegt was: ${wornItems} Stuecke, ${wornRows} Eintraege`);
 console.log(`geschrieben: ${dungeonFile} (${kb(dungeonFile)} KB)`);
 console.log(`  Dungeons: ${dungeonModes.length}`);
 console.log(`  Quellen: ${[...sources].join(', ') || 'keine'}`);
