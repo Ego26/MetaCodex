@@ -125,6 +125,20 @@ function Compat.ClassColor(classFile)
     return ("%02x%02x%02x"):format(byte(color.r), byte(color.g), byte(color.b))
 end
 
+---Der Name einer Klasse, so wie der Client sie nennt.
+---
+---ClassOfSpec gibt die NUMMER zurueck, nicht den Namen - und in einer
+---Tooltip-Zeile stand deshalb einmal "Elemental 7".
+---@param classID number|nil
+---@return string|nil
+function Compat.ClassName(classID)
+    if not classID then return nil end
+    for _, entry in ipairs(Compat.Classes()) do
+        if entry.id == classID then return entry.name end
+    end
+    return nil
+end
+
 ---Die Klasse, zu der eine Spezialisierung gehoert.
 ---@param specID number|nil
 ---@return number|nil classID

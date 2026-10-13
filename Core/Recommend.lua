@@ -961,3 +961,22 @@ function Recommend.HeroTrees(specID, mode, source)
     return out
 end
 
+
+---Wer traegt dieses Stueck sonst noch?
+---
+---Die Umkehrung der Messung, beim Bauen gerechnet: nicht "Spec ->
+---Platz -> Stuecke", sondern "Stueck -> wer traegt es". Die Frage
+---stellt der Tooltip bei jedem Drop, und sie hier ueber vierzig Speccs
+---zu beantworten, waere Arbeit bei jedem Ueberfahren einer Tasche.
+---
+---Was drinsteht, ist gefiltert: nur Quellen, die ihre Stichprobe
+---nennen, nur ab fuenfzehn gemessenen Spielern, nur ab zwanzig Prozent.
+---Die Regeln stehen in tools/lib/worn-by.js und sind dort geprueft.
+---@param itemID number|nil
+---@return table[]  Liste aus { specID, pct, mode }, hoechster Anteil zuerst
+function Recommend.WornBy(itemID)
+    if not itemID then return {} end
+    local d = data()
+    local liste = d and d.wornBy and d.wornBy[itemID]
+    return liste or {}
+end

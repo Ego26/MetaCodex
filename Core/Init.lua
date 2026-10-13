@@ -83,6 +83,17 @@ ns.MODE_GROUPS = {
     { label = "PvP",  keys = { "3v3", "2v2", "solo", "rbg", "blitz" } },
 }
 
+---Die Beschriftung einer Aktivitaet.
+---@param key string|nil
+---@return string|nil
+function ns.ModeLabel(key)
+    if not key then return nil end
+    for _, entry in ipairs(ns.MODES) do
+        if entry.key == key then return entry.label end
+    end
+    return nil
+end
+
 ns.MODES = {
     { key = "mplus",       label = "M+ (High Keys)" },
     { key = "mplus-keys",  label = "M+ (+7 - +21)" },

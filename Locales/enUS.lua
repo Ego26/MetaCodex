@@ -16,6 +16,8 @@ ns.RegisterLocale("enUS", {
 
     -- Kennwerte
     ["CARD_TARGET"] = "Most common build",
+    ["TIP_WORN"]      = "also worn by",
+    ["TIP_WORN_MORE"] = "and %d more - hold Shift",
     ["TIP_TOP"]     = "most worn in this slot (%d%%)",
     ["TIP_RANK"]    = "number %d of %d in this slot (%d%%)",
     ["SET_TOOLTIP"] = "Add to item tooltips",

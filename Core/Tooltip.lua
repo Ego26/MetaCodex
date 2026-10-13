@@ -113,6 +113,62 @@ function Tooltip.GearRank(itemID)
     return nil
 end
 
+
+-- Wie viele fremde Specs ohne Umschalt genannt werden.
+--
+-- Der Median liegt bei drei Specs je Stueck, und 468 der 1580 gemessenen
+-- Stuecke betreffen ueberhaupt nur eine - fuer die grosse Mehrheit ist
+-- die Liste also von Natur aus kurz. Die 163 Stuecke mit mehr als zehn
+-- Specs sind der Grund fuer die Grenze: Class Codex schreibt dort
+-- siebenundzwanzig Zeilen hin und schiebt damit die Werte des
+-- Gegenstands aus dem Bild.
+local WORN_ZEILEN = 2
+
+---Die Zeilen "auch fuer ..." zu einem Gegenstand.
+---
+---Die eigene Spec faellt weg: ueber die steht schon die Zeile darueber,
+---und zweimal dasselbe ist keine zweite Auskunft.
+---@param itemID number|nil
+---@param alle boolean|nil  true = vollstaendig, sonst gekuerzt
+---@return string[] zeilen
+---@return number uebrig  wie viele nicht genannt wurden
+function Tooltip.WornLines(itemID, alle)
+    local liste = ns.Recommend.WornBy(itemID)
+    if not liste or #liste == 0 then return {}, 0 end
+
+    local eigene = ns.Compat.CurrentSpec() or ns.Profile.SelectedSpec()
+
+    -- ERST BENENNEN, DANN KUERZEN.
+    --
+    -- Ohne Namen keine Zeile: eine Spec-Nummer sagt niemandem etwas, und
+    -- "Spec 262" im Tooltip waere schlechter als nichts. Wer hier
+    -- herausfaellt, darf aber auch nicht in der Restzahl weiterleben -
+    -- sonst stehen null Zeilen da und darunter "und 26 weitere".
+    local fremde = {}
+    for _, row in ipairs(liste) do
+        local specID = row[1]
+        if specID ~= eigene then
+            local name = ns.Compat.SpecName(specID)
+            if name then
+                local classID, classFile = ns.Compat.ClassOfSpec(specID)
+                local className = ns.Compat.ClassName(classID)
+                local text = className and (name .. " " .. className) or name
+                if classFile then
+                    text = ("|cff%s%s|r"):format(ns.Compat.ClassColor(classFile), text)
+                end
+                fremde[#fremde + 1] = ("%s  %d %%  \194\183  %s")
+                    :format(text, row[2], ns.ModeLabel(row[3]) or row[3])
+            end
+        end
+    end
+    if #fremde == 0 then return {}, 0 end
+
+    local wieviele = alle and #fremde or math.min(#fremde, WORN_ZEILEN)
+    local zeilen = {}
+    for i = 1, wieviele do zeilen[i] = fremde[i] end
+    return zeilen, #fremde - wieviele
+end
+
 -- --------------------------------------------------------------- Anhaengen
 
 ---Die Beschriftungen, unter denen die Werte im Tooltip stehen.
@@ -239,6 +295,23 @@ function Tooltip.Decorate(tip, link)
             text = L["TIP_RANK"]:format(rank, total or rank, pct or 0)
         end
         tip:AddLine("|cff" .. ns.Style:Hex("brand") .. "MetaCodex|r  " .. text, 1, 1, 1)
+    end
+
+    -- UND WER ES SONST NOCH TRAEGT.
+    --
+    -- Die Frage hinter jedem Stueck, das in die Kriegsmeute faellt:
+    -- taugt es einem meiner anderen Charaktere? Gekuerzt, weil 163
+    -- der gemessenen Stuecke von mehr als zehn Speccs getragen
+    -- werden - die volle Liste gibt es auf Umschalt.
+    local alle = IsShiftKeyDown and IsShiftKeyDown()
+    local zeilen, uebrig = Tooltip.WornLines(itemID, alle)
+    if #zeilen > 0 then
+        tip:AddLine("|cff" .. ns.Style:Hex("brand") .. "MetaCodex|r  "
+            .. L["TIP_WORN"], 1, 1, 1)
+        for _, zeile in ipairs(zeilen) do tip:AddLine("  " .. zeile, 1, 1, 1) end
+        if uebrig > 0 then
+            tip:AddLine("  " .. L["TIP_WORN_MORE"]:format(uebrig), 0.6, 0.6, 0.6)
+        end
     end
     -- Wo das Item NICHT in der Liste steht, kommt auch keine Zeile
     -- dazu.

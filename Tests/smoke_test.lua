@@ -6800,5 +6800,90 @@ if debug and debug.getinfo then
     end
 end
 
+
+-- --- Wer traegt dieses Stueck sonst noch? ----------------------------
+--
+-- Die Zeile im Tooltip beantwortet "ist dieser Drop fuer einen meiner
+-- anderen Charaktere gut". Sie darf nur sagen, was gemessen wurde, und
+-- sie darf das Fenster nicht zur Wand machen - beides steht hier.
+
+check("Wer-traegt-das: unbekannter Gegenstand ergibt nichts",
+    #ns.Recommend.WornBy(999999) == 0)
+check("Wer-traegt-das: ohne Nummer auch nichts",
+    #ns.Recommend.WornBy(nil) == 0)
+
+do
+    local daten = MetaCodex_Recommendations and MetaCodex_Recommendations.wornBy
+    if not daten then
+        say("  -- kein wornBy in den Daten, Pruefungen uebersprungen")
+    else
+        local stuecke, eintraege, krumm, breitestes, breit = 0, 0, 0, nil, 0
+        for itemID, liste in pairs(daten) do
+            stuecke = stuecke + 1
+            eintraege = eintraege + #liste
+            if #liste > breit then breit, breitestes = #liste, itemID end
+            for _, row in ipairs(liste) do
+                -- Spec, Anteil, Aktivitaet - und der Anteil ueber der
+                -- Schwelle, sonst ist es kein "gut fuer".
+                if type(row[1]) ~= "number" or type(row[2]) ~= "number"
+                    or type(row[3]) ~= "string" or row[2] < 20 or row[2] > 100 then
+                    krumm = krumm + 1
+                end
+            end
+            -- Absteigend sortiert, damit das Staerkste oben steht.
+            for i = 2, #liste do
+                if liste[i][2] > liste[i - 1][2] then krumm = krumm + 1 end
+            end
+        end
+        check("Wer-traegt-das: Eintraege vorhanden", stuecke > 0,
+            stuecke .. " Stuecke, " .. eintraege .. " Eintraege")
+        check("Wer-traegt-das: jede Zeile ist vollstaendig und sortiert",
+            krumm == 0, krumm .. " krumm")
+
+        -- Und die Zeilen, die daraus im Tooltip werden.
+        local zeilen, uebrig = ns.Tooltip.WornLines(breitestes)
+        check("Wer-traegt-das: gekuerzt sind es hoechstens zwei Zeilen",
+            #zeilen <= 2, #zeilen .. " Zeilen, " .. uebrig .. " uebrig")
+        local ohneNamen = 0
+        for _, z in ipairs(zeilen) do
+            if type(z) ~= "string" or z == "" or z:find("^%s*%d") then
+                ohneNamen = ohneNamen + 1
+            end
+        end
+        check("Wer-traegt-das: jede Zeile nennt eine Spec beim Namen",
+            ohneNamen == 0, table.concat(zeilen, " | "))
+        -- Und ihre Klasse, mit Namen. Hier stand einmal "Elemental 7":
+        -- ClassOfSpec gibt die Nummer zurueck, nicht den Namen, und
+        -- niemandem faellt eine 7 im Tooltip auf, bevor sie drin ist.
+        local ohneKlasse = 0
+        for _, z in ipairs(zeilen) do
+            local trifft = false
+            for _, entry in ipairs(ns.Compat.Classes()) do
+                if entry.name and z:find(entry.name, 1, true) then trifft = true end
+            end
+            if not trifft then ohneKlasse = ohneKlasse + 1 end
+        end
+        check("Wer-traegt-das: und ihre Klasse beim Namen",
+            ohneKlasse == 0, table.concat(zeilen, " | "))
+
+        local volle = ns.Tooltip.WornLines(breitestes, true)
+        check("Wer-traegt-das: mit Umschalt stehen alle da",
+            #volle >= #zeilen and #volle == #zeilen + uebrig,
+            #volle .. " statt " .. #zeilen)
+
+        -- Die eigene Spec steht schon in der Zeile darueber.
+        local eigene = ns.Compat.CurrentSpec() or ns.Profile.SelectedSpec()
+        local eigenerName = eigene and ns.Compat.SpecName(eigene)
+        local doppelt = 0
+        if eigenerName then
+            for _, z in ipairs(volle) do
+                if z:find(eigenerName, 1, true) then doppelt = doppelt + 1 end
+            end
+        end
+        check("Wer-traegt-das: die eigene Spec steht nicht zweimal da",
+            doppelt == 0, tostring(eigenerName))
+    end
+end
+
 say(fails == 0 and "\nalles gruen" or ("\n" .. fails .. " Fehler"))
 os.exit(fails == 0 and 0 or 1)
