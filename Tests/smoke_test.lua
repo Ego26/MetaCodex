@@ -7075,6 +7075,42 @@ do
             mitDruide == 0, mitDruide .. " Druiden")
     end
 
+    -- UMSCHALT WIRKT SOFORT.
+    --
+    -- Der Tooltip fragt die Taste nur beim Aufbauen. Gemeldet: "Wenn
+    -- ich Umschalt halte, passiert nichts - erst wenn ich weggehe und
+    -- wieder drauffahre."
+    do
+        local echt = GameTooltip
+        local neu = 0
+        local gezeigt, mitItem = true, true
+        GameTooltip = {
+            IsShown = function() return gezeigt end,
+            GetItem = function() return "x", mitItem and "|Hitem:1|h[x]|h" or nil end,
+            RefreshData = function() neu = neu + 1 end,
+        }
+        local imKampf = false
+        local echtKampf = InCombatLockdown
+        InCombatLockdown = function() return imKampf end
+
+        ns.Tooltip.OnModifier("LSHIFT")
+        check("Umschalt: der Tooltip wird neu aufgebaut", neu == 1, neu .. " mal")
+        ns.Tooltip.OnModifier("LCTRL")
+        check("Umschalt: eine andere Taste aendert nichts", neu == 1, neu .. " mal")
+        imKampf = true
+        ns.Tooltip.OnModifier("RSHIFT")
+        check("Umschalt: im Kampf bleibt er stehen", neu == 1, neu .. " mal")
+        imKampf = false
+        mitItem = false
+        ns.Tooltip.OnModifier("RSHIFT")
+        check("Umschalt: ohne Gegenstand auch", neu == 1, neu .. " mal")
+
+        GameTooltip = echt
+        InCombatLockdown = echtKampf
+        check("Umschalt: jemand hoert auf die Taste",
+            ns.Tooltip.__wache ~= nil)
+    end
+
     -- SEELENGEBUNDEN: DIE MESSUNG BLEIBT, DIE VERMUTUNG GEHT.
     --
     -- Die Bindungsregel galt zuerst fuer beide Bloecke. An einem

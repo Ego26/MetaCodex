@@ -890,9 +890,44 @@ local function linkOf(tip, data)
     return nil
 end
 
+---Baut den sichtbaren Gegenstands-Tooltip neu auf, wenn Umschalt sich
+---aendert.
+---
+---Der Tooltip fragt die Taste nur beim Aufbauen. Ohne das hier musste
+---man die Maus wegnehmen und mit gehaltener Taste wieder drauffahren,
+---damit die volle Liste kam.
+---
+---NICHT IM KAMPF: dort ordnet niemand seine Taschen, und ein Tooltip,
+---den ein geschuetzter Knopf geoeffnet hat, soll von hier aus nicht
+---angefasst werden.
+---@param taste string
+function Tooltip.OnModifier(taste)
+    if taste ~= "LSHIFT" and taste ~= "RSHIFT" then return false end
+    if InCombatLockdown and InCombatLockdown() then return false end
+    local tip = GameTooltip
+    if not (tip and tip.IsShown and tip:IsShown()) then return false end
+    if not (tip.GetItem and tip.RefreshData) then return false end
+    -- Nur, wo ein Gegenstand steht: ein Zauber- oder Einheiten-Tooltip
+    -- hat nichts von uns, und ihn neu aufzubauen waere Arbeit ohne
+    -- Zweck.
+    local _, link = tip:GetItem()
+    if not link then return false end
+    tip:RefreshData()
+    return true
+end
+
 function Tooltip.Hook()
     if hooked then return end
     hooked = true
+    -- Umschalt soll sofort wirken, nicht erst beim naechsten Ueberfahren.
+    if CreateFrame then
+        local wache = CreateFrame("Frame")
+        wache:RegisterEvent("MODIFIER_STATE_CHANGED")
+        wache:SetScript("OnEvent", function(_, _, taste)
+            pcall(Tooltip.OnModifier, taste)
+        end)
+        Tooltip.__wache = wache
+    end
     if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall
         and Enum and Enum.TooltipDataType then
         TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item,
