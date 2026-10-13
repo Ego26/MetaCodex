@@ -196,6 +196,7 @@ end
 ---du hast eines; beide zu zaehlen hiesse, dir etwas anzudichten, das du
 ---nicht hast.
 ---@return table<number, boolean>
+---@return table<number, number>  Zauber -> gekaufte Raenge
 function Tree.Worn()
     local configID = activeConfig()
     local out = {}
@@ -214,11 +215,11 @@ function Tree.Worn()
                 local gewaehlt = node.activeEntry and node.activeEntry.entryID
                 if gewaehlt then
                     local spell = spellOfEntry(configID, gewaehlt)
-                    if spell then out[spell] = true end
+                    if spell then out[spell] = raenge end
                 else
                     for _, entryID in ipairs(node.entryIDs or {}) do
                         local spell = spellOfEntry(configID, entryID)
-                        if spell then out[spell] = true end
+                        if spell then out[spell] = raenge end
                     end
                 end
             end
@@ -322,10 +323,23 @@ function Tree.Show(spells)
     if not (map and tab and tab.GetTalentButtonByNodeID) then return 0, 0, fehlt end
 
     local worn = Tree.Worn()
+    -- RAENGE, NICHT NUR "GEKAUFT JA/NEIN".
+    --
+    -- Ein Build mit 75 Knoten und einer mit 71 geben dieselben
+    -- Punkte aus - der eine verteilt sie breiter, der andere
+    -- stapelt zweite Raenge. Wer nur Knoten vergleicht, sieht die
+    -- fuenf neuen Talente und nicht, womit sie bezahlt werden.
     local wanted = {}
     for _, spell in ipairs(spells) do
         local id = tonumber(spell) or tonumber(spell and spell.spell)
-        if id then wanted[id] = true end
+        -- Ohne Rangangabe ist es einer: so steht es in den Daten bei
+        -- den Zugaengen einer Alternative, und mehr behaupten wir
+        -- dort nicht.
+        -- type() und nicht `spell and spell.rank`: eine Zahl laesst
+        -- sich nicht indizieren, und die Zeile darueber kommt nur
+        -- durch, weil ihr `or` vorher kurzschliesst.
+        local rang = (type(spell) == "table" and tonumber(spell.rank)) or 1
+        if id and rang > (wanted[id] or 0) then wanted[id] = rang end
     end
 
     local plus, minus = 0, 0
@@ -402,13 +416,17 @@ function Tree.Show(spells)
         return true
     end
 
-    for spell in pairs(wanted) do
-        if not worn[spell] then
+    -- Mehr als jetzt ist gruen, weniger ist rot. "Weniger" heisst
+    -- nicht nur "faellt weg": ein Talent, das von zwei Raengen auf
+    -- einen faellt, ist genau der Punkt, mit dem anderswo bezahlt
+    -- wird - und der stand vorher nirgends.
+    for spell, rang in pairs(wanted) do
+        if rang > (worn[spell] or 0) then
             if mark(spell, "success") then plus = plus + 1 end
         end
     end
-    for spell in pairs(worn) do
-        if not wanted[spell] then
+    for spell, rang in pairs(worn) do
+        if rang > (wanted[spell] or 0) then
             if mark(spell, "danger") then minus = minus + 1 end
         end
     end

@@ -7550,10 +7550,15 @@ local function talentPanelRows()
     -- minus ihre Abgaenge. So traegt jede Zeile ihre eigene,
     -- vollstaendige Liste, und die Vorschau rechnet gegen DEINEN Baum
     -- statt gegen den haeufigsten Build.
+    -- MIT RANG, nicht nur die Nummer. Die Vorschau rechnet gegen
+    -- deinen Baum, und dort hat ein Talent ein, zwei oder drei
+    -- Raenge; ohne sie sieht sie nicht, womit ein Build bezahlt.
     local basis = {}
     for _, node in ipairs((build and build.nodes) or {}) do
         local spell = tonumber(node) or tonumber(node and node.spell)
-        if spell then basis[#basis + 1] = spell end
+        if spell then
+            basis[#basis + 1] = { spell = spell, rank = tonumber(node and node.rank) or 1 }
+        end
     end
 
     ---@param added number[]|nil
@@ -7564,10 +7569,15 @@ local function talentPanelRows()
         local weg = {}
         for _, spell in ipairs(removed or {}) do weg[spell] = true end
         local liste = {}
-        for _, spell in ipairs(basis) do
-            if not weg[spell] then liste[#liste + 1] = spell end
+        for _, eintrag in ipairs(basis) do
+            if not weg[eintrag.spell] then liste[#liste + 1] = eintrag end
         end
-        for _, spell in ipairs(added or {}) do liste[#liste + 1] = spell end
+        -- Was eine Alternative dazunimmt, steht in den Daten ohne
+        -- Rang. Einer ist die ehrliche Annahme - und sie steht hier,
+        -- damit sie nicht in der Vorschau als Messung durchgeht.
+        for _, spell in ipairs(added or {}) do
+            liste[#liste + 1] = { spell = spell, rank = 1 }
+        end
         return liste
     end
 
@@ -8873,6 +8883,72 @@ function UI.TalentAPIs()
         zeile(" ")
         zeile("ABGEBROCHEN: " .. tostring(fehler))
     end
+
+    local okV, fehlerV = pcall(function()
+
+    -- WARUM EIN TALENT GRUEN STEHT, DAS LAENGST GESKILLT IST.
+    --
+    -- Gemeldet am 13. Oktober: "5 gruen dazu, 0 rot weg", und die fuenf
+    -- Rahmen sassen auf Talenten, die der Spieler hat. Fuenf dazu ohne
+    -- einen einzigen weg kann in einem vollen Baum nicht stimmen - die
+    -- Punkte muessten ja irgendwo herkommen.
+    --
+    -- Der Verdacht: derselbe Knoten traegt in unseren Daten eine andere
+    -- Zauber-ID als beim Client. Dann faellt er auf der einen Seite als
+    -- "fehlt" und auf der anderen nicht als "weg" auf. Hier steht beides
+    -- nebeneinander, Talent fuer Talent.
+    zeile(" ")
+    zeile("Vorschau: was als gruen gezaehlt wird")
+    do
+        local worn = (ns.Tree and ns.Tree.Worn and ns.Tree.Worn()) or {}
+        local geskillt = 0
+        for _ in pairs(worn) do geskillt = geskillt + 1 end
+        zeile(("%-46s %d"):format("geskillte Zauber laut Client", geskillt))
+
+        local specID = ns.Profile.SelectedSpec()
+        local okT, _, build = pcall(ns.Recommend.Talents, specID,
+            ns.Profile.LookupMode("talents"), ns.Recommend.ALL, ns.Profile.HeroTree())
+        local knoten = (okT and build and build.nodes) or {}
+        zeile(("%-46s %d"):format("Knoten im haeufigsten Build", #knoten))
+
+        local cfg = C_ClassTalents and C_ClassTalents.GetActiveConfigID
+            and C_ClassTalents.GetActiveConfigID()
+        local gruen = 0
+        for _, node in ipairs(knoten) do
+            local spell = tonumber(node) or tonumber(node and node.spell)
+            if spell and not worn[spell] then
+                gruen = gruen + 1
+                if gruen <= 12 then
+                    local nodeID = ns.Tree.NodeFor and ns.Tree.NodeFor(spell)
+                    local info = C_Spell and C_Spell.GetSpellInfo
+                        and C_Spell.GetSpellInfo(spell)
+                    -- Was der Client an GENAU DIESEM Knoten stehen hat.
+                    local raenge, beimClient = 0, nil
+                    if nodeID and cfg and C_Traits then
+                        local ok2, n = pcall(C_Traits.GetNodeInfo, cfg, nodeID)
+                        n = ok2 and n or nil
+                        raenge = tonumber(n and n.ranksPurchased) or 0
+                        local aktiv = n and n.activeEntry and n.activeEntry.entryID
+                        if aktiv then
+                            local ok3, e = pcall(C_Traits.GetEntryInfo, cfg, aktiv)
+                            local defID = ok3 and e and e.definitionID
+                            if defID then
+                                local ok4, d = pcall(C_Traits.GetDefinitionInfo, defID)
+                                beimClient = ok4 and d and tonumber(d.spellID) or nil
+                            end
+                        end
+                    end
+                    zeile(("  %-28s uns %-9s Knoten %-7s Raenge %d  Client %s")
+                        :format(((info and info.name) or "?"):sub(1, 28),
+                            tostring(spell), tostring(nodeID), raenge,
+                            tostring(beimClient)))
+                end
+            end
+        end
+        zeile(("%-46s %d"):format("davon als gruen gezaehlt", gruen))
+    end
+    end)
+    if not okV then zeile("Vorschau-Teil abgebrochen: " .. tostring(fehlerV)) end
 
     -- Und alles zusammen zum Kopieren, wie beim Probe-Bericht.
     local ganz = table.concat(zeilen, "\n")

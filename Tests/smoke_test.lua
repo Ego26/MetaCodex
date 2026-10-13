@@ -1647,21 +1647,48 @@ do
 
     -- Ein Build, der genau einen geskillten Zauber weglaesst und genau
     -- einen ungeskillten dazunimmt.
-    local wollen, weggelassen = {}, nil
-    for spell in pairs(worn) do
+    -- MIT RANG. Der Build uebernimmt, was der Spieler hat; nur so
+    -- bleibt der eine weggelassene Zauber der einzige Abgang.
+    local wollen, weggelassen, mitZwei = {}, nil, nil
+    for spell, raenge in pairs(worn) do
         if not weggelassen then weggelassen = spell
-        else wollen[#wollen + 1] = spell end
+        else
+            wollen[#wollen + 1] = { spell = spell, rank = raenge }
+            if raenge > 1 and not mitZwei then mitZwei = spell end
+        end
     end
     local dazu
     for spell in pairs(map or {}) do
         if not worn[spell] and not dazu then dazu = spell end
     end
-    if dazu then wollen[#wollen + 1] = dazu end
+    if dazu then wollen[#wollen + 1] = { spell = dazu, rank = 1 } end
 
     local plus, minus, fehlt = ns.Tree.Show(wollen)
     check("  ein Zugang steht gruen im Baum", plus == (dazu and 1 or 0),
         plus .. " gruen")
     check("  ein Abgang rot", minus == 1, minus .. " rot")
+
+    -- UND EIN HERUNTERGESTUFTER RANG IST AUCH EIN ABGANG.
+    --
+    -- Im Spiel stand "5 gruen dazu, 0 rot weg" an einem vollen Baum.
+    -- Die Punkte dafuer kamen aus zweiten Raengen, die der Build
+    -- nicht nimmt - und die sah der Vergleich nicht, weil er nur
+    -- "Knoten gekauft, ja oder nein" kannte.
+    if mitZwei then
+        local weniger = {}
+        for _, e in ipairs(wollen) do
+            if e.spell == mitZwei then
+                weniger[#weniger + 1] = { spell = e.spell, rank = e.rank - 1 }
+            else
+                weniger[#weniger + 1] = e
+            end
+        end
+        local _, m4 = ns.Tree.Show(weniger)
+        check("  ein Rang weniger zaehlt als Abgang", m4 == 2,
+            m4 .. " rot")
+    else
+        say("  -- kein Talent mit zwei Raengen geskillt, Rangfall uebersprungen")
+    end
     check("  und keines geht still verloren", #fehlt == 0, #fehlt .. " nicht gefunden")
 
     -- Ohne Knopf wird gezaehlt statt verschwiegen.
