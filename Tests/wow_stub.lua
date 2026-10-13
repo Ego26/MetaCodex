@@ -744,7 +744,11 @@ function M.install(opts)
         end,
         GetItemInfoInstant = function(link)
             local id = tonumber(link:match("item:(%d+)"))
-            return id, "", "", (opts.equipLoc or {})[id] or "INVTYPE_WEAPON"
+            -- Sieben Werte wie im Spiel; Klasse und Unterklasse nur,
+            -- wo der Test sie gesetzt hat.
+            local art = (opts.itemClass or {})[id]
+            return id, "", "", (opts.equipLoc or {})[id] or "INVTYPE_WEAPON",
+                nil, art and art[1] or nil, art and art[2] or nil
         end,
     }
 

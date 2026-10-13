@@ -40,6 +40,15 @@ wow.install({
     -- gemessenen Zielwert, damit "es fehlen noch" geprueft werden kann.
     ratings = { [11] = 400, [18] = 500, [26] = 300, [29] = 200 },
     auctionator = true,
+    -- Was fuer Gegenstaende das sind: Klasse und Unterklasse wie
+    -- GetItemInfoInstant sie meldet. 4 ist Ruestung (1 Stoff, 4
+    -- Platte, 0 Schmuck), 2 eine Waffe.
+    itemClass = {
+        [300001] = { 4, 4 },
+        [300002] = { 4, 2 },
+        [300003] = { 2, 7 },
+        [300004] = { 4, 0 },
+    },
     -- Was der Client fuer eine Pfad-Bonus-ID an Stufe meldet. Die Zahlen
     -- passen zur Belohnungstabelle des Stubs: 280 ist +2 am Ende, 292
     -- ist +6, 311 ist +10 aus der Schatzkammer. Zwei Pfade treffen
@@ -4807,10 +4816,16 @@ do
             function slot:SetText(value) self.__text = value end
             _G["MCProbeTipTextLeft" .. i] = slot
         end
-        local tip = { added = {} }
+        local tip = { added = {}, paare = {} }
         function tip:GetName() return "MCProbeTip" end
         function tip:NumLines() return #shown end
         function tip:AddLine(text) self.added[#self.added + 1] = text end
+        -- Zwei Spalten: links die Spec, rechts ihr Anteil. Ohne diese
+        -- Haelfte lief der Tooltip hier auf "attempt to call a nil
+        -- value" - im Spiel kann jeder Tooltip beides.
+        function tip:AddDoubleLine(links, rechts)
+            self.paare[#self.paare + 1] = { links, rechts }
+        end
         -- Der Link ist der nackte Gegenstand, wie ihn unsere Liste hat.
         local realStats = ns.Compat.ItemStats
         ns.Compat.ItemStats = function() return nil end
@@ -6844,14 +6859,32 @@ do
         local zeilen, uebrig = ns.Tooltip.WornLines(breitestes)
         check("Wer-traegt-das: gekuerzt sind es hoechstens zwei Zeilen",
             #zeilen <= 2, #zeilen .. " Zeilen, " .. uebrig .. " uebrig")
-        local ohneNamen = 0
+        local ohneNamen, schau = 0, {}
         for _, z in ipairs(zeilen) do
-            if type(z) ~= "string" or z == "" or z:find("^%s*%d") then
+            if type(z) ~= "table" or type(z.name) ~= "string" or z.name == ""
+                or type(z.pct) ~= "number" or type(z.mode) ~= "string" then
                 ohneNamen = ohneNamen + 1
+            else
+                schau[#schau + 1] = z.name .. " " .. z.pct .. " % " .. z.mode
             end
         end
         check("Wer-traegt-das: jede Zeile nennt eine Spec beim Namen",
-            ohneNamen == 0, table.concat(zeilen, " | "))
+            ohneNamen == 0, table.concat(schau, " | "))
+        -- Die Aktivitaeten stehen beieinander, sonst steht ueber jeder
+        -- zweiten Zeile eine Ueberschrift.
+        do
+            local volle2 = ns.Tooltip.WornLines(breitestes, true)
+            local gesehen, sprung, letzte = {}, 0, nil
+            for _, z in ipairs(volle2) do
+                if z.mode ~= letzte then
+                    if gesehen[z.mode] then sprung = sprung + 1 end
+                    gesehen[z.mode] = true
+                    letzte = z.mode
+                end
+            end
+            check("Wer-traegt-das: jede Aktivitaet steht nur einmal",
+                sprung == 0, sprung .. " Spruenge")
+        end
         -- Und ihre Klasse, mit Namen. Hier stand einmal "Elemental 7":
         -- ClassOfSpec gibt die Nummer zurueck, nicht den Namen, und
         -- niemandem faellt eine 7 im Tooltip auf, bevor sie drin ist.
@@ -6859,12 +6892,12 @@ do
         for _, z in ipairs(zeilen) do
             local trifft = false
             for _, entry in ipairs(ns.Compat.Classes()) do
-                if entry.name and z:find(entry.name, 1, true) then trifft = true end
+                if entry.name and z.name:find(entry.name, 1, true) then trifft = true end
             end
             if not trifft then ohneKlasse = ohneKlasse + 1 end
         end
         check("Wer-traegt-das: und ihre Klasse beim Namen",
-            ohneKlasse == 0, table.concat(zeilen, " | "))
+            ohneKlasse == 0, table.concat(schau, " | "))
 
         local volle = ns.Tooltip.WornLines(breitestes, true)
         check("Wer-traegt-das: mit Umschalt stehen alle da",
@@ -6877,12 +6910,133 @@ do
         local doppelt = 0
         if eigenerName then
             for _, z in ipairs(volle) do
-                if z:find(eigenerName, 1, true) then doppelt = doppelt + 1 end
+                if z.name:find(eigenerName, 1, true) then doppelt = doppelt + 1 end
             end
         end
         check("Wer-traegt-das: die eigene Spec steht nicht zweimal da",
             doppelt == 0, tostring(eigenerName))
     end
+end
+
+
+-- --- Werte passen zu ------------------------------------------------
+--
+-- Die zweite Frage an einem Drop: nicht "wer traegt es", sondern "zu
+-- wessen gemessenen Wertzielen passen seine Zweitwerte". Sie gilt auch
+-- fuer Stuecke, die in keiner Messung vorkommen - aus einer Tiefe etwa.
+do
+    local echteStats = ns.Compat.ItemStats
+    local function mitStats(tabelle)
+        ns.Compat.ItemStats = function() return tabelle end
+    end
+
+    -- Platte mit Staerke: nur Platte tragende Klassen, nur Staerke-Speccs.
+    mitStats({
+        ITEM_MOD_STRENGTH_SHORT = 500,
+        ITEM_MOD_CRIT_RATING_SHORT = 100,
+        ITEM_MOD_MASTERY_RATING_SHORT = 100,
+    })
+    local platte = ns.Tooltip.StatFit("|Hitem:300001|h[Platte]|h", true)
+    check("Werte-passen-zu: ein Plattenteil findet Speccs", #platte > 0,
+        #platte .. " Speccs")
+    local fremd = 0
+    for _, z in ipairs(platte) do
+        local istPlatte = z.sortName:find("Krieger") or z.sortName:find("Paladin")
+            or z.sortName:find("Todesritter") or z.sortName:find("Warrior")
+            or z.sortName:find("Paladin") or z.sortName:find("Death Knight")
+        if not istPlatte then fremd = fremd + 1 end
+    end
+    check("Werte-passen-zu: nur Klassen, die Platte tragen", fremd == 0,
+        fremd .. " fremde")
+
+    -- Dasselbe Stueck als LEDER, mit Intelligenz: jetzt duerfen genau
+    -- die Platten- und Kettentraeger nicht mehr dabei sein. Die
+    -- Ruestungsart ist die einzige von Hand geschriebene Tabelle in
+    -- dieser Kette - hier wird sie durch ihre Wirkung geprueft.
+    --
+    -- Leder und nicht Stoff, weil der Stub den Druiden kennt und keine
+    -- Stoffklasse: eine Pruefung ohne Treffer prueft nichts.
+    local MODKEY = {
+        crit = "ITEM_MOD_CRIT_RATING_SHORT",
+        haste = "ITEM_MOD_HASTE_RATING_SHORT",
+        mastery = "ITEM_MOD_MASTERY_RATING_SHORT",
+        vers = "ITEM_MOD_VERSATILITY",
+    }
+    -- Die beiden Werte, die Wiederherstellung (105) am hoechsten
+    -- misst. Fest eingetragene Werte waeren eine Wette auf die Daten
+    -- der Nacht; so prueft der Test die Regel.
+    local ziele = ns.Recommend.Stats(105, ns.Profile.Mode(), ns.Recommend.ALL)
+    local oben = (ziele and ziele.priority) or {}
+    local lederWerte = { ITEM_MOD_INTELLECT_SHORT = 500 }
+    for i = 1, 2 do
+        if oben[i] then lederWerte[MODKEY[oben[i]]] = 100 end
+    end
+    mitStats(lederWerte)
+    local leder = ns.Tooltip.StatFit("|Hitem:300002|h[Leder]|h", true)
+    check("Werte-passen-zu: ein Lederteil findet Speccs", #leder > 0,
+        #leder .. " Speccs")
+    local schwer = 0
+    for _, z in ipairs(leder) do
+        if z.sortName:find("Krieger") or z.sortName:find("Paladin")
+            or z.sortName:find("Schamane") or z.sortName:find("Todesritter") then
+            schwer = schwer + 1
+        end
+    end
+    check("Werte-passen-zu: Leder schliesst Platte und Kette aus",
+        schwer == 0, schwer .. " fremde")
+
+    -- Und der Schnitt: ein Wert, der bei dieser Spec ganz unten steht,
+    -- wirft das Stueck aus der Liste. Sonst passt jedes Stueck zu
+    -- jeder Spec - an einem Schmuckstueck standen so achtunddreissig
+    -- Zeilen.
+    if oben[4] then
+        local schlecht = { ITEM_MOD_INTELLECT_SHORT = 500 }
+        schlecht[MODKEY[oben[4]]] = 100
+        mitStats(schlecht)
+        local keiner = ns.Tooltip.StatFit("|Hitem:300002|h[Leder]|h", true)
+        local mitDruide = 0
+        for _, z in ipairs(keiner) do
+            if z.sortName:find("Druide") then mitDruide = mitDruide + 1 end
+        end
+        check("Werte-passen-zu: der schlechteste Wert schliesst aus",
+            mitDruide == 0, mitDruide .. " Druiden")
+    end
+
+    -- Eine Waffe beantwortet die Frage nicht: welche Klasse welchen
+    -- Waffentyp fuehren darf, steht bei uns nirgends.
+    local waffe = ns.Tooltip.StatFit("|Hitem:300003|h[Waffe]|h", true)
+    check("Werte-passen-zu: Waffen bleiben aussen vor", #waffe == 0,
+        #waffe .. " Zeilen")
+
+    -- Ohne Werte keine Aussage.
+    mitStats(nil)
+    check("Werte-passen-zu: ohne Werte nichts",
+        #ns.Tooltip.StatFit("|Hitem:300001|h[Platte]|h", true) == 0)
+
+    -- Und die Reihenfolge: das beste Passen zuerst. Die Werte muessen
+    -- dafuer wieder dastehen - die Pruefung davor hat sie absichtlich
+    -- weggenommen.
+    mitStats(lederWerte)
+    local sortiert = ns.Tooltip.StatFit("|Hitem:300002|h[Leder]|h", true)
+    check("Werte-passen-zu: die eigenen Top-2 treffen die eigene Spec",
+        #sortiert >= 1, #sortiert .. " Speccs")
+    local verdreht, letzte = 0, nil
+    for _, z in ipairs(sortiert) do
+        local summe = 0
+        for n in z.text:gmatch("#(%d+)") do summe = summe + tonumber(n) end
+        if letzte and summe < letzte then verdreht = verdreht + 1 end
+        letzte = summe
+    end
+    check("Werte-passen-zu: das beste Passen steht oben", verdreht == 0,
+        verdreht .. " verdreht")
+
+    -- Gekuerzt wie die Liste darueber.
+    local kurz, uebrig = ns.Tooltip.StatFit("|Hitem:300002|h[Leder]|h")
+    check("Werte-passen-zu: gekuerzt sind es hoechstens zwei Zeilen",
+        #kurz <= 2 and #kurz + uebrig == #sortiert,
+        #kurz .. " Zeilen, " .. uebrig .. " uebrig von " .. #sortiert)
+
+    ns.Compat.ItemStats = echteStats
 end
 
 say(fails == 0 and "\nalles gruen" or ("\n" .. fails .. " Fehler"))

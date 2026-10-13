@@ -124,13 +124,31 @@ end
 -- Gegenstands aus dem Bild.
 local WORN_ZEILEN = 2
 
----Die Zeilen "auch fuer ..." zu einem Gegenstand.
+-- Bis zu welchem Rang ein Wert noch "passt".
+--
+-- Zwei, und zwar beide: ein Stueck mit Meisterschaft und
+-- Vielseitigkeit passt zu einer Spec, wenn genau das ihre beiden
+-- hoechsten sind. Bei drei waere fast jedes Stueck fuer fast jede
+-- Spec "passend" - an einem Schmuckstueck standen damit
+-- achtunddreissig Zeilen.
+local WERT_TOP = 2
+
+---Die Zeilen "auch getragen von" zu einem Gegenstand.
 ---
----Die eigene Spec faellt weg: ueber die steht schon die Zeile darueber,
----und zweimal dasselbe ist keine zweite Auskunft.
+---Gegeben werden FELDER, keine fertigen Zeichenketten: der Tooltip
+---setzt daraus zwei Spalten, und dafuer muss er Name und Zahl getrennt
+---bekommen. Vierzehn Zeilen mit ragged rechtem Rand waren das erste,
+---was im Spiel auffiel.
+---
+---Sortiert wird nach AKTIVITAET in Gruppen, die Gruppen nach ihrem
+---besten Anteil. Rein nach Anteil sortiert sprang die Aktivitaet
+---zwischen zwei Zeilen hin und her, und dann steht ueber jeder zweiten
+---Zeile eine Ueberschrift - oder sie steht vierzehnmal daneben.
+---
+---Die eigene Spec faellt weg: ueber die steht schon die Zeile darueber.
 ---@param itemID number|nil
 ---@param alle boolean|nil  true = vollstaendig, sonst gekuerzt
----@return string[] zeilen
+---@return table[] zeilen  je { name, pct, mode }
 ---@return number uebrig  wie viele nicht genannt wurden
 function Tooltip.WornLines(itemID, alle)
     local liste = ns.Recommend.WornBy(itemID)
@@ -156,17 +174,179 @@ function Tooltip.WornLines(itemID, alle)
                 if classFile then
                     text = ("|cff%s%s|r"):format(ns.Compat.ClassColor(classFile), text)
                 end
-                fremde[#fremde + 1] = ("%s  %d %%  \194\183  %s")
-                    :format(text, row[2], ns.ModeLabel(row[3]) or row[3])
+                fremde[#fremde + 1] = {
+                    name = text, pct = row[2],
+                    mode = ns.ModeLabel(row[3]) or row[3],
+                }
             end
         end
     end
     if #fremde == 0 then return {}, 0 end
 
+    -- Nach Aktivitaet gruppieren, die Gruppen nach ihrem besten Anteil.
+    local besteDerGruppe, reihenfolge = {}, {}
+    for _, e in ipairs(fremde) do
+        if besteDerGruppe[e.mode] == nil then
+            besteDerGruppe[e.mode] = e.pct
+            reihenfolge[#reihenfolge + 1] = e.mode
+        elseif e.pct > besteDerGruppe[e.mode] then
+            besteDerGruppe[e.mode] = e.pct
+        end
+    end
+    table.sort(reihenfolge, function(a, b)
+        if besteDerGruppe[a] ~= besteDerGruppe[b] then
+            return besteDerGruppe[a] > besteDerGruppe[b]
+        end
+        -- Bei Gleichstand der Name: eine Reihenfolge, die sich zwischen
+        -- zwei Tooltips nicht dreht.
+        return a < b
+    end)
+    local rang = {}
+    for i, mode in ipairs(reihenfolge) do rang[mode] = i end
+    table.sort(fremde, function(a, b)
+        if a.mode ~= b.mode then return rang[a.mode] < rang[b.mode] end
+        if a.pct ~= b.pct then return a.pct > b.pct end
+        return a.name < b.name
+    end)
+
     local wieviele = alle and #fremde or math.min(#fremde, WORN_ZEILEN)
     local zeilen = {}
     for i = 1, wieviele do zeilen[i] = fremde[i] end
     return zeilen, #fremde - wieviele
+end
+
+-- --- Passen die Werte zu einer anderen Spec? -------------------------
+--
+-- Die Frage hinter jedem kriegsmeutegebundenen Drop: aufheben fuer einen
+-- Twink oder zerlegen? Sie ist eine ANDERE als "wer traegt das" - die
+-- beantwortet nur, was in M+ und Raid gemessen wurde, und ein Stueck aus
+-- einer Tiefe steht dort nie. Diese hier haengt allein am Gegenstand und
+-- an gemessenen Wertzielen und gilt deshalb fuer jedes Item, das der
+-- Client kennt.
+--
+-- WELCHE KLASSE WELCHE RUESTUNG TRAEGT.
+--
+-- Die einzige von Hand geschriebene Tabelle in dieser Kette, und das
+-- widerwillig: der Client beantwortet "darf Klasse X das anlegen" nur
+-- fuer den Charakter, auf dem man steht. Die Zuordnung ist seit zwanzig
+-- Jahren dieselbe, und die Pruefung haelt fest, dass jede Klasse genau
+-- einmal vorkommt - eine neue Klasse faellt damit sofort auf.
+local ARMOR = {
+    [1] = { MAGE = true, PRIEST = true, WARLOCK = true },
+    [2] = { ROGUE = true, DRUID = true, MONK = true, DEMONHUNTER = true },
+    [3] = { HUNTER = true, SHAMAN = true, EVOKER = true },
+    [4] = { WARRIOR = true, PALADIN = true, DEATHKNIGHT = true },
+}
+
+-- Hauptwerte, wie GetItemStats sie benennt.
+local PRIMARY = {
+    str = "ITEM_MOD_STRENGTH_SHORT",
+    agi = "ITEM_MOD_AGILITY_SHORT",
+    int = "ITEM_MOD_INTELLECT_SHORT",
+}
+
+-- Alle Speccs, einmal gesammelt. Ein Tooltip feuert bei jedem
+-- Ueberfahren einer Tasche; dreizehn Klassen dabei jedes Mal neu
+-- durchzufragen waere Arbeit fuer eine Antwort, die sich nie aendert.
+local alleSpecs
+local function specList()
+    if alleSpecs then return alleSpecs end
+    local out = {}
+    for _, klasse in ipairs(ns.Compat.Classes()) do
+        for _, spec in ipairs(ns.Compat.SpecsForClass(klasse.id)) do
+            out[#out + 1] = { id = spec.id, file = klasse.file }
+        end
+    end
+    if #out > 0 then alleSpecs = out end
+    return out
+end
+
+---Fuer welche Speccs passen die Zweitwerte dieses Stuecks?
+---
+---Gefiltert, bevor gerechnet wird: wer die Ruestungsart nicht traegt
+---oder einen anderen Hauptwert hat, steht gar nicht erst zur Debatte.
+---Ein Plattenteil mit Staerke taucht beim Schurken nicht auf.
+---
+---Sortiert nach der Summe der Raenge - das ist eine Reihenfolge und
+---keine Behauptung. "Krit #1, Meisterschaft #2" sagt, wo die Werte
+---dieses Stuecks in den GEMESSENEN Zielen jener Spec stehen; ob das
+---Stueck ein Upgrade ist, sagt es nicht. Dafuer muesste das Addon
+---wissen, was dort gerade getragen wird.
+---@param link string|nil
+---@param alle boolean|nil  true = vollstaendig, sonst gekuerzt
+---@return table[] zeilen  je { name, text }
+---@return number uebrig
+function Tooltip.StatFit(link, alle)
+    if not link then return {}, 0 end
+    local stats = ns.Compat.ItemStats(link)
+    if not stats then return {}, 0 end
+
+    -- Nur Ruestung. Welche Klasse welche WAFFE fuehren darf, steht bei
+    -- uns nirgends - und zu raten faengt genau dort an, wo dieses Addon
+    -- aufhoert.
+    local info = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
+    if type(info) ~= "function" then return {}, 0 end
+    local ok, _, _, _, _, _, classID, subClassID = pcall(info, link)
+    if not ok or classID ~= 4 then return {}, 0 end
+    local erlaubt = ARMOR[subClassID]
+
+    -- Traegt das Stueck einen Hauptwert, muss er zur Spec passen. Ringe,
+    -- Hals und Schmuck tragen keinen - dann faellt die Pruefung weg.
+    local hat
+    for key, mod in pairs(PRIMARY) do
+        if type(stats[mod]) == "number" and stats[mod] > 0 then hat = key end
+    end
+
+    local mode = ns.Profile.Mode()
+    local treffer = {}
+    for _, spec in ipairs(specList()) do
+        local passt = (not erlaubt) or erlaubt[spec.file]
+        if passt and hat and ns.Catalog.SpecStat(spec.id) ~= hat then passt = false end
+        if passt then
+            local ziele = ns.Recommend.Stats(spec.id, mode, ns.Recommend.ALL)
+            local reihe = ziele and ziele.priority
+            if reihe then
+                local rang, summe, teile = {}, 0, {}
+                for i, key in ipairs(reihe) do rang[key] = i end
+                local draussen = false
+                for _, key in ipairs(ns.SECONDARY) do
+                    local wert = stats[MOD[key]]
+                    if type(wert) == "number" and wert > 0 then
+                        -- Ein Wert ohne Rang ist einer, den diese Spec
+                        -- gar nicht misst: dann passt das Stueck nicht.
+                        if not rang[key] or rang[key] > WERT_TOP then
+                            draussen = true
+                        else
+                            summe = summe + rang[key]
+                            teile[#teile + 1] = L["STAT_" .. key] .. " #" .. rang[key]
+                        end
+                    end
+                end
+                if #teile > 0 and not draussen then
+                    local name = ns.Compat.SpecName(spec.id)
+                    local className = ns.Compat.ClassName(select(1, ns.Compat.ClassOfSpec(spec.id)))
+                    if name then
+                        local text = className and (name .. " " .. className) or name
+                        treffer[#treffer + 1] = {
+                            name = ("|cff%s%s|r"):format(ns.Compat.ClassColor(spec.file), text),
+                            text = table.concat(teile, "  \194\183  "),
+                            summe = summe, sortName = text,
+                        }
+                    end
+                end
+            end
+        end
+    end
+
+    table.sort(treffer, function(a, b)
+        if a.summe ~= b.summe then return a.summe < b.summe end
+        return a.sortName < b.sortName
+    end)
+
+    local wieviele = alle and #treffer or math.min(#treffer, WORN_ZEILEN)
+    local zeilen = {}
+    for i = 1, wieviele do zeilen[i] = treffer[i] end
+    return zeilen, #treffer - wieviele
 end
 
 -- --------------------------------------------------------------- Anhaengen
@@ -306,11 +486,59 @@ function Tooltip.Decorate(tip, link)
     local alle = IsShiftKeyDown and IsShiftKeyDown()
     local zeilen, uebrig = Tooltip.WornLines(itemID, alle)
     if #zeilen > 0 then
+        -- Steht alles Gezeigte in derselben Aktivitaet, gehoert sie in
+        -- die Ueberschrift. Bei zwei Zeilen ist das fast immer so, und
+        -- eine eigene Zeile fuer ein einziges Wort ist Verschwendung.
+        local eineGruppe = zeilen[1].mode
+        for _, zeile in ipairs(zeilen) do
+            if zeile.mode ~= eineGruppe then eineGruppe = nil end
+        end
         tip:AddLine("|cff" .. ns.Style:Hex("brand") .. "MetaCodex|r  "
-            .. L["TIP_WORN"], 1, 1, 1)
-        for _, zeile in ipairs(zeilen) do tip:AddLine("  " .. zeile, 1, 1, 1) end
+            .. L["TIP_WORN"]
+            .. (eineGruppe and ("  \194\183  " .. eineGruppe) or ""), 1, 1, 1)
+        -- Was die Zahlen darunter bedeuten - einmal, nicht je Zeile.
+        tip:AddLine("  " .. L["TIP_WORN_HINT"], 0.6, 0.6, 0.6)
+        -- Zwei Spalten: links die Spec, rechts ihr Anteil. Der Tooltip
+        -- richtet die rechte Spalte selbst aus, und erst dadurch stehen
+        -- vierzehn Zahlen untereinander statt hinter unterschiedlich
+        -- langen Namen.
+        local letzteGruppe
+        for _, zeile in ipairs(zeilen) do
+            if not eineGruppe and zeile.mode ~= letzteGruppe then
+                tip:AddLine("  " .. zeile.mode, 0.6, 0.6, 0.6)
+                letzteGruppe = zeile.mode
+            end
+            tip:AddDoubleLine("  " .. zeile.name, zeile.pct .. " %",
+                1, 1, 1, 1, 1, 1)
+        end
         if uebrig > 0 then
             tip:AddLine("  " .. L["TIP_WORN_MORE"]:format(uebrig), 0.6, 0.6, 0.6)
+        end
+    end
+
+    -- UND FUER WEN DIE WERTE TAUGEN.
+    --
+    -- Die Zeile darueber sagt, wer das Stueck in M+ und Raid wirklich
+    -- traegt; diese sagt, zu wessen gemessenen Wertzielen seine
+    -- Zweitwerte passen. Das ist der Unterschied zwischen "gesehen"
+    -- und "wuerde passen" - und nur die zweite Frage laesst sich bei
+    -- einem Stueck aus einer Tiefe ueberhaupt stellen.
+    -- NUR, WO DIE MESSUNG SCHWEIGT.
+    --
+    -- Steht oben schon, WER das Stueck traegt, ist das die bessere
+    -- Auskunft - sie beruht auf Kaempfen und nicht auf der Vermutung,
+    -- dass Werte passen koennten. Zwei Bloecke uebereinander waren im
+    -- Spiel schlicht zu viel.
+    local passend, passtUebrig = {}, 0
+    if #zeilen == 0 then passend, passtUebrig = Tooltip.StatFit(link, alle) end
+    if #passend > 0 then
+        tip:AddLine("|cff" .. ns.Style:Hex("brand") .. "MetaCodex|r  "
+            .. L["TIP_FIT"], 1, 1, 1)
+        for _, zeile in ipairs(passend) do
+            tip:AddDoubleLine("  " .. zeile.name, zeile.text, 1, 1, 1, 1, 1, 1)
+        end
+        if passtUebrig > 0 then
+            tip:AddLine("  " .. L["TIP_WORN_MORE"]:format(passtUebrig), 0.6, 0.6, 0.6)
         end
     end
     -- Wo das Item NICHT in der Liste steht, kommt auch keine Zeile

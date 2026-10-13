@@ -17,6 +17,8 @@ ns.RegisterLocale("enUS", {
     -- Kennwerte
     ["CARD_TARGET"] = "Most common build",
     ["TIP_WORN"]      = "also worn by",
+    ["TIP_FIT"]       = "stats fit",
+    ["TIP_WORN_HINT"] = "share of that spec's measured players",
     ["TIP_WORN_MORE"] = "and %d more - hold Shift",
     ["TIP_TOP"]     = "most worn in this slot (%d%%)",
     ["TIP_RANK"]    = "number %d of %d in this slot (%d%%)",
