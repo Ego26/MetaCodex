@@ -808,6 +808,24 @@ function mythicZones(expansions) {
   return out.sort((a, b) => b.id - a.id);
 }
 
+/**
+ * Wie viele Wertungen stehen auf Seite 1, in einem bestimmten
+ * Patch-Abschnitt oder - mit null - in der Vorgabe?
+ * @param {number} encID
+ * @param {number|null} partition
+ * @returns {Promise<number>}
+ */
+async function rankingsIn(encID, partition) {
+  const ab = partition != null;
+  const r = await gql(`
+    query ($e: Int!, $d: Int!${ab ? ', $p: Int!' : ''}) {
+      worldData { encounter(id: $e) {
+        characterRankings(difficulty: $d, metric: dps, page: 1${ab ? ', partition: $p' : ''})
+      } }
+    }`, ab ? { e: encID, d: DIFFICULTY, p: partition } : { e: encID, d: DIFFICULTY });
+  return ((r.worldData.encounter.characterRankings || {}).rankings || []).length;
+}
+
 // ------------------------------------------------------------------ Lauf
 
 (async () => {
@@ -849,7 +867,9 @@ function mythicZones(expansions) {
   const world = await gql(`
     query {
       worldData {
-        expansions { id name zones { id name frozen encounters { id name } } }
+        expansions { id name zones { id name frozen
+          partitions { id compactName default }
+          encounters { id name } } }
       }
     }`);
   const zones = KIND === 'mplus'
@@ -873,16 +893,36 @@ function mythicZones(expansions) {
     if (z) chosen.push(z);
   } else {
     for (const candidate of zones.slice(0, 6)) {
-      const probe = await gql(`
-        query ($e: Int!, $d: Int!) {
-          worldData { encounter(id: $e) {
-            characterRankings(difficulty: $d, metric: dps, page: 1)
-          } }
-        }`, { e: candidate.encounters[0].id, d: DIFFICULTY });
-      const found = ((probe.worldData.encounter.characterRankings || {}).rankings || []).length;
+      const encID = candidate.encounters[0].id;
+      let found = await rankingsIn(encID, null);
+      let partition = null;
+      // EIN FRISCHER PATCH-ABSCHNITT IST LEER.
+      //
+      // Am 13. Oktober hatte Zone 53 in der Vorgabe null Wertungen, im
+      // Abschnitt 12.1 hundert: Patch 12.1.5 hatte einen neuen
+      // geoeffnet, und Warcraft Logs nimmt den neuesten als Vorgabe.
+      // Dann gilt der juengste FRUEHERE Abschnitt mit Wertungen - und
+      // sobald sich der neue fuellt, gewinnt er wieder von selbst.
+      if (found === 0) {
+        const vorgabe = (candidate.partitions || []).find((p) => p.default);
+        const frueher = (candidate.partitions || [])
+          .filter((p) => !p.default && (!vorgabe || p.id < vorgabe.id))
+          .filter((p) => !/ptr|beta/i.test(p.compactName || ''))
+          .sort((a, b) => b.id - a.id);
+        for (const p of frueher) {
+          const n = await rankingsIn(encID, p.id);
+          await sleep(250);
+          if (n > 0) {
+            found = n;
+            partition = p.id;
+            console.log(`  Zone ${candidate.id}: aktueller Abschnitt leer, nehme ${p.compactName}`);
+            break;
+          }
+        }
+      }
       console.log(`  Zone ${candidate.id} ${candidate.name}: ${found} Wertungen`);
       if (found > 0) {
-        chosen.push(candidate);
+        chosen.push({ ...candidate, partition });
         if (KIND === 'mplus') break;
       }
       await sleep(250);
@@ -902,7 +942,10 @@ function mythicZones(expansions) {
   // sind die Vorgabe, denn vier von neun sind kein Raid.
   let encounters = [];
   for (const z of chosen) {
-    for (const enc of z.encounters) encounters.push({ ...enc, raid: chosen.length > 1 ? z.name : null });
+    for (const enc of z.encounters) {
+      encounters.push({ ...enc, raid: chosen.length > 1 ? z.name : null,
+        partition: z.partition == null ? null : z.partition });
+    }
   }
   const cap = Number(process.env.MC_ENCOUNTERS || 0);
   if (cap > 0) encounters = encounters.slice(0, cap);
@@ -930,13 +973,17 @@ function mythicZones(expansions) {
       const page = slice.page || 1;
       let data;
       try {
+        // Der Abschnitt nur, wo einer gewaehlt wurde: ein ausdrueckliches
+        // null ist bei GraphQL nicht dasselbe wie "nicht angegeben".
+        const ab = enc.partition != null;
         data = await gql(`
-          query ($encounter: Int!, $difficulty: Int!, $metric: CharacterRankingMetricType!, $page: Int!, $bracket: Int) {
+          query ($encounter: Int!, $difficulty: Int!, $metric: CharacterRankingMetricType!, $page: Int!, $bracket: Int${ab ? ', $partition: Int!' : ''}) {
             worldData { encounter(id: $encounter) {
-              characterRankings(difficulty: $difficulty, metric: $metric, page: $page, bracket: $bracket)
+              characterRankings(difficulty: $difficulty, metric: $metric, page: $page, bracket: $bracket${ab ? ', partition: $partition' : ''})
             } }
           }`, { encounter: enc.id, difficulty: DIFFICULTY, metric, page,
-            bracket: slice.bracket !== undefined ? slice.bracket : null });
+            bracket: slice.bracket !== undefined ? slice.bracket : null,
+            ...(ab ? { partition: enc.partition } : {}) });
       } catch (err) {
         console.log(`  ! ${enc.name}/${metric} ${slice.label}: ${err.message}`);
         continue;
@@ -1713,12 +1760,14 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
       for (const enc of encounters.slice(0, 4)) {
         let data;
         try {
+          const ab = enc.partition != null;
           data = await gql(`
-            query ($encounter: Int!, $difficulty: Int!, $metric: CharacterRankingMetricType!, $cls: String!, $spec: String!) {
+            query ($encounter: Int!, $difficulty: Int!, $metric: CharacterRankingMetricType!, $cls: String!, $spec: String!${ab ? ', $partition: Int!' : ''}) {
               worldData { encounter(id: $encounter) {
-                characterRankings(difficulty: $difficulty, metric: $metric, page: 1, className: $cls, specName: $spec)
+                characterRankings(difficulty: $difficulty, metric: $metric, page: 1, className: $cls, specName: $spec${ab ? ', partition: $partition' : ''})
               } }
-            }`, { encounter: enc.id, difficulty: DIFFICULTY, metric, cls: names.cls, spec: names.spec });
+            }`, { encounter: enc.id, difficulty: DIFFICULTY, metric, cls: names.cls, spec: names.spec,
+              ...(ab ? { partition: enc.partition } : {}) });
         } catch (err) {
           console.log(`  ! ${names.cls}/${names.spec}: ${err.message}`);
           break;
