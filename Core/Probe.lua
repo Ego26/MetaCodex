@@ -145,33 +145,40 @@ function Probe.Run()
             { "Meisterschaft", _G.CR_MASTERY or 26 },
             { "Vielseitigkeit", _G.CR_VERSATILITY_DAMAGE_DONE or 29 },
         }
-        local stufen = { 2000, 4000, 6000, 8000, 10000, 12000, 14000, 16000 }
+        -- In 50er-Schritten: grob gemessen lag der erste Knick vor dem
+        -- ersten Messpunkt (2.000 Wertung waren schon 41,8 % Krit).
+        local SCHRITT, BIS = 50, 12000
         for _, w in ipairs(werte) do
-            -- Jede Rechnung einzeln geschuetzt: eine geheime Zahl darf man
-            -- weder vergleichen noch rechnen, und der Fehler soll hier
-            -- landen und nicht im Fenster.
+            -- Jede Rechnung geschuetzt: eine geheime Zahl darf man weder
+            -- vergleichen noch rechnen, und der Fehler soll hier landen.
             local ok, ergebnis = pcall(function()
-                local teile, vorher, ersterSchritt, knick = {}, 0, nil, nil
-                local letzteWertung = 0
-                for _, wertung in ipairs(stufen) do
-                    local prozent = frage(w[2], wertung)
-                    local zahl = tonumber(prozent)
-                    if not zahl then return "keine Zahl (" .. type(prozent) .. ")" end
-                    teile[#teile + 1] = ("%d=%.1f"):format(wertung / 1000, zahl)
-                    local schritt = zahl - vorher
-                    if not ersterSchritt then
-                        ersterSchritt = schritt
-                    elseif not knick and schritt < ersterSchritt * 0.97 then
-                        -- Der erste Schritt, der spuerbar weniger bringt.
-                        knick = letzteWertung
+                local knicke = {}
+                local vorher = tonumber(frage(w[2], 0)) or 0
+                local ersterZuwachs, letzterZuwachs
+                for wertung = SCHRITT, BIS, SCHRITT do
+                    local zahl = tonumber(frage(w[2], wertung))
+                    if not zahl then return "keine Zahl" end
+                    local zuwachs = zahl - vorher
+                    if not ersterZuwachs then
+                        ersterZuwachs, letzterZuwachs = zuwachs, zuwachs
+                    elseif zuwachs < letzterZuwachs * 0.97 then
+                        -- Ein Knick: ab hier bringt ein Punkt spuerbar
+                        -- weniger. Genannt mit dem Anteil am vollen Wert.
+                        knicke[#knicke + 1] = ("%d (%.1f%%, %d%%)"):format(
+                            wertung - SCHRITT, vorher,
+                            math.floor(100 * zuwachs / ersterZuwachs + 0.5))
+                        letzterZuwachs = zuwachs
                     end
-                    vorher, letzteWertung = zahl, wertung
+                    vorher = zahl
                 end
-                return table.concat(teile, " ")
-                    .. (knick and ("  -> Abschlag ab ~" .. knick) or "  -> kein Knick bis 16000")
+                local proPunkt = ersterZuwachs / SCHRITT
+                return ("%.1f Wertung je 1%%"):format(1 / proPunkt) .. " | Knicke: "
+                    .. (#knicke > 0 and table.concat(knicke, "  ") or "keine")
+                    .. (" | Ende %.1f%%"):format(vorher)
             end)
-            line("  " .. w[1] .. " (Tsd.=%): " .. (ok and ergebnis or ("FEHLER " .. tostring(ergebnis))))
+            line("  " .. w[1] .. ": " .. (ok and ergebnis or ("FEHLER " .. tostring(ergebnis))))
         end
+        line("  (Knick: Wertung (Prozent dort, was ein Punkt danach noch bringt))")
     end
 
     -- WAS DER CLIENT UEBER SET-BONI SAGT.
