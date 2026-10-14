@@ -2353,7 +2353,23 @@ do
     ns.UI.PreviewRating(1500)
     mit = zeilen(500)
     check("Vorschau /mc dr zeigt den Abschlag", mit > 0, mit .. " mit")
+    -- Und darunter die Erklaerung, mit Grenze und Rechnung vom Client.
+    local function erklaerung()
+        local kopf, zeile = false, nil
+        for _, row in ipairs(wow.rows()) do
+            local t = row:IsShown() and row.title and row.title:GetText() or ""
+            if t == L["STAT_DR_WHAT"] then kopf = true end
+            if t:find(L["STAT_SHORT_crit"] .. ":", 1, true) == 1 then zeile = t end
+        end
+        return kopf, zeile
+    end
+    local kopf, zeile = erklaerung()
+    local soll = L["STAT_DR_LINE"]:format(L["STAT_SHORT_crit"], 1380, 90, 90)
+    check("Abschlag erklaert: was gemeint ist", kopf)
+    check("Abschlag erklaert: Grenze und Rechnung vom Client", zeile == soll, tostring(zeile))
     ns.UI.PreviewRating(nil)
+    kopf = erklaerung()
+    check("ohne Abschlag keine Erklaerung", not kopf)
     mit = zeilen(500)
     check("ohne Vorschau wieder die echten Werte", mit == 0, mit .. " mit")
     _G.GetCombatRatingBonusForCombatRatingValue, _G.GetCombatRating = altKurve, altWertung

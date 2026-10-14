@@ -583,7 +583,11 @@ ns.RegisterLocale("enUS", {
     ["STAT_HINT_N"] = "Median of %d measured players, one stat at a time — rating points, not the effect your character sheet shows.",
     ["STAT_SHARE"] = "%d%% of all secondary rating",
     ["STAT_YOURS"] = "you have %d of %d",
-    ["STAT_DR"] = " · diminishing returns: each point only %d%%",
+    ["STAT_DR"] = " · only %d%% per point from here",
+    ["STAT_DR_HEAD"] = "Diminishing returns",
+    ["STAT_DR_WHAT"] = "Past a certain amount, each further point of a stat is worth less.",
+    ["STAT_DR_LINE"] = "%s: from %d on, each point counts %d%% – 100 more act like %d.",
+    ["STAT_DR_REST"] = "Stats below their threshold still count in full. The same for every class.",
     ["STAT_GAP"] = "−%d",
     ["STAT_DONE"] = "reached",
 })

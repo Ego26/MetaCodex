@@ -552,7 +552,11 @@ ns.RegisterLocale("deDE", {
     ["STAT_HINT_N"] = "Median aus %d gemessenen Spielern, je Wert einzeln — Wertungspunkte, nicht die Wirkung im Charakterfenster.",
     ["STAT_SHARE"] = "%d%% der Wertungspunkte",
     ["STAT_YOURS"] = "du hast %d von %d",
-    ["STAT_DR"] = " · Abschlag: jeder Punkt nur noch %d%%",
+    ["STAT_DR"] = " · ab hier nur %d%% je Punkt",
+    ["STAT_DR_HEAD"] = "Abnehmender Ertrag",
+    ["STAT_DR_WHAT"] = "Ab einer bestimmten Menge bringt jeder weitere Punkt eines Werts weniger.",
+    ["STAT_DR_LINE"] = "%s: ab %d zählt jeder Punkt nur zu %d%% – 100 mehr wirken wie %d.",
+    ["STAT_DR_REST"] = "Werte unter ihrer Grenze zählen weiter voll. Für alle Klassen gleich.",
     ["STAT_GAP"] = "−%d",
     ["STAT_DONE"] = "erreicht",
 })

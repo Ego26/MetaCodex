@@ -2650,6 +2650,31 @@ local function statRows(specID, mode, source)
             players = stats.players,
         }
     end
+
+    -- DIE ERKLAERUNG DES ABSCHLAGS - NUR, WENN OBEN EINER STEHT.
+    --
+    -- "nur 90 % je Punkt" allein verstand nicht jeder (14. Oktober).
+    -- Darunter in Worten: was gemeint ist, ab welcher Wertung es
+    -- anfing, und was 100 Punkte mehr dort noch wert sind. Alles vom
+    -- Client; ohne Abschlag kein Wort davon.
+    local erklaert = {}
+    for _, row in ipairs(rows) do
+        local anteil = row.eff and math.floor(row.eff * 100 + 0.5)
+        local ab = anteil and anteil < 100 and ns.Compat.RatingKnee(row.statKey, row.mine)
+        local wert = ab and ns.Compat.RatingWorth(row.statKey, row.mine, 100)
+        if wert then
+            erklaert[#erklaert + 1] = {
+                kind = "note", group = L["STAT_DR_HEAD"],
+                text = L["STAT_DR_LINE"]:format(L["STAT_SHORT_" .. row.statKey], ab, anteil,
+                    math.floor(wert + 0.5)),
+            }
+        end
+    end
+    if #erklaert > 0 then
+        rows[#rows + 1] = { kind = "note", group = L["STAT_DR_HEAD"], text = L["STAT_DR_WHAT"] }
+        for _, row in ipairs(erklaert) do rows[#rows + 1] = row end
+        rows[#rows + 1] = { kind = "note", group = L["STAT_DR_HEAD"], text = L["STAT_DR_REST"] }
+    end
     return rows, from
 end
 

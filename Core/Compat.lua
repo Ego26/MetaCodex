@@ -502,6 +502,46 @@ function Compat.RatingEfficiency(key, rating)
     return nil
 end
 
+---Ab welcher Wertung der Abschlag gilt, in dem man gerade steht.
+---
+---Die kleinste Wertung, bei der ein Punkt so wenig bringt wie hier.
+---Gesucht durch Halbieren - der Anteil faellt nur, er steigt nie
+---wieder -, also gut ein Dutzend Fragen an den Client.
+---@param key string
+---@param rating number
+---@return number|nil
+function Compat.RatingKnee(key, rating)
+    local hier = Compat.RatingEfficiency(key, rating)
+    if not hier or hier >= 0.995 then return nil end
+    local unten, oben = 0, math.floor(rating)
+    while unten < oben do
+        local mitte = math.floor((unten + oben) / 2)
+        local dort = Compat.RatingEfficiency(key, mitte)
+        if not dort then return nil end
+        if dort <= hier + 0.001 then oben = mitte else unten = mitte + 1 end
+    end
+    return oben
+end
+
+---Wie viele volle Punkte "plus" weitere Punkte ab dieser Wertung wert sind.
+---
+---In Punkten und nicht in Prozent: bei Meisterschaft waere der Prozentwert
+---der vor dem Faktor der Spezialisierung und passte nicht zum
+---Charakterfenster. "100 mehr wirken wie 90" stimmt fuer alle.
+---@return number|nil
+function Compat.RatingWorth(key, rating, plus)
+    local index = RATING_INDEX[key]
+    local frage = _G.GetCombatRatingBonusForCombatRatingValue
+    if not index or type(frage) ~= "function" then return nil end
+    local ok, wert = pcall(function()
+        local voll = tonumber(frage(index, 1)) - tonumber(frage(index, 0))
+        if voll <= 0 then return nil end
+        return (tonumber(frage(index, rating + plus)) - tonumber(frage(index, rating))) / voll
+    end)
+    if ok and type(wert) == "number" then return wert end
+    return nil
+end
+
 ---Begegnung und Instanz als Text, in der Sprache des Clients.
 ---
 ---Das Abenteuerjournal braucht keinen geladenen Zustand fuer diese beiden
