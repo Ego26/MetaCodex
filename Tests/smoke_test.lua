@@ -7147,9 +7147,20 @@ do
     -- ob man das Stueck noch verschicken kann.
     do
         ITEM_SOULBOUND = "Seelengebunden"
+        -- Ein Stueck, das auch eine FREMDE Spec traegt. Die eigene wird
+        -- im Block ausgeblendet; ein Stueck, das nur sie traegt, ergibt
+        -- zu Recht keine Zeile. Die erste Fassung nahm irgendeines - und
+        -- fiel mit den Daten vom 13. Oktober genau darauf herein.
+        local eigene = ns.Compat.CurrentSpec() or ns.Profile.SelectedSpec()
         local getragenes
-        for itemID in pairs((MetaCodex_Recommendations or {}).wornBy or {}) do
-            getragenes = getragenes or itemID
+        for itemID, liste in pairs((MetaCodex_Recommendations or {}).wornBy or {}) do
+            if not getragenes then
+                for _, row in ipairs(liste) do
+                    if row[1] ~= eigene and ns.Compat.SpecName(row[1]) then
+                        getragenes = itemID
+                    end
+                end
+            end
         end
         if getragenes then
             local zeilen = { "Irgendein Stueck", "Seelengebunden", "+112 Krit" }
