@@ -4,6 +4,42 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ## [Unveröffentlicht]
 
+## [1.1.16] - 2026-10-14
+
+### Neu
+
+- **Abnehmender Ertrag bei den Zielwerten.** Ab einer bestimmten Menge
+  Wertung bringt jeder weitere Punkt eines Werts weniger: bis 30 % voll,
+  danach 90 %, ab 39 % 80 % und so weiter. Liegt deine eigene Wertung
+  hinter so einer Grenze, wird der Teil der Bahn dahinter rot, ein
+  Strich markiert die Grenze, und rechts steht „über Grenze". Unter den
+  Bahnen erklärt eine Karte es in einer kleinen Tabelle: der Wert, ab
+  wo der Abschlag gilt, was ein Punkt noch bringt und was 100 Punkte
+  mehr dort wert sind.
+- Die Zahlen kommen vom Spiel selbst, live gefragt – nichts ist fest
+  eingetragen, die Anzeige stimmt also auch, wenn Blizzard die Grenzen
+  verschiebt. Nachgemessen auf Vergeltungs-Paladin und
+  Elementar-Schamane: dieselbe Kurve für alle Klassen und Speccs. In
+  Punkten statt Prozent, weil ein Prozentwert bei Meisterschaft der
+  Wert vor dem Faktor der Spezialisierung wäre und nicht zum
+  Charakterfenster passte.
+- Zu sehen erst, wenn es zutrifft. Die gemessenen Zielwerte liegen
+  fast alle vor der ersten Grenze, die meisten sehen es also nie – eine
+  Warnung, die nie zutrifft, liest bald niemand mehr.
+- **„Auch getragen von" lässt sich einzeln abschalten**, ohne die
+  Rangnummern an den Werten zu verlieren. Gewünscht auf CurseForge.
+- **Einstellungen → Funktionen**: alle An/Aus-Schalter an einer Stelle –
+  Minimap-Knopf, Knopf im Charakterfenster, Tooltip, andere Speccs im
+  Tooltip, Erinnerung, Erinnerung beim Betreten, Einkaufsliste am
+  Auktionshaus, Talentknopf. Vorher verteilten sie sich auf zwei
+  Reiter, und man musste wissen, wo welcher wohnt. Was eine Funktion
+  fein einstellt (Mengen, Schwellen), bleibt neben ihr.
+
+### Geändert
+
+- `/mc probe` misst alle Grenzen des abnehmenden Ertrags auf dem
+  Charakter, auf dem es läuft.
+
 ## [1.1.15] - 2026-10-14
 
 ### Neu

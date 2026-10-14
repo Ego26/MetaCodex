@@ -1,3 +1,16 @@
+## v1.1.16 — where a stat stops paying
+
+### Added
+
+- **Diminishing returns at the stat targets.** Once your own rating is
+  past a threshold, the bar turns red beyond it and a card below
+  explains what each further point still brings — straight from the
+  game, the same for every class. Most players will never see it: the
+  measured targets sit below the first threshold.
+- **"Also worn by" can be switched off on its own**, keeping the rank
+  numbers next to the stats.
+- **Settings → Features**: every on/off switch in one place.
+
 ## v1.1.15 — who else this is for
 
 ### Added

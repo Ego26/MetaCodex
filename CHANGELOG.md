@@ -4,6 +4,41 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ## [Unreleased]
 
+## [1.1.16] - 2026-10-14
+
+### Added
+
+- **Diminishing returns at the stat targets.** Past a certain amount
+  of rating, every further point of a stat brings less: full value up
+  to 30 %, then 90 %, from 39 % on 80 %, and so on. When your own
+  rating is past such a threshold, the part of the bar beyond it turns
+  red, a tick marks the threshold, and the right column says "past
+  threshold". Below the bars, one card explains it in a small table:
+  the stat, where the penalty starts, what each point still brings, and
+  what 100 more points are worth there.
+- The numbers come from the game itself, asked live - nothing is
+  hard-coded, so the display stays right if Blizzard moves the
+  thresholds. Measured on a Retribution Paladin and an Elemental
+  Shaman: the same curve for every class and spec. In points rather
+  than percent, because for mastery a percentage would be the value
+  before the spec's own factor and not match the character sheet.
+- It stays out of sight until it applies. The measured stat targets
+  sit almost entirely below the first threshold, so most players will
+  never see it - a warning that never applies would soon be ignored.
+- **"Also worn by" can be switched off on its own**, without losing the
+  rank numbers next to the stats. Asked for on CurseForge.
+- **Settings → Features**: every on/off switch in one place - minimap
+  button, character-frame button, tooltip, other specs in the tooltip,
+  reminder, reminder on entering, shopping list at the auction house,
+  talent button. Before, they were spread over two tabs, and you had to
+  know where each one lived. What a feature fine-tunes (amounts,
+  thresholds) stays next to it.
+
+### Changed
+
+- `/mc probe` measures every diminishing-returns threshold of the
+  character it runs on.
+
 ## [1.1.15] - 2026-10-14
 
 ### Added
