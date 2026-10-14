@@ -2348,11 +2348,7 @@ do
     mit, ohne = zeilen(1500)
     check("Abschlag: hinter dem Knick steht er da", mit > 0, mit .. " mit, " .. ohne .. " ohne")
 
-    -- Die Vorschau: echte Wertung 500, gedacht 1500 - der Hinweis
-    -- folgt der gedachten, und ohne Zahl ist sie wieder weg.
-    ns.UI.PreviewRating(1500)
-    mit = zeilen(500)
-    check("Vorschau /mc dr zeigt den Abschlag", mit > 0, mit .. " mit")
+    zeilen(1500)
     -- Und darunter die Karte, mit Grenze und Rechnung vom Client.
     local function karte()
         for _, row in ipairs(wow.rows()) do
@@ -2379,15 +2375,13 @@ do
     end
     check("Abschlag: die Bahn wird ab der Grenze rot", rot == 4, rot .. " rot")
     check("Abschlag: rechts steht ueber Grenze", ueber == 4, ueber .. " Zeilen")
-    ns.UI.PreviewRating(nil)
+    zeilen(500)
     check("ohne Abschlag keine Karte", karte() == nil)
     rot = 0
     for _, row in ipairs(wow.rows()) do
         if row:IsShown() and row.barOver and row.barOver:IsShown() then rot = rot + 1 end
     end
     check("ohne Abschlag keine rote Bahn", rot == 0, rot .. " rot")
-    mit = zeilen(500)
-    check("ohne Vorschau wieder die echten Werte", mit == 0, mit .. " mit")
     _G.GetCombatRatingBonusForCombatRatingValue, _G.GetCombatRating = altKurve, altWertung
     ns.UI.Refresh()
 end

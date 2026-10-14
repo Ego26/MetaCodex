@@ -22,14 +22,6 @@ local handlers = {
     talents = function() ns.UI.TalentAPIs() end,
     -- Warum unter dem Stueck unter der Maus nichts steht.
     fit = function() ns.Tooltip.Why() end,
-    -- Die Zielwerte mit einer gedachten eigenen Wertung, um den
-    -- Abschlag-Hinweis zu sehen. "/mc dr 1500" an, "/mc dr" aus.
-    dr = function(argument)
-        local wertung = tonumber(argument)
-        ns.UI.PreviewRating(wertung)
-        ns.Print(wertung and ("Vorschau: jede eigene Wertung als %d. /mc dr beendet sie."):format(wertung)
-            or "Vorschau beendet - wieder die echten Werte.")
-    end,
     help = help,
     reset = function()
         ns.Profile.Reset()
