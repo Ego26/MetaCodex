@@ -2644,6 +2644,8 @@ local function statRows(specID, mode, source)
             -- Was ein weiterer Punkt dort noch bringt. Unter 1 nur
             -- hinter einem Knick der Diminishing Returns.
             eff = mine and ns.Compat.RatingEfficiency(key, mine) or nil,
+            -- Bis wohin die eigene Bahn gruen bleibt.
+            knee = mine and ns.Compat.RatingFirstKnee(key) or nil,
             -- Der Massstab ist fuer alle Zeilen derselbe, sonst
             -- vergleichen die Balken nichts miteinander.
             scale = widest,
@@ -2657,24 +2659,21 @@ local function statRows(specID, mode, source)
     -- Darunter in Worten: was gemeint ist, ab welcher Wertung es
     -- anfing, und was 100 Punkte mehr dort noch wert sind. Alles vom
     -- Client; ohne Abschlag kein Wort davon.
-    local erklaert = {}
+    --
+    -- Erst standen hier fuenf graue Notizzeilen; eine Karte mit
+    -- Tabelle liest sich auf einen Blick (gleicher Tag, im Spiel
+    -- angesehen).
+    local zeilen = {}
     for _, row in ipairs(rows) do
         local anteil = row.eff and math.floor(row.eff * 100 + 0.5)
         local ab = anteil and anteil < 100 and ns.Compat.RatingKnee(row.statKey, row.mine)
         local wert = ab and ns.Compat.RatingWorth(row.statKey, row.mine, 100)
         if wert then
-            erklaert[#erklaert + 1] = {
-                kind = "note", group = L["STAT_DR_HEAD"],
-                text = L["STAT_DR_LINE"]:format(L["STAT_SHORT_" .. row.statKey], ab, anteil,
-                    math.floor(wert + 0.5)),
-            }
+            zeilen[#zeilen + 1] = { key = row.statKey, from = ab, pct = anteil,
+                worth = math.floor(wert + 0.5) }
         end
     end
-    if #erklaert > 0 then
-        rows[#rows + 1] = { kind = "note", group = L["STAT_DR_HEAD"], text = L["STAT_DR_WHAT"] }
-        for _, row in ipairs(erklaert) do rows[#rows + 1] = row end
-        rows[#rows + 1] = { kind = "note", group = L["STAT_DR_HEAD"], text = L["STAT_DR_REST"] }
-    end
+    if #zeilen > 0 then rows[#rows + 1] = { kind = "drcard", lines = zeilen } end
     return rows, from
 end
 
@@ -2805,6 +2804,127 @@ local function buildCard(row)
     f.body:SetJustifyH("LEFT")
     f.body:SetWordWrap(true)
     cardOf[row] = f
+    return f
+end
+
+-- DIE KARTE "ABNEHMENDER ERTRAG".
+--
+-- Eine Flaeche mit rotem Streifen links, Titel, ein Satz, eine
+-- kleine Tabelle und ein Fuss. Je Zeile gebaut, wenn sie gebraucht
+-- wird, und wie alle Karten in resetRow versteckt.
+local drCard = { of = setmetatable({}, { __mode = "k" }), MAX = 4 }
+
+function drCard.build(row)
+    if drCard.of[row] then return drCard.of[row] end
+    local f = CreateFrame("Frame", nil, row)
+    S:Fill(f, "bgRaised")
+    S:Border(f, "borderSubtle")
+    f.stripe = f:CreateTexture(nil, "ARTWORK")
+    f.stripe:SetTexture("Interface\\Buttons\\WHITE8X8")
+    f.stripe:SetVertexColor(S:Color("danger"))
+    f.stripe:SetPoint("TOPLEFT")
+    f.stripe:SetPoint("BOTTOMLEFT")
+    f.stripe:SetWidth(S:Pixel(3))
+    f.icon = f:CreateTexture(nil, "ARTWORK")
+    f.icon:SetTexture("Interface\\DialogFrame\\UI-Dialog-Icon-AlertNew")
+    f.icon:SetSize(20, 20)
+    f.title = S:Text(f, "title", "textPrimary")
+    f.sub = S:Text(f, "caption", "textSecondary")
+    f.sub:SetWordWrap(true)
+    f.rule = f:CreateTexture(nil, "ARTWORK")
+    f.rule:SetTexture("Interface\\Buttons\\WHITE8X8")
+    f.rule:SetVertexColor(S:Color("borderSubtle"))
+    f.rule:SetHeight(S:Pixel(1))
+    f.head, f.cells = {}, {}
+    for c = 1, 4 do f.head[c] = S:Text(f, "caption", "textMuted") end
+    for i = 1, drCard.MAX do
+        local zeile = {
+            name = S:Text(f, "body", "textPrimary"),
+            from = S:Text(f, "body", "textSecondary"),
+            pct = S:Text(f, "body", "danger"),
+            worth = S:Text(f, "body", "textPrimary"),
+        }
+        -- Der Anteil auf einer zarten roten Pille, die mit dem Text
+        -- waechst.
+        zeile.pill = f:CreateTexture(nil, "BORDER")
+        zeile.pill:SetTexture("Interface\\Buttons\\WHITE8X8")
+        zeile.pill:SetVertexColor(S:Color("danger", 0.16))
+        zeile.pill:SetPoint("TOPLEFT", zeile.pct, "TOPLEFT", -6, 3)
+        zeile.pill:SetPoint("BOTTOMRIGHT", zeile.pct, "BOTTOMRIGHT", 6, -3)
+        f.cells[i] = zeile
+    end
+    f.foot = S:Text(f, "caption", "textMuted")
+    f.foot:SetWordWrap(true)
+    drCard.of[row] = f
+    return f
+end
+
+---Wie hoch die Karte fuer so viele Zeilen ist, ohne Schriftfaktor.
+function drCard.height(n)
+    return 104 + math.min(n, drCard.MAX) * 24 + 30
+end
+
+function drCard.fill(row, lines)
+    local f = drCard.build(row)
+    local fs = S.fontScale or 1
+    local PAD = S.space.lg
+    local w = math.max(200, contentWidth() - S.space.sm * 2)
+    local innen = w - PAD * 2
+    f:ClearAllPoints()
+    f:SetPoint("TOPLEFT", S.space.sm, -S.space.sm)
+    f:SetPoint("BOTTOMRIGHT", -S.space.sm, S.space.sm)
+
+    f.icon:ClearAllPoints()
+    f.icon:SetPoint("TOPLEFT", PAD, -14 * fs)
+    f.title:ClearAllPoints()
+    f.title:SetPoint("LEFT", f.icon, "RIGHT", 8, 0)
+    f.title:SetText(L["STAT_DR_HEAD"])
+    f.sub:ClearAllPoints()
+    f.sub:SetPoint("TOPLEFT", PAD, -42 * fs)
+    f.sub:SetWidth(innen)
+    f.sub:SetText(L["STAT_DR_WHAT"])
+
+    -- Die Spalten: Wert, Grenze, je Punkt, 100 mehr.
+    local spalte = { 0, 0.34, 0.56, 0.76 }
+    local kopf = { L["STAT_DR_COL_STAT"], L["STAT_DR_COL_FROM"],
+        L["STAT_DR_COL_PCT"], L["STAT_DR_COL_WORTH"] }
+    for c = 1, 4 do
+        f.head[c]:ClearAllPoints()
+        f.head[c]:SetPoint("TOPLEFT", PAD + innen * spalte[c], -72 * fs)
+        f.head[c]:SetText(drCard.upper(kopf[c]))
+    end
+    f.rule:ClearAllPoints()
+    f.rule:SetPoint("TOPLEFT", PAD, -88 * fs)
+    f.rule:SetWidth(innen)
+
+    local n = math.min(#lines, drCard.MAX)
+    for i = 1, drCard.MAX do
+        local zeile, d = f.cells[i], lines[i]
+        local y = -(96 + (i - 1) * 24) * fs
+        local felder = {
+            zeile.name, zeile.from, zeile.pct, zeile.worth,
+        }
+        for c, text in ipairs(felder) do
+            text:ClearAllPoints()
+            text:SetPoint("TOPLEFT", PAD + innen * spalte[c] + (c == 3 and 6 or 0), y)
+            text:SetShown(i <= n)
+        end
+        zeile.pill:SetShown(i <= n)
+        if d and i <= n then
+            zeile.name:SetText(L["STAT_SHORT_" .. d.key])
+            zeile.from:SetText(L["STAT_DR_FROM"]:format(d.from))
+            zeile.pct:SetText(("%d%%"):format(d.pct))
+            zeile.worth:SetText(L["STAT_DR_WORTH"]:format(d.worth))
+        end
+    end
+    f.foot:ClearAllPoints()
+    f.foot:SetPoint("TOPLEFT", PAD, -(96 + n * 24 + 10) * fs)
+    f.foot:SetWidth(innen)
+    f.foot:SetText(L["STAT_DR_FOOT"])
+    f:Show()
+    -- Fuer die Pruefung: die Attrappe gibt auf jedes unbekannte Feld
+    -- ein Kind zurueck, darum ein eigener, gesetzter Name.
+    row.__drCard = f
     return f
 end
 
@@ -2976,6 +3096,20 @@ local function acquireRow(index)
     row.barMine:SetHeight(S:Pixel(14))
     row.barMine:SetPoint("TOPLEFT", BAR_X, -S.space.sm - 6)
     row.barMine:Hide()
+
+    -- Was hinter der ersten Grenze liegt, rot ueber dem eigenen
+    -- Stand - dort bringt jeder Punkt weniger.
+    row.barOver = row:CreateTexture(nil, "OVERLAY", nil, 2)
+    row.barOver:SetTexture("Interface\\Buttons\\WHITE8X8")
+    row.barOver:SetVertexColor(S:Color("danger"))
+    row.barOver:SetHeight(S:Pixel(14))
+    row.barOver:Hide()
+    -- Und die Grenze selbst als Strich, etwas hoeher als die Bahn.
+    row.barKnee = row:CreateTexture(nil, "OVERLAY", nil, 3)
+    row.barKnee:SetTexture("Interface\\Buttons\\WHITE8X8")
+    row.barKnee:SetVertexColor(S:Color("textPrimary", 0.9))
+    row.barKnee:SetSize(S:Pixel(2), S:Pixel(20))
+    row.barKnee:Hide()
 
     -- Der eigene Wert als Zahl, unter der Bahn.
     row.own = S:Text(row, "caption", "textSecondary")
@@ -3257,6 +3391,7 @@ local function resetRow(row)
     -- das Verstecken im Zeichner, und der kehrt fuer Kennwerte, Notizen
     -- und Runenschmieden vorher um.
     if cardOf[row] then cardOf[row]:Hide() end
+    if drCard.of[row] then drCard.of[row]:Hide() end
     -- Dasselbe fuer die Kaestchen des Rasters: sonst steht das
     -- Fundort-Raster quer ueber der Ausruestung, sobald man den
     -- Abschnitt wechselt.
@@ -3314,6 +3449,8 @@ local function resetRow(row)
     row.barTrack:Hide()
     row.barTarget:Hide()
     row.barMine:Hide()
+    row.barOver:Hide()
+    row.barKnee:Hide()
     row.own:Hide()
     row.onClick = nil
 end
@@ -3341,6 +3478,8 @@ local UPPER = {
 local function upperText(text)
     return (tostring(text or ""):gsub("\195[\164\182\188\159]", UPPER)):upper()
 end
+-- Die Karte steht weiter oben als diese Funktion und holt sie sich hier.
+drCard.upper = upperText
 
 local function setHeaderRow(row, text)
     resetRow(row)
@@ -3799,7 +3938,20 @@ local function setItemRow(row, data)
             local text = L["STAT_YOURS"]:format(data.mine, data.rating or 0)
             local anteil = data.eff and math.floor(data.eff * 100 + 0.5)
             if anteil and anteil < 100 then
-                text = text .. L["STAT_DR"]:format(anteil)
+                text = text .. "  \194\183  |cff" .. S:Hex("danger")
+                    .. L["STAT_DR"]:format(anteil) .. "|r"
+                -- Ab der Grenze rot, mit Strich: man sieht, wie viel
+                -- der eigenen Wertung schon weniger bringt.
+                if data.knee and data.knee < data.mine then
+                    local x = BAR_WIDTH * data.knee / scale
+                    row.barOver:ClearAllPoints()
+                    row.barOver:SetPoint("TOPLEFT", BAR_X + x, -S.space.sm - 6)
+                    row.barOver:SetWidth(math.max(1, BAR_WIDTH * (data.mine - data.knee) / scale))
+                    row.barOver:Show()
+                    row.barKnee:ClearAllPoints()
+                    row.barKnee:SetPoint("TOPLEFT", BAR_X + x - 1, -S.space.sm - 3)
+                    row.barKnee:Show()
+                end
             end
             row.own:SetText(text)
             row.own:Show()
@@ -3816,7 +3968,13 @@ local function setItemRow(row, data)
         -- Rechts steht, was zaehlt: was fehlt. Dort stand der Rang, und
         -- der ist die kleinere Auskunft - die Rangfolge liest man an der
         -- Reihenfolge ab.
-        if data.mine and data.rating then
+        local gebremst = data.eff and math.floor(data.eff * 100 + 0.5) < 100
+        if data.mine and data.rating and gebremst then
+            -- Ueber der Grenze: das ist die wichtigere Auskunft als
+            -- "erreicht", und sie steht in derselben Farbe wie die Bahn.
+            row.share:SetText(L["STAT_OVER"])
+            S:Recolor(row.share, "danger")
+        elseif data.mine and data.rating then
             row.share:SetText(reached and L["STAT_DONE"]
                 or L["STAT_GAP"]:format(data.rating - data.mine))
             S:Recolor(row.share, reached and "success" or "warning")
@@ -3987,6 +4145,16 @@ local function setItemRow(row, data)
         row.detail:SetText("")
         row.share:SetText("")
         row.onClick = nil
+        return
+    end
+
+    if data.kind == "drcard" then
+        row.bg:SetAlpha(0)
+        row.icon:SetTexture(nil)
+        row.title:SetText("")
+        row.detail:SetText("")
+        row.share:SetText("")
+        drCard.fill(row, data.lines or {})
         return
     end
 
@@ -5955,6 +6123,10 @@ function UI.Refresh()
             place(row, MASS.SUB_ROW_HEIGHT * (S.fontScale or 1))
         elseif data.kind == "buildcard" then
             place(row, (MASS.CARD_HEIGHT + 16) * (S.fontScale or 1))
+        elseif data.kind == "drcard" then
+            -- Luft darueber, damit die Karte nicht an der letzten
+            -- Bahn klebt.
+            place(row, (drCard.height(#(data.lines or {})) + 24) * (S.fontScale or 1))
         elseif data.kind == "droprow" then
             place(row, (MASS.DROP_ROW_HEIGHT
                 + ((data.dropLines or 1) - 1) * (MASS.DROP_CELL_H + 2)) * (S.fontScale or 1))

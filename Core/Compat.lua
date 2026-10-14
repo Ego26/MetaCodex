@@ -502,6 +502,37 @@ function Compat.RatingEfficiency(key, rating)
     return nil
 end
 
+-- Die erste Grenze je Wert und Stufe. Sie aendert sich nur mit dem
+-- Level, und jede Suche sind gut ein Dutzend Fragen an den Client.
+local ersteGrenze = {}
+
+---Ab welcher Wertung ueberhaupt ein Abschlag gilt - die erste Grenze.
+---
+---Fuer die Bahn: bis hierhin gruen, dahinter rot. Gesucht wie
+---RatingKnee durch Halbieren, nur von oben: die kleinste Wertung, bei
+---der ein Punkt weniger als voll bringt.
+---@param key string
+---@return number|nil
+function Compat.RatingFirstKnee(key)
+    local stufe = type(UnitLevel) == "function" and tonumber(UnitLevel("player")) or 0
+    local merk = key .. ":" .. tostring(stufe)
+    if ersteGrenze[merk] ~= nil then return ersteGrenze[merk] or nil end
+    local OBEN = 20000
+    local dort = Compat.RatingEfficiency(key, OBEN)
+    -- Ohne Antwort nichts merken: beim naechsten Mal kann sie kommen.
+    if not dort then return nil end
+    if dort >= 0.995 then ersteGrenze[merk] = false return nil end
+    local unten, oben = 0, OBEN
+    while unten < oben do
+        local mitte = math.floor((unten + oben) / 2)
+        local hier = Compat.RatingEfficiency(key, mitte)
+        if not hier then return nil end
+        if hier < 0.995 then oben = mitte else unten = mitte + 1 end
+    end
+    ersteGrenze[merk] = oben
+    return oben
+end
+
 ---Ab welcher Wertung der Abschlag gilt, in dem man gerade steht.
 ---
 ---Die kleinste Wertung, bei der ein Punkt so wenig bringt wie hier.

@@ -2353,23 +2353,39 @@ do
     ns.UI.PreviewRating(1500)
     mit = zeilen(500)
     check("Vorschau /mc dr zeigt den Abschlag", mit > 0, mit .. " mit")
-    -- Und darunter die Erklaerung, mit Grenze und Rechnung vom Client.
-    local function erklaerung()
-        local kopf, zeile = false, nil
+    -- Und darunter die Karte, mit Grenze und Rechnung vom Client.
+    local function karte()
         for _, row in ipairs(wow.rows()) do
-            local t = row:IsShown() and row.title and row.title:GetText() or ""
-            if t == L["STAT_DR_WHAT"] then kopf = true end
-            if t:find(L["STAT_SHORT_crit"] .. ":", 1, true) == 1 then zeile = t end
+            local f = row:IsShown() and rawget(row, "__drCard")
+            if f and f:IsShown() then return f end
         end
-        return kopf, zeile
     end
-    local kopf, zeile = erklaerung()
-    local soll = L["STAT_DR_LINE"]:format(L["STAT_SHORT_crit"], 1380, 90, 90)
-    check("Abschlag erklaert: was gemeint ist", kopf)
-    check("Abschlag erklaert: Grenze und Rechnung vom Client", zeile == soll, tostring(zeile))
+    local f = karte()
+    check("Abschlag erklaert: eine Karte", f ~= nil)
+    if f then
+        local krit
+        for _, z in ipairs(f.cells) do
+            if z.name:IsShown() and z.name:GetText() == L["STAT_SHORT_crit"] then krit = z end
+        end
+        local ist = krit and table.concat({ krit.from:GetText(), krit.pct:GetText(), krit.worth:GetText() }, " | ")
+        local soll = table.concat({ L["STAT_DR_FROM"]:format(1380), "90%", L["STAT_DR_WORTH"]:format(90) }, " | ")
+        check("Abschlag erklaert: Grenze und Rechnung vom Client", ist == soll, tostring(ist))
+    end
+    -- Die Bahn: ab der Grenze rot, und rechts steht es.
+    local rot, ueber = 0, 0
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() and row.barOver and row.barOver:IsShown() then rot = rot + 1 end
+        if row:IsShown() and row.share and row.share:GetText() == L["STAT_OVER"] then ueber = ueber + 1 end
+    end
+    check("Abschlag: die Bahn wird ab der Grenze rot", rot == 4, rot .. " rot")
+    check("Abschlag: rechts steht ueber Grenze", ueber == 4, ueber .. " Zeilen")
     ns.UI.PreviewRating(nil)
-    kopf = erklaerung()
-    check("ohne Abschlag keine Erklaerung", not kopf)
+    check("ohne Abschlag keine Karte", karte() == nil)
+    rot = 0
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() and row.barOver and row.barOver:IsShown() then rot = rot + 1 end
+    end
+    check("ohne Abschlag keine rote Bahn", rot == 0, rot .. " rot")
     mit = zeilen(500)
     check("ohne Vorschau wieder die echten Werte", mit == 0, mit .. " mit")
     _G.GetCombatRatingBonusForCombatRatingValue, _G.GetCombatRating = altKurve, altWertung
