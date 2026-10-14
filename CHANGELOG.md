@@ -4,6 +4,59 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ## [Unreleased]
 
+## [1.1.15] - 2026-10-14
+
+### Added
+
+- **"Also worn by" under an item.** Which other specs wear this piece,
+  with their share and the activity it was measured in - the question
+  behind every warbound drop: is this good for one of my other
+  characters? Two lines by default, everything while Shift is held, and
+  Shift works at once, not only on the next hover. The activity stands
+  once as a heading instead of in every line, and one grey line says
+  what the numbers are: the share of that spec's measured players.
+- Only what was measured, and only where the measurement says how many
+  players it rests on. Behind "50 %" at 2v2 there were two players -
+  one of them wore the piece - so sources without a known sample of at
+  least fifteen contribute nothing, and under twenty percent it is not
+  "worn by". PvP is not in, for exactly that reason. raider.io and
+  Battle.net now report their sample; before, only Warcraft Logs did.
+- **"Stats fit"** for pieces no measurement covers - a drop from a
+  delve, a world drop. It names the specs whose two highest measured
+  secondary stats are exactly the ones on the piece. Armour type and
+  main stat decide who could wear it at all; weapon types come from
+  the measurement (whoever carries a mace in the data can wield one).
+  It stays silent where the answer would be a guess: trinkets are their
+  effect, not their stats, and nobody here measures effects.
+- It appears only where the piece can still reach another character:
+  warbound, bind on equip, unbound - and loot from M+ and raids during
+  its two-hour trade window. The measured block above stays regardless;
+  it says whether you yourself are right.
+- **/mc fit** - with the mouse over an item, it prints step by step
+  why something does or does not stand under it.
+
+### Fixed
+
+- **The talent preview counted nodes, not ranks.** A full tree showed
+  "5 green added, 0 red removed": the five new talents were paid for
+  with second ranks the build does not take, and those were invisible.
+  A rank that falls away is now a loss like any other.
+- **Upgradeable warbound pieces carry several main stats** - strength
+  AND intellect until equipped - and the game reports only the one
+  that fits the character standing in front of it. The greyed-out one
+  in the tooltip counts now, so a breastplate is no longer taken for
+  spellware.
+- **Cloaks** carry the subclass "cloth" and would have gone to three
+  caster classes. Everybody wears a cloak.
+- **The data run lost two more nights.** wago.tools answered HTTP 503
+  for a minute; the catalog had its own patience of exactly one
+  minute instead of the shared four and a half, raider.io died on the
+  file the catalog could no longer write, and the publish step stopped
+  at that missing side file. Then patch 12.1.5 opened a new ranking
+  partition at Warcraft Logs, which is empty until people log fights
+  in it - raid rankings now fall back to the previous partition until
+  the new one fills.
+
 ## [1.1.14] - 2026-10-11
 
 ### Fixed

@@ -1,3 +1,35 @@
+## v1.1.15 — who else this is for
+
+### Added
+
+- **"Also worn by" under every measured item** — which other specs
+  wear it, with their share and the activity. Two lines; hold **Shift**
+  for all. For warbound drops and alts: is this good for one of my
+  other characters?
+- Only measured, and only where the source says how many players it
+  rests on (at least fifteen). That is why PvP is not in: behind
+  "50 %" at 2v2 there were two players.
+- **"Stats fit"** for drops no measurement covers — delves, world
+  drops. It names the specs whose two highest measured stats are
+  exactly the ones on the piece, filtered by armour type and main stat.
+  Trinkets stay silent: they are their effect, not their stats.
+- Shown only where the piece can still change hands — warbound, bind
+  on equip, unbound, and raid or M+ loot inside its two-hour trade
+  window.
+- **/mc fit** explains, with the mouse over an item, why something does
+  or does not stand under it.
+
+### Fixed
+
+- **The talent preview missed ranks.** "5 green, 0 red" on a full tree
+  hid that the new talents are paid for with second ranks. Those are
+  red now.
+- **Upgradeable warbound pieces** carry strength and intellect until
+  equipped; the greyed-out stat counts now. Cloaks are for everyone.
+- **The data was up to two days old** — a short outage at a data
+  source and the patch 12.1.5 ranking reset at Warcraft Logs stopped
+  the nightly run. Both are handled now.
+
 ## v1.1.14 — the rotation link, measured
 
 ### Fixed

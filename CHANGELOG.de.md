@@ -4,6 +4,64 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ## [Unveröffentlicht]
 
+## [1.1.15] - 2026-10-14
+
+### Neu
+
+- **„Auch getragen von" unter einem Gegenstand.** Welche anderen
+  Speccs dieses Stück tragen, mit Anteil und der Aktivität, in der es
+  gemessen wurde – die Frage hinter jedem kriegsmeutegebundenen Drop:
+  taugt das einem meiner anderen Charaktere? Zwei Zeilen als Vorgabe,
+  alles bei gehaltener Umschalttaste, und Umschalt wirkt sofort, nicht
+  erst beim nächsten Überfahren. Die Aktivität steht einmal als
+  Überschrift statt in jeder Zeile, und eine graue Zeile sagt, was die
+  Zahlen sind: der Anteil der gemessenen Spieler dieser Spec.
+- Nur Gemessenes, und nur dort, wo die Messung sagt, auf wie vielen
+  Spielern sie ruht. Hinter „50 %" standen bei 2v2 zwei Spieler – einer
+  davon trug das Stück. Quellen ohne bekannte Stichprobe von mindestens
+  fünfzehn tragen deshalb nichts bei, und unter zwanzig Prozent ist es
+  kein „getragen von". PvP ist genau deshalb nicht dabei. raider.io
+  und Battle.net nennen ihre Stichprobe jetzt mit; vorher tat das nur
+  Warcraft Logs.
+- **„Werte passen zu"** für Stücke, die keine Messung kennt – ein Drop
+  aus einer Tiefe, ein Weltdrop. Genannt werden die Speccs, deren zwei
+  höchste gemessene Zweitwerte genau die auf dem Stück sind.
+  Rüstungsart und Hauptwert entscheiden, wer es überhaupt tragen
+  könnte; Waffenarten kommen aus der Messung (wer in den Daten einen
+  Streitkolben trägt, kann einen führen). Wo die Antwort geraten wäre,
+  schweigt es: Schmuckstücke sind ihr Effekt, nicht ihre Werte, und
+  Effekte misst hier niemand.
+- Es erscheint nur, wo das Stück noch zu einem anderen Charakter kann:
+  kriegsmeutegebunden, beim Anlegen gebunden, ungebunden – und Beute
+  aus M+ und Raid während ihres zweistündigen Handelsfensters. Der
+  gemessene Block darüber steht immer; er sagt, ob du selbst richtig
+  liegst.
+- **/mc fit** – mit der Maus über einem Gegenstand schreibt es Schritt
+  für Schritt, warum darunter etwas steht oder nicht.
+
+### Behoben
+
+- **Die Talentvorschau zählte Knoten, nicht Ränge.** Ein voller Baum
+  zeigte „5 grün dazu, 0 rot weg": die fünf neuen Talente wurden mit
+  zweiten Rängen bezahlt, die der Build nicht nimmt, und die waren
+  unsichtbar. Ein Rang, der wegfällt, ist jetzt ein Abgang wie jeder
+  andere.
+- **Aufwertbare Kriegsmeuten-Teile tragen mehrere Hauptwerte** – Stärke
+  UND Intelligenz, bis sie angelegt werden –, und das Spiel meldet nur
+  den, der zum Charakter davor passt. Der grau dargestellte im Tooltip
+  zählt jetzt mit; eine Brustplatte gilt nicht mehr als Zauberzeug.
+- **Umhänge** tragen die Unterklasse „Stoff" und wären an drei
+  Zaubererklassen gegangen. Jeder trägt einen Umhang.
+- **Der Datenlauf hat zwei weitere Nächte verloren.** wago.tools
+  antwortete eine Minute lang mit HTTP 503; der Katalog hatte eine
+  eigene Geduld von genau einer Minute statt der gemeinsamen von
+  viereinhalb, raider.io starb an der Datei, die der Katalog nicht mehr
+  schreiben konnte, und das Veröffentlichen hielt an dieser fehlenden
+  Nebendatei an. Danach öffnete Patch 12.1.5 bei Warcraft Logs einen
+  neuen Ranglisten-Abschnitt, der leer bleibt, bis darin Kämpfe
+  hochgeladen werden – Raid-Ranglisten fallen jetzt auf den vorigen
+  Abschnitt zurück, bis sich der neue füllt.
+
 ## [1.1.14] - 2026-10-11
 
 ### Behoben
