@@ -23,6 +23,7 @@ ns.RegisterLocale("deDE", {
     ["TIP_TOP"]     = "am häufigsten getragen auf diesem Platz (%d %%)",
     ["TIP_RANK"]    = "Platz %d von %d auf diesem Platz (%d %%)",
     ["SET_TOOLTIP"] = "Im Gegenstands-Tooltip ergänzen",
+    ["SET_TOOLTIP_OTHERS"] = "Andere Speccs im Gegenstands-Tooltip",
     ["SET_TOOLTIP_HINT"] = "Rangnummer an den Zweitwerten und der Platz auf der Liste",
     ["STAT_crit"]          = "Kritische Trefferwertung",
     ["STAT_haste"]         = "Tempo",

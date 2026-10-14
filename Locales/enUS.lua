@@ -23,6 +23,7 @@ ns.RegisterLocale("enUS", {
     ["TIP_TOP"]     = "most worn in this slot (%d%%)",
     ["TIP_RANK"]    = "number %d of %d in this slot (%d%%)",
     ["SET_TOOLTIP"] = "Add to item tooltips",
+    ["SET_TOOLTIP_OTHERS"] = "Show other specs in item tooltips",
     ["SET_TOOLTIP_HINT"] = "The rank beside each secondary stat, and where the item stands in its slot",
     ["STAT_crit"]          = "Critical Strike",
     ["STAT_haste"]         = "Haste",

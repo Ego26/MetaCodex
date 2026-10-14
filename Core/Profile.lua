@@ -485,6 +485,24 @@ function Profile.SetTooltipOn(on)
     MetaCodexDB.tooltip = on and true or false
 end
 
+---Ob der Tooltip auch ANDERE Speccs nennt.
+---
+---"Auch getragen von" und "Werte passen zu". An, weil genau das die
+---Frage hinter einem kriegsmeutegebundenen Drop ist. Abschaltbar fuer
+---sich, weil ein Spieler auf CurseForge sie loswerden wollte, ohne die
+---Rangnummern an den Werten mit wegzuwerfen.
+---@return boolean
+function Profile.TooltipOthersOn()
+    local db = MetaCodexDB or {}
+    if db.tooltipOthers == nil then return true end
+    return db.tooltipOthers and true or false
+end
+
+---@param on boolean
+function Profile.SetTooltipOthersOn(on)
+    MetaCodexDB.tooltipOthers = on and true or false
+end
+
 function Profile.RemindersOn()
     local db = MetaCodexDB or {}
     if db.reminders == nil then return true end

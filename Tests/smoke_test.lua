@@ -7139,6 +7139,57 @@ do
             ns.Tooltip.__wache ~= nil)
     end
 
+    -- ANDERE SPECCS LASSEN SICH ABSCHALTEN - UND NUR SIE.
+    --
+    -- Gefragt auf CurseForge: "wie kann ich auch getragen von
+    -- deaktivieren?" Der eine Schalter fuer alles nahm auch die
+    -- Rangnummern mit. Der neue nimmt nur die Liste.
+    do
+        local eigene = ns.Compat.CurrentSpec() or ns.Profile.SelectedSpec()
+        local stueck
+        for itemID, liste in pairs((MetaCodex_Recommendations or {}).wornBy or {}) do
+            if not stueck then
+                for _, row in ipairs(liste) do
+                    if row[1] ~= eigene and ns.Compat.SpecName(row[1]) then stueck = itemID end
+                end
+            end
+        end
+        if stueck then
+            local zeilen = { "Irgendein Stueck", "+112 Krit" }
+            for i, text in ipairs(zeilen) do
+                local slot = { __text = text }
+                function slot:GetText() return self.__text end
+                function slot:SetText(v) self.__text = v end
+                _G["MCOthersTipTextLeft" .. i] = slot
+            end
+            local function zeichne()
+                local tip = { added = {} }
+                function tip:GetName() return "MCOthersTip" end
+                function tip:NumLines() return #zeilen end
+                function tip:AddLine(text) self.added[#self.added + 1] = text end
+                function tip:AddDoubleLine(a) self.added[#self.added + 1] = a end
+                ns.Tooltip.Decorate(tip, "|Hitem:" .. stueck .. "|h[x]|h")
+                local liste = false
+                for _, t in ipairs(tip.added) do
+                    if type(t) == "string" and (t:find(L["TIP_WORN"], 1, true)
+                        or t:find(L["TIP_FIT"], 1, true)) then liste = true end
+                end
+                return liste
+            end
+            local vorher = ns.Profile.TooltipOthersOn()
+            ns.Profile.SetTooltipOthersOn(true)
+            check("Andere Speccs: ab Werk steht die Liste da", zeichne() == true)
+            ns.Profile.SetTooltipOthersOn(false)
+            check("Andere Speccs: abgeschaltet ist sie weg", zeichne() == false)
+            -- Und nur sie: der grosse Schalter bleibt an.
+            check("Andere Speccs: der Tooltip selbst bleibt an",
+                ns.Profile.TooltipOn() == true)
+            ns.Profile.SetTooltipOthersOn(vorher)
+        else
+            say("  -- kein Stueck mit fremden Traegern, Schalterfall uebersprungen")
+        end
+    end
+
     -- SEELENGEBUNDEN: DIE MESSUNG BLEIBT, DIE VERMUTUNG GEHT.
     --
     -- Die Bindungsregel galt zuerst fuer beide Bloecke. An einem

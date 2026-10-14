@@ -2073,6 +2073,12 @@ local function settingsRows()
     switch(L["SET_TOOLTIP"], L["SET_GROUP_OPEN"], ns.Profile.TooltipOn(), function(value)
         ns.Profile.SetTooltipOn(value)
     end)
+    -- Und die Liste ueber andere Speccs fuer sich. Gefragt auf
+    -- CurseForge: wie man "auch getragen von" abschaltet, ohne alles
+    -- andere im Tooltip mit abzuschalten.
+    switch(L["SET_TOOLTIP_OTHERS"], L["SET_GROUP_OPEN"], ns.Profile.TooltipOthersOn(), function(value)
+        ns.Profile.SetTooltipOthersOn(value)
+    end)
     -- UND DER FUENFTE: der Knopf am Talentfenster.
     --
     -- Er setzt sich ungefragt in fremde Oberflaeche - an genau die

@@ -806,7 +806,11 @@ function Tooltip.Decorate(tip, link)
     -- sagt, ob man selbst richtig liegt. Nur die geratene Haelfte
     -- darunter haengt an der Bindung: die fragt "aufheben fuer einen
     -- Twink?", und das ist bei Seelengebundenem keine Frage mehr.
-    local zeilen, uebrig = Tooltip.WornLines(itemID, alle)
+    -- Beide Bloecke ueber andere Speccs haengen an einem eigenen
+    -- Schalter - abschaltbar, ohne die Rangnummern mitzunehmen.
+    local andere = ns.Profile.TooltipOthersOn()
+    local zeilen, uebrig = {}, 0
+    if andere then zeilen, uebrig = Tooltip.WornLines(itemID, alle) end
     if #zeilen > 0 then
         -- Steht alles Gezeigte in derselben Aktivitaet, gehoert sie in
         -- die Ueberschrift. Bei zwei Zeilen ist das fast immer so, und
@@ -852,7 +856,7 @@ function Tooltip.Decorate(tip, link)
     -- dass Werte passen koennten. Zwei Bloecke uebereinander waren im
     -- Spiel schlicht zu viel.
     local passend, passtUebrig = {}, 0
-    if wandert and #zeilen == 0 then
+    if andere and wandert and #zeilen == 0 then
         passend, passtUebrig = Tooltip.StatFit(link, alle, tip)
     end
     if #passend > 0 then
