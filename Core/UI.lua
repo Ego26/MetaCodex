@@ -1977,29 +1977,11 @@ local function remindRows(mode)
             remindMenu = true,
         }
     end
+    -- Die Schalter AN/AUS stehen unter Einstellungen -> Funktionen, alle
+    -- an einer Stelle. Hier bleibt, was die Erinnerung fein einstellt:
+    -- auf welchem Weg, ab welcher Schwelle. Ob sie ueberhaupt laeuft,
+    -- entscheidet trotzdem weiter mit.
     local on = ns.Profile.RemindersOn()
-    rows[#rows + 1] = {
-        kind = "option", label = L["REMIND_OPT_ON"], on = on,
-        choices = boolChoices(), pick = function(value) ns.Profile.SetReminders(value) end,
-        group = L["REMIND_GROUP_SETTINGS"],
-    }
-    rows[#rows + 1] = {
-        kind = "option", label = L["REMIND_OPT_ENTER"], on = on and ns.Profile.RemindOnEnter(),
-        choices = boolChoices(), pick = function(value) ns.Profile.SetRemindOnEnter(value) end,
-        group = L["REMIND_GROUP_SETTINGS"],
-    }
-    rows[#rows + 1] = {
-        kind = "option", label = L["REMIND_OPT_AH_PANEL"],
-        on = ns.Profile.AuctionPanel(),
-        choices = boolChoices(),
-        pick = function(value)
-            ns.Profile.SetAuctionPanel(value)
-            -- Sofort wirksam: wer sie am offenen Auktionshaus abschaltet,
-            -- soll nicht erst neu hingehen muessen.
-            if not value and ns.UI.HideAuctionPanel then ns.UI.HideAuctionPanel() end
-        end,
-        group = L["REMIND_GROUP_SETTINGS"],
-    }
     -- Auf welchem Weg erinnert wird. Mehrere gleichzeitig sind erlaubt.
     for _, way in ipairs({ "chat", "window", "warning", "sound" }) do
         rows[#rows + 1] = {
@@ -2044,12 +2026,14 @@ local function remindRows(mode)
     return rows
 end
 
----Die Einstellungen, die nicht zu einem einzelnen Abschnitt gehoeren.
+---Die Einstellungen.
 ---
----Was den Reiter "Erinnerung" angeht, steht dort und nicht hier: eine
----Einstellung gehoert neben das, was sie steuert. Hier stehen die drei
----Dinge, die das ganze Addon betreffen - wo man es aufmacht, wie gross
----es ist, in welcher Sprache es spricht.
+---ALLE AN/AUS-SCHALTER STEHEN HIER, unter "Funktionen". Frueher stand
+---ein Schalter neben dem, was er steuert - und wer gezielt etwas
+---abschalten wollte, musste wissen, wo es wohnt: drei im Reiter
+---Erinnerung, fuenf hier unter "Wo es aufgeht", obwohl zwei davon den
+---Tooltip betrafen. Was eine Funktion FEIN einstellt (Mengen, Wege,
+---Schwellen), bleibt neben ihr.
 ---@return table[] rows
 local function settingsRows()
     local rows = {}
@@ -2060,23 +2044,23 @@ local function settingsRows()
         }
     end
 
-    switch(L["SET_MINIMAP"], L["SET_GROUP_OPEN"], ns.Profile.MinimapOn(), function(value)
+    switch(L["SET_MINIMAP"], L["SET_GROUP_FEATURES"], ns.Profile.MinimapOn(), function(value)
         ns.Profile.SetMinimap(value)
         if ns.Minimap then ns.Minimap.Update() end
     end)
-    switch(L["SET_CHARBTN"], L["SET_GROUP_OPEN"], ns.Profile.CharButtonOn(), function(value)
+    switch(L["SET_CHARBTN"], L["SET_GROUP_FEATURES"], ns.Profile.CharButtonOn(), function(value)
         ns.Profile.SetCharButton(value)
         UI.UpdateCharacterButton()
     end)
     -- Der Tooltip ist der vierte Weg ins Addon, auch wenn er kein Knopf
     -- ist: er beantwortet zwei Fragen, ohne dass man etwas oeffnet.
-    switch(L["SET_TOOLTIP"], L["SET_GROUP_OPEN"], ns.Profile.TooltipOn(), function(value)
+    switch(L["SET_TOOLTIP"], L["SET_GROUP_FEATURES"], ns.Profile.TooltipOn(), function(value)
         ns.Profile.SetTooltipOn(value)
     end)
     -- Und die Liste ueber andere Speccs fuer sich. Gefragt auf
     -- CurseForge: wie man "auch getragen von" abschaltet, ohne alles
     -- andere im Tooltip mit abzuschalten.
-    switch(L["SET_TOOLTIP_OTHERS"], L["SET_GROUP_OPEN"], ns.Profile.TooltipOthersOn(), function(value)
+    switch(L["SET_TOOLTIP_OTHERS"], L["SET_GROUP_FEATURES"], ns.Profile.TooltipOthersOn(), function(value)
         ns.Profile.SetTooltipOthersOn(value)
     end)
     -- UND DER FUENFTE: der Knopf am Talentfenster.
@@ -2085,7 +2069,24 @@ local function settingsRows()
     -- Ecke, an der bei anderen schon Raider.IO sitzt. Wer ihn nicht
     -- will, hatte bisher keine Stelle, an der er ihn abschalten konnte;
     -- der Schalter war da, nur nirgends zu sehen.
-    switch(L["SET_TALENTBTN"], L["SET_GROUP_OPEN"], ns.Profile.TalentPanel(), function(value)
+    -- Die Erinnerung, und was an ihr haengt. Das Betreten haengt am
+    -- Hauptschalter: ohne ihn steht es aus, auch wenn es fuer sich an
+    -- waere.
+    local erinnern = ns.Profile.RemindersOn()
+    switch(L["REMIND_OPT_ON"], L["SET_GROUP_FEATURES"], erinnern, function(value)
+        ns.Profile.SetReminders(value)
+    end)
+    switch(L["REMIND_OPT_ENTER"], L["SET_GROUP_FEATURES"],
+        erinnern and ns.Profile.RemindOnEnter(), function(value)
+            ns.Profile.SetRemindOnEnter(value)
+        end)
+    switch(L["REMIND_OPT_AH_PANEL"], L["SET_GROUP_FEATURES"], ns.Profile.AuctionPanel(), function(value)
+        ns.Profile.SetAuctionPanel(value)
+        -- Sofort wirksam: wer sie am offenen Auktionshaus abschaltet,
+        -- soll nicht erst neu hingehen muessen.
+        if not value and ns.UI.HideAuctionPanel then ns.UI.HideAuctionPanel() end
+    end)
+    switch(L["SET_TALENTBTN"], L["SET_GROUP_FEATURES"], ns.Profile.TalentPanel(), function(value)
         ns.Profile.SetTalentPanel(value)
         if not value then UI.HideTalentPanel() end
     end)

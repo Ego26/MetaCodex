@@ -4434,13 +4434,15 @@ do
     -- M+-Verbrauchsgueter die Stichprobe nicht erwischt hat - dort ist der
     -- Reiter regelkonform ausgeblendet.
     ns.Profile.SetMode("raid")
-    rowsInSection("remind")
+    -- Seit dem 14. Oktober in den Einstellungen unter "Funktionen":
+    -- alle An/Aus-Schalter an einer Stelle.
+    rowsInSection("settings")
     local enter, panel
     for _, row in ipairs(wow.rows()) do
         if row:IsShown() and row.title:GetText() == L["REMIND_OPT_ENTER"] then enter = row end
         if row:IsShown() and row.title:GetText() == L["REMIND_OPT_AH_PANEL"] then panel = row end
     end
-    check("beide Schalter stehen im Erinnerungsreiter", enter ~= nil and panel ~= nil,
+    check("beide Schalter stehen unter Funktionen", enter ~= nil and panel ~= nil,
         (enter and "Betreten da" or "Betreten fehlt") .. ", "
         .. (panel and "Liste da" or "Liste fehlt") .. " in " .. tostring(MetaCodexDB.section))
     if enter and panel then

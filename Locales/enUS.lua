@@ -68,7 +68,7 @@ ns.RegisterLocale("enUS", {
     ["CHARBTN_CLICK"] = "Click to open or close MetaCodex",
     ["MINIMAP_CLICK"] = "Click to open or close MetaCodex  ·  right-click for settings",
     ["MINIMAP_DRAG"] = "Drag to move it around the minimap",
-    ["SET_GROUP_OPEN"] = "Where to open it",
+    ["SET_GROUP_FEATURES"] = "Features",
     ["SET_GROUP_WINDOW"] = "Window",
     ["SET_MINIMAP"] = "Minimap button",
     ["SET_CHARBTN"] = "Button on the character frame",
