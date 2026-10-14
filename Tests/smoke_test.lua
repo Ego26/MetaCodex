@@ -2312,6 +2312,45 @@ for _, row in ipairs(wow.rows()) do
 end
 check("Zielwerte zeichnen Balken", statLines >= 4, statLines .. " Balken")
 
+-- DIMINISHING RETURNS: GEFRAGT, NICHT EINGETRAGEN.
+--
+-- Die Kurve, wie sie der Client am 14. Oktober lieferte: 46 Wertung je
+-- Prozent, ab 30 % bringt ein Punkt 90 %. Nachgebaut fuer den ersten
+-- Knick; mehr braucht die Regel nicht.
+do
+    local altKurve, altWertung = _G.GetCombatRatingBonusForCombatRatingValue, _G.GetCombatRating
+    check("ohne Abfrage keine Behauptung", ns.Compat.RatingEfficiency("crit", 1500) == nil)
+    _G.GetCombatRatingBonusForCombatRatingValue = function(_, r)
+        if r <= 1380 then return r / 46 end
+        return 30 + (r - 1380) / 46 * 0.9
+    end
+    local vor = ns.Compat.RatingEfficiency("crit", 500)
+    local hinter = ns.Compat.RatingEfficiency("crit", 1500)
+    check("vor dem Knick bringt ein Punkt alles", vor and math.abs(vor - 1) < 0.001, tostring(vor))
+    check("hinter dem Knick nur noch 90 %", hinter and math.abs(hinter - 0.9) < 0.001, tostring(hinter))
+
+    -- Und die Zeile unter der Bahn sagt es - nur dort, wo es zutrifft.
+    local function zeilen(wertung)
+        _G.GetCombatRating = function() return wertung end
+        ns.UI.Refresh()
+        local mit, ohne = 0, 0
+        local stueck = L["STAT_DR"]:match("^(.-)%%d") or L["STAT_DR"]
+        for _, row in ipairs(wow.rows()) do
+            if row:IsShown() and row.own and row.own:IsShown() then
+                if (row.own:GetText() or ""):find(stueck, 1, true) then mit = mit + 1
+                else ohne = ohne + 1 end
+            end
+        end
+        return mit, ohne
+    end
+    local mit, ohne = zeilen(500)
+    check("Abschlag: vor dem Knick schweigt die Zeile", mit == 0 and ohne > 0, mit .. " mit, " .. ohne .. " ohne")
+    mit, ohne = zeilen(1500)
+    check("Abschlag: hinter dem Knick steht er da", mit > 0, mit .. " mit, " .. ohne .. " ohne")
+    _G.GetCombatRatingBonusForCombatRatingValue, _G.GetCombatRating = altKurve, altWertung
+    ns.UI.Refresh()
+end
+
 -- --------------------------------------------------------- Top-Spieler
 
 -- Der Abschnitt ist der einzige ohne Empfehlung, und darum der einzige,

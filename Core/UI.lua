@@ -2638,6 +2638,9 @@ local function statRows(specID, mode, source)
             high = value and value.high or nil,
             players = stats.players,
             mine = mine,
+            -- Was ein weiterer Punkt dort noch bringt. Unter 1 nur
+            -- hinter einem Knick der Diminishing Returns.
+            eff = mine and ns.Compat.RatingEfficiency(key, mine) or nil,
             -- Der Massstab ist fuer alle Zeilen derselbe, sonst
             -- vergleichen die Balken nichts miteinander.
             scale = widest,
@@ -3761,7 +3764,16 @@ local function setItemRow(row, data)
             row.barMine:SetWidth(math.max(1, BAR_WIDTH * data.mine / scale))
             row.barMine:SetVertexColor(S:Color(reached and "success" or "warning"))
             row.barMine:Show()
-            row.own:SetText(L["STAT_YOURS"]:format(data.mine, data.rating or 0))
+            -- Hinter einem Knick sagt die Zeile, was ein Punkt noch
+            -- bringt. Davor schweigt sie: die gemessenen Ziele liegen
+            -- fast alle vor dem ersten Knick, und eine Warnung, die
+            -- nie zutrifft, liest bald niemand mehr.
+            local text = L["STAT_YOURS"]:format(data.mine, data.rating or 0)
+            local anteil = data.eff and math.floor(data.eff * 100 + 0.5)
+            if anteil and anteil < 100 then
+                text = text .. L["STAT_DR"]:format(anteil)
+            end
+            row.own:SetText(text)
             row.own:Show()
         end
 

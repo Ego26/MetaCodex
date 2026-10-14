@@ -473,6 +473,35 @@ function Compat.OwnRating(key)
     return nil
 end
 
+---Was ein weiterer Punkt Wertung bei dieser Wertung noch bringt.
+---
+---1 heisst voll, 0.9 heisst: hinter dem ersten Knick der Diminishing
+---Returns. Der Client rechnet die Kurve selbst - gemessen am 14.
+---Oktober auf Retri und Ele, fuer beide dieselbe -, also wird er
+---gefragt und nichts fest eingetragen: aendert Blizzard die Stufen,
+---stimmt die Zeile trotzdem.
+---
+---Verglichen wird der Punkt NACH dieser Wertung mit dem allerersten.
+---Ein Schritt ueber mehrere Punkte koennte auf einer Grenze liegen und
+---einen halben Knick melden.
+---@param key string "crit" | "haste" | "mastery" | "vers"
+---@param rating number
+---@return number|nil anteil 0..1, nil wenn der Client nicht antwortet
+function Compat.RatingEfficiency(key, rating)
+    local index = RATING_INDEX[key]
+    local frage = _G.GetCombatRatingBonusForCombatRatingValue
+    if not index or type(frage) ~= "function" or type(rating) ~= "number" then return nil end
+    -- Geschuetzt: eine geheime Zahl darf man nicht rechnen.
+    local ok, anteil = pcall(function()
+        local voll = tonumber(frage(index, 1)) - tonumber(frage(index, 0))
+        local hier = tonumber(frage(index, rating + 1)) - tonumber(frage(index, rating))
+        if voll <= 0 then return nil end
+        return hier / voll
+    end)
+    if ok and type(anteil) == "number" then return anteil end
+    return nil
+end
+
 ---Begegnung und Instanz als Text, in der Sprache des Clients.
 ---
 ---Das Abenteuerjournal braucht keinen geladenen Zustand fuer diese beiden
