@@ -2625,7 +2625,10 @@ local function statRows(specID, mode, source)
     for rank, key in ipairs(stats.priority or {}) do
         local value = (stats.values or {})[key]
         local target = value and value.rating or nil
-        local mine = own and ns.Compat.OwnRating(key) or nil
+        -- /mc dr ersetzt nur diese Zahl, und nur bis zum naechsten
+        -- /reload. Ausdruecklich hier und nicht in Compat: der Tooltip
+        -- und alles andere sollen von der Vorschau nichts merken.
+        local mine = own and (UI.__wertungVorschau or ns.Compat.OwnRating(key)) or nil
         widest = math.max(widest, mine or 0)
         rows[#rows + 1] = {
             kind = "stat", statKey = key, rank = rank,
@@ -7305,6 +7308,16 @@ function UI.ResetWindow()
     frame:SetPoint("CENTER")
     frame:SetScale(1)
     UI.Refresh()
+end
+
+---Zielwerte so zeigen, als haette man diese Wertung in jedem Wert.
+---
+---Fuer /mc dr: den Abschlag-Hinweis sehen, ohne erst die Wertung zu
+---sammeln. Nicht gespeichert; ohne Zahl ist die Vorschau aus.
+---@param wertung number|nil
+function UI.PreviewRating(wertung)
+    UI.__wertungVorschau = wertung
+    UI.OpenSection("stats")
 end
 
 ---Zeigt einen Abschnitt - gebraucht vom Minimap-Knopf, der auf den

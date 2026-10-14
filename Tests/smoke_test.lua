@@ -2347,6 +2347,15 @@ do
     check("Abschlag: vor dem Knick schweigt die Zeile", mit == 0 and ohne > 0, mit .. " mit, " .. ohne .. " ohne")
     mit, ohne = zeilen(1500)
     check("Abschlag: hinter dem Knick steht er da", mit > 0, mit .. " mit, " .. ohne .. " ohne")
+
+    -- Die Vorschau: echte Wertung 500, gedacht 1500 - der Hinweis
+    -- folgt der gedachten, und ohne Zahl ist sie wieder weg.
+    ns.UI.PreviewRating(1500)
+    mit = zeilen(500)
+    check("Vorschau /mc dr zeigt den Abschlag", mit > 0, mit .. " mit")
+    ns.UI.PreviewRating(nil)
+    mit = zeilen(500)
+    check("ohne Vorschau wieder die echten Werte", mit == 0, mit .. " mit")
     _G.GetCombatRatingBonusForCombatRatingValue, _G.GetCombatRating = altKurve, altWertung
     ns.UI.Refresh()
 end
