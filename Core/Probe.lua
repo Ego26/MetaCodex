@@ -124,6 +124,56 @@ function Probe.Run()
 
     Probe.Level()
 
+    -- DIMINISHING RETURNS - KANN DER CLIENT SIE SELBST AUSRECHNEN?
+    --
+    -- Gefragt von einer Gilde am 14. Oktober: die Abschlaege bei den
+    -- Zielwerten sehen. Die Spieldaten-Dateien kennen weder die
+    -- Umrechnung von Wertung in Prozent noch die Stufen - nachgesehen in
+    -- der ganzen Tabellenliste. Der Client rechnet sie aber, er muss es
+    -- fuer das Charakterfenster. Gefragt wird er nach BELIEBIGEN
+    -- Wertungen; wo der Zuwachs je Schritt kleiner wird, liegt ein Knick.
+    -- Antwortet er nicht, oder nur mit geheimen Zahlen, steht das hier -
+    -- und dann bleibt es beim Median.
+    line(" ")
+    line("Diminishing Returns:")
+    local frage = _G.GetCombatRatingBonusForCombatRatingValue
+    line("  Abfrage vorhanden: " .. (type(frage) == "function" and "ja" or "NEIN"))
+    if type(frage) == "function" then
+        local werte = {
+            { "Krit", _G.CR_CRIT_SPELL or 11 },
+            { "Tempo", _G.CR_HASTE_SPELL or 20 },
+            { "Meisterschaft", _G.CR_MASTERY or 26 },
+            { "Vielseitigkeit", _G.CR_VERSATILITY_DAMAGE_DONE or 29 },
+        }
+        local stufen = { 2000, 4000, 6000, 8000, 10000, 12000, 14000, 16000 }
+        for _, w in ipairs(werte) do
+            -- Jede Rechnung einzeln geschuetzt: eine geheime Zahl darf man
+            -- weder vergleichen noch rechnen, und der Fehler soll hier
+            -- landen und nicht im Fenster.
+            local ok, ergebnis = pcall(function()
+                local teile, vorher, ersterSchritt, knick = {}, 0, nil, nil
+                local letzteWertung = 0
+                for _, wertung in ipairs(stufen) do
+                    local prozent = frage(w[2], wertung)
+                    local zahl = tonumber(prozent)
+                    if not zahl then return "keine Zahl (" .. type(prozent) .. ")" end
+                    teile[#teile + 1] = ("%d=%.1f"):format(wertung / 1000, zahl)
+                    local schritt = zahl - vorher
+                    if not ersterSchritt then
+                        ersterSchritt = schritt
+                    elseif not knick and schritt < ersterSchritt * 0.97 then
+                        -- Der erste Schritt, der spuerbar weniger bringt.
+                        knick = letzteWertung
+                    end
+                    vorher, letzteWertung = zahl, wertung
+                end
+                return table.concat(teile, " ")
+                    .. (knick and ("  -> Abschlag ab ~" .. knick) or "  -> kein Knick bis 16000")
+            end)
+            line("  " .. w[1] .. " (Tsd.=%): " .. (ok and ergebnis or ("FEHLER " .. tostring(ergebnis))))
+        end
+    end
+
     -- WAS DER CLIENT UEBER SET-BONI SAGT.
     --
     -- Im Tooltip eines Tier-Teils stehen die Boni der Spec, die man
