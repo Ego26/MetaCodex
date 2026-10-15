@@ -3512,6 +3512,14 @@ local function dropCell(row, i)
         ring:Hide()
         c.rings[r] = ring
     end
+    -- Der Stern liegt UEBER den Ringen. Die Ringe sind eigene Rahmen und
+    -- zeichnen damit ueber allem, was am Kaestchen selbst haengt - der
+    -- goldene Rand lief quer durch den Stern (im Spiel gesehen, 15. Oktober).
+    c.badge = CreateFrame("Frame", nil, c)
+    c.badge:SetAllPoints()
+    c.badge:SetFrameLevel(c:GetFrameLevel() + 4)
+    c.star:SetParent(c.badge)
+    c.star:SetDrawLayer("OVERLAY", 7)
     c.icon = c:CreateTexture(nil, "ARTWORK")
     c.icon:SetSize(30, 30)
     c.icon:SetPoint("TOP", 0, -2)
