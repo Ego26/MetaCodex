@@ -6515,6 +6515,42 @@ do
     ns.Profile.Select(nil, nil)
 end
 
+-- ------------------------------------------------------- Der Datenordner
+--
+-- Gemeldet am 15. Oktober: nach der Erstinstallation stand nur eine
+-- Entwicklermeldung da. Ein abgeschalteter Datenordner wird wieder
+-- eingeschaltet, und jeder andere Grund sagt dem Spieler, was er tun
+-- kann - ohne Skriptnamen.
+do
+    local echt = C_AddOns
+    local eingeschaltet
+    C_AddOns = {
+        IsAddOnLoaded = function() return false end,
+        EnableAddOn = function(name) eingeschaltet = name end,
+        LoadAddOn = function(name)
+            if eingeschaltet == name then return true end
+            return false, "DISABLED"
+        end,
+    }
+    ns.Data.Forget()
+    check("ein abgeschalteter Datenordner wird eingeschaltet",
+        ns.Data.Ensure() == true and eingeschaltet == ns.DATA_ADDON, tostring(eingeschaltet))
+    C_AddOns.LoadAddOn = function() return false, "MISSING" end
+    ns.Data.Forget()
+    check("fehlt er, sagt die Meldung, was zu tun ist",
+        ns.Data.Ensure() == false and ns.Data.Message() == L["NO_DATA_MISSING"])
+    local alle = {}
+    for _, k in ipairs({ "NO_DATA_MISSING", "NO_DATA_DISABLED", "NO_DATA_OUTDATED", "NO_DATA_OTHER" }) do
+        alle[#alle + 1] = L[k]
+    end
+    check("keine Meldung nennt ein Skript",
+        not table.concat(alle, " "):find("tools/", 1, true)
+        and not table.concat(alle, " "):find(".js", 1, true))
+    C_AddOns = echt
+    ns.Data.Forget()
+    check("und mit dem echten Ordner laedt er wieder", ns.Data.Ensure() == true)
+end
+
 -- ------------------------------------------------------- Wo es faellt
 --
 -- Seit dem 15. Oktober wie Keystone Loot: jede Instanz mit ALLEN Drops
@@ -6779,12 +6815,12 @@ do
         for _, ring in ipairs(kopfZelle and kopfZelle.rings or {}) do
             if ring:IsShown() then rahmen = rahmen + 1 end
         end
-        for _, t in ipairs(kopfZelle and rawget(kopfZelle, "strip") or {}) do
-            if t:IsShown() then stuecke = stuecke + 1 end
+        for _, pip in ipairs(kopfZelle and rawget(kopfZelle, "pips") or {}) do
+            if pip.punkt:IsShown() then stuecke = stuecke + 1 end
         end
         check("ein einziger Rahmen", rahmen == 1, rahmen .. " Rahmen")
-        check("Favorit und Meistgetragen stehen beide im Streifen", stuecke == 2,
-            stuecke .. " Stuecke")
+        check("und ein Punkt fuer die zweite Markierung", stuecke == 1,
+            stuecke .. " Punkte")
         -- Der Stern gehoert dem Rahmen UEBER den Ringen - und es gibt ihn.
         local stern = kopfZelle and rawget(kopfZelle, "star")
         check("der Stern liegt ueber den Ringen",

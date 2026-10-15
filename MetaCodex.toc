@@ -1,4 +1,4 @@
-## Interface: 120100
+## Interface: 120100, 120105
 ## Title: MetaCodex
 ## Title-deDE: MetaCodex
 ## Notes: From real fights, not from guides - talent builds with import strings, gear with drop sources, enchants, gems, consumables, stat targets and the top players per spec, for M+, raid and every PvP bracket. Measured from raider.io, murlok.io, Warcraft Logs and Battle.net, never copied from a guide. Reads your gear and hands the missing pieces to Auctionator. Type /mc.

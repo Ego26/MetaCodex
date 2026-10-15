@@ -32,6 +32,18 @@ function Data.Ensure()
     end
 
     local loaded, reason = C_AddOns.LoadAddOn(ns.DATA_ADDON)
+    -- ABGESCHALTET IST KEIN ZUSTAND, DEN JEMAND WILL.
+    --
+    -- Ohne den Datenordner ist MetaCodex ein leeres Fenster. Wer ihn in
+    -- der Addon-Liste abgehakt hat, hat das kaum mit Absicht getan - also
+    -- wird er fuer diesen Charakter wieder eingeschaltet und noch einmal
+    -- geladen. Gemeldet am 15. Oktober von einem Spieler, der nach der
+    -- Erstinstallation nur eine Entwicklermeldung sah.
+    if not loaded and reason == "DISABLED" and type(C_AddOns.EnableAddOn) == "function" then
+        local wer = UnitName and UnitName("player")
+        pcall(C_AddOns.EnableAddOn, ns.DATA_ADDON, wer)
+        loaded, reason = C_AddOns.LoadAddOn(ns.DATA_ADDON)
+    end
     if loaded then
         state = true
         return true
@@ -42,6 +54,26 @@ function Data.Ensure()
     -- hundertmal fragt.
     state = reason or "MISSING"
     return false, state
+end
+
+---Was der Spieler tun kann, wenn die Daten nicht da sind.
+---
+---Die alte Meldung nannte ein Skript ("Run tools/build-catalog.js") -
+---eine Auskunft fuer den, der das Addon baut, nicht fuer den, der es
+---spielt. Jetzt je Grund ein Satz, der sagt, was zu tun ist.
+---@return string
+function Data.Message()
+    local L = ns.L
+    local grund = type(state) == "string" and state or nil
+    if grund == "MISSING" then return L["NO_DATA_MISSING"] end
+    if grund == "DISABLED" then return L["NO_DATA_DISABLED"] end
+    if grund == "INTERFACE_VERSION" then return L["NO_DATA_OUTDATED"] end
+    return L["NO_DATA_OTHER"]:format(grund or "EMPTY")
+end
+
+---Vergisst den letzten Versuch - fuer die Pruefung.
+function Data.Forget()
+    state = nil
 end
 
 ---Ob die Daten bereits im Speicher sind, ohne sie zu laden.

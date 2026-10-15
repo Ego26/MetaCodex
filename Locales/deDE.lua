@@ -112,6 +112,10 @@ ns.RegisterLocale("deDE", {
     ["NOTHING_TO_BUY"]     = "Nichts zu kaufen – alles verzaubert und gesockelt.",
     ["NAMES_PENDING"]      = "Gegenstandsnamen werden geladen, einen Moment …",
     ["NO_CATALOG"]         = "Data/Catalog.lua fehlt oder ist leer. tools/build-catalog.js ausführen.",
+    ["NO_DATA_MISSING"] = "MetaCodex findet seinen Datenordner „MetaCodex_Data“ nicht. Bitte MetaCodex über die CurseForge-App neu installieren - der Download enthält vier Ordner: MetaCodex, MetaCodex_Data, MetaCodex_Dungeons und MetaCodex_Players. Alle vier gehören nach Interface\\AddOns.",
+    ["NO_DATA_DISABLED"] = "„MetaCodex Data“ ist abgeschaltet. In der AddOn-Liste (Charakterauswahl, Knopf AddOns) „MetaCodex Data“ anhaken und neu einloggen.",
+    ["NO_DATA_OUTDATED"] = "Das Spiel hält „MetaCodex Data“ für veraltet. MetaCodex in der CurseForge-App aktualisieren oder in der AddOn-Liste „Veraltete AddOns laden“ anhaken.",
+    ["NO_DATA_OTHER"] = "MetaCodex konnte seine Daten nicht laden (%s). Bitte über die CurseForge-App neu installieren. Bleibt es, nenn uns das Wort in Klammern.",
 
     -- Slash
     ["SLASH_HELP"]         = "Befehle:",

@@ -3559,16 +3559,23 @@ local function dropCell(row, i)
     c.badge:SetFrameLevel(c:GetFrameLevel() + 4)
     c.star:SetParent(c.badge)
     c.star:SetDrawLayer("OVERLAY", 7)
-    -- Der Streifen: je zutreffende Markierung ein Stueck, nebeneinander,
-    -- am Fuss des Symbols. Auf dem Rahmen ueber den Ringen, damit kein
-    -- Rand durch ihn hindurchlaeuft.
-    c.strip = {}
-    for s = 1, 3 do
-        local t = c.badge:CreateTexture(nil, "OVERLAY", nil, 6)
-        t:SetTexture("Interface\\Buttons\\WHITE8X8")
-        t:SetHeight(3)
-        t:Hide()
-        c.strip[s] = t
+    -- PUNKTE fuer, was ausser dem Rahmen noch zutrifft: oben links, je
+    -- weitere Markierung einer, mit dunklem Rand, damit er auf jedem
+    -- Symbol steht. Ein Streifen am Fuss des Symbols sah aus wie ein
+    -- Fehler im Bild (15. Oktober).
+    c.pips = {}
+    for s = 1, 2 do
+        local rand = c.badge:CreateTexture(nil, "OVERLAY", nil, 5)
+        rand:SetTexture("Interface\\Buttons\\WHITE8X8")
+        rand:SetVertexColor(0, 0, 0, 0.85)
+        rand:SetSize(8, 8)
+        rand:Hide()
+        local punkt = c.badge:CreateTexture(nil, "OVERLAY", nil, 6)
+        punkt:SetTexture("Interface\\Buttons\\WHITE8X8")
+        punkt:SetSize(6, 6)
+        punkt:SetPoint("CENTER", rand, "CENTER", 0, 0)
+        punkt:Hide()
+        c.pips[s] = { rand = rand, punkt = punkt }
     end
     -- Und das Kreuz fuer Ignoriertes. Es bleibt stehen, damit man
     -- sieht, warum in diesem Dungeon wenig offen ist - und damit man
@@ -3855,17 +3862,18 @@ local function setDropRow(row, data)
         else
             ring:Hide()
         end
-        -- Der Streifen erst ab zwei: bei einer sagt der Rahmen alles.
-        local breite = (tonumber(c.icon:GetWidth()) or 30) / math.max(1, #farben)
-        for s, t in ipairs(c.strip) do
-            if #farben >= 2 and farben[s] then
-                t:ClearAllPoints()
-                t:SetPoint("BOTTOMLEFT", c.icon, "BOTTOMLEFT", (s - 1) * breite, 0)
-                t:SetWidth(breite)
-                t:SetVertexColor(S:Color(farben[s]))
-                t:Show()
+        -- Je weitere Markierung ein Punkt oben links.
+        for s, pip in ipairs(c.pips) do
+            local farbe = farben[s + 1]
+            if farbe then
+                pip.rand:ClearAllPoints()
+                pip.rand:SetPoint("TOPLEFT", c.icon, "TOPLEFT", -2 + (s - 1) * 9, 2)
+                pip.punkt:SetVertexColor(S:Color(farbe))
+                pip.rand:Show()
+                pip.punkt:Show()
             else
-                t:Hide()
+                pip.rand:Hide()
+                pip.punkt:Hide()
             end
         end
         -- Abgeblendet wird nur, was KEINE gewaehlte Markierung traegt -
@@ -5118,7 +5126,7 @@ local layoutOnly = false
 ---@param source string
 ---@return string
 local function emptyReason(mode, source)
-    if not ns.Recommend.Ready() then return L["NO_CATALOG"] end
+    if not ns.Recommend.Ready() then return ns.Data.Message() end
     if not ns.Recommend.HasMode(mode) then return L["NO_MODE_DATA"] end
     if source ~= ns.Recommend.ALL then
         return L["NO_SOURCE_SECTION"]:format(source)
@@ -5734,7 +5742,7 @@ function UI.Refresh()
         hintText:SetText(L[section.empty])
         currentRows = {}
     elseif not ns.Catalog.Ready() then
-        hintText:SetText("|cff" .. S:Hex("danger") .. L["NO_CATALOG"] .. "|r")
+        hintText:SetText("|cff" .. S:Hex("danger") .. ns.Data.Message() .. "|r")
         currentRows = {}
     elseif not ns.Profile.Complete() then
         hintText:SetText(L["PICK_HINT"])
@@ -7453,7 +7461,7 @@ end
 function UI.Toggle()
     if not frame then build() end
     local ok, reason = ns.Data.Ensure()
-    if not ok then ns.Print(L["NO_CATALOG"] .. " (" .. tostring(reason) .. ")") end
+    if not ok then ns.Print(ns.Data.Message()) end
     warmNames()
     if frame:IsShown() then
         frame:Hide()
