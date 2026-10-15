@@ -6650,19 +6650,13 @@ do
     check("das Kaestchen weiss davon", kaestchen(zeile, 201) and kaestchen(zeile, 201).need == true)
     check("die Zeile zaehlt es", zeile and zeile.need == 1, tostring(zeile and zeile.need))
 
-    -- "Wo du hinwillst" steht oben und traegt nur das Gewollte.
+    -- Keine eigene Gruppe mehr: der Ring zeigt es, und die erste Zeile
+    -- ist ein Dungeon.
     local fenster = ns.UI.DropRows(SPEC, "mplus", nil)
-    local ziel = fenster[1]
-    check("Wo du hinwillst steht oben",
-        ziel and ziel.target == true and ziel.group == L["DROPS_GROUP_NEED"],
-        tostring(ziel and ziel.group))
-    check("und traegt nur das Gewollte",
-        ziel and #ziel.items == 1 and ziel.items[1].id == 201,
-        tostring(ziel and #ziel.items))
+    check("oben steht gleich der erste Dungeon",
+        fenster[1] and fenster[1].group == L["DROPS_GROUP_DUNGEON"],
+        tostring(fenster[1] and fenster[1].group))
     ns.Profile.ToggleNeed(201, SPEC)
-    local leer = ns.UI.DropRows(SPEC, "mplus", nil)
-    check("ohne Need steht dort, wie es geht",
-        leer[1] and leer[1].kind == "note" and leer[1].text == L["DROPS_NEED_EMPTY"])
 
     -- Die alten Sterne gehen nicht verloren.
     do
@@ -6687,8 +6681,7 @@ do
     end
     local alles = table.concat(texte, " | ")
     check("die Gruppen stehen da",
-        alles:upper():find(ns.L["DROPS_GROUP_NEED"]:upper(), 1, true) ~= nil
-        and alles:upper():find(ns.L["DROPS_GROUP_DUNGEON"]:upper(), 1, true) ~= nil
+        alles:upper():find(ns.L["DROPS_GROUP_DUNGEON"]:upper(), 1, true) ~= nil
         and alles:upper():find(ns.L["DROPS_GROUP_ELSEWHERE"]:upper(), 1, true) ~= nil,
         alles:sub(1, 120))
     check("die Instanz steht mit ihrem Namen da",
@@ -6710,9 +6703,9 @@ do
         local oben = false
         for _, row in ipairs(wow.rows()) do
             if row:IsShown() and (row.detail and row.detail:GetText() or ""):find(
-                ns.L["DROPS_NEED_N"]:format(1), 1, true) == 1 then oben = true end
+                ns.L["DROPS_NEED_1"], 1, true) == 1 then oben = true end
         end
-        check("und es steht oben unter Wo du hinwillst", oben, nachher .. " Zeilen")
+        check("und die Zeile zaehlt den Favoriten", oben, nachher .. " Zeilen")
         ns.Profile.ToggleNeed(201, spec)
     end
 
@@ -6755,6 +6748,44 @@ do
     check("Need laesst sich hervorheben",
         ns.Drops.Matches(nil, { fav = true }, false, true) == true
         and ns.Drops.Matches(nil, { fav = true }, false, false) == false)
+
+    -- DREI MARKIERUNGEN, DREI FARBEN - und sie stehen zugleich da.
+    --
+    -- Meistgetragen zusammen mit einem Wert und "Muss alle haben":
+    -- das Meistgetragene bleibt markiert, auch wenn der Wert fehlt.
+    do
+        local alt = MetaCodexDB.dropsStats
+        local altKombi = MetaCodexDB.dropsCombine
+        MetaCodexDB.dropsStats = { top = true, crit = true }
+        MetaCodexDB.dropsCombine = true
+        -- Feste Werte, damit wirklich geurteilt wird: alles traegt Tempo,
+        -- nichts Krit.
+        local echteWerte = ns.Tooltip.SecondaryStats
+        ns.Tooltip.SecondaryStats = function() return { haste = true } end
+        ns.Profile.ToggleNeed(101, ns.Profile.SelectedSpec())
+        rowsInSection("drops")
+        local kopfZelle
+        for _, f in ipairs(wow.frames) do
+            if rawget(f, "rings") and rawget(f, "itemID") == 101 and f:IsShown() then kopfZelle = f end
+        end
+        local an = {}
+        for r, ring in ipairs(kopfZelle and kopfZelle.rings or {}) do
+            if ring:IsShown() then an[#an + 1] = r end
+        end
+        check("Need und Meistgetragen stehen beide da", #an >= 2, #an .. " Ringe")
+        check("und das Meistgetragene ist nicht abgeblendet",
+            kopfZelle and kopfZelle.icon:GetAlpha() == 1,
+            tostring(kopfZelle and kopfZelle.icon:GetAlpha()))
+        local anderes
+        for _, f in ipairs(wow.frames) do
+            if rawget(f, "rings") and rawget(f, "itemID") == 201 and f:IsShown() then anderes = f end
+        end
+        check("was nichts davon traegt, tritt zurueck",
+            anderes and anderes.icon:GetAlpha() < 1, tostring(anderes and anderes.icon:GetAlpha()))
+        ns.Tooltip.SecondaryStats = echteWerte
+        ns.Profile.ToggleNeed(101, ns.Profile.SelectedSpec())
+        MetaCodexDB.dropsStats, MetaCodexDB.dropsCombine = alt, altKombi
+    end
 
     -- DER WAEHLER OBEN: nach der Art des Fundorts.
     ns.Profile.SetCategory("drops", "craft")

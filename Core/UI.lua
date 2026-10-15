@@ -2530,41 +2530,24 @@ end
 
 ---Wo die Stuecke fallen, als Raster - wie Keystone Loot.
 ---
----Oben "Wo du hinwillst": je Instanz oder Boss die Stuecke, die als
----Need markiert sind, die meisten zuerst. Darunter jeder Dungeon und
----jeder Boss mit ALLEN Drops fuer die Spec, und ganz unten, was in
----keiner Instanz faellt. Umgebaut am 15. Oktober: vorher standen hier
----nur die gemessenen Stuecke, verglichen mit dem Angelegten.
+---Jeder Dungeon und jeder Boss mit ALLEN Drops fuer die Spec, und ganz
+---unten, was in keiner Instanz faellt. Umgebaut am 15. Oktober:
+---vorher standen hier nur die gemessenen Stuecke, verglichen mit dem
+---Angelegten.
+---
+---Oben stand kurz "Wo du hinwillst" mit den Favoriten je Instanz. Das
+---wiederholte, was der goldene Ring schon zeigt, und die Hervorhebung
+---"Favoriten" blendet alles andere ab - gestrichen am selben Tag. Wo
+---die meisten fallen, sagt die Hinweiszeile.
 ---@return table[] rows
 ---@return string|nil fromSource
-UI.DROP_PLACES = { "need", "dungeon", "raid", "craft", "set", "pvp", "boe", "world" }
+UI.DROP_PLACES = { "dungeon", "raid", "craft", "set", "pvp", "boe", "world" }
 
 function UI.DropRows(specID, mode, source)
     local rows, _, from = ns.Drops.Build(specID, mode, source)
     if #rows == 0 then return {}, nil end
 
-    local out, ziele = {}, {}
-    for i, row in ipairs(rows) do
-        if row.inst and (row.need or 0) > 0 then
-            local nur = {}
-            for _, c in ipairs(row.items) do if c.need then nur[#nur + 1] = c end end
-            ziele[#ziele + 1] = {
-                kind = "droprow", inst = row.inst, enc = row.enc, place = "need",
-                items = nur, total = #nur, need = #nur, target = true, order = i,
-                group = L["DROPS_GROUP_NEED"],
-            }
-        end
-    end
-    table.sort(ziele, function(a, b)
-        if a.need ~= b.need then return a.need > b.need end
-        return a.order < b.order
-    end)
-    if #ziele == 0 then
-        out[1] = { kind = "note", place = "need", text = L["DROPS_NEED_EMPTY"],
-            group = L["DROPS_GROUP_NEED"] }
-    end
-    for _, row in ipairs(ziele) do out[#out + 1] = row end
-
+    local out = {}
     for _, row in ipairs(rows) do
         if row.place == "dungeon" then
             row.group = L["DROPS_GROUP_DUNGEON"]
@@ -3516,13 +3499,19 @@ local function dropCell(row, i)
     local c = CreateFrame("Button", nil, row)
     c:SetSize(DROP_CELL_W, DROP_CELL_H)
     c.bg = S:Fill(c, "bgOverlay", 0)
-    -- Der Rahmen der Hervorhebung. Einmal gebaut, sonst versteckt.
-    -- Fest, nicht die Klassenfarbe: beim Schurken war die gelb wie Need.
-    c.hl = S:Border(c, "highlight")
-    -- Und der goldene fuer Gemerktes. Zwei Rahmen auf demselben
-    -- Rechteck: es ist immer nur einer zu sehen, und welcher, steht
-    -- unten in setDropRow.
-    c.favBorder = S:Border(c, "gold")
+    -- DREI RINGE statt zweier Rahmen.
+    --
+    -- Need, meistgetragen und die Werte koennen alle zugleich
+    -- zutreffen, und dann soll man alle drei sehen. Jeder Ring liegt
+    -- zwei Punkte weiter innen; welche Farbe er traegt, entscheidet
+    -- setDropRow - die zutreffenden von aussen nach innen.
+    c.rings = {}
+    for r = 1, 3 do
+        local ring = CreateFrame("Frame", nil, c)
+        ring.lines = S:Border(ring, "gold")
+        ring:Hide()
+        c.rings[r] = ring
+    end
     c.icon = c:CreateTexture(nil, "ARTWORK")
     c.icon:SetSize(30, 30)
     c.icon:SetPoint("TOP", 0, -2)
@@ -3689,20 +3678,15 @@ local function setDropRow(row, data)
     -- einen wartet - eines, das fast alle Besten tragen, oder drei, die
     -- kaum jemand hat -, stand nirgends.
     -- Seit dem Umbau: wie viele Drops, wie viele davon gemessen, wie
-    -- viele willst du. In "Wo du hinwillst" nur das Letzte - und beim
-    -- Boss, in welchem Schlachtzug er steht.
+    -- viele davon Favoriten.
     local text
-    if data.target then
-        text = L["DROPS_NEED_N"]:format(data.need or 0)
-        if boss and data.inst then
-            text = text .. "  ·  " .. (ns.Compat.InstanceName(data.inst) or "")
-        end
-    elseif not data.inst then
+    if not data.inst then
         text = L["DROPS_ROW_MEASURED"]:format(data.total or 0)
     else
         text = L["DROPS_ROW_ALL"]:format(data.total or 0, data.measured or 0)
         if (data.need or 0) > 0 then
-            text = L["DROPS_NEED_N"]:format(data.need) .. "  ·  " .. text
+            text = (data.need == 1 and L["DROPS_NEED_1"] or L["DROPS_NEED_N"]:format(data.need))
+                .. "  ·  " .. text
         end
         -- Ohne Journal nur das Gemessene - und das steht dabei.
         if data.partial then text = text .. "  ·  " .. L["DROPS_PARTIAL"] end
@@ -3750,8 +3734,13 @@ local function setDropRow(row, data)
     -- Die Hervorhebung: einmal je Zeile gelesen, nicht je Kaestchen.
     local wunsch = ns.Profile.DropsStats()
     local kombi = ns.Profile.DropsCombine()
-    local gewaehlt = 0
-    for _ in pairs(wunsch) do gewaehlt = gewaehlt + 1 end
+    -- Die Werte fuer sich: "Muss alle haben" gilt nur fuer sie.
+    -- Meistgetragen und Need sind eigene Markierungen daneben.
+    local werte, gewaehlt = {}, 0
+    for k, ja in pairs(wunsch) do
+        if ja and k ~= "top" and k ~= "fav" then werte[k] = true; gewaehlt = gewaehlt + 1 end
+    end
+    local irgendwas = gewaehlt > 0 or wunsch.top or wunsch.fav
     local frei = (contentWidth() or 0) - nameW - S.space.md - S.space.lg
     local proReihe = math.max(1, math.floor(frei / (DROP_CELL_W + 2)))
     local shown = 0
@@ -3803,21 +3792,40 @@ local function setDropRow(row, data)
         local passt
         if gewaehlt > 0 then
             passt = ns.Drops.Matches(link and ns.Tooltip.SecondaryStats(link),
-                wunsch, kombi, item.need, item.top)
+                werte, kombi)
         end
+        local meist = wunsch.top and item.top
+        local gewollt = wunsch.fav and item.need
         -- GOLD STICHT DEN AKZENT.
         --
         -- Ein gemerktes Stueck, das auch noch zur Hervorhebung passt,
         -- traegt den goldenen Rahmen: die eigene Wahl ist die seltenere
         -- Auskunft. Dass es zur Hervorhebung passt, sagt schon, dass es
         -- nicht abgeblendet ist.
-        for _, line in pairs(c.favBorder or {}) do
-            line:SetShown(item.need and true or false)
+        -- Die Ringe: Need immer, die beiden anderen, wenn gewaehlt.
+        local farben = {}
+        if item.need then farben[#farben + 1] = "gold" end
+        if meist then farben[#farben + 1] = "brand" end
+        if passt == true then farben[#farben + 1] = "highlight" end
+        for r, ring in ipairs(c.rings) do
+            local farbe = farben[r]
+            if farbe then
+                local ein = (r - 1) * 2
+                ring:ClearAllPoints()
+                ring:SetPoint("TOPLEFT", ein, -ein)
+                ring:SetPoint("BOTTOMRIGHT", -ein, ein)
+                for _, line in pairs(ring.lines) do line:SetVertexColor(S:Color(farbe)) end
+                ring:Show()
+            else
+                ring:Hide()
+            end
         end
-        for _, line in pairs(c.hl or {}) do
-            line:SetShown(passt == true and not item.need)
-        end
-        if passt == false then
+        -- Abgeblendet wird nur, was KEINE gewaehlte Markierung traegt -
+        -- und nicht, was wir nicht wissen: kennt der Client die Werte
+        -- noch nicht, bleibt das Kaestchen, wie es ist.
+        local trifft = passt == true or meist or gewollt
+        local unbekannt = gewaehlt > 0 and passt == nil
+        if irgendwas and not trifft and not unbekannt then
             c.icon:SetDesaturated(true)
             c.icon:SetAlpha(0.3)
             S:Recolor(c.share, "textMuted")
@@ -4781,34 +4789,41 @@ local function build()
     -- passt, bleibt sichtbar und tritt zurueck - sonst weiss man nie,
     -- ob der Dungeon nichts hat oder die Auswahl zu eng war.
     local highlightButton = makeButton(content, 170, 22, "", function(self)
+        -- Ein Farbfeld vor jedem Eintrag: das Menue ist zugleich die
+        -- Legende der Ringe.
+        local function feld(token)
+            local r, g, b = S:Color(token)
+            return ("|TInterface\\Buttons\\WHITE8X8:10:10:0:0:8:8:0:8:0:8:%d:%d:%d|t  "):format(
+                math.floor(r * 255), math.floor(g * 255), math.floor(b * 255))
+        end
         local entries = {}
         for _, key in ipairs(ns.SECONDARY) do
             entries[#entries + 1] = {
-                label = L["STAT_" .. key],
+                label = feld("highlight") .. L["STAT_" .. key],
                 on = function() return ns.Profile.DropsStats()[key] == true end,
                 toggle = function() ns.Profile.ToggleDropsStat(key) end,
             }
         end
         entries[#entries + 1] = {
-            label = L["DROPS_HL_TOP"],
-            on = function() return ns.Profile.DropsStats().top == true end,
-            toggle = function() ns.Profile.ToggleDropsStat("top") end,
-        }
-        entries[#entries + 1] = {
-            label = L["DROPS_HL_FAV"],
-            on = function() return ns.Profile.DropsStats().fav == true end,
-            toggle = function() ns.Profile.ToggleDropsStat("fav") end,
-        }
-        entries[#entries + 1] = {
-            label = L["DROPS_HL_NONE"],
+            label = feld("highlight") .. L["DROPS_HL_NONE"],
             on = function() return ns.Profile.DropsStats().none == true end,
             toggle = function() ns.Profile.ToggleDropsStat("none") end,
         }
-        entries[#entries + 1] = { spacer = true }
         entries[#entries + 1] = {
             label = L["DROPS_HL_COMBINE"],
             on = function() return ns.Profile.DropsCombine() end,
             toggle = function() ns.Profile.ToggleDropsCombine() end,
+        }
+        entries[#entries + 1] = { spacer = true }
+        entries[#entries + 1] = {
+            label = feld("brand") .. L["DROPS_HL_TOP"],
+            on = function() return ns.Profile.DropsStats().top == true end,
+            toggle = function() ns.Profile.ToggleDropsStat("top") end,
+        }
+        entries[#entries + 1] = {
+            label = feld("gold") .. L["DROPS_HL_FAV"],
+            on = function() return ns.Profile.DropsStats().fav == true end,
+            toggle = function() ns.Profile.ToggleDropsStat("fav") end,
         }
         checkMenu(self, L["DROPS_HL"], entries)
     end)
@@ -5451,11 +5466,15 @@ function UI.Refresh()
         for _, key in ipairs(ns.SECONDARY) do
             if set[key] then teile[#teile + 1] = L["STAT_SHORT_" .. key] end
         end
-        if set.top then teile[#teile + 1] = L["DROPS_HL_TOP_S"] end
-        if set.fav then teile[#teile + 1] = L["DROPS_HL_FAV"] end
         if set.none then teile[#teile + 1] = L["DROPS_HL_NONE"] end
-        frame.highlightButton.label:SetText(#teile == 0 and L["DROPS_HL"]
-            or table.concat(teile, ns.Profile.DropsCombine() and " + " or " / "))
+        local alle = {}
+        if #teile > 0 then
+            alle[1] = table.concat(teile, ns.Profile.DropsCombine() and " + " or " / ")
+        end
+        if set.top then alle[#alle + 1] = L["DROPS_HL_TOP_S"] end
+        if set.fav then alle[#alle + 1] = L["DROPS_HL_FAV"] end
+        frame.highlightButton.label:SetText(#alle == 0 and L["DROPS_HL"]
+            or table.concat(alle, "  \194\183  "))
     end
 
     -- Der Platzwaehler gehoert zur Ausruestung UND zum Fundort-Raster.
@@ -5641,9 +5660,10 @@ function UI.Refresh()
         -- "Was die Besten tragen, nach Fundort sortiert" beschreibt,
         -- was die Liste IST. Die Frage war "wo muss ich rein" - und die
         -- beantwortet der Name, der oben steht.
+        -- Wo die meisten Favoriten fallen - bei Gleichstand die erste.
         local erste
         for _, row in ipairs(currentRows) do
-            if row.target and not erste then erste = row end
+            if row.inst and (row.need or 0) > ((erste and erste.need) or 0) then erste = row end
         end
         local wohin = erste and ((erste.enc and ns.Compat.EncounterName
             and ns.Compat.EncounterName(erste.enc)) or ns.Compat.InstanceName(erste.inst))
