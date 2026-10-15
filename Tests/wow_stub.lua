@@ -132,6 +132,9 @@ end
 -- richtig. Ein Test, der an einer Stelle anders antwortet als das Spiel,
 -- misst sich selbst.
 Mock.methods.GetParent = function(self) return rawget(self, "__parent") or nil end
+-- Umhaengen wie im Spiel - sonst laeuft SetParent auf einem Stellvertreter
+-- ins Leere, und ein Stern, den es noch gar nicht gibt, faellt nie auf.
+Mock.methods.SetParent = function(self, p) rawset(self, "__parent", p) end
 -- Wie hoch ein Text gesetzt waere: das Erinnerungsfenster waechst mit
 -- ihm, und ein Mock, der hier ein Kind zurueckgibt, liesse die Rechnung
 -- mit einem Laufzeitfehler sterben.

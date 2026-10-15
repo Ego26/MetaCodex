@@ -3529,14 +3529,6 @@ local function dropCell(row, i)
         ring:Hide()
         c.rings[r] = ring
     end
-    -- Der Stern liegt UEBER den Ringen. Die Ringe sind eigene Rahmen und
-    -- zeichnen damit ueber allem, was am Kaestchen selbst haengt - der
-    -- goldene Rand lief quer durch den Stern (im Spiel gesehen, 15. Oktober).
-    c.badge = CreateFrame("Frame", nil, c)
-    c.badge:SetAllPoints()
-    c.badge:SetFrameLevel(c:GetFrameLevel() + 4)
-    c.star:SetParent(c.badge)
-    c.star:SetDrawLayer("OVERLAY", 7)
     c.icon = c:CreateTexture(nil, "ARTWORK")
     c.icon:SetSize(30, 30)
     c.icon:SetPoint("TOP", 0, -2)
@@ -3558,6 +3550,16 @@ local function dropCell(row, i)
     c.star:SetPoint("TOPRIGHT", c.icon, "TOPRIGHT", 6, 6)
     c.star:SetTexture("Interface\\Common\\FavoritesIcon")
     c.star:Hide()
+    -- Der Stern liegt UEBER den Ringen. Die Ringe sind eigene Rahmen und
+    -- zeichnen damit ueber allem, was am Kaestchen selbst haengt - der
+    -- goldene Rand lief quer durch den Stern (im Spiel gesehen, 15. Oktober).
+    -- ERST HIER, nachdem es den Stern gibt: einmal stand dieser Block
+    -- davor, c.star war nil, und das Fenster ging nicht mehr auf.
+    c.badge = CreateFrame("Frame", nil, c)
+    c.badge:SetAllPoints()
+    c.badge:SetFrameLevel(c:GetFrameLevel() + 4)
+    c.star:SetParent(c.badge)
+    c.star:SetDrawLayer("OVERLAY", 7)
     -- Und das Kreuz fuer Ignoriertes. Es bleibt stehen, damit man
     -- sieht, warum in diesem Dungeon wenig offen ist - und damit man
     -- es hier auch wieder zuruecknehmen kann.

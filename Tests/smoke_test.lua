@@ -6779,6 +6779,10 @@ do
             if ring:IsShown() then an[#an + 1] = r end
         end
         check("Need und Meistgetragen stehen beide da", #an >= 2, #an .. " Ringe")
+        -- Der Stern gehoert dem Rahmen UEBER den Ringen - und es gibt ihn.
+        local stern = kopfZelle and rawget(kopfZelle, "star")
+        check("der Stern liegt ueber den Ringen",
+            stern ~= nil and stern:GetParent() == rawget(kopfZelle, "badge"))
         check("und das Meistgetragene ist nicht abgeblendet",
             kopfZelle and kopfZelle.icon:GetAlpha() == 1,
             tostring(kopfZelle and kopfZelle.icon:GetAlpha()))
