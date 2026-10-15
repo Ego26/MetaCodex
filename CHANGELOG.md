@@ -4,6 +4,40 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ## [Unreleased]
 
+## [1.1.17] - 2026-10-15
+
+### Changed
+
+- **Drop locations, rebuilt.** Every current dungeon and every raid boss
+  now lists all drops for your spec - straight from the game's
+  Adventure Guide with its class and spec filter, the same list as its
+  Loot tab. Before, only the pieces top players wear were shown,
+  compared with what you have equipped. What is measured still carries
+  its share of top players. Dungeons and raid always both show,
+  whatever activity is picked; raids are split by boss in journal
+  order. Crafted, set, PvP and world pieces stand in a card
+  "Elsewhere" at the bottom.
+- **Favourites.** A click on an item marks it as a favourite - gold
+  frame and star - per character and spec. The hint line names where
+  most of your favourites drop. The old account-wide stars carry over.
+- **Highlight** gains "Most worn (per slot)": the most worn piece in
+  each slot, the first two for rings and trinkets. Each marker has its
+  own colour - favourite gold, most worn purple, matching stats
+  turquoise - and a legend above the list says which is which. The
+  frame shows the most important one; a small dot in the corner shows
+  a second. "Must have all" now applies to the stats alone.
+- Gone from the drop view: the comparison with equipped items and item
+  levels, the sort order and "Ignore".
+
+### Fixed
+
+- **"Data/Catalog.lua is missing or empty. Run tools/build-catalog.js."**
+  A first-time player saw only this - a message for whoever builds the
+  addon. When the game does not load the data folder, MetaCodex now
+  says in plain words what to do, and a data folder switched off in
+  the AddOns list is switched back on by itself.
+- The TOC files list interface 120105, for patch 12.1.5.
+
 ## [1.1.16] - 2026-10-14
 
 ### Added

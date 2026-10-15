@@ -1,3 +1,22 @@
+## v1.1.17 — every drop, your favourites
+
+### Changed
+
+- **Drop locations, rebuilt:** every dungeon and raid boss lists all
+  drops for your spec, straight from the Adventure Guide. Measured
+  pieces still show their share of top players.
+- **Click an item to mark it as a favourite** — gold frame and star,
+  per character and spec.
+- **Highlight "Most worn (per slot)"**, next to the stat highlight.
+  Each marker has its own colour, with a legend above the list.
+
+### Fixed
+
+- **"Data/Catalog.lua is missing or empty"** on a fresh install: the
+  data folder is switched back on by itself, and any other problem is
+  explained in plain words.
+- Interface 120105 for patch 12.1.5.
+
 ## v1.1.16 — where a stat stops paying
 
 ### Added

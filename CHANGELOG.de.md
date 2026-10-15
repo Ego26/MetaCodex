@@ -4,6 +4,43 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ## [Unveröffentlicht]
 
+## [1.1.17] - 2026-10-15
+
+### Geändert
+
+- **Fundorte, neu gebaut.** Jeder laufende Dungeon und jeder Raid-Boss
+  zeigt jetzt alle Drops für deine Spec - direkt aus dem
+  Abenteuerjournal des Spiels mit seinem Klassen- und Spec-Filter,
+  dieselbe Liste wie dort im Reiter Beute. Vorher standen nur die
+  Stücke da, die Top-Spieler tragen, verglichen mit dem Angelegten.
+  Was gemessen ist, trägt weiter seinen Anteil. Dungeons und Raid
+  stehen immer beide da, egal welche Aktivität gewählt ist; der Raid
+  je Boss in der Reihenfolge des Journals. Hergestelltes, Set-Teile,
+  PvP- und Welt-Stücke stehen unten in einer Karte „Anderswo“.
+- **Favoriten.** Ein Klick auf ein Item markiert es als Favorit -
+  goldener Rahmen und Stern -, je Charakter und Spec. Die Hinweiszeile
+  nennt, wo die meisten deiner Favoriten fallen. Die alten Sterne
+  werden übernommen.
+- **Hervorhebung** um „Am häufigsten getragen (je Platz)“ erweitert:
+  das meistgetragene Stück je Platz, bei Ringen und Schmuck die ersten
+  zwei. Jede Markierung hat ihre Farbe - Favorit gold, Meistgetragen
+  lila, passende Werte türkis -, und eine Legende über der Liste sagt,
+  welche was heißt. Der Rahmen zeigt die wichtigste, ein kleiner Punkt
+  in der Ecke eine zweite. „Alle gewählten Werte müssen drauf sein“
+  gilt nur noch für die Werte.
+- Weggefallen in den Fundorten: der Vergleich mit angelegten Items und
+  Itemlevel, die Reihenfolge und „Ignorieren“.
+
+### Behoben
+
+- **„Data/Catalog.lua fehlt oder ist leer. tools/build-catalog.js
+  ausführen.“** Mehr sah ein Spieler nach der Erstinstallation nicht -
+  eine Meldung für den, der das Addon baut. Lädt das Spiel den
+  Datenordner nicht, sagt MetaCodex jetzt in klaren Worten, was zu tun
+  ist, und ein in der AddOn-Liste abgeschalteter Datenordner wird von
+  selbst wieder eingeschaltet.
+- Die TOC-Dateien nennen Interface 120105, für Patch 12.1.5.
+
 ## [1.1.16] - 2026-10-14
 
 ### Neu
