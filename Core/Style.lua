@@ -56,6 +56,12 @@ local PALETTE = {
     -- Ton liegt bewusst neben dem Akzent - der wandert mit der
     -- Klassenfarbe, das Gold bleibt.
     gold        = "E9B949",
+    -- Die Hervorhebung nach Werten im Fundort-Raster. Eine FESTE Farbe,
+    -- nicht der Akzent: der traegt die Klassenfarbe, und beim Schurken
+    -- ist die gelb - neben dem Gold fuer Need war beides nicht mehr
+    -- auseinanderzuhalten (15. Oktober, im Spiel gesehen). Ein kuehles
+    -- Tuerkis liegt weit weg von Gold und von jeder Klassenfarbe.
+    highlight   = "3DD6D0",
     danger      = "F04D4D",
 }
 

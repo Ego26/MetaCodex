@@ -3517,7 +3517,8 @@ local function dropCell(row, i)
     c:SetSize(DROP_CELL_W, DROP_CELL_H)
     c.bg = S:Fill(c, "bgOverlay", 0)
     -- Der Rahmen der Hervorhebung. Einmal gebaut, sonst versteckt.
-    c.hl = S:Border(c, "accent")
+    -- Fest, nicht die Klassenfarbe: beim Schurken war die gelb wie Need.
+    c.hl = S:Border(c, "highlight")
     -- Und der goldene fuer Gemerktes. Zwei Rahmen auf demselben
     -- Rechteck: es ist immer nur einer zu sehen, und welcher, steht
     -- unten in setDropRow.
