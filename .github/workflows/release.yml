@@ -46,10 +46,15 @@ jobs:
           newest=$(ls -1 MetaCodex-*.zip | sort | tail -1)
           echo "Daten aus: $newest"
           unzip -q "$newest"
+          # Only the tables, not the TOC files. v1.1.17 took the TOCs of
+          # the night along and with them its interface line - the main
+          # addon said 120100, 120105, the three data folders still only
+          # 120100. The TOCs belong to the tag, like the code.
           for addon in MetaCodex_Data MetaCodex_Dungeons MetaCodex_Players; do
             mkdir -p "$GITHUB_WORKSPACE/$addon"
-            cp -r "/tmp/nightly/$addon/." "$GITHUB_WORKSPACE/$addon/"
+            cp /tmp/nightly/$addon/*.lua "$GITHUB_WORKSPACE/$addon/"
           done
+          grep -H "## Interface" "$GITHUB_WORKSPACE"/MetaCodex_*/*.toc
 
       - uses: actions/setup-node@v4
         with:
