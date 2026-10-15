@@ -6819,8 +6819,7 @@ do
             if pip.punkt:IsShown() then stuecke = stuecke + 1 end
         end
         check("ein einziger Rahmen", rahmen == 1, rahmen .. " Rahmen")
-        check("und ein Punkt fuer die zweite Markierung", stuecke == 1,
-            stuecke .. " Punkte")
+        check("beim Favoriten kein Punkt dazu", stuecke == 0, stuecke .. " Punkte")
         -- Der Stern gehoert dem Rahmen UEBER den Ringen - und es gibt ihn.
         local stern = kopfZelle and rawget(kopfZelle, "star")
         check("der Stern liegt ueber den Ringen",

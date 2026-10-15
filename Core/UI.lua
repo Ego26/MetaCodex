@@ -3862,9 +3862,10 @@ local function setDropRow(row, data)
         else
             ring:Hide()
         end
-        -- Je weitere Markierung ein Punkt oben links.
+        -- Je weitere Markierung ein Punkt oben links - aber nicht bei
+        -- Favoriten: Gold und Stern sagen dort genug (15. Oktober).
         for s, pip in ipairs(c.pips) do
-            local farbe = farben[s + 1]
+            local farbe = not item.need and farben[s + 1]
             if farbe then
                 pip.rand:ClearAllPoints()
                 pip.rand:SetPoint("TOPLEFT", c.icon, "TOPLEFT", -2 + (s - 1) * 9, 2)
