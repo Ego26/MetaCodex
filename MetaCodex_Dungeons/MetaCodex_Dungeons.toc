@@ -1,4 +1,4 @@
-## Interface: 120100, 120105
+## Interface: 120105
 ## Title: MetaCodex Dungeons
 ## Author: Ego26
 ## Version: @project-version@
