@@ -6774,11 +6774,17 @@ do
         for _, f in ipairs(wow.frames) do
             if rawget(f, "rings") and rawget(f, "itemID") == 101 and f:IsShown() then kopfZelle = f end
         end
-        local an = {}
-        for r, ring in ipairs(kopfZelle and kopfZelle.rings or {}) do
-            if ring:IsShown() then an[#an + 1] = r end
+        -- EIN Rahmen, und der Streifen traegt beide Farben.
+        local rahmen, stuecke = 0, 0
+        for _, ring in ipairs(kopfZelle and kopfZelle.rings or {}) do
+            if ring:IsShown() then rahmen = rahmen + 1 end
         end
-        check("Need und Meistgetragen stehen beide da", #an >= 2, #an .. " Ringe")
+        for _, t in ipairs(kopfZelle and rawget(kopfZelle, "strip") or {}) do
+            if t:IsShown() then stuecke = stuecke + 1 end
+        end
+        check("ein einziger Rahmen", rahmen == 1, rahmen .. " Rahmen")
+        check("Favorit und Meistgetragen stehen beide im Streifen", stuecke == 2,
+            stuecke .. " Stuecke")
         -- Der Stern gehoert dem Rahmen UEBER den Ringen - und es gibt ihn.
         local stern = kopfZelle and rawget(kopfZelle, "star")
         check("der Stern liegt ueber den Ringen",

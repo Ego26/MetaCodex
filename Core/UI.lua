@@ -3516,14 +3516,13 @@ local function dropCell(row, i)
     local c = CreateFrame("Button", nil, row)
     c:SetSize(DROP_CELL_W, DROP_CELL_H)
     c.bg = S:Fill(c, "bgOverlay", 0)
-    -- DREI RINGE statt zweier Rahmen.
+    -- EIN RAHMEN, in der Farbe der wichtigsten Markierung.
     --
-    -- Need, meistgetragen und die Werte koennen alle zugleich
-    -- zutreffen, und dann soll man alle drei sehen. Jeder Ring liegt
-    -- zwei Punkte weiter innen; welche Farbe er traegt, entscheidet
-    -- setDropRow - die zutreffenden von aussen nach innen.
+    -- Es waren drei ineinanderliegende Ringe; bei dieser Groesse
+    -- verschwammen sie zu einem unruhigen Doppelrand (15. Oktober).
+    -- Was sonst noch zutrifft, zeigt der Streifen am Fuss des Symbols.
     c.rings = {}
-    for r = 1, 3 do
+    for r = 1, 1 do
         local ring = CreateFrame("Frame", nil, c)
         ring.lines = S:Border(ring, "gold")
         ring:Hide()
@@ -3560,6 +3559,17 @@ local function dropCell(row, i)
     c.badge:SetFrameLevel(c:GetFrameLevel() + 4)
     c.star:SetParent(c.badge)
     c.star:SetDrawLayer("OVERLAY", 7)
+    -- Der Streifen: je zutreffende Markierung ein Stueck, nebeneinander,
+    -- am Fuss des Symbols. Auf dem Rahmen ueber den Ringen, damit kein
+    -- Rand durch ihn hindurchlaeuft.
+    c.strip = {}
+    for s = 1, 3 do
+        local t = c.badge:CreateTexture(nil, "OVERLAY", nil, 6)
+        t:SetTexture("Interface\\Buttons\\WHITE8X8")
+        t:SetHeight(3)
+        t:Hide()
+        c.strip[s] = t
+    end
     -- Und das Kreuz fuer Ignoriertes. Es bleibt stehen, damit man
     -- sieht, warum in diesem Dungeon wenig offen ist - und damit man
     -- es hier auch wieder zuruecknehmen kann.
@@ -3834,17 +3844,28 @@ local function setDropRow(row, data)
         if item.need then farben[#farben + 1] = "gold" end
         if meist then farben[#farben + 1] = "brand" end
         if passt == true then farben[#farben + 1] = "highlight" end
-        for r, ring in ipairs(c.rings) do
-            local farbe = farben[r]
-            if farbe then
-                local ein = (r - 1) * 2
-                ring:ClearAllPoints()
-                ring:SetPoint("TOPLEFT", ein, -ein)
-                ring:SetPoint("BOTTOMRIGHT", -ein, ein)
-                for _, line in pairs(ring.lines) do line:SetVertexColor(S:Color(farbe)) end
-                ring:Show()
+        -- Der Rahmen in der ersten Farbe - die Reihenfolge oben ist die
+        -- Rangfolge: Favorit, Meistgetragen, Werte.
+        local ring = c.rings[1]
+        if farben[1] then
+            ring:ClearAllPoints()
+            ring:SetAllPoints()
+            for _, line in pairs(ring.lines) do line:SetVertexColor(S:Color(farben[1])) end
+            ring:Show()
+        else
+            ring:Hide()
+        end
+        -- Der Streifen erst ab zwei: bei einer sagt der Rahmen alles.
+        local breite = (tonumber(c.icon:GetWidth()) or 30) / math.max(1, #farben)
+        for s, t in ipairs(c.strip) do
+            if #farben >= 2 and farben[s] then
+                t:ClearAllPoints()
+                t:SetPoint("BOTTOMLEFT", c.icon, "BOTTOMLEFT", (s - 1) * breite, 0)
+                t:SetWidth(breite)
+                t:SetVertexColor(S:Color(farben[s]))
+                t:Show()
             else
-                ring:Hide()
+                t:Hide()
             end
         end
         -- Abgeblendet wird nur, was KEINE gewaehlte Markierung traegt -
