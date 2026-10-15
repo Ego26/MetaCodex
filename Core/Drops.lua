@@ -82,16 +82,23 @@ end
 ---@param wunsch table|nil  gewaehlte Werte, dazu "none"
 ---@param kombi boolean|nil  true: alle gewaehlten muessen drauf sein
 ---@return boolean|nil
-function Drops.Matches(stats, wunsch, kombi, fav)
-    local gewaehlt = 0
-    for _ in pairs(wunsch or {}) do gewaehlt = gewaehlt + 1 end
+function Drops.Matches(stats, wunsch, kombi, fav, top)
+    wunsch = wunsch or {}
+    local gewaehlt, nurBekannt = 0, true
+    for k in pairs(wunsch) do
+        gewaehlt = gewaehlt + 1
+        if k ~= "fav" and k ~= "top" then nurBekannt = false end
+    end
     if gewaehlt == 0 then return nil end
-    -- Der Stern ist kein Wert des Gegenstands, sondern eine Auskunft
-    -- ueber den Spieler - die haben wir immer, auch wenn der Client das
-    -- Stueck noch nicht kennt.
-    if (wunsch or {}).fav and not kombi and fav then return true end
-    if (wunsch or {}).fav and kombi and not fav then return false end
-    if gewaehlt == 1 and (wunsch or {}).fav then return fav and true or false end
+    -- Need und "meistgetragen" sind keine Werte des Gegenstands,
+    -- sondern Auskuenfte ueber den Spieler und die Messung - die haben
+    -- wir immer, auch wenn der Client das Stueck noch nicht kennt.
+    local bekannt = { fav = fav and true or false, top = top and true or false }
+    for k, ja in pairs(bekannt) do
+        if wunsch[k] and ja and not kombi then return true end
+        if wunsch[k] and not ja and kombi then return false end
+    end
+    if nurBekannt then return kombi and true or false end
     if not stats then return nil end
 
     local hatWelche = false
@@ -161,13 +168,24 @@ local function platzVon(itemID, filter)
 end
 
 ---Was gemessen ist, je Gegenstand: der hoechste Anteil und sein Platz.
+-- Wie viele Stuecke an einem Platz "am haeufigsten getragen" sind:
+-- Ringe und Schmuck traegt man zu zweit.
+local ZWEI = { Rings = true, Trinkets = true }
+
 local function gemessen(gear)
     local out = {}
     for platz, liste in pairs(gear or {}) do
-        for _, item in ipairs(liste) do
+        local reihe = {}
+        for _, item in ipairs(liste) do reihe[#reihe + 1] = item end
+        table.sort(reihe, function(a, b) return (a.pct or 0) > (b.pct or 0) end)
+        for rang, item in ipairs(reihe) do
             local da = item.id and out[item.id]
+            local oben = rang <= (ZWEI[platz] and 2 or 1)
             if item.id and (not da or (item.pct or 0) > (da.pct or 0)) then
-                out[item.id] = { pct = item.pct or 0, slot = platz, ilvl = item.ilvl, kind = item.kind }
+                out[item.id] = { pct = item.pct or 0, slot = platz, ilvl = item.ilvl,
+                    kind = item.kind, top = oben or (da and da.top) or false }
+            elseif da and oben then
+                da.top = true
             end
         end
     end
@@ -245,6 +263,7 @@ function Drops.Build(specID, mode, source, opts)
             id = id, slot = platz, enc = enc, spec = specID,
             pct = m and m.pct or nil, ilvl = m and m.ilvl or nil,
             measured = m ~= nil, need = need(id) and true or false,
+            top = m and m.top or false,
         }
     end
 

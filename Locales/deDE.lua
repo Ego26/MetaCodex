@@ -239,6 +239,8 @@ ns.RegisterLocale("deDE", {
     ["DROPS_IGNORE"]       = "Ignorieren",
     ["DROPS_IGNORED_N"]    = "%d ignoriert",
     ["DROPS_HL_FAV"]       = "Need",
+    ["DROPS_HL_TOP"] = "Am häufigsten getragen (je Platz)",
+    ["DROPS_HL_TOP_S"] = "Meistgetragen",
     ["DROPS_HL"]           = "Hervorhebung",
     ["DROPS_HL_NONE"]      = "Keine Zweitwerte",
     ["DROPS_HL_COMBINE"]   = "Muss alle haben",

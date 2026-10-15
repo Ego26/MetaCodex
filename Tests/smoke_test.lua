@@ -6737,6 +6737,21 @@ do
         ns.Drops.Matches(krit, {}, false) == nil)
     check("und was der Client nicht kennt, auch nicht",
         ns.Drops.Matches(nil, { crit = true }, false) == nil)
+    -- MEISTGETRAGEN: Platz eins, bei Ringen die ersten zwei.
+    local kopf = kaestchen(dungeon, 101)
+    local ring = kaestchen(dungeon, 102)
+    check("das Meistgetragene ist markiert", kopf and kopf.top == true and ring and ring.top == true)
+    check("das Ungemessene nicht", kaestchen(dungeon, 201) and kaestchen(dungeon, 201).top == false)
+    check("Meistgetragen laesst sich hervorheben",
+        ns.Drops.Matches(nil, { top = true }, false, false, true) == true
+        and ns.Drops.Matches(nil, { top = true }, false, false, false) == false)
+    check("Meistgetragen UND Krit verlangt beides",
+        ns.Drops.Matches(krit, { top = true, crit = true }, true, false, true) == true
+        and ns.Drops.Matches(krit, { top = true, crit = true }, true, false, false) == false
+        and ns.Drops.Matches(nix, { top = true, crit = true }, true, false, true) == false)
+    check("Meistgetragen ODER Krit genuegt eines",
+        ns.Drops.Matches(nix, { top = true, crit = true }, false, false, true) == true
+        and ns.Drops.Matches(krit, { top = true, crit = true }, false, false, false) == true)
     check("Need laesst sich hervorheben",
         ns.Drops.Matches(nil, { fav = true }, false, true) == true
         and ns.Drops.Matches(nil, { fav = true }, false, false) == false)

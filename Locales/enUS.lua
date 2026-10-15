@@ -239,6 +239,8 @@ ns.RegisterLocale("enUS", {
     ["DROPS_IGNORE"]       = "Ignore",
     ["DROPS_IGNORED_N"]    = "%d ignored",
     ["DROPS_HL_FAV"]       = "Need",
+    ["DROPS_HL_TOP"] = "Most worn (per slot)",
+    ["DROPS_HL_TOP_S"] = "Most worn",
     ["DROPS_HL"]           = "Highlight",
     ["DROPS_HL_NONE"]      = "No secondary stats",
     ["DROPS_HL_COMBINE"]   = "Must have all of them",

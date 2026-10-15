@@ -3803,7 +3803,7 @@ local function setDropRow(row, data)
         local passt
         if gewaehlt > 0 then
             passt = ns.Drops.Matches(link and ns.Tooltip.SecondaryStats(link),
-                wunsch, kombi, item.need)
+                wunsch, kombi, item.need, item.top)
         end
         -- GOLD STICHT DEN AKZENT.
         --
@@ -4790,6 +4790,11 @@ local function build()
             }
         end
         entries[#entries + 1] = {
+            label = L["DROPS_HL_TOP"],
+            on = function() return ns.Profile.DropsStats().top == true end,
+            toggle = function() ns.Profile.ToggleDropsStat("top") end,
+        }
+        entries[#entries + 1] = {
             label = L["DROPS_HL_FAV"],
             on = function() return ns.Profile.DropsStats().fav == true end,
             toggle = function() ns.Profile.ToggleDropsStat("fav") end,
@@ -5446,6 +5451,7 @@ function UI.Refresh()
         for _, key in ipairs(ns.SECONDARY) do
             if set[key] then teile[#teile + 1] = L["STAT_SHORT_" .. key] end
         end
+        if set.top then teile[#teile + 1] = L["DROPS_HL_TOP_S"] end
         if set.fav then teile[#teile + 1] = L["DROPS_HL_FAV"] end
         if set.none then teile[#teile + 1] = L["DROPS_HL_NONE"] end
         frame.highlightButton.label:SetText(#teile == 0 and L["DROPS_HL"]
