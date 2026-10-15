@@ -6653,9 +6653,15 @@ do
     -- Keine eigene Gruppe mehr: der Ring zeigt es, und die erste Zeile
     -- ist ein Dungeon.
     local fenster = ns.UI.DropRows(SPEC, "mplus", nil)
-    check("oben steht gleich der erste Dungeon",
-        fenster[1] and fenster[1].group == L["DROPS_GROUP_DUNGEON"],
-        tostring(fenster[1] and fenster[1].group))
+    check("oben steht die Legende der Ringe",
+        fenster[1] and fenster[1].legend == true
+        and fenster[1].text:find(L["DROPS_LEGEND_FAV"], 1, true) ~= nil
+        and fenster[1].text:find(L["DROPS_LEGEND_TOP"], 1, true) ~= nil
+        and fenster[1].text:find(L["DROPS_LEGEND_STATS"], 1, true) ~= nil,
+        tostring(fenster[1] and fenster[1].text))
+    check("und gleich darunter der erste Dungeon",
+        fenster[2] and fenster[2].group == L["DROPS_GROUP_DUNGEON"],
+        tostring(fenster[2] and fenster[2].group))
     ns.Profile.ToggleNeed(201, SPEC)
 
     -- Die alten Sterne gehen nicht verloren.

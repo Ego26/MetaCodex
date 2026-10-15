@@ -2547,7 +2547,24 @@ function UI.DropRows(specID, mode, source)
     local rows, _, from = ns.Drops.Build(specID, mode, source)
     if #rows == 0 then return {}, nil end
 
-    local out = {}
+    -- DIE LEGENDE DER RINGE, ueber der Liste.
+    --
+    -- Drei Farben am Kaestchen sagen nichts, solange niemand weiss,
+    -- welche was heisst. Im Menue standen Farbfelder neben den Haken und
+    -- sahen selbst wie Haken aus (15. Oktober).
+    local function feld(token)
+        local r, g, b = S:Color(token)
+        return ("|TInterface\\Buttons\\WHITE8X8:10:10:0:0:8:8:0:8:0:8:%d:%d:%d|t "):format(
+            math.floor(r * 255), math.floor(g * 255), math.floor(b * 255))
+    end
+    local out = {
+        {
+            kind = "note", legend = true,
+            text = feld("gold") .. L["DROPS_LEGEND_FAV"] .. "      "
+                .. feld("brand") .. L["DROPS_LEGEND_TOP"] .. "      "
+                .. feld("highlight") .. L["DROPS_LEGEND_STATS"],
+        },
+    }
     for _, row in ipairs(rows) do
         if row.place == "dungeon" then
             row.group = L["DROPS_GROUP_DUNGEON"]
@@ -4797,23 +4814,18 @@ local function build()
     -- passt, bleibt sichtbar und tritt zurueck - sonst weiss man nie,
     -- ob der Dungeon nichts hat oder die Auswahl zu eng war.
     local highlightButton = makeButton(content, 170, 22, "", function(self)
-        -- Ein Farbfeld vor jedem Eintrag: das Menue ist zugleich die
-        -- Legende der Ringe.
-        local function feld(token)
-            local r, g, b = S:Color(token)
-            return ("|TInterface\\Buttons\\WHITE8X8:10:10:0:0:8:8:0:8:0:8:%d:%d:%d|t  "):format(
-                math.floor(r * 255), math.floor(g * 255), math.floor(b * 255))
-        end
+        -- Keine Farbfelder hier: neben den Haken sahen sie selbst wie
+        -- Haken aus (im Spiel gesehen). Die Legende steht ueber der Liste.
         local entries = {}
         for _, key in ipairs(ns.SECONDARY) do
             entries[#entries + 1] = {
-                label = feld("highlight") .. L["STAT_" .. key],
+                label = L["STAT_" .. key],
                 on = function() return ns.Profile.DropsStats()[key] == true end,
                 toggle = function() ns.Profile.ToggleDropsStat(key) end,
             }
         end
         entries[#entries + 1] = {
-            label = feld("highlight") .. L["DROPS_HL_NONE"],
+            label = L["DROPS_HL_NONE"],
             on = function() return ns.Profile.DropsStats().none == true end,
             toggle = function() ns.Profile.ToggleDropsStat("none") end,
         }
@@ -4824,12 +4836,12 @@ local function build()
         }
         entries[#entries + 1] = { spacer = true }
         entries[#entries + 1] = {
-            label = feld("brand") .. L["DROPS_HL_TOP"],
+            label = L["DROPS_HL_TOP"],
             on = function() return ns.Profile.DropsStats().top == true end,
             toggle = function() ns.Profile.ToggleDropsStat("top") end,
         }
         entries[#entries + 1] = {
-            label = feld("gold") .. L["DROPS_HL_FAV"],
+            label = L["DROPS_HL_FAV"],
             on = function() return ns.Profile.DropsStats().fav == true end,
             toggle = function() ns.Profile.ToggleDropsStat("fav") end,
         }
