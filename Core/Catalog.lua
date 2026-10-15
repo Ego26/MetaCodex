@@ -423,6 +423,22 @@ function Catalog.InstanceCurrent(inst)
     return c.instCurrent[inst] and true or false
 end
 
+---Alle Instanzen des laufenden Inhalts, nach Nummer.
+---
+---Fuer die Fundorte: JEDE Instanz bekommt eine Karte, nicht nur die,
+---in denen etwas Gemessenes faellt. Leer ohne die Tabelle - dann
+---leiten die Fundorte die Instanzen aus der Messung ab.
+---@return number[]
+function Catalog.CurrentInstances()
+    local c = data()
+    local out = {}
+    for inst, ja in pairs(c and c.instCurrent or {}) do
+        if ja then out[#out + 1] = inst end
+    end
+    table.sort(out)
+    return out
+end
+
 ---Die Bosse eines Schlachtzugs, in der Reihenfolge des Journals.
 ---
 ---ALLE, nicht nur die, von denen wir etwas gemessen haben. Ein

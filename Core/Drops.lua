@@ -117,230 +117,259 @@ function Drops.Matches(stats, wunsch, kombi, fav)
     return false
 end
 
----Die Fundorte einer Spec, nach Instanz.
+-- Der Platz eines Gegenstands, in den Namen der Ausruestungsliste.
+--
+-- Erst aus dem Gegenstand selbst (sofort, ohne Cache), dann aus dem
+-- Filter des Journals. Was keinen Platz hat - Reittiere, Rezepte,
+-- Setmarken -, steht nicht im Raster: es ist keine Ausruestung.
+local PLATZ = {
+    INVTYPE_HEAD = "Head", INVTYPE_NECK = "Neck", INVTYPE_SHOULDER = "Shoulders",
+    INVTYPE_CLOAK = "Back", INVTYPE_CHEST = "Chest", INVTYPE_ROBE = "Chest",
+    INVTYPE_WRIST = "Wrist", INVTYPE_HAND = "Hands", INVTYPE_WAIST = "Waist",
+    INVTYPE_LEGS = "Legs", INVTYPE_FEET = "Feet", INVTYPE_FINGER = "Rings",
+    INVTYPE_TRINKET = "Trinkets", INVTYPE_WEAPON = "Main Hand",
+    INVTYPE_2HWEAPON = "Main Hand", INVTYPE_WEAPONMAINHAND = "Main Hand",
+    INVTYPE_RANGED = "Main Hand", INVTYPE_RANGEDRIGHT = "Main Hand",
+    INVTYPE_WEAPONOFFHAND = "Off Hand", INVTYPE_SHIELD = "Off Hand",
+    INVTYPE_HOLDABLE = "Off Hand",
+}
+local FILTER = {
+    Head = "Head", Neck = "Neck", Shoulder = "Shoulders", Cloak = "Back",
+    Chest = "Chest", Wrist = "Wrist", Hand = "Hands", Waist = "Waist",
+    Legs = "Legs", Feet = "Feet", MainHand = "Main Hand", OffHand = "Off Hand",
+    Finger = "Rings", Trinket = "Trinkets",
+}
+local REIHE = {}
+for i, platz in ipairs({ "Head", "Neck", "Shoulders", "Back", "Chest", "Wrist", "Hands",
+    "Waist", "Legs", "Feet", "Rings", "Trinkets", "Main Hand", "Off Hand" }) do
+    REIHE[platz] = i
+end
+
+local function platzVon(itemID, filter)
+    local get = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
+    if type(get) == "function" then
+        local ok, _, _, _, ort = pcall(get, itemID)
+        if ok and PLATZ[ort] then return PLATZ[ort] end
+    end
+    local arten = Enum and Enum.ItemSlotFilterType
+    if filter ~= nil and type(arten) == "table" then
+        for name, wert in pairs(arten) do
+            if wert == filter and FILTER[name] then return FILTER[name] end
+        end
+    end
+    return nil
+end
+
+---Was gemessen ist, je Gegenstand: der hoechste Anteil und sein Platz.
+local function gemessen(gear)
+    local out = {}
+    for platz, liste in pairs(gear or {}) do
+        for _, item in ipairs(liste) do
+            local da = item.id and out[item.id]
+            if item.id and (not da or (item.pct or 0) > (da.pct or 0)) then
+                out[item.id] = { pct = item.pct or 0, slot = platz, ilvl = item.ilvl, kind = item.kind }
+            end
+        end
+    end
+    return out
+end
+
+---Die Fundorte einer Spec: jede Instanz mit ALLEN Drops.
+---
+---Seit dem 15. Oktober wie Keystone Loot. Vorher standen hier nur die
+---Stuecke, die die Besten tragen, verglichen mit dem, was man schon
+---anhat. Jetzt: jede laufende Instanz, jeder Drop fuer die Spec aus dem
+---Journal. Was gemessen ist, traegt seinen Anteil - das ist die
+---Hervorhebung, die zaehlt. Was man haben will, markiert man als Need.
+---
+---Dungeons und Schlachtzug stehen IMMER beide da, egal welche Aktivitaet
+---oben gewaehlt ist (entschieden am 15. Oktober). Die Anteile kommen fuer
+---Dungeons aus M+, fuer den Schlachtzug aus dem Raid - die gewaehlte
+---Aktivitaet zuerst, wenn sie passt.
+---
+---Antwortet das Journal nicht (es ist offen, oder ein Client ohne die
+---Abfrage), steht die Instanz trotzdem da, mit dem Gemessenen, und die
+---Zeile sagt es.
 ---
 ---@param specID number|nil
 ---@param mode string
 ---@param source string|nil
----@param opts table|nil  worn / minLevel zum Pruefen ueberschreibbar
----@return table[] rows   je Instanz eine Zeile, die ergiebigste zuerst
----@return table summary  wie viele Stuecke woanders herkommen
+---@param opts table|nil  loot / slot / need zum Pruefen ueberschreibbar
+---@return table[] rows
+---@return table summary
 ---@return string|nil fromSource
 function Drops.Build(specID, mode, source, opts)
     opts = opts or {}
-    local summary = { known = 0, craft = 0, set = 0, pvp = 0, boe = 0, world = 0, past = 0, total = 0 }
-    local gear, from = ns.Recommend.Gear(specID, mode, source)
-    if not gear then return {}, summary, nil end
+    local summary = { total = 0, craft = 0, set = 0, pvp = 0, boe = 0, world = 0,
+        past = 0, need = 0, journal = 0, partial = 0 }
+    local hier, from = ns.Recommend.Gear(specID, mode, source)
 
-    -- Einmal je Aufbau, nicht je Gegenstand: der Client wird sonst
-    -- sechzig Mal nach denselben neunzehn Plaetzen gefragt.
-    local worn = opts.worn or (ns.Compat and ns.Compat.EquippedIDs and ns.Compat.EquippedIDs()) or {}
-    local minLevel = opts.minLevel
-        or (ns.Profile and ns.Profile.MinItemLevel and ns.Profile.MinItemLevel()) or 0
-    -- EIN EINZELNER PLATZ, wenn einer gewaehlt ist.
-    --
-    -- Gefiltert wird in der RECHNUNG, nicht erst in der Anzeige: wer
-    -- nach dem Kopf fragt, will auch die Reihenfolge nach Koepfen
-    -- sortiert haben. Ein Dungeon, der drei Ringe und keinen Helm hat,
-    -- steht sonst oben, waehrend die Zeile darunter leer ist.
-    --
-    -- Derselbe Waehler wie in der Ausruestung, und das mit Absicht: wer
-    -- dort den Kopf gewaehlt hat, meint ihn hier auch.
-    -- WAS SCHLECHTER IST ALS DAS GETRAGENE, IST KEIN UPGRADE.
-    --
-    -- Der Abschnitt heisst so, also muss er das auch beantworten. Die
-    -- Stufe, auf die es ankommt, ist die aus dem Waehler - dieselbe,
-    -- die im Tooltip steht: "auf Held 3 waere das 311". Ohne Wahl
-    -- zaehlt die gemessene Stufe des Stuecks.
-    --
-    -- ES WIRD NICHTS VERSTECKT. Ein Set-Teil oder ein Stueck mit
-    -- Anlegen-Effekt kann auch eine Stufe tiefer noch lohnen; das
-    -- Kaestchen bleibt darum stehen und tritt nur zurueck.
-    local wornLevel = opts.wornLevel
-    if wornLevel == nil and ns.Compat and ns.Compat.WornLevels then
-        wornLevel = ns.Compat.WornLevels()
+    local basis = tostring(ns.Recommend.BaseMode and ns.Recommend.BaseMode(mode) or mode or "")
+    local imRaid = basis:find("^raid") ~= nil
+    local inMplus = basis:find("^mplus") ~= nil
+    local function anderswo(m)
+        return ns.Recommend.Gear(specID, m, source) or ns.Recommend.Gear(specID, m, ns.Recommend.ALL)
     end
-    wornLevel = wornLevel or {}
-    local zielStufe = opts.level
-    if zielStufe == nil and ns.Profile and ns.Profile.TargetLevel then
-        zielStufe = ns.Profile.TargetLevel()
-    end
+    local mess = {
+        dungeon = gemessen(inMplus and hier or anderswo("mplus")),
+        raid = gemessen(imRaid and hier or anderswo("raid")),
+    }
 
     local nurPlatz = opts.slot
-    if nurPlatz == nil and ns.Profile and ns.Profile.GearSlot then
-        nurPlatz = ns.Profile.GearSlot()
-    end
+    if nurPlatz == nil and ns.Profile and ns.Profile.GearSlot then nurPlatz = ns.Profile.GearSlot() end
+    local need = opts.need or function(id) return ns.Profile.Need(id, specID) end
+    local holen = opts.loot or (ns.Loot and ns.Loot.Items)
 
-    local byKey, order = {}, {}
-
-    ---Eine Zeile anlegen oder finden.
-    ---
-    ---Instanz oder Art - beides sind Gruppen von Beute, und beide
-    ---sehen im Raster gleich aus. Ein Handwerksstueck faellt nirgends,
-    ---aber die Frage "welche sind das" ist dieselbe.
-    local function zeile(key, place, inst)
-        local row = byKey[key]
-        if not row then
-            row = {
-                kind = "droprow", inst = inst, place = place,
-                items = {}, seen = {}, total = 0, have = 0, score = 0,
-            }
-            byKey[key] = row
-            order[#order + 1] = row
-        end
-        return row
-    end
-
-    ---Ein Stueck in eine Zeile legen.
-    local function lege(row, item, slot, enc)
-        -- Derselbe Gegenstand steht in zwei Listen, wenn er auf zwei
-        -- Plaetze passt - ein Ring gehoert an beide Haende. Zweimal
-        -- dasselbe Kaestchen waere keine zweite Auskunft.
-        local schon = row.seen[item.id]
-        if schon then
-            if (item.pct or 0) > (schon.pct or 0) then
-                schon.pct = item.pct
-                schon.slot = slot
+    -- Die Instanzen: aus dem Katalog, sonst aus der Messung.
+    local instanzen = ns.Catalog.CurrentInstances and ns.Catalog.CurrentInstances() or {}
+    if #instanzen == 0 then
+        local schon = {}
+        for _, art in ipairs({ "dungeon", "raid" }) do
+            for id in pairs(mess[art]) do
+                local _, inst = ns.Catalog.DropSource(id)
+                if inst and ns.Catalog.InstanceCurrent(inst) ~= false and not schon[inst] then
+                    schon[inst] = true
+                    instanzen[#instanzen + 1] = inst
+                end
             end
-            return
         end
-        local cell = {
-            id = item.id, slot = slot, pct = item.pct or 0,
-            ilvl = item.ilvl, enc = enc,
-            worn = worn[item.id] and true or false,
-            -- Was der Spieler dazu gesagt hat: der Stern ist seine
-            -- Wahl, das Ignorieren auch. Beides steht neben der
-            -- Messung, nicht in ihr.
-            fav = ns.Profile.Favorite and ns.Profile.Favorite(item.id) or false,
-            ignored = ns.Profile.Ignored and ns.Profile.Ignored(item.id) or false,
-        }
-        -- Auf welcher Stufe es bei DIR ankaeme, und was dort schon
-        -- haengt. Fehlt eines von beidem, wird nicht geurteilt.
-        -- OHNE GEWAEHLTE STUFE KEIN URTEIL.
-        --
-        -- "Alle" heisst: zeig mir alles, und zwar ungedaempft. Mit der
-        -- gemessenen Stufe zu vergleichen waere zwar moeglich, wuerde
-        -- aber genau das wieder abblenden, was der Spieler sehen wollte.
-        local haengt = wornLevel[slot]
-        cell.better = (zielStufe and haengt and zielStufe < haengt) or false
-        cell.wornLevel = haengt
-        row.seen[item.id] = cell
-        row.items[#row.items + 1] = cell
-        row.total = row.total + 1
-        if cell.worn then row.have = row.have + 1 end
+        table.sort(instanzen)
     end
-    -- Gezaehlt werden STUECKE, nicht Eintraege.
-    --
-    -- Ein Ring steht in zwei Platzlisten, und die Zeile unter dem
-    -- Raster sagt "x von y Stuecken". Zaehlte sie Eintraege, stuende
-    -- dort eine Zahl, die kein Spieler nachzaehlen kann.
-    local gezaehlt = {}
-    for slot, list in pairs(gear) do
-        for _, item in ipairs((not nurPlatz or nurPlatz == slot) and list or {}) do
-            if item.id and (item.ilvl or 0) >= minLevel then
-                local erstmals = not gezaehlt[item.id]
-                gezaehlt[item.id] = true
-                local enc, inst = ns.Catalog.DropSource(item.id)
-                -- Eine Instanz, die es laut Katalog nicht mehr gibt,
-                -- gehoert nicht in eine Liste "wohin soll ich laufen".
-                -- Unbekannt ist nicht dasselbe wie vorbei: ein Katalog
-                -- von gestern weiss es nicht, und dann zeigen wir sie.
-                local gone = inst and ns.Catalog.InstanceCurrent(inst) == false
-                -- Was in einer vergangenen Instanz faellt, ist weder ein
-                -- Ziel noch "ohne Fundort". Es steht nirgends - auch
-                -- nicht in der Zahl darunter, die sonst so aussaehe,
-                -- als fehlte uns die Auskunft.
-                if gone then
-                    if erstmals then summary.past = (summary.past or 0) + 1 end
-                elseif inst then
-                    if erstmals then
-                        summary.total = summary.total + 1
-                        summary.known = summary.known + 1
-                    end
-                    local place = ns.Catalog.InstanceKind(inst)
-                        or (ns.Recommend.InstanceKind and ns.Recommend.InstanceKind(inst))
-                        or "other"
-                    lege(zeile("inst:" .. inst, place, inst), item, slot, enc)
-                else
-                    -- WAS NIRGENDS FAELLT, bekommt trotzdem eine Zeile.
-                    --
-                    -- Vorher stand darunter nur eine Zahl: "8 aus dem
-                    -- Handwerk". Das ist wahr und nutzlos - es sagt
-                    -- nicht, WELCHE acht. Als eigene Zeile steht das
-                    -- Handwerk neben den Dungeons, mit denselben
-                    -- Kaestchen, und laesst sich mit demselben Waehler
-                    -- herausgreifen.
-                    local wo = elsewhere(item.id, item.kind)
-                    if erstmals then
-                        summary.total = summary.total + 1
-                        summary[wo] = (summary[wo] or 0) + 1
-                    end
-                    lege(zeile(wo, wo, nil), item, slot, nil)
+
+    ---Ein Kaestchen bauen - oder nil, wenn es nicht ins Raster gehoert.
+    local function kaestchen(id, enc, filter, m)
+        local platz = (m and m.slot) or platzVon(id, filter)
+        if not platz then return nil end
+        if nurPlatz and nurPlatz ~= platz then return nil end
+        return {
+            id = id, slot = platz, enc = enc, spec = specID,
+            pct = m and m.pct or nil, ilvl = m and m.ilvl or nil,
+            measured = m ~= nil, need = need(id) and true or false,
+        }
+    end
+
+    local function ordnen(items)
+        table.sort(items, function(a, b)
+            if a.measured ~= b.measured then return a.measured end
+            if (a.pct or 0) ~= (b.pct or 0) then return (a.pct or 0) > (b.pct or 0) end
+            local ra, rb = REIHE[a.slot] or 99, REIHE[b.slot] or 99
+            if ra ~= rb then return ra < rb end
+            return (a.id or 0) < (b.id or 0)
+        end)
+    end
+
+    local function zaehlen(row)
+        local n, gem, bestes = 0, 0, 0
+        for _, c in ipairs(row.items) do
+            if c.need then n = n + 1 end
+            if c.measured then
+                gem = gem + 1
+                if (c.pct or 0) > bestes then bestes = c.pct or 0 end
+            end
+        end
+        row.total, row.need, row.measured, row.best = #row.items, n, gem, bestes
+        summary.need = summary.need + n
+        summary.total = summary.total + #row.items
+    end
+
+    local dungeons, raids = {}, {}
+    for _, inst in ipairs(instanzen) do
+        local art = ns.Catalog.InstanceKind(inst)
+            or (ns.Recommend.InstanceKind and ns.Recommend.InstanceKind(inst)) or "dungeon"
+        if art ~= "raid" then art = "dungeon" end
+        local m = mess[art]
+        local beute, vollstaendig
+        if holen then beute, vollstaendig = holen(inst, specID) end
+        local items, gesehen = {}, {}
+        for _, e in ipairs(beute or {}) do
+            if not gesehen[e.id] then
+                gesehen[e.id] = true
+                local c = kaestchen(e.id, e.enc, e.filter, m[e.id])
+                if c then items[#items + 1] = c end
+            end
+        end
+        -- Was gemessen ist und hier faellt, steht immer da - auch wenn
+        -- das Journal es fuer diese Spec nicht fuehrt.
+        for id, mm in pairs(m) do
+            local enc, wo = ns.Catalog.DropSource(id)
+            if wo == inst and not gesehen[id] then
+                gesehen[id] = true
+                local c = kaestchen(id, enc, nil, mm)
+                if c then items[#items + 1] = c end
+            end
+        end
+        if beute then summary.journal = summary.journal + 1 else summary.partial = summary.partial + 1 end
+        local teilweise = not beute or vollstaendig == false
+
+        if art == "dungeon" then
+            local row = { kind = "droprow", inst = inst, place = "dungeon", items = items,
+                partial = teilweise }
+            ordnen(items)
+            zaehlen(row)
+            if #items > 0 then dungeons[#dungeons + 1] = row end
+        else
+            -- Im Schlachtzug je Boss eine Zeile, in der Reihenfolge des
+            -- Journals. Was keinem bekannten Boss gehoert, haengt hinten.
+            local jeBoss, reihe = {}, {}
+            for _, enc in ipairs(ns.Catalog.Bosses(inst) or {}) do
+                jeBoss[enc] = {}
+                reihe[#reihe + 1] = enc
+            end
+            for _, c in ipairs(items) do
+                local enc = c.enc or 0
+                if not jeBoss[enc] then jeBoss[enc] = {}; reihe[#reihe + 1] = enc end
+                table.insert(jeBoss[enc], c)
+            end
+            for _, enc in ipairs(reihe) do
+                if #jeBoss[enc] > 0 then
+                    local row = { kind = "droprow", inst = inst, enc = enc ~= 0 and enc or nil,
+                        place = "raid", items = jeBoss[enc], partial = teilweise }
+                    ordnen(row.items)
+                    zaehlen(row)
+                    raids[#raids + 1] = row
                 end
             end
         end
     end
 
-    for _, row in ipairs(order) do
-        row.seen = nil
-        -- Das haeufigste Stueck zuerst: wer das Kaestchen ganz links
-        -- ansieht, soll das wichtigste sehen.
-        table.sort(row.items, function(a, b)
-            -- Ignoriertes ans Ende: es steht noch da, damit man sieht,
-            -- warum wenig offen ist - aber es draengt sich nicht mehr
-            -- vor das, was zaehlt.
-            if a.ignored ~= b.ignored then return b.ignored end
-            if a.better ~= b.better then return b.better end
-            if a.pct ~= b.pct then return a.pct > b.pct end
-            return (a.id or 0) < (b.id or 0)
-        end)
-        -- WAS DEN AUSSCHLAG GIBT, ist das Fehlende.
-        --
-        -- Ein Dungeon, aus dem man schon alles traegt, ist kein Ziel
-        -- mehr - egal wie gut seine Beute ist. Getragene Stuecke zaehlen
-        -- deshalb nicht in die Reihenfolge; sie bleiben sichtbar, damit
-        -- man sieht, warum dort wenig offen ist.
-        local score, offen, bestes, weg, schon = 0, 0, 0, 0, 0
-        for _, cell in ipairs(row.items) do
-            -- Ignoriertes zaehlt NICHT. Sonst stuende ein Dungeon oben
-            -- wegen eines Stuecks, das man nie holen will.
-            if cell.ignored then weg = weg + 1
-            -- Und was schlechter ist als das Getragene, auch nicht.
-            elseif cell.better then schon = schon + 1
-            elseif not cell.worn then
-                score = score + (cell.pct or 0)
-                offen = offen + 1
-                if (cell.pct or 0) > bestes then bestes = cell.pct or 0 end
-            end
-        end
-        row.score = score
-        row.open = offen
-        row.ignored = weg
-        row.better = schon
-        -- Der hoechste Anteil, den man dort noch NICHT traegt.
-        --
-        -- Zwei Fragen, zwei Zahlen: "wo hole ich am meisten heraus"
-        -- beantwortet die Summe, "wo liegt das Stueck, das die meisten
-        -- Besten tragen" dieser Wert. Welche davon die Reihenfolge
-        -- bestimmt, entscheidet der Spieler im Waehler - und nicht wir
-        -- fuer ihn, denn beide Fragen sind vernuenftig.
-        row.best = bestes
+    -- Dungeons nach Namen: man sucht einen Dungeon, man rechnet nicht.
+    local function name(inst)
+        return (ns.Compat.InstanceName and ns.Compat.InstanceName(inst)) or ("#" .. tostring(inst))
     end
-
-    -- Wonach sortiert wird, sagt die Einstellung.
-    local wie = opts.sort or (ns.Profile.DropsSort and ns.Profile.DropsSort()) or "sum"
-    table.sort(order, function(a, b)
-        local ea, eb = a.score, b.score
-        if wie == "best" then ea, eb = a.best or 0, b.best or 0 end
-        if ea ~= eb then return ea > eb end
-        -- Gleichstand: die andere Zahl entscheidet, und erst danach die
-        -- Nummer - damit die Reihenfolge stabil ist und nicht bei jedem
-        -- Auffrischen springt.
-        if (a.score or 0) ~= (b.score or 0) then return (a.score or 0) > (b.score or 0) end
-        if a.open ~= b.open then return a.open > b.open end
-        return (a.inst or 0) < (b.inst or 0)
+    table.sort(dungeons, function(a, b)
+        local na, nb = name(a.inst), name(b.inst)
+        if na ~= nb then return na < nb end
+        return a.inst < b.inst
     end)
 
-    return order, summary, from
-end
+    -- WAS IN KEINER INSTANZ FAELLT, aus der gewaehlten Aktivitaet:
+    -- Handwerk, Set-Teile, PvP, Auktionshaus, Welt. Nur Gemessenes -
+    -- dafuer gibt es kein Journal.
+    local woanders, wReihe = {}, {}
+    for id, mm in pairs(gemessen(hier)) do
+        local enc, inst = ns.Catalog.DropSource(id)
+        if inst and ns.Catalog.InstanceCurrent(inst) == false then
+            summary.past = summary.past + 1
+        elseif not inst then
+            local wo = elsewhere(id, mm.kind)
+            local c = kaestchen(id, enc, nil, mm)
+            if c then
+                if not woanders[wo] then
+                    woanders[wo] = { kind = "droprow", place = wo, items = {} }
+                end
+                table.insert(woanders[wo].items, c)
+                summary[wo] = (summary[wo] or 0) + 1
+            end
+        end
+    end
+    for _, wo in ipairs({ "craft", "set", "pvp", "boe", "world" }) do
+        local row = woanders[wo]
+        if row then ordnen(row.items); zaehlen(row); wReihe[#wReihe + 1] = row end
+    end
 
+    local out = {}
+    for _, row in ipairs(dungeons) do out[#out + 1] = row end
+    for _, row in ipairs(raids) do out[#out + 1] = row end
+    for _, row in ipairs(wReihe) do out[#out + 1] = row end
+    return out, summary, from
+end

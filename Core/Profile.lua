@@ -899,6 +899,59 @@ function Profile.ToggleFavorite(itemID)
     MetaCodexDB.favorites[itemID] = not MetaCodexDB.favorites[itemID] or nil
 end
 
+---"Need": was dieser Charakter mit dieser Spec haben will.
+---
+---Ersetzt den Stern vom 14. Oktober, und zwar mit Absicht anders
+---gespeichert: der Stern galt fuer den ganzen Account, aber was ein
+---Ele-Schamane braucht, ist nicht, was sein Wiederherstellungs-Zwilling
+---braucht. Je Charakter UND Spec, wie am 15. Oktober entschieden.
+---
+---Die alten Sterne gehen nicht verloren: jeder Charakter uebernimmt sie
+---einmal, in die Spec, mit der er sie zuerst ansieht.
+local function needListe(specID, anlegen)
+    local db = MetaCodexDB
+    if not db or not specID then return nil end
+    local wer = who()
+    local meine = db.need and db.need[wer]
+    if not meine and anlegen ~= false then
+        db.need = db.need or {}
+        meine = {}
+        db.need[wer] = meine
+    end
+    if not meine then return nil end
+    if not meine.__sterne then
+        meine.__sterne = true
+        if next(db.favorites or {}) then
+            local liste = meine[specID] or {}
+            meine[specID] = liste
+            for itemID, ja in pairs(db.favorites) do
+                if ja then liste[itemID] = true end
+            end
+        end
+    end
+    return meine
+end
+
+---@param itemID number|nil
+---@param specID number|nil
+---@return boolean
+function Profile.Need(itemID, specID)
+    if not itemID or not specID then return false end
+    local meine = needListe(specID)
+    local liste = meine and meine[specID]
+    return (liste and liste[itemID]) and true or false
+end
+
+---@param itemID number
+---@param specID number
+function Profile.ToggleNeed(itemID, specID)
+    local meine = itemID and needListe(specID)
+    if not meine then return end
+    local liste = meine[specID] or {}
+    meine[specID] = liste
+    liste[itemID] = not liste[itemID] or nil
+end
+
 ---Wonach das Fundort-Raster sortiert.
 ---
 ---ZWEI VERNUENFTIGE FRAGEN, und wir beantworten nicht beide gleich:

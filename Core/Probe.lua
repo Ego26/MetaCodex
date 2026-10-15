@@ -181,6 +181,43 @@ function Probe.Run()
         line("  (Knick: Wertung (Prozent dort, was ein Punkt danach noch bringt))")
     end
 
+    -- DIE BEUTE AUS DEM JOURNAL - FUER DIE FUNDORTE.
+    --
+    -- Seit dem 15. Oktober zeigen die Fundorte jeden Drop der Spec, und
+    -- der kommt aus dem Abenteuerjournal. Ob es antwortet, wie viel, und
+    -- ob jeder Drop einen Platz bekommt, steht hier je Instanz.
+    line(" ")
+    line("Beute aus dem Journal:")
+    do
+        local spec = ns.Profile.SelectedSpec()
+        local insts = ns.Catalog.CurrentInstances and ns.Catalog.CurrentInstances() or {}
+        line("  Abfrage: " .. ((type(EJ_GetNumLoot) == "function" and C_EncounterJournal
+            and C_EncounterJournal.GetLootInfoByIndex) and "ja" or "NEIN")
+            .. " | Journal offen: " .. ((EncounterJournal and EncounterJournal.IsShown
+            and EncounterJournal:IsShown()) and "ja (dann wird nicht gefragt)" or "nein")
+            .. " | Instanzen: " .. #insts)
+        for _, inst in ipairs(insts) do
+            local ok, items, voll = pcall(ns.Loot.Items, inst, spec)
+            local text
+            if not ok then
+                text = "FEHLER " .. tostring(items)
+            elseif not items then
+                text = "keine Antwort"
+            else
+                local rows = ns.Drops.Build(spec, ns.Profile.LookupMode(), ns.Profile.Source())
+                local mitPlatz = 0
+                for _, row in ipairs(rows) do
+                    if row.inst == inst then mitPlatz = mitPlatz + #row.items end
+                end
+                text = ("%d Drops, %d im Raster%s"):format(#items, mitPlatz,
+                    voll and "" or ", noch unvollstaendig")
+            end
+            line(("  %-34s %s"):format(
+                (ns.Compat.InstanceName(inst) or "#" .. inst) .. " (" .. inst .. ", "
+                    .. tostring(ns.Catalog.InstanceKind(inst)) .. ")", text))
+        end
+    end
+
     -- WAS DER CLIENT UEBER SET-BONI SAGT.
     --
     -- Im Tooltip eines Tier-Teils stehen die Boni der Spec, die man

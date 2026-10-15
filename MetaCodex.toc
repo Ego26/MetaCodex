@@ -57,6 +57,7 @@ Core\Recommend.lua
 Core\Profile.lua
 Core\Gear.lua
 Core\List.lua
+Core\Loot.lua
 Core\Drops.lua
 Core\Tree.lua
 Core\Auctionator.lua

@@ -2528,78 +2528,52 @@ function UI.FolioRows(specID, mode, source)
     return out, from
 end
 
----Wo die Stuecke fallen, als Raster.
+---Wo die Stuecke fallen, als Raster - wie Keystone Loot.
 ---
----Eine Zeile je Instanz, ein Kaestchen je Stueck - Dungeons zuerst,
----denn das ist die Frage, die man vor einem Abend stellt. Der
----Schlachtzug steht darunter, weil er jede Liste anfuehren wuerde: aus
----ihm faellt mehr als aus allen acht Dungeons zusammen, und das ist
----keine Auskunft, sondern eine Binsenweisheit.
----
----Die letzte Zeile nennt, was in KEINER Instanz faellt. Ohne sie sieht
----jeder Dungeon besser aus, als er ist.
+---Oben "Wo du hinwillst": je Instanz oder Boss die Stuecke, die als
+---Need markiert sind, die meisten zuerst. Darunter jeder Dungeon und
+---jeder Boss mit ALLEN Drops fuer die Spec, und ganz unten, was in
+---keiner Instanz faellt. Umgebaut am 15. Oktober: vorher standen hier
+---nur die gemessenen Stuecke, verglichen mit dem Angelegten.
 ---@return table[] rows
 ---@return string|nil fromSource
-UI.DROP_PLACES = { "dungeon", "raid", "craft", "set", "pvp", "boe", "world" }
+UI.DROP_PLACES = { "need", "dungeon", "raid", "craft", "set", "pvp", "boe", "world" }
 
 function UI.DropRows(specID, mode, source)
-    local rows, summary, from = ns.Drops.Build(specID, mode, source)
+    local rows, _, from = ns.Drops.Build(specID, mode, source)
     if #rows == 0 then return {}, nil end
 
-    local out = {}
-    local wie = ns.Profile.DropsSort()
-    -- Die Reihenfolge der Gruppen steht hier und nur hier: erst die
-    -- Dungeons, weil das die Frage vor einem Abend ist, dann der
-    -- Schlachtzug, dann alles, was nirgends faellt.
-    for _, want in ipairs(UI.DROP_PLACES) do
-        local gruppe = {}
-        for _, row in ipairs(rows) do
-            -- Was der Katalog nicht einordnet, steht bei den Dungeons:
-            -- dort sucht man es, und eine Gruppe mit einer einzigen
-            -- Zeile ist keine Gliederung.
-            local place = row.place
-            local eigene = place == "raid" or place == "craft" or place == "set"
-                or place == "pvp" or place == "boe" or place == "world"
-            if not eigene then place = "dungeon" end
-            if place == want then
-                row.place = place
-                row.group = L["DROPS_PLACE_" .. want]
-                gruppe[#gruppe + 1] = row
-            end
-        end
-        -- Gemessen wird INNERHALB der Gruppe.
-        --
-        -- Der Schlachtzug laesst mehr fallen als alle acht Dungeons
-        -- zusammen; an ihm gemessen waere jeder Dungeonbalken ein
-        -- Strich. Die Frage lautet aber "welcher Dungeon", nicht
-        -- "Dungeon oder Schlachtzug".
-        local hoechst = 0
-        for _, row in ipairs(gruppe) do
-            local wert = wie == "best" and (row.best or 0) or (row.score or 0)
-            if wert > hoechst then hoechst = wert end
-        end
-        for _, row in ipairs(gruppe) do
-            local wert = wie == "best" and (row.best or 0) or (row.score or 0)
-            row.rel = hoechst > 0 and (wert / hoechst) or 0
-            out[#out + 1] = row
+    local out, ziele = {}, {}
+    for i, row in ipairs(rows) do
+        if row.inst and (row.need or 0) > 0 then
+            local nur = {}
+            for _, c in ipairs(row.items) do if c.need then nur[#nur + 1] = c end end
+            ziele[#ziele + 1] = {
+                kind = "droprow", inst = row.inst, enc = row.enc, place = "need",
+                items = nur, total = #nur, need = #nur, target = true, order = i,
+                group = L["DROPS_GROUP_NEED"],
+            }
         end
     end
+    table.sort(ziele, function(a, b)
+        if a.need ~= b.need then return a.need > b.need end
+        return a.order < b.order
+    end)
+    if #ziele == 0 then
+        out[1] = { kind = "note", place = "need", text = L["DROPS_NEED_EMPTY"],
+            group = L["DROPS_GROUP_NEED"] }
+    end
+    for _, row in ipairs(ziele) do out[#out + 1] = row end
 
-    -- Was nirgends faellt, in einer Zeile.
-    local fehlt = {}
-    if (summary.craft or 0) > 0 then fehlt[#fehlt + 1] = L["DROPS_E_CRAFT"]:format(summary.craft) end
-    if (summary.set or 0) > 0 then fehlt[#fehlt + 1] = L["DROPS_E_SET"]:format(summary.set) end
-    if (summary.pvp or 0) > 0 then fehlt[#fehlt + 1] = L["DROPS_E_PVP"]:format(summary.pvp) end
-    if (summary.boe or 0) > 0 then fehlt[#fehlt + 1] = L["DROPS_E_BOE"]:format(summary.boe) end
-    if (summary.world or 0) > 0 then fehlt[#fehlt + 1] = L["DROPS_E_WORLD"]:format(summary.world) end
-    if #fehlt > 0 then
-        local offen = (summary.total or 0) - (summary.known or 0)
-        out[#out + 1] = {
-            kind = "note",
-            text = (offen == 1 and L["DROPS_ELSEWHERE_1"] or L["DROPS_ELSEWHERE"]):format(
-                offen, summary.total or 0,
-                table.concat(fehlt, ", ")),
-        }
+    for _, row in ipairs(rows) do
+        if row.place == "dungeon" then
+            row.group = L["DROPS_GROUP_DUNGEON"]
+        elseif row.place == "raid" then
+            row.group = ns.Compat.InstanceName(row.inst) or L["DROPS_PLACE_raid"]
+        else
+            row.group = L["DROPS_GROUP_ELSEWHERE"]
+        end
+        out[#out + 1] = row
     end
     return out, from
 end
@@ -3612,13 +3586,11 @@ local function dropCell(row, i)
         -- warum man hier ueberhaupt hinsieht.
         local wo = self.enc and ns.Compat.DropText(self.enc, nil)
         if wo then GameTooltip:AddLine(L["DROPS_FROM"]:format(wo), 1, 0.82, 0) end
-        if self.worn then GameTooltip:AddLine(L["DROPS_WORN"], 0.4, 0.9, 0.4) end
-        -- Warum das Kaestchen zurueckgetreten ist. Ohne diese Zeile
-        -- sieht es aus wie ein Fehler: ein Stueck, das 43 % der Besten
-        -- tragen, und es ist grau.
-        if self.better and self.wornLevel then
-            GameTooltip:AddLine(L["DROPS_HAVE_BETTER"]:format(self.wornLevel),
-                0.7, 0.7, 0.7)
+        -- Was ein Klick tut, steht dort, wo man klickt.
+        if self.need then
+            GameTooltip:AddLine(L["DROPS_NEED_ON"], S:Color("gold"))
+        elseif self.spec then
+            GameTooltip:AddLine(L["DROPS_NEED_CLICK"], 0.6, 0.6, 0.6)
         end
         GameTooltip:Show()
     end)
@@ -3631,32 +3603,22 @@ local function dropCell(row, i)
     c:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     c:SetScript("OnClick", function(self, button)
         if not self.itemID then return end
-        -- Rechtsklick: was DU zu dem Stueck sagst. Zwei Haken, und das
-        -- Menue bleibt offen - man setzt selten nur einen.
-        if button == "RightButton" then
-            local id = self.itemID
-            checkMenu(self, ns.Compat.ItemInfo(id) or ("#" .. id), {
-                {
-                    label = L["DROPS_FAV"],
-                    on = function() return ns.Profile.Favorite(id) end,
-                    toggle = function() ns.Profile.ToggleFavorite(id) end,
-                },
-                {
-                    label = L["DROPS_IGNORE"],
-                    on = function() return ns.Profile.Ignored(id) end,
-                    toggle = function()
-                        ns.Profile.SetIgnored(id, not ns.Profile.Ignored(id))
-                    end,
-                },
-            })
+        -- Shift und Strg wie ueberall; jeder andere Klick ist Need an
+        -- oder aus. Ein Menue mit einem einzigen Haken waere ein Umweg.
+        local _, link = ns.Compat.ItemInfo(self.itemID)
+        if link and IsModifiedClick and IsModifiedClick("CHATLINK") then
+            if HandleModifiedItemClick then HandleModifiedItemClick(link) end
+            return
+        elseif link and IsModifiedClick and IsModifiedClick("DRESSUP") then
+            if DressUpLink then DressUpLink(link) end
             return
         end
-        local _, link = ns.Compat.ItemInfo(self.itemID)
-        if not link then return end
-        if IsModifiedClick and IsModifiedClick("CHATLINK") then
-            if HandleModifiedItemClick then HandleModifiedItemClick(link) end
-        elseif IsModifiedClick and IsModifiedClick("DRESSUP") then
-            if DressUpLink then DressUpLink(link) end
+        if not self.spec then return end
+        ns.Profile.ToggleNeed(self.itemID, self.spec)
+        UI.Refresh()
+        -- Der Zeiger zeigt gleich, was der Klick getan hat.
+        if GameTooltip.GetOwner and GameTooltip:GetOwner() == self then
+            self:GetScript("OnEnter")(self)
         end
     end)
     list[i] = c
@@ -3694,8 +3656,11 @@ local function setDropRow(row, data)
 
     -- Eine Instanz hat einen Namen im Spiel; "Handwerk" hat keinen -
     -- da steht, was die Gruppe ist.
-    local name = data.inst and (ns.Compat.InstanceName(data.inst)
-        or ("#" .. tostring(data.inst)))
+    -- Im Schlachtzug steht der Boss vorn - der Schlachtzug steht schon
+    -- in der Ueberschrift.
+    local boss = data.enc and ns.Compat.EncounterName and ns.Compat.EncounterName(data.enc)
+    local name = boss or (data.inst and (ns.Compat.InstanceName(data.inst)
+        or ("#" .. tostring(data.inst))))
         or L["DROPS_PLACE_" .. tostring(data.place)] or "?"
     -- Lange Namen werden gekuerzt - "Die Gezeitengebundene..." -, also
     -- muss der Zeiger den ganzen zeigen. Dieselbe Regel wie in der
@@ -3722,16 +3687,24 @@ local function setDropRow(row, data)
     -- "3 von 3 noch offen" sagt nur das erste. Welches Stueck dort auf
     -- einen wartet - eines, das fast alle Besten tragen, oder drei, die
     -- kaum jemand hat -, stand nirgends.
-    local text = data.open == 0
-        and L["DROPS_ALL_WORN"]:format(data.total or 0)
-        or L["DROPS_ROW"]:format(data.open or 0, math.floor(data.best or 0))
-    -- Was ignoriert ist, wird GENANNT, nicht verschwiegen: sonst
-    -- wundert man sich, warum ein Dungeon so wenig hergibt.
-    if (data.better or 0) > 0 then
-        text = text .. "  ·  " .. L["DROPS_BETTER_N"]:format(data.better)
-    end
-    if (data.ignored or 0) > 0 then
-        text = text .. "  ·  " .. L["DROPS_IGNORED_N"]:format(data.ignored)
+    -- Seit dem Umbau: wie viele Drops, wie viele davon gemessen, wie
+    -- viele willst du. In "Wo du hinwillst" nur das Letzte - und beim
+    -- Boss, in welchem Schlachtzug er steht.
+    local text
+    if data.target then
+        text = L["DROPS_NEED_N"]:format(data.need or 0)
+        if boss and data.inst then
+            text = text .. "  ·  " .. (ns.Compat.InstanceName(data.inst) or "")
+        end
+    elseif not data.inst then
+        text = L["DROPS_ROW_MEASURED"]:format(data.total or 0)
+    else
+        text = L["DROPS_ROW_ALL"]:format(data.total or 0, data.measured or 0)
+        if (data.need or 0) > 0 then
+            text = L["DROPS_NEED_N"]:format(data.need) .. "  ·  " .. text
+        end
+        -- Ohne Journal nur das Gemessene - und das steht dabei.
+        if data.partial then text = text .. "  ·  " .. L["DROPS_PARTIAL"] end
     end
     row.detail:SetText(text)
     row.dropNote = row.detail:GetText()
@@ -3750,7 +3723,9 @@ local function setDropRow(row, data)
     -- laesst.
     do
         local b = dropBar(row)
-        local anteil = tonumber(data.rel) or 0
+        -- Seit dem Umbau ohne Rangfolge, also ohne Balken: die
+        -- Reihenfolge kommt aus "Wo du hinwillst".
+        local anteil = 0
         local barW = dropBarW()
         b.track:SetWidth(barW)
         if anteil > 0 then
@@ -3794,15 +3769,17 @@ local function setDropRow(row, data)
         -- Drei Zustaende am selben Kaestchen: getragen, ignoriert,
         -- gewuenscht. Ignoriert tritt am weitesten zurueck - es zaehlt
         -- nicht mehr mit.
-        local zurueck = item.worn or item.ignored or item.better
-        c.icon:SetDesaturated(zurueck and true or false)
-        c.icon:SetAlpha(item.ignored and 0.25 or (zurueck and 0.4 or 1))
-        c.mark:SetShown(item.worn and not item.ignored and true or false)
-        c.star:SetShown(item.fav and true or false)
-        c.stop:SetShown(item.ignored and true or false)
-        c.share:SetText(string.format("%d %%", item.pct or 0))
-        S:Recolor(c.share, item.worn and "textMuted" or "textSecondary")
-        c.itemID, c.pct, c.enc, c.worn = item.id, item.pct, item.enc, item.worn
+        -- Seit dem Umbau steht alles in voller Farbe: nichts wird mehr
+        -- mit dem Angelegten verglichen. Der Anteil steht nur unter dem,
+        -- was gemessen ist - DAS ist die Hervorhebung.
+        c.icon:SetDesaturated(false)
+        c.icon:SetAlpha(1)
+        c.mark:Hide()
+        c.star:SetShown(item.need and true or false)
+        c.stop:Hide()
+        c.share:SetText(item.pct and string.format("%d %%", item.pct) or "")
+        S:Recolor(c.share, "textSecondary")
+        c.itemID, c.pct, c.enc, c.need, c.spec = item.id, item.pct, item.enc, item.need, item.spec
         c.link = link
         -- Die Stufe reist als ZAHL mit, nicht als fertiger Link: den
         -- baut erst das Hovern, weil der Client die Grundstufe beim
@@ -3815,7 +3792,6 @@ local function setDropRow(row, data)
         -- des Gegenstands - "Gegenstandsstufe 28" unter einem Ring, den
         -- die Besten auf 311 tragen.
         c.wantLevel, c.wantBonus = stufe or item.ilvl, stufe and stufenBonus or nil
-        c.better, c.wornLevel = item.better, item.wornLevel
 
         -- PASST ES, PASST ES NICHT, ODER WISSEN WIR ES NICHT?
         --
@@ -3826,7 +3802,7 @@ local function setDropRow(row, data)
         local passt
         if gewaehlt > 0 then
             passt = ns.Drops.Matches(link and ns.Tooltip.SecondaryStats(link),
-                wunsch, kombi, item.fav)
+                wunsch, kombi, item.need)
         end
         -- GOLD STICHT DEN AKZENT.
         --
@@ -3835,10 +3811,10 @@ local function setDropRow(row, data)
         -- Auskunft. Dass es zur Hervorhebung passt, sagt schon, dass es
         -- nicht abgeblendet ist.
         for _, line in pairs(c.favBorder or {}) do
-            line:SetShown(item.fav and not item.ignored and true or false)
+            line:SetShown(item.need and true or false)
         end
         for _, line in pairs(c.hl or {}) do
-            line:SetShown(passt == true and not item.fav)
+            line:SetShown(passt == true and not item.need)
         end
         if passt == false then
             c.icon:SetDesaturated(true)
@@ -5448,7 +5424,9 @@ function UI.Refresh()
     -- hervorgehoben wird: "Krit + Meisterschaft" ist die Auskunft,
     -- "Hervorhebung (2)" waere ein Raetsel.
     frame.highlightButton:SetShown(section.key == "drops")
-    frame.sortButton:SetShown(section.key == "drops")
+    -- Seit dem Umbau gibt es keine Rangfolge mehr zu waehlen: oben
+    -- steht "Wo du hinwillst", darunter die Instanzen nach Namen.
+    frame.sortButton:SetShown(false)
     -- Kurz auf dem Knopf, voll im Menue.
     --
     -- Fuenf Waehler stehen in dieser Ansicht nebeneinander; jedes
@@ -5658,12 +5636,12 @@ function UI.Refresh()
         -- beantwortet der Name, der oben steht.
         local erste
         for _, row in ipairs(currentRows) do
-            if row.kind == "droprow" and row.inst and not erste then erste = row end
+            if row.target and not erste then erste = row end
         end
-        local wohin = erste and ns.Compat.InstanceName(erste.inst)
+        local wohin = erste and ((erste.enc and ns.Compat.EncounterName
+            and ns.Compat.EncounterName(erste.enc)) or ns.Compat.InstanceName(erste.inst))
         hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted)
-            or (wohin and (ns.Profile.DropsSort() == "best"
-                and L["DROPS_TOP_BEST"] or L["DROPS_TOP_SUM"]):format(wohin))
+            or (wohin and L["DROPS_TOP_NEED"]:format(wohin))
             or L["DROPS_HINT"])
     elseif section.key == "players" then
         currentRows, fromSource = withFallback(function(source)

@@ -1858,16 +1858,6 @@ do
     ns.Profile.SetAllLevels(true)
     check("alle Stufen heisst keine Stufe", ns.Profile.TargetLevel() == nil,
         tostring(ns.Profile.TargetLevel()))
-    -- Und ohne Stufe wird nichts abgeblendet.
-    local alles = ns.Drops.Build(250, "mplus", nil,
-        { worn = {}, minLevel = 0, wornLevel = { Head = 999 } })
-    local abgeblendet = 0
-    for _, row in ipairs(alles) do
-        for _, cell in ipairs(row.items) do
-            if cell.better then abgeblendet = abgeblendet + 1 end
-        end
-    end
-    check("und nichts tritt zurueck", abgeblendet == 0, abgeblendet .. " Kaestchen")
 
     -- Eine Stufenwahl hebt es wieder auf.
     ns.Profile.SetTarget({ level = 311, bonus = 12843 })
@@ -6527,14 +6517,22 @@ end
 
 -- ------------------------------------------------------- Wo es faellt
 --
--- Dieselben Zahlen wie die Ausruestungsliste, nach Instanz statt nach
--- Platz. Geprueft wird die Rechnung an erfundenen Daten, damit die
--- Pruefung nicht davon abhaengt, was gerade in einem Dungeon faellt.
+-- Seit dem 15. Oktober wie Keystone Loot: jede Instanz mit ALLEN Drops
+-- fuer die Spec aus dem Journal, das Gemessene mit seinem Anteil, und
+-- was man haben will, markiert man als Need. Geprueft an erfundenen
+-- Daten, damit die Pruefung nicht davon abhaengt, was gerade faellt.
 do
     local echtGear = ns.Recommend.Gear
     local echtDrop = ns.Catalog.DropSource
     local echtKind = ns.Catalog.InstanceKind
     local echtCurrent = ns.Catalog.InstanceCurrent
+    local echtListe = ns.Catalog.CurrentInstances
+    local echtBosse = ns.Catalog.Bosses
+    local echtLoot = ns.Loot.Items
+    local echtInstant = C_Item and C_Item.GetItemInfoInstant
+    local echtNeed = MetaCodexDB.need
+    MetaCodexDB.need = nil
+    local SPEC = 250
 
     -- 101 liegt in zwei Listen: Ringe passen an zwei Haende. Das ist
     -- EIN Stueck und darf nicht zweimal zaehlen.
@@ -6556,72 +6554,128 @@ do
     end
     ns.Catalog.InstanceKind = function(inst) return inst == 1002 and "raid" or "dungeon" end
     ns.Catalog.InstanceCurrent = function(inst) return inst ~= 1003 end
-
-    local rows, sum = ns.Drops.Build(250, "mplus", nil, { worn = {}, minLevel = 0 })
-
-    local mitInstanz, handwerk = 0, nil
-    for _, row in ipairs(rows) do
-        if row.inst then mitInstanz = mitInstanz + 1 end
-        if row.place == "craft" then handwerk = row end
+    ns.Catalog.CurrentInstances = function() return { 1001, 1002 } end
+    ns.Catalog.Bosses = function(inst) if inst == 1002 then return { 13, 15 } end end
+    -- Das Journal: im Dungeon zwei weitere Drops und 101 noch einmal,
+    -- im Schlachtzug einer beim zweiten Boss, dazu ein Reittier.
+    local journal = {
+        [1001] = { { id = 101, enc = 11 }, { id = 201, enc = 11 }, { id = 202, enc = 12 } },
+        [1002] = { { id = 203, enc = 15 }, { id = 299, enc = 15 } },
+    }
+    local journalDa = true
+    ns.Loot.Items = function(inst)
+        if not journalDa then return nil end
+        return journal[inst] or {}, true
     end
-    check("zwei Instanzen, nicht drei", mitInstanz == 2, mitInstanz .. " Instanzen")
-    -- Die vorbei-Instanz zaehlt nicht als Ziel, aber ihr Stueck ist
-    -- auch nicht "ohne Fundort": es faellt, nur nicht mehr hier.
-    for _, row in ipairs(rows) do
-        check("die alte Instanz steht nicht als Ziel da", row.inst ~= 1003)
-    end
-
-    -- UND WAS NIRGENDS FAELLT, hat trotzdem eine Zeile: sonst steht
-    -- darunter nur eine Zahl, und welche Stuecke gemeint sind, bleibt
-    -- die eigentliche Frage.
-    check("Handwerk bekommt eine eigene Zeile", handwerk ~= nil)
-    if handwerk then
-        check("und zeigt sein Stueck", handwerk.items[1] and handwerk.items[1].id == 104,
-            tostring(handwerk.items[1] and handwerk.items[1].id))
-        check("ohne Instanz", handwerk.inst == nil)
+    local ORT = { [201] = "INVTYPE_HEAD", [202] = "INVTYPE_TRINKET", [203] = "INVTYPE_HEAD",
+        [299] = "" }
+    if C_Item then
+        C_Item.GetItemInfoInstant = function(id)
+            id = tonumber(id)
+            return id, "", "", ORT[id] or "INVTYPE_WEAPON", nil, nil, nil
+        end
     end
 
-    local erste = rows[1]
-    check("die ergiebigste Instanz steht oben", erste.inst == 1001,
-        tostring(erste.inst))
-    -- 60 + 40, nicht 60 + 20 + 40: derselbe Ring zaehlt einmal.
-    check("derselbe Gegenstand zaehlt einmal", erste.total == 2,
-        erste.total .. " Kaestchen")
-    check("und mit seinem hoechsten Anteil", erste.score == 100,
-        tostring(erste.score))
-    check("das haeufigste Stueck steht links", erste.items[1].id == 101,
-        tostring(erste.items[1].id))
+    local function finde(rows, pruef)
+        for _, row in ipairs(rows) do if pruef(row) then return row end end
+    end
+    local function kaestchen(row, id)
+        for _, c in ipairs(row and row.items or {}) do if c.id == id then return c end end
+    end
 
-    -- Was nirgends faellt, wird gezaehlt und benannt.
-    check("Handwerk wird als Handwerk gezaehlt", sum.craft == 1, tostring(sum.craft))
-    check("was in einer alten Instanz faellt, zaehlt nirgends",
-        sum.past == 1 and sum.world == 0, sum.past .. " / " .. sum.world)
-    check("und die Summe stimmt", sum.total == 4 and sum.known == 3,
-        sum.known .. " von " .. sum.total)
+    local rows, sum = ns.Drops.Build(SPEC, "mplus", nil, {})
+    local dungeon = finde(rows, function(r) return r.inst == 1001 end)
+    check("jeder Dungeon hat eine Zeile", dungeon ~= nil)
+    check("mit allen Drops aus dem Journal",
+        dungeon and dungeon.total == 4, tostring(dungeon and dungeon.total) .. " Kaestchen")
+    check("derselbe Gegenstand zaehlt einmal", dungeon and dungeon.measured == 2,
+        tostring(dungeon and dungeon.measured) .. " gemessen")
+    check("das Gemessene traegt seinen hoechsten Anteil",
+        kaestchen(dungeon, 101) and kaestchen(dungeon, 101).pct == 60,
+        tostring(kaestchen(dungeon, 101) and kaestchen(dungeon, 101).pct))
+    check("das Ungemessene traegt keinen",
+        kaestchen(dungeon, 201) and kaestchen(dungeon, 201).pct == nil)
+    check("Gemessenes steht links",
+        dungeon and dungeon.items[1].id == 101 and dungeon.items[2].id == 102,
+        dungeon and (dungeon.items[1].id .. "," .. dungeon.items[2].id) or "-")
+    check("der Platz kommt aus dem Gegenstand",
+        kaestchen(dungeon, 202) and kaestchen(dungeon, 202).slot == "Trinkets",
+        tostring(kaestchen(dungeon, 202) and kaestchen(dungeon, 202).slot))
 
-    -- WAS GETRAGEN WIRD, ZIEHT DIE ZEILE NACH UNTEN.
-    --
-    -- Ein Dungeon, aus dem man schon alles hat, ist kein Ziel mehr -
-    -- das ist der ganze Zweck dieser Ansicht. Ohne diese Regel stuende
-    -- oben, was man laengst traegt.
-    local getragen = ns.Drops.Build(250, "mplus", nil,
-        { worn = { [101] = true, [102] = true }, minLevel = 0 })
-    check("wer alles hat, rutscht nach unten", getragen[1].inst == 1002,
-        tostring(getragen[1].inst))
-    -- Nicht ueber die Position gesucht: zwischen den Instanzen stehen
-    -- inzwischen auch Handwerk und Unbekanntes, und die Zeile, um die
-    -- es hier geht, ist die mit der Nummer 1001.
-    local leer
-    for _, row in ipairs(getragen) do if row.inst == 1001 then leer = row end end
-    check("und die Zeile sagt, dass nichts offen ist", leer and leer.open == 0,
-        tostring(leer and leer.open))
-    check("zeigt die getragenen Stuecke aber weiter", leer and leer.total == 2,
-        tostring(leer and leer.total))
+    -- Im Schlachtzug je Boss eine Zeile, in der Reihenfolge des Journals.
+    local erster = finde(rows, function(r) return r.inst == 1002 and r.enc == 13 end)
+    local zweiter = finde(rows, function(r) return r.inst == 1002 and r.enc == 15 end)
+    check("im Schlachtzug je Boss eine Zeile", erster ~= nil and zweiter ~= nil)
+    local posErster, posZweiter
+    for i, r in ipairs(rows) do
+        if r == erster then posErster = i end
+        if r == zweiter then posZweiter = i end
+    end
+    check("in der Reihenfolge des Journals",
+        posErster and posZweiter and posErster < posZweiter)
+    check("was keine Ausruestung ist, steht nicht da", kaestchen(zweiter, 299) == nil)
+    check("die alte Instanz steht nirgends", finde(rows, function(r) return r.inst == 1003 end) == nil
+        and sum.past == 1, tostring(sum.past))
+    local handwerk = finde(rows, function(r) return r.place == "craft" end)
+    check("Handwerk steht als eigene Zeile da", handwerk and kaestchen(handwerk, 104) ~= nil)
+
+    -- OHNE JOURNAL das Gemessene, und die Zeile sagt es.
+    journalDa = false
+    local ohne = ns.Drops.Build(SPEC, "mplus", nil, {})
+    local nurGemessen = finde(ohne, function(r) return r.inst == 1001 end)
+    check("ohne Journal bleibt das Gemessene",
+        nurGemessen and nurGemessen.total == 2 and nurGemessen.partial == true,
+        tostring(nurGemessen and nurGemessen.total))
+    journalDa = true
+
+    -- DER PLATZWAEHLER GILT AUCH HIER.
+    local nurKopf = ns.Drops.Build(SPEC, "mplus", nil, { slot = "Head" })
+    local fremd, stuecke = 0, 0
+    for _, row in ipairs(nurKopf) do
+        for _, c in ipairs(row.items) do
+            stuecke = stuecke + 1
+            if c.slot ~= "Head" then fremd = fremd + 1 end
+        end
+    end
+    check("ein Platz laesst nur diesen Platz stehen", fremd == 0 and stuecke == 3,
+        stuecke .. " Stuecke, " .. fremd .. " fremde")
+
+    -- NEED: je Charakter UND Spec.
+    check("ohne Markierung kein Need", ns.Profile.Need(201, SPEC) == false)
+    ns.Profile.ToggleNeed(201, SPEC)
+    check("Need ist gesetzt", ns.Profile.Need(201, SPEC) == true)
+    check("aber nur fuer diese Spec", ns.Profile.Need(201, SPEC + 1) == false)
+    local mitNeed = ns.Drops.Build(SPEC, "mplus", nil, {})
+    local zeile = finde(mitNeed, function(r) return r.inst == 1001 end)
+    check("das Kaestchen weiss davon", kaestchen(zeile, 201) and kaestchen(zeile, 201).need == true)
+    check("die Zeile zaehlt es", zeile and zeile.need == 1, tostring(zeile and zeile.need))
+
+    -- "Wo du hinwillst" steht oben und traegt nur das Gewollte.
+    local fenster = ns.UI.DropRows(SPEC, "mplus", nil)
+    local ziel = fenster[1]
+    check("Wo du hinwillst steht oben",
+        ziel and ziel.target == true and ziel.group == L["DROPS_GROUP_NEED"],
+        tostring(ziel and ziel.group))
+    check("und traegt nur das Gewollte",
+        ziel and #ziel.items == 1 and ziel.items[1].id == 201,
+        tostring(ziel and #ziel.items))
+    ns.Profile.ToggleNeed(201, SPEC)
+    local leer = ns.UI.DropRows(SPEC, "mplus", nil)
+    check("ohne Need steht dort, wie es geht",
+        leer[1] and leer[1].kind == "note" and leer[1].text == L["DROPS_NEED_EMPTY"])
+
+    -- Die alten Sterne gehen nicht verloren.
+    do
+        local sterne, need = MetaCodexDB.favorites, MetaCodexDB.need
+        MetaCodexDB.favorites, MetaCodexDB.need = { [777] = true }, nil
+        check("ein alter Stern wird zum Need", ns.Profile.Need(777, SPEC) == true)
+        MetaCodexDB.favorites, MetaCodexDB.need = sterne, need
+    end
 
     -- Und im Fenster.
+    MetaCodexDB.section = "drops"
     local gezeigt = rowsInSection("drops")
-    check("das Raster zeigt Zeilen", gezeigt >= 3, gezeigt .. " Zeilen")
-
+    check("das Raster zeigt Zeilen", gezeigt >= 4, gezeigt .. " Zeilen")
     local texte = {}
     for _, row in ipairs(wow.rows()) do
         if row:IsShown() then
@@ -6632,157 +6686,37 @@ do
         end
     end
     local alles = table.concat(texte, " | ")
-
-    -- Grossgeschrieben, wie jede Ueberschrift im Fenster.
     check("die Gruppen stehen da",
-        alles:upper():find(ns.L["DROPS_GROUP_DUNGEON"]:upper(), 1, true) ~= nil,
-        alles:sub(1, 80))
+        alles:upper():find(ns.L["DROPS_GROUP_NEED"]:upper(), 1, true) ~= nil
+        and alles:upper():find(ns.L["DROPS_GROUP_DUNGEON"]:upper(), 1, true) ~= nil
+        and alles:upper():find(ns.L["DROPS_GROUP_ELSEWHERE"]:upper(), 1, true) ~= nil,
+        alles:sub(1, 120))
     check("die Instanz steht mit ihrem Namen da",
         alles:find("Instanz 1001", 1, true) ~= nil, alles:sub(1, 80))
-    -- Die Luecke wird genannt, nicht verschwiegen.
-    check("was nirgends faellt, steht darunter",
-        alles:find(ns.L["DROPS_E_CRAFT"]:format(1), 1, true) ~= nil,
-        alles:sub(-80))
+    check("die Zeile sagt, wie viele Drops",
+        alles:find(ns.L["DROPS_ROW_ALL"]:format(4, 2), 1, true) ~= nil, alles:sub(1, 160))
 
-    -- UND SIE VERSCHWINDEN WIEDER.
-    --
-    -- Zeilen werden wiederverwendet, ihre Kinder auch: nach einem
-    -- Wechsel auf die Ausruestung lagen die Kaestchen des Rasters quer
-    -- ueber den Gegenstandszeilen. Sichtbar im Spiel, unsichtbar fuer
-    -- jeden Test, der nur Zeilen zaehlt.
-    local function offeneKaestchen()
-        local n = 0
-        for _, f in ipairs(wow.frames) do
-            if rawget(f, "mark") and rawget(f, "share") and not rawget(f, "title")
-                and f:IsShown() then n = n + 1 end
-        end
-        return n
+    -- EIN KLICK MARKIERT.
+    local zelle
+    for _, f in ipairs(wow.frames) do
+        if rawget(f, "share") and rawget(f, "itemID") == 201 and f:IsShown() then zelle = f end
     end
-    -- WAS DU BESSER HAST, IST KEIN UPGRADE.
-    --
-    -- Der Abschnitt heisst so, also muss er das beantworten: ein Stueck,
-    -- das 43 % der Besten tragen, nuetzt nichts, wenn am selben Platz
-    -- zwanzig Stufen mehr haengen. Verglichen wird mit der Stufe aus dem
-    -- Waehler - derselben, die im Tooltip steht.
-    local mitBesserem = ns.Drops.Build(250, "mplus", nil, {
-        worn = {}, minLevel = 0, level = 311,
-        wornLevel = { Head = 331, Rings = 300 },
-    })
-    local kopf, ring
-    for _, row in ipairs(mitBesserem) do
-        for _, cell in ipairs(row.items) do
-            if cell.id == 101 then kopf = cell end
-            if cell.id == 102 then ring = cell end
+    check("das Kaestchen ist da", zelle ~= nil)
+    if zelle then
+        local spec = rawget(zelle, "spec")
+        zelle:GetScript("OnClick")(zelle, "LeftButton")
+        check("ein Klick setzt Need", ns.Profile.Need(201, spec) == true, tostring(spec))
+        local nachher = rowsInSection("drops")
+        local oben = false
+        for _, row in ipairs(wow.rows()) do
+            if row:IsShown() and (row.detail and row.detail:GetText() or ""):find(
+                ns.L["DROPS_NEED_N"]:format(1), 1, true) == 1 then oben = true end
         end
+        check("und es steht oben unter Wo du hinwillst", oben, nachher .. " Zeilen")
+        ns.Profile.ToggleNeed(201, spec)
     end
-    check("das schlechtere Stueck tritt zurueck", kopf and kopf.better == true,
-        tostring(kopf and kopf.better))
-    check("das bessere bleibt ein Upgrade", ring and ring.better == false,
-        tostring(ring and ring.better))
-    local zeile1001
-    for _, row in ipairs(mitBesserem) do if row.inst == 1001 then zeile1001 = row end end
-    check("und es zaehlt nicht mit", zeile1001 and zeile1001.score == 40,
-        tostring(zeile1001 and zeile1001.score))
-    check("die Zeile sagt, wie viele", zeile1001 and zeile1001.better == 1,
-        tostring(zeile1001 and zeile1001.better))
-    check("es steht aber weiter da", zeile1001 and #zeile1001.items == 2,
-        tostring(zeile1001 and #zeile1001.items))
-    -- Ohne Auskunft ueber den getragenen Platz wird NICHT geurteilt.
-    local ohneWissen = ns.Drops.Build(250, "mplus", nil,
-        { worn = {}, minLevel = 0, level = 311, wornLevel = {} })
-    local keinUrteil = true
-    for _, row in ipairs(ohneWissen) do
-        for _, cell in ipairs(row.items) do
-            if cell.better then keinUrteil = false end
-        end
-    end
-    check("ohne bekannte Stufe kein Urteil", keinUrteil)
-
-    -- STERN UND KREUZ.
-    --
-    -- Der Stern ist eine Vorliebe, das Kreuz eine Absage. Nur das
-    -- Kreuz darf die Zahlen aendern: was man nie holen will, darf einen
-    -- Dungeon nicht nach oben tragen. Der Stern dagegen muss die
-    -- Reihenfolge in Ruhe lassen - sonst stuende eine gemessene Zahl an
-    -- einer Zeile, die aus einem anderen Grund oben liegt.
-    local ohne = ns.Drops.Build(250, "mplus", nil, { worn = {}, minLevel = 0 })
-    local vorher = ohne[1].score
-
-    ns.Profile.SetIgnored(102, true)
-    local mitKreuz = ns.Drops.Build(250, "mplus", nil, { worn = {}, minLevel = 0 })
-    local zeile
-    for _, row in ipairs(mitKreuz) do if row.inst == 1001 then zeile = row end end
-    check("ignoriert zaehlt nicht mehr", zeile and zeile.score == vorher - 40,
-        tostring(zeile and zeile.score) .. " statt " .. tostring(vorher))
-    check("steht aber weiter da", zeile and #zeile.items == 2,
-        tostring(zeile and #zeile.items))
-    check("und die Zeile sagt es", zeile and zeile.ignored == 1,
-        tostring(zeile and zeile.ignored))
-    check("ganz hinten", zeile and zeile.items[#zeile.items].ignored == true)
-    ns.Profile.SetIgnored(102, false)
-
-    ns.Profile.ToggleFavorite(103)
-    local mitStern = ns.Drops.Build(250, "mplus", nil, { worn = {}, minLevel = 0 })
-    check("ein Stern aendert die Reihenfolge nicht",
-        mitStern[1].inst == ohne[1].inst and mitStern[1].score == vorher,
-        tostring(mitStern[1].inst) .. "/" .. tostring(mitStern[1].score))
-    local hatStern = false
-    for _, row in ipairs(mitStern) do
-        for _, cell in ipairs(row.items) do
-            if cell.id == 103 and cell.fav then hatStern = true end
-        end
-    end
-    check("aber das Kaestchen weiss davon", hatStern)
-    -- Und die Hervorhebung kann danach greifen, ohne dass der Client
-    -- den Gegenstand kennen muss.
-    check("Gemerkte lassen sich hervorheben",
-        ns.Drops.Matches(nil, { fav = true }, false, true) == true
-        and ns.Drops.Matches(nil, { fav = true }, false, false) == false)
-    ns.Profile.ToggleFavorite(103)
-
-    -- DER PLATZWAEHLER GILT AUCH HIER.
-    --
-    -- Und zwar in der RECHNUNG: wer nach dem Kopf fragt, will die
-    -- Reihenfolge nach Koepfen. Ein Dungeon mit drei Ringen und keinem
-    -- Helm darf nicht oben stehen, wenn nach Helmen gefragt ist.
-    local nurKopf = ns.Drops.Build(250, "mplus", nil,
-        { worn = {}, minLevel = 0, slot = "Head" })
-    local fremd, stuecke = 0, 0
-    for _, row in ipairs(nurKopf) do
-        for _, cell in ipairs(row.items) do
-            stuecke = stuecke + 1
-            if cell.slot ~= "Head" then fremd = fremd + 1 end
-        end
-    end
-    check("ein Platz laesst nur diesen Platz stehen", fremd == 0 and stuecke > 0,
-        stuecke .. " Stuecke, " .. fremd .. " fremde")
-    -- 101 liegt am Kopf UND an den Ringen; der Filter nimmt den Kopf.
-    check("und der Ring faellt weg", #nurKopf == 1 and nurKopf[1].inst == 1001,
-        #nurKopf .. " Zeilen")
-
-    -- DIE REIHENFOLGE IST EINE FRAGE, KEINE VORGABE.
-    --
-    -- "Wo hole ich am meisten heraus" und "wo liegt das Stueck, das
-    -- die meisten Besten tragen" sind zwei verschiedene Fragen. Die
-    -- Liste beantwortet die, die der Spieler gestellt hat.
-    ns.Profile.SetDropsSort("sum")
-    local nachSumme = ns.Drops.Build(250, "mplus", nil, { worn = {}, minLevel = 0 })
-    ns.Profile.SetDropsSort("best")
-    local nachBestem = ns.Drops.Build(250, "mplus", nil, { worn = {}, minLevel = 0 })
-    check("nach Summe steht die ergiebigste oben", nachSumme[1].inst == 1001,
-        tostring(nachSumme[1].inst))
-    -- 1001: 60 + 40 = 100, bestes 60.  1002: 90, bestes 90.
-    check("nach dem besten Stueck die andere", nachBestem[1].inst == 1002,
-        tostring(nachBestem[1].inst) .. " (bestes " .. tostring(nachBestem[1].best) .. ")")
-    check("und der beste Wert steht an der Zeile", nachSumme[1].best == 60,
-        tostring(nachSumme[1].best))
-    ns.Profile.SetDropsSort("sum")
 
     -- DIE HERVORHEBUNG.
-    --
-    -- Wer auf Krit und Meisterschaft spielt, sucht die Stuecke mit
-    -- beidem. Die Regel steht in Drops.Matches, damit man sie
-    -- nachrechnen kann statt sie im Spiel zu erraten.
     local krit = { crit = true }
     local kritMeister = { crit = true, mastery = true }
     local nix = {}
@@ -6799,17 +6733,15 @@ do
     check("ohne Zweitwerte trifft nur Keine Zweitwerte",
         ns.Drops.Matches(nix, { none = true }, false) == true
         and ns.Drops.Matches(krit, { none = true }, false) == false)
-    -- Und die dritte Antwort.
     check("ohne Auswahl wird nichts abgeblendet",
         ns.Drops.Matches(krit, {}, false) == nil)
     check("und was der Client nicht kennt, auch nicht",
         ns.Drops.Matches(nil, { crit = true }, false) == nil)
+    check("Need laesst sich hervorheben",
+        ns.Drops.Matches(nil, { fav = true }, false, true) == true
+        and ns.Drops.Matches(nil, { fav = true }, false, false) == false)
 
-    -- DER WAEHLER OBEN.
-    --
-    -- "Nur Dungeons" ist die Frage vor einem Abend, "nur Handwerk"
-    -- die vor einem Handwerksauftrag. Gefiltert wird nach der Art des
-    -- Fundorts, nicht nach der einzelnen Instanz.
+    -- DER WAEHLER OBEN: nach der Art des Fundorts.
     ns.Profile.SetCategory("drops", "craft")
     rowsInSection("drops")
     local namen = {}
@@ -6826,33 +6758,28 @@ do
     ns.Profile.SetCategory("drops", nil)
     rowsInSection("drops")
 
+    -- UND DIE KAESTCHEN VERSCHWINDEN WIEDER.
+    local function offeneKaestchen()
+        local n = 0
+        for _, f in ipairs(wow.frames) do
+            if rawget(f, "mark") and rawget(f, "share") and not rawget(f, "title")
+                and f:IsShown() then n = n + 1 end
+        end
+        return n
+    end
     check("das Raster hat Kaestchen", offeneKaestchen() > 0,
         offeneKaestchen() .. " Kaestchen")
     rowsInSection("gear")
     check("und sie liegen nicht in der Ausruestung herum",
         offeneKaestchen() == 0, offeneKaestchen() .. " Kaestchen")
-
-    -- UND DER ZEIGER GEHOERT WIEDER DEM GEGENSTAND.
-    --
-    -- Die Zeile des Rasters traegt den Namen ihrer Instanz fuer den
-    -- Zeiger. Geloescht wurde er nur in der UEBERSCHRIFT-Zeile, und
-    -- gewoehnliche Zeilen laufen dort nie durch: in der Ausruestung
-    -- stand dann "Moerdergasse, 6 von 6 noch offen" ueber einem Helm.
-    local fremd = {}
+    local fremdName = {}
     for _, row in ipairs(wow.rows()) do
         if row:IsShown() and type(rawget(row, "dropName")) == "string" then
-            fremd[#fremd + 1] = row.dropName
+            fremdName[#fremdName + 1] = row.dropName
         end
     end
     check("keine Zeile der Ausruestung traegt noch einen Instanznamen",
-        #fremd == 0, table.concat(fremd, " | "))
-
-    -- UND SIE HAT IHRE VOLLE TEXTBREITE ZURUECK.
-    --
-    -- Das Raster macht die Titelspalte schmal, damit rechts die
-    -- Kaestchen Platz haben. Blieb sie schmal, standen die Namen in
-    -- der Ausruestung abgeschnitten - bei unveraenderter Fensterbreite
-    -- setzt der Zeichner sie naemlich nicht neu.
+        #fremdName == 0, table.concat(fremdName, " | "))
     local schmal = 0
     for _, row in ipairs(wow.rows()) do
         if row:IsShown() then
@@ -6866,6 +6793,11 @@ do
     ns.Catalog.DropSource = echtDrop
     ns.Catalog.InstanceKind = echtKind
     ns.Catalog.InstanceCurrent = echtCurrent
+    ns.Catalog.CurrentInstances = echtListe
+    ns.Catalog.Bosses = echtBosse
+    ns.Loot.Items = echtLoot
+    if C_Item then C_Item.GetItemInfoInstant = echtInstant end
+    MetaCodexDB.need = echtNeed
     MetaCodexDB.section = "gear"
 end
 
