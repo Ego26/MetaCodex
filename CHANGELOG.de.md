@@ -4,6 +4,16 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ## [Unveröffentlicht]
 
+## [1.1.18] - 2026-10-17
+
+### Behoben
+
+- **Lua-Fehler an der Scrollleiste.** Beim Überfahren oder Ziehen des
+  Griffs kam "Style.lua:382: attempt to call a nil value". Der Griff
+  wurde mit einer Funktion für Texte eingefärbt. Gemeldet auf
+  CurseForge, mit dem ganzen Log - danke.
+- Als Spielversion steht nur noch 12.1.5; 12.1.0 entfällt.
+
 ## [1.1.17] - 2026-10-15
 
 ### Geändert

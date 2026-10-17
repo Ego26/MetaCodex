@@ -4,6 +4,16 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ## [Unreleased]
 
+## [1.1.18] - 2026-10-17
+
+### Fixed
+
+- **Lua error on the scroll bar.** Hovering or dragging the scroll grip
+  raised "Style.lua:382: attempt to call a nil value". The grip was
+  coloured with a function meant for text. Reported on CurseForge,
+  with the full log - thank you.
+- The game version is 12.1.5 only; 12.1.0 is no longer listed.
+
 ## [1.1.17] - 2026-10-15
 
 ### Changed

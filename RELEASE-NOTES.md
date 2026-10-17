@@ -1,3 +1,10 @@
+## v1.1.18 — scroll bar fix
+
+### Fixed
+
+- **Lua error on the scroll bar** ("Style.lua:382: attempt to call a
+  nil value") when hovering or dragging it. Thanks for the report!
+
 ## v1.1.17 — every drop, your favourites
 
 ### Changed
