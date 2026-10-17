@@ -4967,7 +4967,10 @@ local function build()
     grip:SetWidth(SCROLLBAR_WIDTH)
     grip:SetPoint("TOP", rail, "TOP", 0, 0)
     grip:SetHeight(40)
-    S:Fill(grip, "borderSubtle")
+    -- Die Flaeche gemerkt: gefaerbt wird SIE, nicht der Rahmen. Hier
+    -- stand S:Recolor(self, ...) - das ist fuer Texte, und am Rahmen
+    -- fehlt SetFont. Beim Ueberfahren gab es einen Lua-Fehler.
+    grip.fill = S:Fill(grip, "borderSubtle")
     frame.scrollGrip = grip
 
     -- Ein Klick auf die Schiene springt dorthin.
@@ -5007,20 +5010,20 @@ local function build()
 
     -- Ziehen. Ohne das waere die Leiste eine Anzeige und kein Bedienteil.
     grip:EnableMouse(true)
-    grip:SetScript("OnEnter", function(self) S:Recolor(self, "accent") end)
+    grip:SetScript("OnEnter", function(self) self.fill:SetVertexColor(S:Color("accent")) end)
     grip:SetScript("OnLeave", function(self)
-        if not self.__zieht then S:Recolor(self, "borderSubtle") end
+        if not self.__zieht then self.fill:SetVertexColor(S:Color("borderSubtle")) end
     end)
     grip:SetScript("OnMouseDown", function(self)
         self.__zieht = true
         local _, mausY = GetCursorPosition()
         self.__vonY = mausY
         self.__vonScroll = scroll:GetVerticalScroll() or 0
-        S:Recolor(self, "accent")
+        self.fill:SetVertexColor(S:Color("accent"))
     end)
     grip:SetScript("OnMouseUp", function(self)
         self.__zieht = false
-        S:Recolor(self, "borderSubtle")
+        self.fill:SetVertexColor(S:Color("borderSubtle"))
     end)
     grip:SetScript("OnUpdate", function(self)
         if not self.__zieht then return end

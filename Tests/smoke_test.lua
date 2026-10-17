@@ -6939,6 +6939,27 @@ do
     end
 end
 
+-- ------------------------------------------------- Der Griff der Leiste
+--
+-- Er faerbte sich mit Recolor, einer Funktion fuer Texte: beim Spieler ein
+-- Lua-Fehler, sobald die Maus darueber fuhr (17. Oktober). Recolor setzt
+-- __token am Gegenstand - steht es am Griff, hat jemand ihn wieder wie
+-- einen Text behandelt.
+do
+    local griff = ns.UI.Frame().scrollGrip
+    local echteMaus = rawget(_G, "GetCursorPosition")
+    GetCursorPosition = echteMaus or function() return 0, 0 end
+    if griff then
+        griff:GetScript("OnEnter")(griff)
+        griff:GetScript("OnLeave")(griff)
+        griff:GetScript("OnMouseDown")(griff)
+        griff:GetScript("OnMouseUp")(griff)
+        check("der Griff wird nicht wie ein Text gefaerbt", rawget(griff, "__token") == nil,
+            tostring(rawget(griff, "__token")))
+    end
+    GetCursorPosition = echteMaus
+end
+
 -- ------------------------------------------------- Die 60-Upvalue-Grenze
 --
 -- WoWs Lua laesst einer Funktion hoechstens 60 Upvalues. UI.Refresh sitzt

@@ -362,6 +362,9 @@ function Style:SetText(fontString, text)
 end
 
 function Style:ApplyFont(fontString, size, token)
+    -- Nur Texte. Ein Rahmen hat kein SetFont, und ein Aufruf hier waere ein
+    -- Lua-Fehler beim Spieler - einmal geschehen am Griff der Scrollleiste.
+    if type(fontString) ~= "table" or type(fontString.SetFont) ~= "function" then return end
     local points = type(size) == "string" and Style.font[size] or size or Style.font.body
     local r, g, b = Style:Color(token or "textPrimary")
 
