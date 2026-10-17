@@ -5266,21 +5266,26 @@ do
 
     -- Die engere Frage beantwortet der Katalog, und sie ist WIRKLICH
     -- enger: es gibt Set-Teile, die nicht zum laufenden Tier gehoeren.
-    local set, tier = 0, 0
-    local gear = ns.Recommend.Gear(ns.Profile.SelectedSpec(), "raid", ns.Recommend.ALL)
-    for _, liste in pairs(gear or {}) do
-        for _, item in ipairs(liste) do
-            local kind = item.kind or ns.Catalog.ItemKind(item.id)
-            if kind == "set" then
-                set = set + 1
-                if ns.Catalog.IsCurrentTier(item.id) then tier = tier + 1 end
-            end
+    --
+    -- Geprueft am KATALOG, nicht an der Messung. Bis zum 16. Oktober
+    -- stand hier die Raid-Ausruestung einer Spec - und in jener Nacht
+    -- trugen die Gemessenen nur das laufende Tier: "5 von 5", ein
+    -- Fehlschlag aus dem Wetter, nicht aus dem Code.
+    local set, tier, fremd = 0, 0, 0
+    for id, kind in pairs(MetaCodex_Catalog.kinds or {}) do
+        if kind == "set" then
+            set = set + 1
+            if ns.Catalog.IsCurrentTier(id) then tier = tier + 1 end
         end
     end
-    if set > 0 then
-        check("das laufende Tier ist ein TEIL der Set-Teile",
-            tier > 0 and tier < set, tier .. " von " .. set)
+    -- Und das laufende Tier besteht nur aus Set-Teilen.
+    for id in pairs(MetaCodex_Catalog.tierNow or {}) do
+        if ns.Catalog.ItemKind(id) ~= "set" then fremd = fremd + 1 end
     end
+    check("das laufende Tier ist ein TEIL der Set-Teile",
+        tier > 0 and tier < set, tier .. " von " .. set)
+    check("und jedes Teil des laufenden Tiers ist ein Set-Teil", fremd == 0,
+        fremd .. " ohne Marke")
     ns.Profile.SetMode("mplus")
 end
 
