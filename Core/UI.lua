@@ -6727,8 +6727,9 @@ do
                 if farbe and farbe.WrapTextInColorCode then wer = farbe:WrapTextInColorCode(wer) end
                 r.who:SetText(L["FAV_DROP_WHO"]:format(wer))
                 r.ask.entry = e
-                r.ask.label:SetText(e.asked and L["FAV_DROP_ASKED"] or L["FAV_DROP_WHISPER_BTN"])
-                if r.ask.SetEnabled then r.ask:SetEnabled(not e.asked) end
+                r.ask.label:SetText(e.asked and L["FAV_DROP_ASKED"]
+                    or (e.waiting and L["FAV_DROP_WAITING"]) or L["FAV_DROP_WHISPER_BTN"])
+                if r.ask.SetEnabled then r.ask:SetEnabled(not e.asked and not e.waiting) end
                 r:Show()
             elseif r then
                 r:Hide()

@@ -250,6 +250,8 @@ ns.RegisterLocale("enUS", {
     ["FAV_DROP_WHISPER_BTN"] = "Whisper",
     ["FAV_DROP_ASKED"] = "Asked",
     ["FAV_WHISPER"] = "Hey, do you need %s? If not, I'd be really happy if you could trade it to me :)",
+    ["FAV_DROP_WAITING"] = "Waiting...",
+    ["FAV_WHISPER_LATER"] = "The game blocks addon whispers during a keystone or boss fight - the whisper goes out as soon as that is over.",
     ["FAV_WHISPER_FAILED"] = "Could not whisper directly (%s) - the whisper is ready in the chat line, press Enter.",
     ["SET_FAV_ALERT"] = "Window when a favourite drops",
     ["DROPS_LEGEND_FAV"] = "Favourite",

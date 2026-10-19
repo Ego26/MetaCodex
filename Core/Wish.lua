@@ -123,31 +123,103 @@ end
 ---@param entry table
 ---@return boolean
 -- Der Rueckfall: die Chatzeile mit dem fertigen Fluestern.
+--
+-- Der Link kommt hinein wie beim Shift-Klick, nicht als Text: als Text
+-- ist er in der Chatzeile kein Link mehr, und mit ihm ging die
+-- Nachricht nicht raus (19. Oktober).
 local function chatzeile(entry)
     local oeffnen = (ChatFrameUtil and ChatFrameUtil.OpenChat) or ChatFrame_OpenChat
+    local verlinken = (ChatFrameUtil and ChatFrameUtil.InsertLink) or ChatEdit_InsertLink
+    local aktiv = (ChatFrameUtil and ChatFrameUtil.GetActiveWindow) or ChatEdit_GetActiveWindow
     if type(oeffnen) ~= "function" then return false end
-    return (pcall(oeffnen, "/w " .. entry.player .. " " .. Wish.Message(entry)))
+    local vor, nach = L["FAV_WHISPER"]:match("^(.-)%%s(.*)$")
+    local link = entry.link or select(2, ns.Compat.ItemInfo(entry.id))
+    if not (vor and link and type(verlinken) == "function" and type(aktiv) == "function") then
+        return (pcall(oeffnen, "/w " .. entry.player .. " " .. Wish.Message(entry)))
+    end
+    return (pcall(function()
+        oeffnen("/w " .. entry.player .. " " .. vor)
+        verlinken(link)
+        local box = aktiv()
+        if box and box.Insert then box:Insert(nach) end
+    end))
 end
 
--- Was gerade direkt gesendet wird - falls das Spiel es blockiert.
+---Sperrt das Spiel gerade den Chat fuer Addons?
+local function gesperrt()
+    local frage = C_ChatInfo and C_ChatInfo.InChatMessagingLockdown
+    if type(frage) ~= "function" then return false end
+    local ok, ja = pcall(frage)
+    return ok and ja and true or false
+end
+
+-- Was gerade direkt gesendet wird - falls das Spiel es doch blockiert.
 local imVersand
+-- Was wartet, bis die Sperre vorbei ist.
+local warteschlange = {}
+local uhr
+
+local function senden(entry)
+    local los = (C_ChatInfo and C_ChatInfo.SendChatMessage) or SendChatMessage
+    if type(los) ~= "function" then return false end
+    imVersand, entry.blocked = entry, nil
+    local ok, fehler = pcall(los, Wish.Message(entry), "WHISPER", nil, entry.player)
+    imVersand = nil
+    if ok and not entry.blocked then return true end
+    if not ok then ns.Print(L["FAV_WHISPER_FAILED"]:format(tostring(fehler))) end
+    return false
+end
+
+---Schickt ab, was gewartet hat - wenn die Sperre vorbei ist.
+function Wish.Flush()
+    if #warteschlange == 0 or gesperrt() then return end
+    local rest = {}
+    for _, entry in ipairs(warteschlange) do
+        if senden(entry) then
+            entry.asked, entry.waiting = true, nil
+        else
+            rest[#rest + 1] = entry
+        end
+    end
+    warteschlange = rest
+    if #rest == 0 and uhr then uhr:Cancel(); uhr = nil end
+    if ns.UI and ns.UI.ShowFavoriteDrops and #offen > 0 then ns.UI.ShowFavoriteDrops(offen) end
+end
+
+local function merken(entry)
+    if entry.waiting then return end
+    entry.waiting = true
+    warteschlange[#warteschlange + 1] = entry
+    ns.Print(L["FAV_WHISPER_LATER"])
+    -- Die Sperre meldet ihr Ende nicht; alle paar Sekunden nachsehen.
+    if not uhr and C_Timer and C_Timer.NewTicker then uhr = C_Timer.NewTicker(3, Wish.Flush) end
+end
 
 function Wish.Whisper(entry)
-    if not entry or entry.asked then return false end
-    -- ERST DIREKT: ein Klick, und es ist raus.
-    local senden = (C_ChatInfo and C_ChatInfo.SendChatMessage) or SendChatMessage
-    if type(senden) == "function" then
-        imVersand = entry
-        local ok, fehler = pcall(senden, Wish.Message(entry), "WHISPER", nil, entry.player)
-        imVersand = nil
-        if ok then
-            entry.asked = true
-            return true
-        end
-        -- Der Grund steht im Chat, nicht in einem verschluckten Fehler.
-        ns.Print(L["FAV_WHISPER_FAILED"]:format(tostring(fehler)))
+    if not entry or entry.asked or entry.waiting then return false end
+    -- Nur in der Dev-Version: was genau verschickt wird, mit sichtbaren
+    -- Steuerzeichen.
+    if ns.version == "dev" then
+        local text = Wish.Message(entry)
+        ns.Print("DEV an " .. tostring(entry.player) .. " (" .. #text .. " Bytes): "
+            .. text:gsub("|", "||"))
     end
-    -- SONST die Chatzeile: Enter schickt es ab.
+    -- Gesperrt: nicht versuchen, sondern warten.
+    if gesperrt() then
+        merken(entry)
+        return true
+    end
+    -- Sonst direkt: ein Klick, und es ist raus.
+    if senden(entry) then
+        entry.asked = true
+        return true
+    end
+    -- Blockiert, obwohl das Spiel keine Sperre meldete: warten wie oben.
+    if entry.blocked then
+        merken(entry)
+        return true
+    end
+    -- Und wenn es gar nicht geht: die Chatzeile, Enter schickt es ab.
     if chatzeile(entry) then
         entry.asked = true
         return true
@@ -190,6 +262,8 @@ ohr:RegisterEvent("PLAYER_REGEN_ENABLED")
 -- Fehler. Dann steht der Grund im Chat, und die Chatzeile geht auf.
 ohr:RegisterEvent("ADDON_ACTION_BLOCKED")
 ohr:RegisterEvent("ADDON_ACTION_FORBIDDEN")
+ohr:RegisterEvent("ENCOUNTER_END")
+ohr:RegisterEvent("CHALLENGE_MODE_COMPLETED")
 ohr:SetScript("OnEvent", function(_, event, ...)
     if event == "ENCOUNTER_LOOT_RECEIVED" then
         local _, itemID, link, _, player, classFile = ...
@@ -197,9 +271,13 @@ ohr:SetScript("OnEvent", function(_, event, ...)
     elseif event == "PLAYER_REGEN_ENABLED" and wartet then
         Wish.Show()
     elseif (event == "ADDON_ACTION_BLOCKED" or event == "ADDON_ACTION_FORBIDDEN") and imVersand then
-        local addon, was = ...
-        ns.Print(L["FAV_WHISPER_FAILED"]:format(tostring(event) .. " " .. tostring(addon) .. " " .. tostring(was)))
-        chatzeile(imVersand)
+        -- Kommt waehrend des Aufrufs: Wish.Whisper merkt es und wartet.
+        imVersand.blocked = true
+    end
+    -- Nach dem Kampf, dem Boss, dem Schluessel: vielleicht ist die Sperre vorbei.
+    if event == "PLAYER_REGEN_ENABLED" or event == "ENCOUNTER_END"
+        or event == "CHALLENGE_MODE_COMPLETED" then
+        Wish.Flush()
     end
 end)
 -- Fuer die Pruefung.

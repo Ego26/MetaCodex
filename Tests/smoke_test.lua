@@ -6609,6 +6609,33 @@ do
         type(zeileAuf) == "string" and zeileAuf:find("/w Vierter-Realm ", 1, true) == 1,
         tostring(zeileAuf))
     ns.Profile.ToggleNeed(424243, ANDERE)
+    -- Unter der Chat-Sperre: nicht senden, warten - und danach raus.
+    do
+        local sperre = true
+        local raus
+        SendChatMessage = nil
+        C_ChatInfo = {
+            InChatMessagingLockdown = function() return sperre end,
+            SendChatMessage = function(text, art, _, an) raus = { text, art, an } end,
+        }
+        ns.Profile.ToggleNeed(424244, ANDERE)
+        droppt(424244, "Fuenfter-Realm")
+        local z3
+        for _, r in ipairs(fenster() and fenster().rows or {}) do
+            if r:IsShown() and r.ask.entry and r.ask.entry.id == 424244 then z3 = r end
+        end
+        if z3 then z3.ask:GetScript("OnClick")(z3.ask, "LeftButton") end
+        check("unter der Sperre geht nichts raus", raus == nil)
+        check("und der Knopf wartet", z3 and z3.ask.label:GetText() == L["FAV_DROP_WAITING"],
+            z3 and z3.ask.label:GetText())
+        sperre = false
+        ns.Wish.Flush()
+        check("nach der Sperre geht es raus", raus and raus[2] == "WHISPER" and raus[3] == "Fuenfter-Realm",
+            raus and table.concat(raus, " / ") or "nichts")
+        check("und der Knopf sagt Gefragt", z3 and z3.ask.label:GetText() == L["FAV_DROP_ASKED"],
+            z3 and z3.ask.label:GetText())
+        ns.Profile.ToggleNeed(424244, ANDERE)
+    end
     ChatFrame_OpenChat, ChatFrameUtil = echtOpen, echtUtil
     SendChatMessage, C_ChatInfo = echtSend, echtInfo
 
