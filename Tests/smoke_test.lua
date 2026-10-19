@@ -6674,6 +6674,28 @@ do
     end
     ns.Profile.SetCategory("races", nil)
 
+    -- Der Topf: wo die Aktivitaet allein nichts hat, springt die Familie ein.
+    do
+        local echteDaten = MetaCodex_Recommendations.races
+        local echtR = ns.Recommend.Races
+        ns.Recommend.Races = echtRaces
+        MetaCodex_Recommendations.races = {
+            ["@raid"] = { [250] = { n = 30, pool = true, { 6, 60 } } },
+            ["@pvp"] = { [250] = { n = 20, pool = true, { 1, 50 } } },
+            ["raid-mythic"] = { [250] = { n = 18, { 31, 70 } } },
+        }
+        local heroisch = ns.Recommend.Races(250, "raid")
+        local mythisch = ns.Recommend.Races(250, "raid-mythic")
+        local solo = ns.Recommend.Races(250, "solo")
+        local mplus = ns.Recommend.Races(250, "mplus")
+        check("ohne eigene Zahlen springt der Raidtopf ein", heroisch and heroisch.pool == true and heroisch[1][1] == 6)
+        check("die genaue Aktivitaet geht vor", mythisch and mythisch.pool == nil and mythisch[1][1] == 31)
+        check("PvP nimmt den PvP-Topf", solo and solo[1][1] == 1)
+        check("M+ hat keinen Topf", mplus == nil)
+        MetaCodex_Recommendations.races = echteDaten
+        ns.Recommend.Races = echtR
+    end
+
     -- Ohne Daten: in der Dev-Version die Vorschau, sonst nichts.
     ns.Recommend.Races = function() return nil end
     ns.Recommend.RaceSims = function() return nil end

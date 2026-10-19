@@ -16,7 +16,7 @@ const path = require('path');
 const { share } = require('./lib/share');
 const { mergeTiers } = require('./lib/merge-tiers');
 const { wornBy } = require('./lib/worn-by');
-const { tallyRaces, raceShares, raceSims } = require('./lib/races');
+const { tallyRaces, raceShares, raceSims, pooled } = require('./lib/races');
 
 const BASE = process.argv[2];
 if (!BASE) {
@@ -804,14 +804,18 @@ try {
 let raceSpecs = 0, simSpecs = 0;
 if (Object.keys(raceIndex).length) {
   const modesOut = [];
-  for (const mode of Object.keys(racePlayers).sort()) {
+  // Die genauen Aktivitaeten, und dazu die Toepfe "@raid" und "@pvp":
+  // dort springt das Addon ein, wo eine Aktivitaet allein zu klein ist.
+  const alle = { ...racePlayers, ...pooled(racePlayers) };
+  for (const mode of Object.keys(alle).sort()) {
     const specsOut = [];
-    for (const specID of Object.keys(racePlayers[mode]).sort((a, b) => a - b)) {
-      const shares = raceShares(tallyRaces(racePlayers[mode][specID]), raceIndex);
+    const topf = mode.startsWith('@');
+    for (const specID of Object.keys(alle[mode]).sort((a, b) => a - b)) {
+      const shares = raceShares(tallyRaces(alle[mode][specID]), raceIndex);
       if (!shares) continue;
       raceSpecs += 1;
       const rows = shares.list.map((r) => `{ ${r.id}, ${r.pct} }`).join(', ');
-      specsOut.push(`      [${specID}] = { n = ${shares.n}, ${rows} },`);
+      specsOut.push(`      [${specID}] = { n = ${shares.n}, ${topf ? 'pool = true, ' : ''}${rows} },`);
     }
     if (specsOut.length) modesOut.push(`    [${luaString(mode)}] = {`, ...specsOut, '    },');
   }

@@ -193,6 +193,11 @@ const slug = (text) => String(text).toLowerCase()
           region: ch.region && ch.region.slug,
           key: Number(run.mythic_level) || 0,
           dungeon: run.dungeon && run.dungeon.name,
+          // Fuer den Abschnitt "Rassen": die Laufliste fuehrt sie bei
+          // jedem Spieler mit, ganz ohne Profilabruf.
+          race: ch.race && ch.race.name,
+          faction: (ch.race && ch.race.faction) || ch.faction || null,
+          path: ch.path || null,
         });
       }
     }
@@ -323,6 +328,19 @@ const slug = (text) => String(text).toLowerCase()
     }
   }
   console.log('  Strings entschluesselt: ' + decodedCount + ', davon mit Held-Baum: ' + heroSplit);
+
+  // Die Rassen ALLER Spieler der Laufliste, nicht nur der profilierten.
+  // Unter ihrem Pfad - derselbe Schluessel wie die Profiladresse, damit
+  // beim Zusammenbauen niemand doppelt zaehlt.
+  {
+    let mitRasse = 0;
+    for (const m of members) {
+      if (!m.race || !m.path) continue;
+      entryFor('mplus', m.specID).races[m.path] = m.race + '|' + (m.faction || '');
+      mitRasse += 1;
+    }
+    console.log('  Spieler mit Rasse aus der Laufliste: ' + mitRasse);
+  }
 
   let read = 0;
   let failed = 0;

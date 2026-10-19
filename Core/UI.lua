@@ -6938,6 +6938,7 @@ do
                 -- NICHT "top": das Feld setzt der Zeichner selbst (meistgespielt).
                 e.simTop = e.rel ~= nil and (bestes - e.rel) < RAUSCHEN
                 e.n = played and played.n or nil
+                e.pool = played and played.pool or nil
                 e.targets = ziele
                 e.ts = sims and sims.ts or nil
                 e.preview = preview
@@ -7017,6 +7018,8 @@ do
         GameTooltip:AddLine(" ")
         if data.pct and data.n then
             GameTooltip:AddLine(L["RACE_TIP_PLAYED"]:format(data.pct, data.n), 0.7, 0.7, 0.7, true)
+            -- Zusammengefasst, wo eine Aktivitaet allein zu klein war.
+            if data.pool then GameTooltip:AddLine(L["RACE_TIP_POOL"], 0.5, 0.5, 0.5, true) end
         end
         if data.rel ~= nil and data.targets then
             GameTooltip:AddLine(L["RACE_TIP_SIM"]:format(zahl(data.rel), UI.RaceTargetLabel(data.targets)),

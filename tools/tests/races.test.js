@@ -26,6 +26,10 @@ const doppelt = tallyRaces([
   { key: 'https://raider.io/characters/eu/blackhand/Anna', race: 'Human' },
 ]);
 check('ein Spieler aus zwei Quellen zaehlt einmal', [...doppelt.entries()], [['Tauren', 1], ['Human', 1]]);
+check('Profiladresse und Pfad aus der Laufliste sind dieselbe Person', [...tallyRaces([
+  { key: 'https://raider.io/characters/eu/blackhand/Zack', race: 'Tauren' },
+  { key: '/characters/eu/blackhand/Zack', race: 'Tauren' },
+]).entries()], [['Tauren', 1]]);
 check('ohne Adresse oder Rasse zaehlt niemand',
   [...tallyRaces([{ key: null, race: 'Tauren' }, { key: 'x', race: null }]).entries()], []);
 
@@ -54,6 +58,22 @@ check('der neueste Stand gilt', sims.ts, '2026-10-14 02:38');
 check('ohne Daten keine Simulation', raceSims({}, index), null);
 check('Zandalari werden je Loa erkannt', simRace('Zandalari Troll Kimbul', index), { id: 31, loa: 'Kimbul' });
 check('Unbekanntes wird nicht geraten', simRace('Mondmensch', index), null);
+
+// Die Toepfe: Raid ueber alle Schwierigkeiten, PvP ueber alle Klammern -
+// ohne einzelne Dungeons, ohne M+.
+const { pooled } = require('../lib/races');
+const toepfe = pooled({
+  raid: { 62: [{ key: 'a', race: 'Human' }] },
+  'raid-mythic': { 62: [{ key: 'a', race: 'Human' }, { key: 'b', race: 'Tauren' }] },
+  'raid/boss': { 62: [{ key: 'c', race: 'Human' }] },
+  '2v2': { 62: [{ key: 'd', race: 'Human' }] },
+  solo: { 62: [{ key: 'e', race: 'Tauren' }] },
+  mplus: { 62: [{ key: 'f', race: 'Human' }] },
+});
+check('der Raidtopf nimmt alle Schwierigkeiten, keinen Boss', toepfe['@raid'][62].map((p) => p.key), ['a', 'a', 'b']);
+check('und zaehlt jeden einmal', [...tallyRaces(toepfe['@raid'][62]).entries()], [['Human', 1], ['Tauren', 1]]);
+check('der PvP-Topf nimmt alle Klammern', toepfe['@pvp'][62].map((p) => p.key), ['d', 'e']);
+check('M+ hat keinen Topf', Object.keys(toepfe).sort(), ['@pvp', '@raid']);
 
 if (failed) {
   console.error(`\n${failed} Fehler`);

@@ -735,6 +735,13 @@ function Recommend.Races(specID, mode)
         local hit = d.races[which] and d.races[which][specID]
         if hit then return hit end
     end
+    -- Sonst der Topf der Familie: alle Raid-Schwierigkeiten oder alle
+    -- PvP-Klammern zusammen. Eine Klammer allein hat oft zu wenige
+    -- Gemessene, und die Rasse haengt nicht an ihr.
+    local basis = tostring(Recommend.BaseMode(mode) or mode)
+    local topf = basis:find("^raid") and "@raid" or (not basis:find("^mplus") and "@pvp") or nil
+    local hit = topf and d.races[topf] and d.races[topf][specID]
+    if hit then return hit end
     return nil
 end
 

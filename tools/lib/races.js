@@ -31,7 +31,9 @@ function tallyRaces(players) {
   const seen = new Map();
   for (const p of players || []) {
     if (!p || !p.key || !p.race) continue;
-    const key = String(p.key).toLowerCase();
+    // "https://raider.io/characters/eu/x/y" und "/characters/eu/x/y" sind
+    // dieselbe Person: die Adresse ohne Seite ist der Schluessel.
+    const key = String(p.key).toLowerCase().replace(/^https?:\/\/[^/]+/, '');
     if (!seen.has(key)) seen.set(key, p.race);
   }
   const counts = new Map();
@@ -106,4 +108,32 @@ function raceSims(fights, index) {
   return Object.keys(byTargets).length ? { ts, byTargets } : null;
 }
 
-module.exports = { tallyRaces, raceShares, raceSims, simRace, MIN_SAMPLE, FIGHTS };
+// Die Toepfe: welche Aktivitaeten fuer die Rassenfrage zusammengehoeren.
+// M+ braucht keinen - die Laufliste bringt tausende Spieler mit.
+const POOLS = {
+  '@raid': (mode) => /^raid/.test(mode) && !mode.includes('/'),
+  '@pvp': (mode) => ['2v2', '3v3', 'rbg', 'solo', 'blitz'].includes(mode),
+};
+
+/**
+ * Die Spieler je Topf: alle Aktivitaeten einer Familie, zusammengelegt.
+ * Doppelte faellt tallyRaces heraus.
+ *
+ * @param {Object<string, Object<string, Array>>} byMode  Modus -> Spec -> Spieler
+ * @returns {Object<string, Object<string, Array>>}  Topf -> Spec -> Spieler
+ */
+function pooled(byMode) {
+  const out = {};
+  for (const [pool, belongs] of Object.entries(POOLS)) {
+    for (const [mode, specs] of Object.entries(byMode || {})) {
+      if (!belongs(mode)) continue;
+      for (const [spec, players] of Object.entries(specs)) {
+        const bySpec = out[pool] || (out[pool] = {});
+        (bySpec[spec] = bySpec[spec] || []).push(...players);
+      }
+    }
+  }
+  return out;
+}
+
+module.exports = { tallyRaces, raceShares, raceSims, simRace, pooled, MIN_SAMPLE, FIGHTS, POOLS };
