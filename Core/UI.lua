@@ -6787,7 +6787,6 @@ end
 -- SimulationCraft). Gruppiert nach Seite, die eigene zuerst: wer Horde
 -- spielt, waehlt meist unter der Horde.
 do
-    local SEITEN = { "alliance", "horde", "both" }
     -- Welche Zielzahlen je Aktivitaet zur Wahl stehen, und welche zuerst.
     -- Ohne Eintrag (PvP) keine Simulation: ein Patchwerk sagt dort nichts.
     local ZIELE = { mplus = { 1, 3, 5 }, raid = { 1, 3 } }
@@ -6923,40 +6922,31 @@ do
             if e.rel == nil or row[2] > e.rel then e.rel, e.loa = row[2], row[3] end
             if row[2] > bestes then bestes = row[2] end
         end
-        local eigene = UnitFactionGroup and UnitFactionGroup("player")
-        eigene = eigene == "Horde" and "horde" or eigene == "Alliance" and "alliance" or nil
-        local seiten = { eigene }
-        for _, s in ipairs(SEITEN) do if s ~= eigene then seiten[#seiten + 1] = s end end
-
+        -- EINE LISTE, nicht je Fraktion (19. Oktober): wer vorn liegt, soll
+        -- man auf einen Blick sehen. Die Seite steht klein in der Zeile, und
+        -- der Waehler oben filtert, wer nur in seiner Fraktion schaut.
         local rows = {}
-        for _, seite in ipairs(seiten) do
-            local gruppe = {}
-            for _, e in ipairs(order) do
-                local r = ns.Catalog.Race(e.id)
-                if r and r.side == seite then
-                    e.side = seite
-                    -- NICHT "top": das Feld setzt der Zeichner fuer jede Gruppe
-                    -- neu (meistgespielt), und die erste Zeile stand immer gruen.
-                    e.simTop = e.rel ~= nil and (bestes - e.rel) < RAUSCHEN
-                    e.n = played and played.n or nil
-                    e.targets = ziele
-                    e.ts = sims and sims.ts or nil
-                    e.preview = preview
-                    e.group = L["RACE_GROUP_" .. seite]
-                    gruppe[#gruppe + 1] = e
-                end
+        for _, e in ipairs(order) do
+            local r = ns.Catalog.Race(e.id)
+            if r then
+                e.side = r.side
+                -- NICHT "top": das Feld setzt der Zeichner selbst (meistgespielt).
+                e.simTop = e.rel ~= nil and (bestes - e.rel) < RAUSCHEN
+                e.n = played and played.n or nil
+                e.targets = ziele
+                e.ts = sims and sims.ts or nil
+                e.preview = preview
+                rows[#rows + 1] = e
             end
-            -- Nach dem simulierten Vorsprung, der beste zuerst (19. Oktober:
-            -- "die Tabelle ist nicht nach +% sortiert"). Ohne Simulation -
-            -- Heiler, PvP - nach dem Anteil der Gemessenen.
-            table.sort(gruppe, function(a, b)
-                if simRows and (a.rel or -1) ~= (b.rel or -1) then return (a.rel or -1) > (b.rel or -1) end
-                if (a.pct or 0) ~= (b.pct or 0) then return (a.pct or 0) > (b.pct or 0) end
-                if (a.rel or -1) ~= (b.rel or -1) then return (a.rel or -1) > (b.rel or -1) end
-                return a.id < b.id
-            end)
-            for _, e in ipairs(gruppe) do rows[#rows + 1] = e end
         end
+        -- Nach dem simulierten Vorsprung, der beste zuerst. Ohne Simulation -
+        -- Heiler, PvP - nach dem Anteil der Gemessenen.
+        table.sort(rows, function(x, y)
+            if simRows and (x.rel or -1) ~= (y.rel or -1) then return (x.rel or -1) > (y.rel or -1) end
+            if (x.pct or 0) ~= (y.pct or 0) then return (x.pct or 0) > (y.pct or 0) end
+            if (x.rel or -1) ~= (y.rel or -1) then return (x.rel or -1) > (y.rel or -1) end
+            return x.id < y.id
+        end)
         return rows, preview
     end
 
@@ -6988,8 +6978,12 @@ do
             row.icon:SetTexture(erste and erste.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
         end
         row.title:SetText(data.loa and (name .. " (" .. data.loa .. ")") or name)
-        row.detail:SetText(data.pct and L["RACE_PLAYED"]:format(data.pct)
-            or (data.n and L["RACE_NOT_PLAYED"] or ""))
+        -- Die Seite vorn, klein: ohne Gruppen muss die Zeile sie selbst sagen.
+        local seite = data.side and L["RACE_GROUP_" .. data.side] or nil
+        local gespielt = data.pct and L["RACE_PLAYED"]:format(data.pct)
+            or (data.n and L["RACE_NOT_PLAYED"] or nil)
+        row.detail:SetText(seite and gespielt and (seite .. "  \194\183  " .. gespielt)
+            or seite or gespielt or "")
         if data.rel ~= nil then
             row.share:SetText("+" .. zahl(data.rel) .. " %")
             S:Recolor(row.share, data.simTop and "success" or "textSecondary")

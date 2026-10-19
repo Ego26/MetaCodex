@@ -6577,12 +6577,15 @@ do
     check("die Wahl gilt", ns.UI.RaceTargets() == 1)
 
     local rows = ns.UI.RaceRows(250, "mplus")
-    check("die eigene Seite steht oben", rows[1] and rows[1].group == L["RACE_GROUP_horde"],
-        tostring(rows[1] and rows[1].group))
-    -- Sortiert nach der Simulation, nicht nach dem Anteil: die Zandalari
-    -- werden weniger gespielt als die Tauren, liegen aber vorn.
-    check("dort die staerkste Simulation zuerst", rows[1] and rows[1].id == 31,
+    -- EINE Liste, nach der Simulation sortiert, nicht nach dem Anteil: die
+    -- Zandalari werden weniger gespielt als die Tauren, liegen aber vorn.
+    check("eine Liste ohne Gruppen", rows[1] and rows[1].group == nil)
+    check("die staerkste Simulation zuerst", rows[1] and rows[1].id == 31,
         tostring(rows[1] and rows[1].id))
+    local ids = {}
+    for _, r in ipairs(rows) do ids[#ids + 1] = r.id end
+    check("ueber alle Fraktionen hinweg", table.concat(ids, ",") == "31,6,1,24",
+        table.concat(ids, ","))
     local troll, mensch, panda
     for _, r in ipairs(rows) do
         if r.id == 31 then troll = r end
@@ -6594,7 +6597,7 @@ do
     check("gleichauf mit der besten ist oben", troll and troll.simTop == true)
     check("deutlich darunter nicht", mensch and mensch.simTop == false)
     check("auch Ungespieltes mit Simulation steht da", panda and panda.pct == nil and panda.rel == 0)
-    check("beide Seiten am Schluss", rows[#rows] and rows[#rows].group == L["RACE_GROUP_both"])
+    check("die Seite steht an der Zeile", panda and panda.side == "both")
 
     ns.Profile.SetRaceTargets("mplus", 5)
     local fuenf = ns.UI.RaceRows(250, "mplus")
@@ -6612,7 +6615,8 @@ do
 
     -- Im Fenster, mit Tooltip.
     local n = rowsInSection("races")
-    check("der Abschnitt zeigt Zeilen", n >= 4, n .. " Zeilen")
+    -- Bei 5 Zielen: drei Rassen (gespielt oder simuliert), keine Ueberschriften.
+    check("der Abschnitt zeigt Zeilen", n == 3, n .. " Zeilen")
     local zeile
     for _, row in ipairs(wow.rows()) do
         if row:IsShown() and rawget(row, "raceTip") and row.raceTip.id == 1 then zeile = row end
