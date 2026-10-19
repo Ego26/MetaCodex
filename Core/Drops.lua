@@ -236,6 +236,12 @@ function Drops.Build(specID, mode, source, opts)
     local nurPlatz = opts.slot
     if nurPlatz == nil and ns.Profile and ns.Profile.GearSlot then nurPlatz = ns.Profile.GearSlot() end
     local need = opts.need or function(id) return ns.Profile.Need(id, specID) end
+    -- WAS DU SCHON HAST: angelegt, oder irgendwo in Taschen und Banken.
+    -- Das Angelegte einmal je Aufbau, nicht je Kaestchen.
+    local angelegt = opts.equipped or (ns.Compat.EquippedIDs and ns.Compat.EquippedIDs()) or {}
+    local hast = opts.owned or function(id)
+        return angelegt[id] or (ns.Compat.ItemCount and ns.Compat.ItemCount(id) > 0) or false
+    end
     local holen = opts.loot or (ns.Loot and ns.Loot.Items)
 
     -- Die Instanzen: aus dem Katalog, sonst aus der Messung.
@@ -264,6 +270,7 @@ function Drops.Build(specID, mode, source, opts)
             pct = m and m.pct or nil, ilvl = m and m.ilvl or nil,
             measured = m ~= nil, need = need(id) and true or false,
             top = m and m.top or false,
+            owned = hast(id) and true or false,
         }
     end
 

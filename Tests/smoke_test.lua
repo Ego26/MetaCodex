@@ -6860,6 +6860,19 @@ do
     check("ein Platz laesst nur diesen Platz stehen", fremd == 0 and stuecke == 3,
         stuecke .. " Stuecke, " .. fremd .. " fremde")
 
+    -- WAS DU SCHON HAST traegt den Haken: angelegt oder irgendwo gelagert.
+    local besitz = ns.Drops.Build(SPEC, "mplus", nil, {
+        equipped = { [201] = true },
+    })
+    local bz = finde(besitz, function(r) return r.inst == 1001 end)
+    check("angelegt zaehlt als vorhanden", kaestchen(bz, 201) and kaestchen(bz, 201).owned == true)
+    check("anderes nicht", kaestchen(bz, 202) and kaestchen(bz, 202).owned == false)
+    local gelagert = ns.Drops.Build(SPEC, "mplus", nil, {
+        owned = function(id) return id == 202 end,
+    })
+    local gz = finde(gelagert, function(r) return r.inst == 1001 end)
+    check("gelagert zaehlt auch", kaestchen(gz, 202) and kaestchen(gz, 202).owned == true)
+
     -- NEED: je Charakter UND Spec.
     check("ohne Markierung kein Need", ns.Profile.Need(201, SPEC) == false)
     ns.Profile.ToggleNeed(201, SPEC)
@@ -6914,6 +6927,24 @@ do
         alles:find("Instanz 1001", 1, true) ~= nil, alles:sub(1, 80))
     check("die Zeile sagt, wie viele Drops",
         alles:find(ns.L["DROPS_ROW_ALL"]:format(4, 2), 1, true) ~= nil, alles:sub(1, 160))
+
+    -- Der Haken am Kaestchen, und nur dort, wo man es hat.
+    do
+        local echtAn = ns.Compat.EquippedIDs
+        ns.Compat.EquippedIDs = function() return { [201] = true } end
+        rowsInSection("drops")
+        local mit, ohne
+        for _, f in ipairs(wow.frames) do
+            if rawget(f, "share") and f:IsShown() then
+                if rawget(f, "itemID") == 201 then mit = f end
+                if rawget(f, "itemID") == 202 then ohne = f end
+            end
+        end
+        check("was du hast, traegt den Haken", mit and mit.mark:IsShown() == true)
+        check("was du nicht hast, nicht", ohne and ohne.mark:IsShown() == false)
+        ns.Compat.EquippedIDs = echtAn
+        rowsInSection("drops")
+    end
 
     -- EIN KLICK MARKIERT.
     local zelle

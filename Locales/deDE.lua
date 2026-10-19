@@ -255,6 +255,8 @@ ns.RegisterLocale("deDE", {
     ["DROPS_LEGEND_FAV"] = "Favorit",
     ["DROPS_LEGEND_TOP"] = "Meistgetragen",
     ["DROPS_LEGEND_STATS"] = "Passende Werte",
+    ["DROPS_OWNED"] = "Hast du bereits",
+    ["DROPS_LEGEND_OWNED"] = "Hast du schon",
     ["DROPS_HL_TOP"] = "Am häufigsten getragen (je Platz)",
     ["DROPS_HL_TOP_S"] = "Meistgetragen",
     ["DROPS_HL"]           = "Hervorhebung",

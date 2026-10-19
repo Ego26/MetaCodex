@@ -2582,7 +2582,8 @@ function UI.DropRows(specID, mode, source)
             kind = "note", legend = true,
             text = feld("gold") .. L["DROPS_LEGEND_FAV"] .. "      "
                 .. feld("brand") .. L["DROPS_LEGEND_TOP"] .. "      "
-                .. feld("highlight") .. L["DROPS_LEGEND_STATS"],
+                .. feld("highlight") .. L["DROPS_LEGEND_STATS"] .. "      "
+                .. "|TInterface\\RaidFrame\\ReadyCheck-Ready:12:12|t " .. L["DROPS_LEGEND_OWNED"],
         },
     }
     for _, row in ipairs(rows) do
@@ -3579,6 +3580,14 @@ local function dropCell(row, i)
     c.badge:SetFrameLevel(c:GetFrameLevel() + 4)
     c.star:SetParent(c.badge)
     c.star:SetDrawLayer("OVERLAY", 7)
+    -- Der Haken "hast du schon" gehoert ebenfalls nach oben - und nach
+    -- UNTEN RECHTS: oben links stehen die Punkte, oben rechts der Stern.
+    -- Auf dem oberen Rahmen tritt er auch nicht mit einem abgeblendeten
+    -- Symbol zurueck.
+    c.mark:SetParent(c.badge)
+    c.mark:SetDrawLayer("OVERLAY", 7)
+    c.mark:ClearAllPoints()
+    c.mark:SetPoint("BOTTOMRIGHT", c.icon, "BOTTOMRIGHT", 4, -4)
     -- PUNKTE fuer, was ausser dem Rahmen noch zutrifft: oben links, je
     -- weitere Markierung einer, mit dunklem Rand, damit er auf jedem
     -- Symbol steht. Ein Streifen am Fuss des Symbols sah aus wie ein
@@ -3640,6 +3649,7 @@ local function dropCell(row, i)
         -- warum man hier ueberhaupt hinsieht.
         local wo = self.enc and ns.Compat.DropText(self.enc, nil)
         if wo then GameTooltip:AddLine(L["DROPS_FROM"]:format(wo), 1, 0.82, 0) end
+        if self.owned then GameTooltip:AddLine(L["DROPS_OWNED"], 0.4, 0.9, 0.4) end
         -- Was ein Klick tut, steht dort, wo man klickt.
         if self.need then
             GameTooltip:AddLine(L["DROPS_NEED_ON"], S:Color("gold"))
@@ -3828,12 +3838,13 @@ local function setDropRow(row, data)
         -- was gemessen ist - DAS ist die Hervorhebung.
         c.icon:SetDesaturated(false)
         c.icon:SetAlpha(1)
-        c.mark:Hide()
+        c.mark:SetShown(item.owned and true or false)
         c.star:SetShown(item.need and true or false)
         c.stop:Hide()
         c.share:SetText(item.pct and string.format("%d %%", item.pct) or "")
         S:Recolor(c.share, "textSecondary")
         c.itemID, c.pct, c.enc, c.need, c.spec = item.id, item.pct, item.enc, item.need, item.spec
+        c.owned = item.owned
         c.link = link
         -- Die Stufe reist als ZAHL mit, nicht als fertiger Link: den
         -- baut erst das Hovern, weil der Client die Grundstufe beim

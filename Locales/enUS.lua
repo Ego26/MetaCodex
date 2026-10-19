@@ -255,6 +255,8 @@ ns.RegisterLocale("enUS", {
     ["DROPS_LEGEND_FAV"] = "Favourite",
     ["DROPS_LEGEND_TOP"] = "Most worn",
     ["DROPS_LEGEND_STATS"] = "Matching stats",
+    ["DROPS_OWNED"] = "You already have this",
+    ["DROPS_LEGEND_OWNED"] = "You have it",
     ["DROPS_HL_TOP"] = "Most worn (per slot)",
     ["DROPS_HL_TOP_S"] = "Most worn",
     ["DROPS_HL"]           = "Highlight",
