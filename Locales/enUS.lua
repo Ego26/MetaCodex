@@ -116,6 +116,7 @@ ns.RegisterLocale("enUS", {
     ["NOTHING_TO_BUY"]     = "Nothing to buy - everything is enchanted and socketed.",
     ["NAMES_PENDING"]      = "Loading item names, one moment...",
     ["NO_CATALOG"]         = "Data/Catalog.lua is missing or empty. Run tools/build-catalog.js.",
+    ["OPEN_COMBAT"] = "MetaCodex does not open in combat - try again afterwards.",
     ["NO_DATA_MISSING"] = "MetaCodex cannot find its data folder “MetaCodex_Data”. Please reinstall MetaCodex with the CurseForge app - the download holds four folders: MetaCodex, MetaCodex_Data, MetaCodex_Dungeons and MetaCodex_Players. All four belong in Interface\\AddOns.",
     ["NO_DATA_DISABLED"] = "“MetaCodex Data” is switched off. Open the AddOns list (character selection, AddOns button), tick “MetaCodex Data” and log in again.",
     ["NO_DATA_OUTDATED"] = "The game marks “MetaCodex Data” as out of date. Update MetaCodex in the CurseForge app, or tick “Load out of date AddOns” in the AddOns list.",

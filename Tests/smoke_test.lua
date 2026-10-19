@@ -2299,7 +2299,21 @@ do
     ns.Profile.SetMode("mplus")
     local ok, fehler = pcall(rowsInSection, "stats")
     check("und die Zielwerte stehen trotzdem da", ok, tostring(fehler))
+    -- Und das Fenster geht unter diesen Umstaenden gar nicht erst auf.
+    local f = ns.UI.Frame()
+    if f:IsShown() then f:Hide() end
+    ns.UI.Toggle()
+    check("mit geheimen Werten geht das Fenster nicht auf", not f:IsShown())
     GetCombatRating, issecretvalue = echtWert, echtGeheim
+
+    local echtKampf = rawget(_G, "InCombatLockdown")
+    InCombatLockdown = function() return true end
+    ns.UI.Toggle()
+    check("im Kampf geht es nicht auf", not f:IsShown())
+    InCombatLockdown = function() return false end
+    ns.UI.Toggle()
+    check("danach wieder", f:IsShown())
+    InCombatLockdown = echtKampf
 end
 
 -- In M+, weil dort beide Quellen Zielwerte fuehren. Im Raid kamen sie

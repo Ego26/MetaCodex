@@ -7912,7 +7912,27 @@ local function applyStartMode()
     if start and start ~= ns.Profile.Mode() then ns.Profile.SetMode(start) end
 end
 
+-- IM KAMPF NICHT (19. Oktober).
+--
+-- Gesehen: tot, die Gruppe kaempft noch - und MetaCodex ging auf, mit
+-- Zielwerten ohne eigene Werte, weil das Spiel sie im Kampf geheim haelt.
+-- Als Kampf zaehlt deshalb auch, wenn die eigene Wertung geheim ist: das
+-- sagt das Spiel selbst, und ein toter Spieler ist nicht "im Kampf".
+function UI.InFight()
+    if InCombatLockdown and InCombatLockdown() then return true end
+    if type(issecretvalue) == "function" and GetCombatRating then
+        local ok, wert = pcall(GetCombatRating, CR_MASTERY or 26)
+        if ok and issecretvalue(wert) then return true end
+    end
+    return false
+end
+
 function UI.Toggle()
+    -- Zu geht immer; auf nur ausserhalb des Kampfes.
+    if not (frame and frame:IsShown()) and UI.InFight() then
+        ns.Print(L["OPEN_COMBAT"])
+        return
+    end
     if not frame then build() end
     local ok, reason = ns.Data.Ensure()
     if not ok then ns.Print(ns.Data.Message()) end
@@ -8014,10 +8034,23 @@ function UI.ResetWindow()
     UI.Refresh()
 end
 
+do
+    local wache = CreateFrame("Frame")
+    wache:RegisterEvent("PLAYER_REGEN_DISABLED")
+    wache:SetScript("OnEvent", function()
+        if frame and frame:IsShown() then frame:Hide() end
+    end)
+end
+
 ---Zeigt einen Abschnitt - gebraucht vom Minimap-Knopf, der auf den
 ---Schalter fuer sich selbst zeigt.
 ---@param key string
 function UI.OpenSection(key)
+    -- Auch dieser Weg ins Fenster nicht im Kampf (siehe UI.InFight).
+    if not (frame and frame:IsShown()) and UI.InFight() then
+        ns.Print(L["OPEN_COMBAT"])
+        return
+    end
     if MetaCodexDB then MetaCodexDB.section = key end
     if not frame then UI.Toggle() return end
     UI.Refresh()
