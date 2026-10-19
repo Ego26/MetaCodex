@@ -7,6 +7,11 @@
   5 targets (bloodmallet.com, SimulationCraft). One list, sorted by the
   simulation, filterable by faction; hover for the racial abilities.
 
+### Fixed
+
+- **MetaCodex no longer opens in combat** and closes when a fight
+  starts - opened mid-fight, it showed the previous section.
+
 ## v1.1.19 — favourite dropped
 
 ### Added

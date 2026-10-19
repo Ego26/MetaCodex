@@ -26,6 +26,15 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
     under each. The tooltip lists the racial abilities as the character
     creation describes them.
 
+### Fixed
+
+- **The window showed the previous section** under a new heading when
+  opened in combat. The game keeps combat ratings secret there, and
+  building the stat targets broke on them. MetaCodex now does not open
+  in combat at all - nor while the game keeps your values secret, as
+  when you are dead and your group still fights - and closes when a
+  fight starts.
+
 ## [1.1.19] - 2026-10-19
 
 ### Added

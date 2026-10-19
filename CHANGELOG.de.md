@@ -29,6 +29,15 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
     beider Seiten stehen bei beiden. Der Tooltip zeigt die
     Rassenfähigkeiten, wie die Charaktererstellung sie beschreibt.
 
+### Behoben
+
+- **Das Fenster zeigte den vorigen Abschnitt** unter einer neuen
+  Überschrift, wenn man es im Kampf öffnete. Das Spiel hält die
+  Kampfwertungen dort geheim, und daran brach der Aufbau der Zielwerte
+  ab. MetaCodex geht im Kampf jetzt gar nicht erst auf - auch nicht,
+  solange das Spiel deine Werte geheim hält, etwa wenn du tot bist und
+  die Gruppe noch kämpft - und schließt sich, wenn ein Kampf beginnt.
+
 ## [1.1.19] - 2026-10-19
 
 ### Neu
