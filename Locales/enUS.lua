@@ -318,6 +318,8 @@ ns.RegisterLocale("enUS", {
     ["RACE_GROUP_alliance"] = "Alliance",
     ["RACE_GROUP_horde"] = "Horde",
     ["RACE_GROUP_both"] = "Both factions",
+    ["RACE_FACTION"] = "Faction",
+    ["RACE_FACTION_ALL"] = "All factions",
     ["RACE_PLAYED"] = "%d%% of top players",
     ["RACE_NOT_PLAYED"] = "not among the measured players",
     ["RACE_TARGETS"] = "Simulated against",

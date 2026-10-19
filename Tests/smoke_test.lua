@@ -6565,7 +6565,7 @@ do
     ns.Recommend.Races = function() return { n = 40, { 6, 50 }, { 1, 30 }, { 31, 20 } } end
     ns.Recommend.RaceSims = function()
         return { ts = "2026-10-14 02:38",
-            [1] = { { 6, 1.6 }, { 31, 1.5, "Paku" }, { 31, 0.2, "Kimbul" }, { 1, 0.9 }, { 24, 0 } },
+            [1] = { { 31, 1.7, "Paku" }, { 6, 1.6 }, { 31, 0.2, "Kimbul" }, { 1, 0.9 }, { 24, 0 } },
             [5] = { { 1, 2.0 }, { 6, 0.4 } } }
     end
     UnitFactionGroup = function() return "Horde" end
@@ -6579,14 +6579,17 @@ do
     local rows = ns.UI.RaceRows(250, "mplus")
     check("die eigene Seite steht oben", rows[1] and rows[1].group == L["RACE_GROUP_horde"],
         tostring(rows[1] and rows[1].group))
-    check("dort die meistgespielte zuerst", rows[1] and rows[1].id == 6)
+    -- Sortiert nach der Simulation, nicht nach dem Anteil: die Zandalari
+    -- werden weniger gespielt als die Tauren, liegen aber vorn.
+    check("dort die staerkste Simulation zuerst", rows[1] and rows[1].id == 31,
+        tostring(rows[1] and rows[1].id))
     local troll, mensch, panda
     for _, r in ipairs(rows) do
         if r.id == 31 then troll = r end
         if r.id == 1 then mensch = r end
         if r.id == 24 then panda = r end
     end
-    check("die Zandalari mit ihrer besten Loa", troll and troll.loa == "Paku" and troll.rel == 1.5,
+    check("die Zandalari mit ihrer besten Loa", troll and troll.loa == "Paku" and troll.rel == 1.7,
         troll and (tostring(troll.loa) .. " " .. tostring(troll.rel)))
     check("gleichauf mit der besten ist oben", troll and troll.simTop == true)
     check("deutlich darunter nicht", mensch and mensch.simTop == false)
@@ -6635,6 +6638,19 @@ do
             or alles:find("The Human Spirit", 1, true) ~= nil, alles:sub(1, 120))
         check("und die Quelle der Simulation", alles:find("bloodmallet.com", 1, true) ~= nil)
     end
+    -- Der Fraktionsfilter laesst nur die gewaehlte Seite stehen.
+    ns.Profile.SetCategory("races", "horde")
+    rowsInSection("races")
+    local fremd, horde = 0, 0
+    for _, row in ipairs(wow.rows()) do
+        local tip = row:IsShown() and rawget(row, "raceTip")
+        if tip then
+            if tip.side == "horde" then horde = horde + 1 else fremd = fremd + 1 end
+        end
+    end
+    check("der Fraktionsfilter laesst nur die Horde stehen", horde > 0 and fremd == 0,
+        horde .. " Horde, " .. fremd .. " andere")
+    ns.Profile.SetCategory("races", nil)
 
     -- Ohne Daten: in der Dev-Version die Vorschau, sonst nichts.
     ns.Recommend.Races = function() return nil end

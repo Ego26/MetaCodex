@@ -1034,6 +1034,10 @@ local function categoriesIn(section, rows)
         if section.key == "consumables" then
             key = row.ckind
             label = key and L["CONSUM_" .. key]
+        elseif section.key == "races" then
+            -- Nach Fraktion: wer Horde spielt, waehlt unter der Horde.
+            key = row.side
+            label = key and L["RACE_GROUP_" .. key]
         elseif section.key == "drops" then
             -- Gefiltert wird nach der ART des Fundorts, nicht nach der
             -- einzelnen Instanz: "zeig mir nur Dungeons" ist die
@@ -1304,6 +1308,9 @@ end
 local function categoryWords(section)
     if section and section.key == "drops" then
         return L["LBL_ORIGIN"], L["SOURCE_ANY"]
+    end
+    if section and section.key == "races" then
+        return L["RACE_FACTION"], L["RACE_FACTION_ALL"]
     end
     return L["LBL_CATEGORY"], L["CATEGORY_ALL"]
 end
@@ -5847,6 +5854,7 @@ function UI.Refresh()
         for _, row in ipairs(currentRows) do
             local key = (section.key == "consumables") and row.ckind
                 or (section.key == "drops") and row.place
+                or (section.key == "races") and row.side
                 or row.slot
             if key == picked then kept[#kept + 1] = row end
         end
@@ -6938,7 +6946,11 @@ do
                     gruppe[#gruppe + 1] = e
                 end
             end
+            -- Nach dem simulierten Vorsprung, der beste zuerst (19. Oktober:
+            -- "die Tabelle ist nicht nach +% sortiert"). Ohne Simulation -
+            -- Heiler, PvP - nach dem Anteil der Gemessenen.
             table.sort(gruppe, function(a, b)
+                if simRows and (a.rel or -1) ~= (b.rel or -1) then return (a.rel or -1) > (b.rel or -1) end
                 if (a.pct or 0) ~= (b.pct or 0) then return (a.pct or 0) > (b.pct or 0) end
                 if (a.rel or -1) ~= (b.rel or -1) then return (a.rel or -1) > (b.rel or -1) end
                 return a.id < b.id
