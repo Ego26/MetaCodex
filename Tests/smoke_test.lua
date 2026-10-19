@@ -6588,8 +6588,8 @@ do
     end
     check("die Zandalari mit ihrer besten Loa", troll and troll.loa == "Paku" and troll.rel == 1.5,
         troll and (tostring(troll.loa) .. " " .. tostring(troll.rel)))
-    check("gleichauf mit der besten ist oben", troll and troll.top == true)
-    check("deutlich darunter nicht", mensch and mensch.top == false)
+    check("gleichauf mit der besten ist oben", troll and troll.simTop == true)
+    check("deutlich darunter nicht", mensch and mensch.simTop == false)
     check("auch Ungespieltes mit Simulation steht da", panda and panda.pct == nil and panda.rel == 0)
     check("beide Seiten am Schluss", rows[#rows] and rows[#rows].group == L["RACE_GROUP_both"])
 
@@ -6597,7 +6597,7 @@ do
     local fuenf = ns.UI.RaceRows(250, "mplus")
     local m5
     for _, r in ipairs(fuenf) do if r.id == 1 then m5 = r end end
-    check("bei 5 Zielen eine andere Simulation", m5 and m5.rel == 2.0 and m5.top == true,
+    check("bei 5 Zielen eine andere Simulation", m5 and m5.rel == 2.0 and m5.simTop == true,
         m5 and tostring(m5.rel))
 
     ns.Profile.SetMode("raid")
@@ -6615,6 +6615,15 @@ do
         if row:IsShown() and rawget(row, "raceTip") and row.raceTip.id == 1 then zeile = row end
     end
     check("eine Rassenzeile traegt ihre Daten", zeile ~= nil)
+    -- Gruen steht nur, was in der Simulation vorn liegt - nicht die
+    -- meistgespielte Rasse, die oben in der Gruppe steht.
+    local oben
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() and rawget(row, "raceTip") and not oben then oben = row end
+    end
+    check("die erste Zeile ist nicht von selbst gruen",
+        oben and (oben.raceTip.simTop and true or false) == (rawget(oben.share, "__token") == "success"),
+        oben and tostring(rawget(oben.share, "__token")))
     if zeile then
         local zeilen = {}
         local echtAdd = GameTooltip.AddLine

@@ -6823,6 +6823,34 @@ do
         end)
     end
 
+    -- Wo der Atlas anders heisst als die Datei der Rasse.
+    local ATLAS = {
+        scourge = { "undead" },
+        highmountaintauren = { "highmountain" },
+        zandalaritroll = { "zandalari" },
+        lightforgeddraenei = { "lightforged" },
+        magharorc = { "maghar" },
+        earthendwarf = { "earthen" },
+        harronir = { "haranir" },
+        haranir = { "haranir" },
+    }
+
+    ---Der Atlas des Rassensymbols - nur einer, den es wirklich gibt.
+    function UI.RaceAtlas(datei)
+        if type(datei) ~= "string" or not (C_Texture and C_Texture.GetAtlasInfo) then return nil end
+        local klein = datei:lower()
+        local namen = { klein }
+        for _, n in ipairs(ATLAS[klein] or {}) do namen[#namen + 1] = n end
+        for _, n in ipairs(namen) do
+            for _, form in ipairs({ "raceicon128-%s-male", "raceicon-%s-male" }) do
+                local name = form:format(n)
+                local ok, info = pcall(C_Texture.GetAtlasInfo, name)
+                if ok and type(info) == "table" then return name end
+            end
+        end
+        return nil
+    end
+
     local function zahl(x)
         local text = ("%.1f"):format(x)
         if GetLocale and GetLocale() == "deDE" then text = text:gsub("%.", ",") end
@@ -6899,7 +6927,9 @@ do
                 local r = ns.Catalog.Race(e.id)
                 if r and r.side == seite then
                     e.side = seite
-                    e.top = e.rel ~= nil and (bestes - e.rel) < RAUSCHEN
+                    -- NICHT "top": das Feld setzt der Zeichner fuer jede Gruppe
+                    -- neu (meistgespielt), und die erste Zeile stand immer gruen.
+                    e.simTop = e.rel ~= nil and (bestes - e.rel) < RAUSCHEN
                     e.n = played and played.n or nil
                     e.targets = ziele
                     e.ts = sims and sims.ts or nil
@@ -6932,11 +6962,13 @@ do
         local name, datei = rassenName(data.id)
         row.icon:SetTexture(nil)
         local symbol = false
-        -- SetAtlas sagt im Rueckgabewert, ob es den Atlas gibt; pcall allein
-        -- sagt nur, dass nichts geworfen wurde.
-        if datei and row.icon.SetAtlas then
-            local ok, gesetzt = pcall(row.icon.SetAtlas, row.icon, "raceicon128-" .. datei:lower() .. "-male", false)
-            symbol = ok and gesetzt ~= false
+        -- Erst fragen, ob es den Atlas gibt: ein unbekannter wirft nichts,
+        -- und dann blieb das Feld leer (Untote, Zandalari, Hochbergtauren,
+        -- Haranir, Irdene - 19. Oktober). Der Name folgt nicht immer der
+        -- Datei der Rasse; die bekannten Abweichungen stehen in ATLAS.
+        local atlas = UI.RaceAtlas(datei)
+        if atlas and row.icon.SetAtlas then
+            symbol = pcall(row.icon.SetAtlas, row.icon, atlas, false)
         end
         if not symbol then
             local r = ns.Catalog.Race(data.id)
@@ -6948,7 +6980,7 @@ do
             or (data.n and L["RACE_NOT_PLAYED"] or ""))
         if data.rel ~= nil then
             row.share:SetText("+" .. zahl(data.rel) .. " %")
-            S:Recolor(row.share, data.top and "success" or "textSecondary")
+            S:Recolor(row.share, data.simTop and "success" or "textSecondary")
         else
             row.share:SetText("")
         end
