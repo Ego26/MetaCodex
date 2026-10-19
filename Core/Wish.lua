@@ -197,13 +197,6 @@ end
 
 function Wish.Whisper(entry)
     if not entry or entry.asked or entry.waiting then return false end
-    -- Nur in der Dev-Version: was genau verschickt wird, mit sichtbaren
-    -- Steuerzeichen.
-    if ns.version == "dev" then
-        local text = Wish.Message(entry)
-        ns.Print("DEV an " .. tostring(entry.player) .. " (" .. #text .. " Bytes): "
-            .. text:gsub("|", "||"))
-    end
     -- Gesperrt: nicht versuchen, sondern warten.
     if gesperrt() then
         merken(entry)
