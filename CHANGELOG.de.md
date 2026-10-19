@@ -19,6 +19,9 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
   Flüstern von Addons; dann steht am Knopf „Wartet …", und das Flüstern
   geht von selbst raus, sobald das vorbei ist.
 - Abschaltbar unter Einstellungen → Beute.
+- **Ein grüner Haken an Drops, die du schon hast** - in den Fundorten,
+  angelegt oder irgendwo in Taschen, Bank, Reagenzien- oder
+  Kriegsmeutenbank. Der Tooltip sagt es auch, die Legende erklärt ihn.
 
 ### Geändert
 

@@ -19,6 +19,9 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
   addons; then the button says "Waiting..." and the whisper goes out
   on its own as soon as that is over.
 - It can be switched off under Settings -> Loot.
+- **A green tick on drops you already have** in the drop view -
+  equipped, or anywhere in bags, bank, reagent or warband bank. The
+  tooltip says so too, and the legend explains it.
 
 ### Changed
 

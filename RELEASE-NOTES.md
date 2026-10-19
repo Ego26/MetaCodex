@@ -7,6 +7,7 @@
 - **Whisper them with one click** — in English, to name-realm. During
   a keystone or boss fight it waits and goes out once that is over.
 - Switch it off under Settings → Loot.
+- **A green tick** in the drop view on everything you already have.
 
 ### Changed
 
