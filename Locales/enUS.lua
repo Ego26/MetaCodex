@@ -633,6 +633,7 @@ ns.RegisterLocale("enUS", {
     ["STAT_HINT_N"] = "Median of %d measured players, one stat at a time — rating points, not the effect your character sheet shows.",
     ["STAT_SHARE"] = "%d%% of all secondary rating",
     ["STAT_YOURS"] = "you have %d of %d",
+    ["STAT_MEMO"] = "as before the run",
     ["STAT_DR"] = "only %d%% per point from here",
     ["STAT_OVER"] = "past threshold",
     ["STAT_DR_HEAD"] = "Diminishing returns",

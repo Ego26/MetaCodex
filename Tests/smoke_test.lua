@@ -2295,7 +2295,26 @@ do
     local GEHEIM = 1306.25
     GetCombatRating = function() return GEHEIM end
     issecretvalue = function(v) return v == GEHEIM end
+    -- Ohne etwas Gemerktes: kein eigener Wert.
+    local altMerk = MetaCodexDB.ownRatings
+    MetaCodexDB.ownRatings = nil
     check("eine geheime Wertung ergibt keinen eigenen Wert", ns.Compat.OwnRating("crit") == nil)
+    -- Mit Gemerktem: der Wert von vorhin, als gemerkt gekennzeichnet.
+    GetCombatRating = function() return 1288.6 end
+    check("lesbar wird sie gemerkt", ns.Compat.OwnRating("crit") == 1288)
+    GetCombatRating = function() return GEHEIM end
+    local wert, gemerkt = ns.Compat.OwnRating("crit")
+    check("geheim kommt der gemerkte Wert", wert == 1288 and gemerkt == true,
+        tostring(wert) .. " " .. tostring(gemerkt))
+    ns.Profile.SetMode("mplus")
+    rowsInSection("stats")
+    local mitHinweis = 0
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() and row.own and row.own:IsShown()
+            and (row.own:GetText() or ""):find(L["STAT_MEMO"], 1, true) then mitHinweis = mitHinweis + 1 end
+    end
+    check("und die Zeile sagt Stand vor dem Lauf", mitHinweis >= 1, mitHinweis .. " Zeilen")
+    MetaCodexDB.ownRatings = nil
     ns.Profile.SetMode("mplus")
     local ok, fehler = pcall(rowsInSection, "stats")
     check("und die Zielwerte stehen trotzdem da", ok, tostring(fehler))

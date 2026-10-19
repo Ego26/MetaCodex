@@ -465,6 +465,24 @@ local RATING_INDEX = {
 ---dieser Tabelle, sondern eine eigene Abfrage.
 ---@param key string "crit" | "haste" | "mastery" | "vers"
 ---@return number|nil rating
+-- DIE WERTUNG VON VORHIN, je Charakter.
+--
+-- In einem laufenden Schluessel haelt das Spiel sie den ganzen Lauf geheim,
+-- auch zwischen den Pulls (19. Oktober). Sie aendert sich dort aber nicht -
+-- die Ausruestung ist dieselbe. Also wird sie gemerkt, solange man sie
+-- lesen darf, und im Lauf gezeigt, mit dem Hinweis "Stand vor dem Lauf".
+-- In den gespeicherten Variablen, damit ein /reload im Lauf sie nicht loescht.
+local function gemerkt()
+    if type(MetaCodexDB) ~= "table" then return nil end
+    local name = UnitName and UnitName("player")
+    local realm = GetRealmName and GetRealmName()
+    if type(name) ~= "string" then return nil end
+    local wer = name .. "-" .. tostring(realm)
+    MetaCodexDB.ownRatings = MetaCodexDB.ownRatings or {}
+    MetaCodexDB.ownRatings[wer] = MetaCodexDB.ownRatings[wer] or {}
+    return MetaCodexDB.ownRatings[wer]
+end
+
 function Compat.OwnRating(key)
     local index = RATING_INDEX[key]
     if not index or not GetCombatRating then return nil end
@@ -475,9 +493,29 @@ function Compat.OwnRating(key)
     -- Zielwerte ab ("attempt to perform numeric conversion on a secret
     -- number value"), und das Fenster blieb auf dem vorigen Abschnitt
     -- stehen. Dann eben ohne eigenen Wert - bis der Kampf vorbei ist.
-    if type(issecretvalue) == "function" and issecretvalue(value) then return nil end
+    if type(issecretvalue) == "function" and issecretvalue(value) then
+        -- Geheim: der gemerkte Wert, und dass er gemerkt ist.
+        local merk = gemerkt()
+        local alt = merk and merk[key]
+        if type(alt) == "number" then return alt, true end
+        return nil
+    end
     local rund, gerundet = pcall(math.floor, value)
-    return rund and gerundet or nil
+    if not rund then return nil end
+    local merk = gemerkt()
+    if merk then merk[key] = gerundet end
+    return gerundet
+end
+
+-- Gemerkt wird, wann immer es geht: beim Betreten einer Welt oder Instanz
+-- (vor dem Start eines Schluessels) und bei jedem Wechsel der Ausruestung.
+do
+    local ohr = CreateFrame("Frame")
+    ohr:RegisterEvent("PLAYER_ENTERING_WORLD")
+    ohr:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
+    ohr:SetScript("OnEvent", function()
+        for key in pairs(RATING_INDEX) do pcall(Compat.OwnRating, key) end
+    end)
 end
 
 ---Was ein weiterer Punkt Wertung bei dieser Wertung noch bringt.

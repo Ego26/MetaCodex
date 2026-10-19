@@ -2632,7 +2632,9 @@ local function statRows(specID, mode, source)
     for rank, key in ipairs(stats.priority or {}) do
         local value = (stats.values or {})[key]
         local target = value and value.rating or nil
-        local mine = own and ns.Compat.OwnRating(key) or nil
+        -- Im laufenden Schluessel kommt der Wert von vorhin (gemerkt = true).
+        local mine, gemerkt
+        if own then mine, gemerkt = ns.Compat.OwnRating(key) end
         widest = math.max(widest, mine or 0)
         rows[#rows + 1] = {
             kind = "stat", statKey = key, rank = rank,
@@ -2645,6 +2647,7 @@ local function statRows(specID, mode, source)
             high = value and value.high or nil,
             players = stats.players,
             mine = mine,
+            memo = gemerkt or nil,
             -- Was ein weiterer Punkt dort noch bringt. Unter 1 nur
             -- hinter einem Knick der Diminishing Returns.
             eff = mine and ns.Compat.RatingEfficiency(key, mine) or nil,
@@ -4024,6 +4027,7 @@ local function setItemRow(row, data)
             -- fast alle vor dem ersten Knick, und eine Warnung, die
             -- nie zutrifft, liest bald niemand mehr.
             local text = L["STAT_YOURS"]:format(data.mine, data.rating or 0)
+            if data.memo then text = text .. "  \194\183  " .. L["STAT_MEMO"] end
             local anteil = data.eff and math.floor(data.eff * 100 + 0.5)
             if anteil and anteil < 100 then
                 text = text .. "  \194\183  |cff" .. S:Hex("danger")

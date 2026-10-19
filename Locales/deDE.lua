@@ -602,6 +602,7 @@ ns.RegisterLocale("deDE", {
     ["STAT_HINT_N"] = "Median aus %d gemessenen Spielern, je Wert einzeln — Wertungspunkte, nicht die Wirkung im Charakterfenster.",
     ["STAT_SHARE"] = "%d%% der Wertungspunkte",
     ["STAT_YOURS"] = "du hast %d von %d",
+    ["STAT_MEMO"] = "Stand vor dem Lauf",
     ["STAT_DR"] = "ab hier nur %d%% je Punkt",
     ["STAT_OVER"] = "über Grenze",
     ["STAT_DR_HEAD"] = "Abnehmender Ertrag",
