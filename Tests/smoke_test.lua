@@ -2328,12 +2328,17 @@ do
     ns.UI.Toggle()
     check("geheime Werte zwischen den Pulls: das Fenster geht auf", f:IsShown())
     f:Hide()
-    -- Tot, aber die Gruppe kaempft: zu.
+    -- Die Gruppe kaempft, man selbst nicht: es geht auf.
     GetNumGroupMembers = function() return 5 end
     UnitExists = function() return true end
     UnitAffectingCombat = function(unit) return unit == "party2" end
     ns.UI.Toggle()
-    check("kaempft die Gruppe, geht es nicht auf", not f:IsShown())
+    check("kaempft nur die Gruppe, geht es auf", f:IsShown())
+    f:Hide()
+    -- Kaempft man selbst, nicht.
+    UnitAffectingCombat = function(unit) return unit == "player" end
+    ns.UI.Toggle()
+    check("kaempft man selbst, geht es nicht auf", not f:IsShown())
     UnitAffectingCombat, GetNumGroupMembers, UnitExists = echtUnit, echtZahl, echtDa
     GetCombatRating, issecretvalue = echtWert, echtGeheim
 

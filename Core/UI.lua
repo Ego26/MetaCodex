@@ -7936,16 +7936,13 @@ local function kaempft(unit)
     return ja == true
 end
 
+-- NUR DER EIGENE KAMPF (19. Oktober, am Abend). Die Gruppe mitzuzaehlen
+-- hielt das Fenster zu, solange irgendwer pullte - auch wenn man selbst
+-- daneben stand. Der Grund dafuer war das leere Fenster mit geheimen
+-- Werten, und das gibt es nicht mehr: die Werte werden gemerkt.
 function UI.InFight()
     if InCombatLockdown and InCombatLockdown() then return true end
-    if kaempft("player") then return true end
-    local raid = IsInRaid and IsInRaid()
-    local n = (GetNumGroupMembers and tonumber(GetNumGroupMembers())) or 0
-    for i = 1, n do
-        local unit = (raid and "raid" or "party") .. i
-        if (not UnitExists or UnitExists(unit)) and kaempft(unit) then return true end
-    end
-    return false
+    return kaempft("player")
 end
 
 function UI.Toggle()
