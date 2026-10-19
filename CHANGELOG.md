@@ -28,6 +28,14 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 - **Settings**: the on/off switches stand in four groups - Buttons,
   Tooltip, Loot, Reminders - instead of one long list.
 
+### Fixed
+
+- **Rogues saw no weapon oil.** They were treated like shamans, whose
+  own weapon buff takes the oil's place. A rogue's poisons are a buff
+  on the rogue, not on the weapon - and measured, 95-100 % of top
+  rogues in M+ carry an oil. It is back in consumables, reminder and
+  shopping list.
+
 ## [1.1.18] - 2026-10-17
 
 ### Fixed

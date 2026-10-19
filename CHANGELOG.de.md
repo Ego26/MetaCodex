@@ -28,6 +28,14 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 - **Einstellungen**: die An/Aus-Schalter stehen in vier Gruppen -
   Knöpfe, Tooltip, Beute, Erinnerung - statt in einer langen Liste.
 
+### Behoben
+
+- **Schurken sahen kein Waffenöl.** Sie wurden wie Schamanen behandelt,
+  deren eigener Waffenbuff den Platz des Öls belegt. Die Gifte des
+  Schurken sind aber ein Buff am Schurken, nicht an der Waffe - und
+  gemessen tragen 95-100 % der Top-Schurken in M+ ein Öl. Es steht
+  wieder bei Verbrauchsgütern, Erinnerung und Einkaufsliste.
+
 ## [1.1.18] - 2026-10-17
 
 ### Behoben

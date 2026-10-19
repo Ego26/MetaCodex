@@ -14,6 +14,10 @@
 - Settings: the on/off switches are grouped — Buttons, Tooltip, Loot,
   Reminders.
 
+### Fixed
+
+- **Rogues get their weapon oil back** — poisons never took its place.
+
 ## v1.1.18 — scroll bar fix
 
 ### Fixed
