@@ -5870,6 +5870,10 @@ do
     check("der Schamane bringt seinen Waffenbuff mit",
         ns.Compat.SelfWeaponBuff(262) == true)
     check("der Magier nicht", ns.Compat.SelfWeaponBuff(62) == false)
+    -- Und der Schurke auch nicht: seine Gifte sind ein Buff am Schurken,
+    -- keine Waffenverzauberung. Gemessen tragen 95-100 % ein Oel.
+    check("der Schurke nicht - er traegt ein Oel", ns.Compat.SelfWeaponBuff(261) == false
+        and ns.Compat.SelfWeaponBuff(259) == false and ns.Compat.SelfWeaponBuff(260) == false)
 
     local function oelZeilen(spec, modus)
         local n = 0

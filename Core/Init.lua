@@ -117,9 +117,17 @@ ns.SLOT_COUNT = {
 
 -- Wer seinen Waffenbuff selbst mitbringt.
 --
--- Der Schamane legt Flammenzunge oder Windfury auf die Waffe, der
--- Schurke seine Gifte. Beides belegt DENSELBEN Platz wie ein Oel oder
--- ein Wetzstein - wer den einen hat, kann den anderen nicht haben.
+-- Der Schamane legt Flammenzunge oder Windfury auf die Waffe, und das
+-- belegt DENSELBEN Platz wie ein Oel oder ein Wetzstein - wer das eine
+-- hat, kann das andere nicht haben.
+--
+-- DER SCHURKE STAND HIER AUCH, und das war falsch. Seine Gifte sind ein
+-- Buff am Schurken, keine Waffenverzauberung - der Platz fuer das Oel
+-- bleibt frei. Gemessen am 19. Oktober: Assassination, Outlaw und
+-- Subtlety tragen in M+ zu 95 bis 100 % ein Oel, im Raid zu 87 bis
+-- 100 %, und keiner fuehrt einen eigenen Waffenbuff. Der Schamane
+-- dagegen: kein Oel, Flammenzunge zu 99 %. MetaCodex hatte den
+-- Schurken das Oel versteckt, bis jemand fragte.
 --
 -- Ohne das hier stand beim Schamanen "Thalassisches Phoenixoel - 0 von
 -- 5 - leer, 5 fehlen", und die Einkaufsliste wollte fuenf Oele, die er
@@ -131,7 +139,6 @@ ns.SLOT_COUNT = {
 -- wird sie dort gemessen und nicht hier geraten.
 ns.SELF_WEAPON_BUFF = {
     SHAMAN = true,
-    ROGUE = true,
 }
 
 -- Alle Plaetze, die einen Sockel tragen koennen - also praktisch alle.
