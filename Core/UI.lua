@@ -6688,12 +6688,19 @@ do
             head:SetHeight(34)
             S:Fill(head, "bgRaised")
             S:Border(head, "borderSubtle", 1, { bottom = true })
-            favFrame.star = head:CreateTexture(nil, "ARTWORK")
-            favFrame.star:SetTexture("Interface\\Common\\FavoritesIcon")
-            favFrame.star:SetSize(20, 20)
-            favFrame.star:SetPoint("LEFT", S.space.md, 0)
+            -- Der Text steht fest, der Stern haengt an SEINER Mitte. Vorher
+            -- war es umgekehrt, und die Grafik hat oben mehr Rand als unten:
+            -- der Stern sass zu hoch (19. Oktober). Die Atlas-Grafik ist eng
+            -- geschnitten; die alte Textur bleibt der Rueckfall.
             favFrame.title = S:Text(head, "title", "gold")
-            favFrame.title:SetPoint("LEFT", favFrame.star, "RIGHT", 6, 0)
+            favFrame.title:SetPoint("LEFT", S.space.md + 22, 0)
+            favFrame.star = head:CreateTexture(nil, "ARTWORK")
+            if not (favFrame.star.SetAtlas
+                and pcall(favFrame.star.SetAtlas, favFrame.star, "PetJournal-FavoritesIcon", false)) then
+                favFrame.star:SetTexture("Interface\\Common\\FavoritesIcon")
+            end
+            favFrame.star:SetSize(16, 16)
+            favFrame.star:SetPoint("RIGHT", favFrame.title, "LEFT", -6, 0)
             favFrame.title:SetText(L["FAV_DROP_TITLE"])
             favFrame.close = makeButton(head, 22, 22, "X", function()
                 favFrame:Hide()

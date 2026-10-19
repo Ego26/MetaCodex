@@ -32,6 +32,17 @@ local function kurzName(name)
     return (tostring(name or ""):gsub("%-.*$", ""))
 end
 
+---Immer mit Realm (19. Oktober). Das Spiel laesst ihn bei Spielern vom
+---eigenen Realm weg, und ohne ihn landet ein Fluestern bei Namensgleichheit
+---auf einem anderen Realm beim Falschen.
+local function mitRealm(name)
+    if tostring(name):find("-", 1, true) then return name end
+    local realm = GetNormalizedRealmName and GetNormalizedRealmName()
+    if type(realm) == "string" and realm ~= "" then return name .. "-" .. realm end
+    return name
+end
+Wish.WithRealm = mitRealm
+
 ---Bin das ich?
 local function ich(name)
     local selbst = UnitName and UnitName("player")
@@ -66,7 +77,7 @@ function Wish.Seen(itemID, link, player, classFile)
     offen[#offen + 1] = {
         id = itemID,
         link = type(link) == "string" and link or nil,
-        player = player,
+        player = mitRealm(player),
         class = type(classFile) == "string" and classFile or nil,
     }
     Wish.Show()
@@ -111,18 +122,37 @@ end
 ---der Spieler sendet selbst - und kann den Satz vorher aendern.
 ---@param entry table
 ---@return boolean
-function Wish.Whisper(entry)
-    if not entry or entry.asked then return false end
-    local text = "/w " .. entry.player .. " " .. Wish.Message(entry)
+-- Der Rueckfall: die Chatzeile mit dem fertigen Fluestern.
+local function chatzeile(entry)
     local oeffnen = (ChatFrameUtil and ChatFrameUtil.OpenChat) or ChatFrame_OpenChat
     if type(oeffnen) ~= "function" then return false end
-    local ok, fehler = pcall(oeffnen, text)
-    if not ok then
-        ns.Print(tostring(fehler))
-        return false
+    return (pcall(oeffnen, "/w " .. entry.player .. " " .. Wish.Message(entry)))
+end
+
+-- Was gerade direkt gesendet wird - falls das Spiel es blockiert.
+local imVersand
+
+function Wish.Whisper(entry)
+    if not entry or entry.asked then return false end
+    -- ERST DIREKT: ein Klick, und es ist raus.
+    local senden = (C_ChatInfo and C_ChatInfo.SendChatMessage) or SendChatMessage
+    if type(senden) == "function" then
+        imVersand = entry
+        local ok, fehler = pcall(senden, Wish.Message(entry), "WHISPER", nil, entry.player)
+        imVersand = nil
+        if ok then
+            entry.asked = true
+            return true
+        end
+        -- Der Grund steht im Chat, nicht in einem verschluckten Fehler.
+        ns.Print(L["FAV_WHISPER_FAILED"]:format(tostring(fehler)))
     end
-    entry.asked = true
-    return true
+    -- SONST die Chatzeile: Enter schickt es ab.
+    if chatzeile(entry) then
+        entry.asked = true
+        return true
+    end
+    return false
 end
 
 ---Ein gespielter Drop, nur fuer die Dev-Version.
@@ -156,12 +186,20 @@ end
 local ohr = CreateFrame("Frame")
 ohr:RegisterEvent("ENCOUNTER_LOOT_RECEIVED")
 ohr:RegisterEvent("PLAYER_REGEN_ENABLED")
+-- Blockiert das Spiel den Versand, meldet es das hier und nicht als
+-- Fehler. Dann steht der Grund im Chat, und die Chatzeile geht auf.
+ohr:RegisterEvent("ADDON_ACTION_BLOCKED")
+ohr:RegisterEvent("ADDON_ACTION_FORBIDDEN")
 ohr:SetScript("OnEvent", function(_, event, ...)
     if event == "ENCOUNTER_LOOT_RECEIVED" then
         local _, itemID, link, _, player, classFile = ...
         pcall(Wish.Seen, itemID, link, player, classFile)
     elseif event == "PLAYER_REGEN_ENABLED" and wartet then
         Wish.Show()
+    elseif (event == "ADDON_ACTION_BLOCKED" or event == "ADDON_ACTION_FORBIDDEN") and imVersand then
+        local addon, was = ...
+        ns.Print(L["FAV_WHISPER_FAILED"]:format(tostring(event) .. " " .. tostring(addon) .. " " .. tostring(was)))
+        chatzeile(imVersand)
     end
 end)
 -- Fuer die Pruefung.

@@ -6567,26 +6567,50 @@ do
     check("mit einer Zeile", #ns.Wish.Open() == 1, #ns.Wish.Open() .. " Zeilen")
     droppt(424242, "Gluecks-Realm")
     check("dieselbe Meldung zweimal ist eine Zeile", #ns.Wish.Open() == 1)
+    -- Immer mit Realm: ohne ihn haengt der eigene an.
+    local echtRealm = rawget(_G, "GetNormalizedRealmName")
+    GetNormalizedRealmName = function() return "Blackhand" end
+    check("ein Name ohne Realm bekommt den eigenen", ns.Wish.WithRealm("Zackzacktot") == "Zackzacktot-Blackhand",
+        ns.Wish.WithRealm("Zackzacktot"))
+    check("ein Name mit Realm bleibt, wie er ist", ns.Wish.WithRealm("Gluecks-Realm") == "Gluecks-Realm")
+    GetNormalizedRealmName = echtRealm
 
     -- Anfluestern.
-    -- Die Chatzeile wird vorbereitet; Enter druckt der Spieler.
-    local gesendet
+    -- Erst direkt; die Chatzeile nur, wenn das scheitert.
+    local gesendet, zeileAuf
     local echtOpen = rawget(_G, "ChatFrame_OpenChat")
     local echtUtil = rawget(_G, "ChatFrameUtil")
-    ChatFrameUtil = nil
-    ChatFrame_OpenChat = function(text) gesendet = text end
+    local echtSend = rawget(_G, "SendChatMessage")
+    local echtInfo = rawget(_G, "C_ChatInfo")
+    ChatFrameUtil, C_ChatInfo = nil, nil
+    ChatFrame_OpenChat = function(text) zeileAuf = text end
+    SendChatMessage = function(text, art, _, an) gesendet = { text, art, an } end
     local zeile = fenster() and fenster().rows[1]
     if zeile then zeile.ask:GetScript("OnClick")(zeile.ask, "LeftButton") end
-    check("ein Klick legt das Fluestern in die Chatzeile",
-        type(gesendet) == "string" and gesendet:find("/w Gluecks-Realm ", 1, true) == 1
-        and gesendet:find("|Hitem:424242", 1, true) ~= nil,
-        tostring(gesendet))
+    check("ein Klick fluestert direkt",
+        gesendet and gesendet[2] == "WHISPER" and gesendet[3] == "Gluecks-Realm"
+        and gesendet[1]:find("|Hitem:424242", 1, true) ~= nil and zeileAuf == nil,
+        gesendet and table.concat(gesendet, " / ") or "nichts gesendet")
     check("und der Knopf sagt danach Gefragt", zeile and zeile.ask.label:GetText() == L["FAV_DROP_ASKED"],
         zeile and zeile.ask.label:GetText())
     gesendet = nil
     if zeile then zeile.ask:GetScript("OnClick")(zeile.ask, "LeftButton") end
     check("ein zweiter Klick fluestert nicht noch einmal", gesendet == nil)
+    -- Scheitert das Senden, geht die Chatzeile mit dem Text auf.
+    SendChatMessage = function() error("blockiert") end
+    ns.Wish.Clear()
+    droppt(424243, "Vierter-Realm")
+    ns.Profile.ToggleNeed(424243, ANDERE)
+    droppt(424243, "Vierter-Realm")
+    local z2 = fenster() and fenster().rows[1]
+    zeileAuf = nil
+    if z2 then z2.ask:GetScript("OnClick")(z2.ask, "LeftButton") end
+    check("scheitert es, steht das Fluestern in der Chatzeile",
+        type(zeileAuf) == "string" and zeileAuf:find("/w Vierter-Realm ", 1, true) == 1,
+        tostring(zeileAuf))
+    ns.Profile.ToggleNeed(424243, ANDERE)
     ChatFrame_OpenChat, ChatFrameUtil = echtOpen, echtUtil
+    SendChatMessage, C_ChatInfo = echtSend, echtInfo
 
     -- Zu, mit dem X: die Liste ist erledigt.
     local function zu()

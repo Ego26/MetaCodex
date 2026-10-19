@@ -250,6 +250,7 @@ ns.RegisterLocale("deDE", {
     ["FAV_DROP_WHISPER_BTN"] = "Anflüstern",
     ["FAV_DROP_ASKED"] = "Gefragt",
     ["FAV_WHISPER"] = "Hey, brauchst du %s? Falls nicht, würde ich mich riesig freuen, wenn du es mir handelst :)",
+    ["FAV_WHISPER_FAILED"] = "Direktes Flüstern ging nicht (%s) - das Flüstern steht in der Chatzeile, Enter drücken.",
     ["SET_FAV_ALERT"] = "Fenster, wenn ein Favorit droppt",
     ["DROPS_LEGEND_FAV"] = "Favorit",
     ["DROPS_LEGEND_TOP"] = "Meistgetragen",

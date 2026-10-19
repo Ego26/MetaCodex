@@ -250,6 +250,7 @@ ns.RegisterLocale("enUS", {
     ["FAV_DROP_WHISPER_BTN"] = "Whisper",
     ["FAV_DROP_ASKED"] = "Asked",
     ["FAV_WHISPER"] = "Hey, do you need %s? If not, I'd be really happy if you could trade it to me :)",
+    ["FAV_WHISPER_FAILED"] = "Could not whisper directly (%s) - the whisper is ready in the chat line, press Enter.",
     ["SET_FAV_ALERT"] = "Window when a favourite drops",
     ["DROPS_LEGEND_FAV"] = "Favourite",
     ["DROPS_LEGEND_TOP"] = "Most worn",
