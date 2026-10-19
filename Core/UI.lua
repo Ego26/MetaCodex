@@ -7941,14 +7941,23 @@ end
 -- daneben stand. Der Grund dafuer war das leere Fenster mit geheimen
 -- Werten, und das gibt es nicht mehr: die Werte werden gemerkt.
 function UI.InFight()
-    if InCombatLockdown and InCombatLockdown() then return true end
-    return kaempft("player")
+    -- Zweiter Rueckgabewert: WELCHE Pruefung - fuer die Dev-Version, die es
+    -- im Chat dazuschreibt.
+    if InCombatLockdown and InCombatLockdown() then return true, "InCombatLockdown" end
+    if kaempft("player") then return true, "UnitAffectingCombat" end
+    return false
+end
+
+---Die Meldung "im Kampf", in der Dev-Version mit dem Grund.
+function UI.SayInFight()
+    local _, grund = UI.InFight()
+    ns.Print(L["OPEN_COMBAT"] .. ((ns.version == "dev" and grund) and (" (DEV: " .. grund .. ")") or ""))
 end
 
 function UI.Toggle()
     -- Zu geht immer; auf nur ausserhalb des Kampfes.
     if not (frame and frame:IsShown()) and UI.InFight() then
-        ns.Print(L["OPEN_COMBAT"])
+        UI.SayInFight()
         return
     end
     if not frame then build() end
@@ -8066,7 +8075,7 @@ end
 function UI.OpenSection(key)
     -- Auch dieser Weg ins Fenster nicht im Kampf (siehe UI.InFight).
     if not (frame and frame:IsShown()) and UI.InFight() then
-        ns.Print(L["OPEN_COMBAT"])
+        UI.SayInFight()
         return
     end
     if MetaCodexDB then MetaCodexDB.section = key end
