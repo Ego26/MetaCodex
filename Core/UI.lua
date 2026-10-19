@@ -2044,27 +2044,42 @@ local function settingsRows()
         }
     end
 
-    switch(L["SET_MINIMAP"], L["SET_GROUP_FEATURES"], ns.Profile.MinimapOn(), function(value)
+    -- VIER GRUPPEN statt einer langen Liste "Funktionen" (19. Oktober):
+    -- was zusammengehoert, steht zusammen. Die Reihenfolge ist die, in
+    -- der man danach sucht - erst, was man sieht, dann, was von selbst
+    -- aufgeht.
+    local KNOEPFE, TOOLTIP = L["SET_GROUP_BUTTONS"], L["SET_GROUP_TOOLTIP"]
+    local BEUTE, ERINNERUNG = L["SET_GROUP_LOOT"], L["SET_GROUP_REMIND"]
+
+    switch(L["SET_MINIMAP"], KNOEPFE, ns.Profile.MinimapOn(), function(value)
         ns.Profile.SetMinimap(value)
         if ns.Minimap then ns.Minimap.Update() end
     end)
-    switch(L["SET_CHARBTN"], L["SET_GROUP_FEATURES"], ns.Profile.CharButtonOn(), function(value)
+    switch(L["SET_CHARBTN"], KNOEPFE, ns.Profile.CharButtonOn(), function(value)
         ns.Profile.SetCharButton(value)
         UI.UpdateCharacterButton()
     end)
-    -- Der Tooltip ist der vierte Weg ins Addon, auch wenn er kein Knopf
-    -- ist: er beantwortet zwei Fragen, ohne dass man etwas oeffnet.
-    switch(L["SET_TOOLTIP"], L["SET_GROUP_FEATURES"], ns.Profile.TooltipOn(), function(value)
+    -- Der Knopf am Talentfenster. Er setzt sich ungefragt in fremde
+    -- Oberflaeche - an genau die Ecke, an der bei anderen schon
+    -- Raider.IO sitzt -, also muss er sich abschalten lassen.
+    switch(L["SET_TALENTBTN"], KNOEPFE, ns.Profile.TalentPanel(), function(value)
+        ns.Profile.SetTalentPanel(value)
+        if not value then UI.HideTalentPanel() end
+    end)
+
+    -- Der Tooltip beantwortet zwei Fragen, ohne dass man etwas oeffnet.
+    switch(L["SET_TOOLTIP"], TOOLTIP, ns.Profile.TooltipOn(), function(value)
         ns.Profile.SetTooltipOn(value)
     end)
     -- Und die Liste ueber andere Speccs fuer sich. Gefragt auf
     -- CurseForge: wie man "auch getragen von" abschaltet, ohne alles
     -- andere im Tooltip mit abzuschalten.
-    switch(L["SET_TOOLTIP_OTHERS"], L["SET_GROUP_FEATURES"], ns.Profile.TooltipOthersOn(), function(value)
+    switch(L["SET_TOOLTIP_OTHERS"], TOOLTIP, ns.Profile.TooltipOthersOn(), function(value)
         ns.Profile.SetTooltipOthersOn(value)
     end)
+
     -- Das Fenster, wenn ein Favorit bei jemand anderem droppt.
-    switch(L["SET_FAV_ALERT"], L["SET_GROUP_FEATURES"], ns.Profile.FavDropAlertOn(), function(value)
+    switch(L["SET_FAV_ALERT"], BEUTE, ns.Profile.FavDropAlertOn(), function(value)
         ns.Profile.SetFavDropAlertOn(value)
     end)
     -- Nur in der Dev-Version: das Fenster einmal zur Probe, mit dem
@@ -2074,35 +2089,26 @@ local function settingsRows()
         rows[#rows + 1] = {
             kind = "option", label = "DEV: Favorit gedroppt", value = "Testen",
             toggle = function() ns.Wish.Test() end,
-            group = L["SET_GROUP_FEATURES"],
+            group = BEUTE,
         }
     end
-    -- UND DER FUENFTE: der Knopf am Talentfenster.
-    --
-    -- Er setzt sich ungefragt in fremde Oberflaeche - an genau die
-    -- Ecke, an der bei anderen schon Raider.IO sitzt. Wer ihn nicht
-    -- will, hatte bisher keine Stelle, an der er ihn abschalten konnte;
-    -- der Schalter war da, nur nirgends zu sehen.
+
     -- Die Erinnerung, und was an ihr haengt. Das Betreten haengt am
     -- Hauptschalter: ohne ihn steht es aus, auch wenn es fuer sich an
     -- waere.
     local erinnern = ns.Profile.RemindersOn()
-    switch(L["REMIND_OPT_ON"], L["SET_GROUP_FEATURES"], erinnern, function(value)
+    switch(L["REMIND_OPT_ON"], ERINNERUNG, erinnern, function(value)
         ns.Profile.SetReminders(value)
     end)
-    switch(L["REMIND_OPT_ENTER"], L["SET_GROUP_FEATURES"],
+    switch(L["REMIND_OPT_ENTER"], ERINNERUNG,
         erinnern and ns.Profile.RemindOnEnter(), function(value)
             ns.Profile.SetRemindOnEnter(value)
         end)
-    switch(L["REMIND_OPT_AH_PANEL"], L["SET_GROUP_FEATURES"], ns.Profile.AuctionPanel(), function(value)
+    switch(L["REMIND_OPT_AH_PANEL"], ERINNERUNG, ns.Profile.AuctionPanel(), function(value)
         ns.Profile.SetAuctionPanel(value)
         -- Sofort wirksam: wer sie am offenen Auktionshaus abschaltet,
         -- soll nicht erst neu hingehen muessen.
         if not value and ns.UI.HideAuctionPanel then ns.UI.HideAuctionPanel() end
-    end)
-    switch(L["SET_TALENTBTN"], L["SET_GROUP_FEATURES"], ns.Profile.TalentPanel(), function(value)
-        ns.Profile.SetTalentPanel(value)
-        if not value then UI.HideTalentPanel() end
     end)
 
     -- Schriftgroesse: dieselben Stufen wie /mc scale, zum Auswaehlen.

@@ -4383,6 +4383,22 @@ do
     end
     check("Schalter fuer den Minimap-Knopf", labels[L["SET_MINIMAP"]] ~= nil)
     check("Schalter fuer den Charakterknopf", labels[L["SET_CHARBTN"]] ~= nil)
+-- Die Schalter stehen in vier Gruppen, nicht in einer langen Liste.
+do
+    rowsInSection("settings")
+    local titel = {}
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() and row.title then titel[#titel + 1] = row.title:GetText() or "" end
+    end
+    local alle = table.concat(titel, " | ")
+    local fehlt = {}
+    for _, k in ipairs({ "SET_GROUP_BUTTONS", "SET_GROUP_TOOLTIP", "SET_GROUP_LOOT", "SET_GROUP_REMIND" }) do
+        -- Gross wie im Fenster, mit Umlauten: Lua allein laesst das ö klein.
+        local gross = (L[k]:gsub("ä", "Ä"):gsub("ö", "Ö"):gsub("ü", "Ü")):upper()
+        if not alle:find(gross, 1, true) then fehlt[#fehlt + 1] = k end
+    end
+    check("die Schalter stehen in vier Gruppen", #fehlt == 0, table.concat(fehlt, ", "))
+end
     check("Fenstergroesse steht dabei", labels[L["SET_SCALE"]] ~= nil)
     check("Sprache steht dabei", labels[L["SET_LANG"]] ~= nil)
     check("Zuruecksetzen steht dabei", labels[L["SET_RESET"]] ~= nil)
