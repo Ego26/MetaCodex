@@ -6567,6 +6567,10 @@ do
     check("mit einer Zeile", #ns.Wish.Open() == 1, #ns.Wish.Open() .. " Zeilen")
     droppt(424242, "Gluecks-Realm")
     check("dieselbe Meldung zweimal ist eine Zeile", #ns.Wish.Open() == 1)
+    -- Unter dem Gegenstand nur Name-Realm, in der Klassenfarbe.
+    local werZeile = fenster() and fenster().rows[1].who:GetText() or ""
+    check("die Zeile nennt Name-Realm, sonst nichts",
+        werZeile:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") == "Gluecks-Realm", werZeile)
     -- Immer mit Realm: ohne ihn haengt der eigene an.
     local echtRealm = rawget(_G, "GetNormalizedRealmName")
     GetNormalizedRealmName = function() return "Blackhand" end

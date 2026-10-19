@@ -6723,9 +6723,12 @@ do
                 r.icon.link, r.icon.itemID = e.link or link, e.id
                 r.name:SetText(e.link or link or name or ("#" .. e.id))
                 local farbe = e.class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[e.class]
-                local wer = e.player:gsub("%-.*$", "")
+                -- Nur Name-Realm in der Klassenfarbe - "bekommen hat es"
+                -- sagte nichts, was die Zeile nicht ohnehin sagt (19. Oktober).
+                -- Mit Realm, weil genau dorthin gefluestert wird.
+                local wer = e.player
                 if farbe and farbe.WrapTextInColorCode then wer = farbe:WrapTextInColorCode(wer) end
-                r.who:SetText(L["FAV_DROP_WHO"]:format(wer))
+                r.who:SetText(wer)
                 r.ask.entry = e
                 r.ask.label:SetText(e.asked and L["FAV_DROP_ASKED"]
                     or (e.waiting and L["FAV_DROP_WAITING"]) or L["FAV_DROP_WHISPER_BTN"])

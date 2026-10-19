@@ -246,7 +246,6 @@ ns.RegisterLocale("deDE", {
     ["DROPS_IGNORED_N"]    = "%d ignoriert",
     ["DROPS_HL_FAV"]       = "Favoriten",
     ["FAV_DROP_TITLE"] = "Favorit gedroppt!",
-    ["FAV_DROP_WHO"] = "bekommen hat es %s",
     ["FAV_DROP_WHISPER_BTN"] = "Anflüstern",
     ["FAV_DROP_ASKED"] = "Gefragt",
     ["FAV_WHISPER"] = "Hey, brauchst du %s? Falls nicht, würde ich mich riesig freuen, wenn du es mir handelst :)",
