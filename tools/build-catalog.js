@@ -1398,6 +1398,78 @@ function emitEnchants(groups) {
   out.push('  },');
   out.push('');
 
+  // RASSEN.
+  //
+  // Fuer den Abschnitt "Rassen" (19. Oktober): welche Rasse die Besten
+  // spielen, was sie in der Simulation bringt, und was sie kann. Das
+  // Letzte steht in ChrRaceRacialAbility - dieselben Texte, die die
+  // Charaktererstellung zeigt -, auf Englisch und Deutsch, denn der
+  // Client kennt die Faehigkeiten fremder Rassen nicht.
+  //
+  // Spielbar ist, was eine Spielbarkeitsstelle hat und Faehigkeiten.
+  // Eine Rasse mit Eintraegen fuer beide Seiten (Dracthyr, Irdene,
+  // Haranir) und der Pandaren (Alliance 2) stehen auf beiden Seiten.
+  const [racesEN, racesDE, racialEN, racialDE] = await Promise.all([
+    db2('ChrRaces'), db2('ChrRaces', null, 'locale=deDE'),
+    db2('ChrRaceRacialAbility'), db2('ChrRaceRacialAbility', null, 'locale=deDE'),
+  ]);
+  const raceDE = new Map(racesDE.map((r) => [r.ID, r.Name_lang]));
+  // Eine Zeile je Text: ein Zeilenumbruch in einer Lua-Zeichenkette bricht den Katalog.
+  const flach = (t) => String(t || "").replace(/\r?\n/g, " ").replace(/\s+/g, " ").trim();
+  const deAbility = new Map(racialDE.map((r) => [r.ID, r]));
+  const abilitiesOf = new Map();
+  for (const a of racialEN) {
+    const list = abilitiesOf.get(a.ChrRacesID) || [];
+    list.push(a);
+    abilitiesOf.set(a.ChrRacesID, list);
+  }
+  const raceByName = new Map();
+  for (const r of racesEN) {
+    if (!abilitiesOf.has(r.ID)) continue;
+    if (!(Number(r.PlayableRaceBit) >= 0)) continue;
+    const name = r.Name_lang;
+    const side = Number(r.Alliance) === 0 ? 'alliance' : Number(r.Alliance) === 1 ? 'horde' : 'both';
+    const known = raceByName.get(name);
+    if (known) {
+      known.ids.push(Number(r.ID));
+      if (known.side !== side) known.side = 'both';
+      continue;
+    }
+    raceByName.set(name, {
+      id: Number(r.ID), ids: [Number(r.ID)], name, nameDE: raceDE.get(r.ID) || name, side,
+      abilities: (abilitiesOf.get(r.ID) || [])
+        .sort((x, y) => Number(x._Order) - Number(y._Order))
+        .map((a) => {
+          const de = deAbility.get(a.ID) || {};
+          return {
+            icon: Number(a.Icon) || 0,
+            en: flach(a.Name_lang), de: flach(de.Name_lang || a.Name_lang),
+            enDesc: flach(a.Description_lang), deDesc: flach(de.Description_lang || a.Description_lang),
+          };
+        }),
+    });
+  }
+  out.push('  races = {');
+  for (const r of raceByName.values()) {
+    out.push(`    [${r.id}] = { name = ${luaString(r.name)}, nameDE = ${luaString(r.nameDE)}, side = "${r.side}",`);
+    out.push(`      ids = { ${r.ids.join(', ')} },`);
+    out.push('      abilities = {');
+    for (const a of r.abilities) {
+      out.push(`        { icon = ${a.icon}, en = ${luaString(a.en)}, de = ${luaString(a.de)},`);
+      out.push(`          enDesc = ${luaString(a.enDesc)}, deDesc = ${luaString(a.deDesc)} },`);
+    }
+    out.push('      },');
+    out.push('    },');
+  }
+  out.push('  },');
+  out.push('');
+  // Und fuer die Sammler: englischer Name -> Nummer und Seite. raider.io
+  // und bloodmallet nennen Rassen beim englischen Namen.
+  fs.writeFileSync(path.join(BASE, 'tools', 'data', 'races.json'), JSON.stringify(
+    Object.fromEntries([...raceByName.values()].map((r) => [r.name, { id: r.id, side: r.side }])),
+    null, 1), 'utf8');
+  console.log('Rassen:', raceByName.size);
+
   out.push('  consumables = {');
   for (const [kind, list] of Object.entries(consumables)) {
     if (!list.length) continue;

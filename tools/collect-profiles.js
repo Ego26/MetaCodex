@@ -137,6 +137,9 @@ async function profile(region, realm, name) {
       spells, gear, subTree,
       ilvl: (data.gear && data.gear.item_level_equipped) || 0,
       url: data.profile_url || null,
+      // Fuer den Abschnitt "Rassen": raider.io liefert sie ohnehin mit.
+      race: data.race || null,
+      faction: data.faction || null,
     };
   } else {
     failed += 1;
@@ -271,6 +274,9 @@ function buildsFrom(players) {
             gear: prof ? prof.gear : {},
             ilvl: prof ? prof.ilvl : 0,
             subTree: prof ? prof.subTree : 0,
+            race: prof ? prof.race : null,
+            faction: prof ? prof.faction : null,
+            rio: prof ? prof.url : null,
           });
         }
       } else {
@@ -291,6 +297,9 @@ function buildsFrom(players) {
             gear: prof ? prof.gear : {},
             ilvl: prof ? prof.ilvl : 0,
             subTree: prof ? prof.subTree : 0,
+            race: prof ? prof.race : null,
+            faction: prof ? prof.faction : null,
+            rio: prof ? prof.url : null,
           });
           if (players.filter((x) => x.verified).length >= MAX) break;
         }

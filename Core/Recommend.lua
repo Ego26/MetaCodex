@@ -723,6 +723,28 @@ function Recommend.MetaGems(entry)
     return out
 end
 
+---Welche Rassen die gemessenen Spieler einer Spec spielen.
+---
+---Aus den raider.io-Profilen, ab fuenfzehn Gemessenen (tools/lib/races.js).
+---Unabhaengig von der Plattform: die Rasse ist dieselbe, wer immer sie misst.
+---@return table|nil { n = Spieler, { raceID, pct }, ... }
+function Recommend.Races(specID, mode)
+    local d = data()
+    if not d or not d.races or not specID or not mode then return nil end
+    for _, which in ipairs(Recommend.ModeChain(mode)) do
+        local hit = d.races[which] and d.races[which][specID]
+        if hit then return hit end
+    end
+    return nil
+end
+
+---Was eine Rasse in der Simulation bringt (bloodmallet, SimulationCraft).
+---@return table|nil { ts = "...", [Ziele] = { { raceID, Prozent, Loa }, ... } }
+function Recommend.RaceSims(specID)
+    local d = data()
+    return d and d.raceSims and specID and d.raceSims[specID] or nil
+end
+
 ---Hat diese Quelle etwas fuer diesen Abschnitt?
 ---
 ---Gebraucht, um es VOR dem Klick zu sagen. Ein Waehler, der alle Quellen
@@ -781,6 +803,11 @@ function Recommend.HasSection(specID, mode, source, section)
         return false
     elseif section == "players" then
         return Recommend.Players(specID, mode, source) ~= nil
+    elseif section == "races" then
+        -- Gespielt ODER simuliert genuegt; in der Dev-Version steht die
+        -- Vorschau auch ohne beides.
+        return Recommend.Races(specID, mode) ~= nil or Recommend.RaceSims(specID) ~= nil
+            or ns.version == "dev"
     elseif section == "enchants" then
         local entry = Recommend.For(specID, mode, source)
         return entry ~= nil and (entry.enchants ~= nil or entry.gems ~= nil)

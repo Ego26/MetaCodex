@@ -151,6 +151,8 @@ local remindFrame
 local SECTIONS = {
     { key = "guides",      group = "GROUP_OVERVIEW" },
     { key = "stats",       group = "GROUP_OVERVIEW" },
+    -- Welche Rasse gespielt wird und was sie in der Simulation bringt.
+    { key = "races",       group = "GROUP_OVERVIEW" },
     { key = "players",     group = "GROUP_OVERVIEW" },
 
     { key = "talents",     group = "GROUP_TALENTS" },
@@ -3163,6 +3165,11 @@ local function acquireRow(index)
 
     row:SetScript("OnEnter", function(self)
         self.bg:SetAlpha(1)
+        -- Eine Rasse: ihre Faehigkeiten, und woher die Zahlen kommen.
+        if rawget(self, "raceTip") then
+            UI.RaceTooltip(self, rawget(self, "raceTip"))
+            return
+        end
         -- Die Zeile des Fundort-Rasters traegt keinen Gegenstand,
         -- sondern einen Namen, der abgeschnitten sein kann.
         if type(self.dropName) == "string" then
@@ -3400,6 +3407,7 @@ local function resetRow(row)
     -- ueber einem Helm. Hier laeuft jede Zeile durch.
     row.dropName = nil
     row.dropNote = nil
+    row.raceTip = nil
     -- Auch der Tausch: eine wiederverwendete Zeile zeigte sonst den
     -- Zeiger ihres Vorgaengers.
     row.swapAdded = nil
@@ -4068,6 +4076,11 @@ local function setItemRow(row, data)
         S:Recolor(row.share, data.token or "textSecondary")
         -- Eine Auskunft mit Adresse ist anklickbar; eine ohne nicht.
         row.onClick = data.url and function() UI.ShowLink(data.url) end or nil
+        return
+    end
+
+    if data.kind == "race" then
+        UI.SetRaceRow(row, data)
         return
     end
 
@@ -4863,11 +4876,10 @@ local function build()
     frame.slotButton = slotButton
 
     -- Wonach das Fundort-Raster sortiert.
+    -- Frueher die Reihenfolge der Fundorte, seit deren Umbau die Zielzahl
+    -- der Rassen-Simulation.
     local sortButton = makeButton(content, 170, 22, "", function(self)
-        contextMenu(self, L["DROPS_SORT"], {
-            { key = "sum", label = L["DROPS_SORT_SUM"] },
-            { key = "best", label = L["DROPS_SORT_BEST"] },
-        }, function(entry) ns.Profile.SetDropsSort(entry.key) end)
+        UI.OpenRaceTargets(self)
     end)
     frame.sortButton = sortButton
 
@@ -5533,14 +5545,13 @@ function UI.Refresh()
     frame.highlightButton:SetShown(section.key == "drops")
     -- Seit dem Umbau gibt es keine Rangfolge mehr zu waehlen: oben
     -- steht "Wo du hinwillst", darunter die Instanzen nach Namen.
-    frame.sortButton:SetShown(false)
+    frame.sortButton:SetShown(section.key == "races" and UI.RaceTargetChoices() ~= nil)
     -- Kurz auf dem Knopf, voll im Menue.
     --
     -- Fuenf Waehler stehen in dieser Ansicht nebeneinander; jedes
     -- ueberfluessige Wort schiebt einen davon in die zweite Zeile, und
     -- ein einzelner Knopf, der dort haengt, sieht aus wie ein Fehler.
-    frame.sortButton.label:SetText(ns.Profile.DropsSort() == "best"
-        and L["DROPS_SORT_BEST_S"] or L["DROPS_SORT_SUM_S"])
+    frame.sortButton.label:SetText(UI.RaceTargetLabel(UI.RaceTargets()))
     do
         local set = ns.Profile.DropsStats()
         local teile = {}
@@ -5698,6 +5709,11 @@ function UI.Refresh()
         end
         hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted)
             or L["SHARE_GEAR"])
+    elseif section.key == "races" then
+        local vorschau
+        currentRows, vorschau = UI.RaceRows(specID, mode)
+        hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted)
+            or UI.RaceHint(specID, vorschau))
     elseif section.key == "stats" then
         currentRows, fromSource = withFallback(function(source)
             return BAU.statRows(specID, mode, source)
@@ -6752,6 +6768,219 @@ do
         favFrame:SetHeight(42 + n * (HOEHE + 4) + S.space.sm)
         favFrame:Show()
         return favFrame
+    end
+end
+
+-- DER ABSCHNITT "RASSEN" (19. Oktober).
+--
+-- Zwei Auskuenfte, und sie werden nicht vermischt: GESPIELT - der Anteil
+-- der gemessenen Top-Spieler (raider.io) - und SIMULIERT - was eine Rasse
+-- an Schaden bringt, gegenueber der schwaechsten (bloodmallet.com,
+-- SimulationCraft). Gruppiert nach Seite, die eigene zuerst: wer Horde
+-- spielt, waehlt meist unter der Horde.
+do
+    local SEITEN = { "alliance", "horde", "both" }
+    -- Welche Zielzahlen je Aktivitaet zur Wahl stehen, und welche zuerst.
+    -- Ohne Eintrag (PvP) keine Simulation: ein Patchwerk sagt dort nichts.
+    local ZIELE = { mplus = { 1, 3, 5 }, raid = { 1, 3 } }
+    local VORGABE = { mplus = 5, raid = 1 }
+    -- Unterschiede darunter sind Rauschen: bloodmallet rechnet mit 0,1 %.
+    local RAUSCHEN = 0.2
+
+    local function basis()
+        local mode = ns.Profile.LookupMode()
+        local b = ns.Recommend.BaseMode and ns.Recommend.BaseMode(mode) or mode
+        return tostring(b):match("^(%a+)")
+    end
+
+    ---Die Zielzahlen der Aktivitaet, oder nil (PvP).
+    function UI.RaceTargetChoices()
+        return ZIELE[basis() or ""]
+    end
+
+    ---Die gewaehlte Zielzahl - oder die Vorgabe der Aktivitaet.
+    function UI.RaceTargets()
+        local b = basis()
+        local wahl = ZIELE[b or ""]
+        if not wahl then return nil end
+        local n = ns.Profile.RaceTargets(b)
+        for _, ok in ipairs(wahl) do if ok == n then return n end end
+        return VORGABE[b]
+    end
+
+    function UI.RaceTargetLabel(n)
+        if not n then return "" end
+        return n == 1 and L["RACE_TARGETS_1"] or L["RACE_TARGETS_N"]:format(n)
+    end
+
+    function UI.OpenRaceTargets(anchor)
+        local wahl = UI.RaceTargetChoices()
+        if not wahl then return end
+        local entries = {}
+        for _, n in ipairs(wahl) do entries[#entries + 1] = { key = n, label = UI.RaceTargetLabel(n) } end
+        contextMenu(anchor, L["RACE_TARGETS"], entries, function(entry)
+            ns.Profile.SetRaceTargets(basis(), entry.key)
+        end)
+    end
+
+    local function zahl(x)
+        local text = ("%.1f"):format(x)
+        if GetLocale and GetLocale() == "deDE" then text = text:gsub("%.", ",") end
+        return text
+    end
+
+    local function rassenName(id)
+        local info = C_CreatureInfo and C_CreatureInfo.GetRaceInfo and C_CreatureInfo.GetRaceInfo(id)
+        if type(info) == "table" and type(info.raceName) == "string" then return info.raceName, info.clientFileString end
+        local r = ns.Catalog.Race(id)
+        if not r then return "#" .. id end
+        return (GetLocale and GetLocale() == "deDE") and r.nameDE or r.name
+    end
+
+    -- DIE DEV-VORSCHAU: Beispieldaten, solange die Nacht noch keine echten
+    -- gesammelt hat. Nur ohne Versionsnummer - im Paket steht sie nie.
+    local function vorschau()
+        local played, sims = { n = 100 }, { ts = "DEV" }
+        local ids = ns.Catalog.RaceIDs()
+        local pct = { 31, 22, 14, 9, 7, 5, 4, 3, 2, 2, 1 }
+        for i, id in ipairs(ids) do
+            if pct[i] then played[#played + 1] = { id, pct[i] } end
+        end
+        for _, n in ipairs({ 1, 3, 5 }) do
+            local liste = {}
+            for i, id in ipairs(ids) do liste[#liste + 1] = { id, ((i * 7 + n * 3) % 17) / 10 } end
+            sims[n] = liste
+        end
+        return played, sims
+    end
+
+    ---Die Zeilen des Abschnitts.
+    ---@return table[] rows
+    ---@return boolean vorschau
+    function UI.RaceRows(specID, mode)
+        local played = ns.Recommend.Races(specID, mode)
+        local sims = ns.Recommend.RaceSims(specID)
+        local preview = false
+        if not played and not sims and ns.version == "dev" then
+            played, sims = vorschau()
+            preview = true
+        end
+        local ziele = UI.RaceTargets()
+        local simRows = (ziele and sims) and sims[ziele] or nil
+
+        -- Je Rasse: Anteil, beste Simulation (bei den Zandalari je Loa die
+        -- beste), Seite.
+        local byId, order = {}, {}
+        local function eintrag(id)
+            if not byId[id] then
+                byId[id] = { kind = "race", id = id }
+                order[#order + 1] = byId[id]
+            end
+            return byId[id]
+        end
+        for _, row in ipairs(played or {}) do
+            if type(row) == "table" then eintrag(row[1]).pct = row[2] end
+        end
+        local bestes = 0
+        for _, row in ipairs(simRows or {}) do
+            local e = eintrag(row[1])
+            if e.rel == nil or row[2] > e.rel then e.rel, e.loa = row[2], row[3] end
+            if row[2] > bestes then bestes = row[2] end
+        end
+        local eigene = UnitFactionGroup and UnitFactionGroup("player")
+        eigene = eigene == "Horde" and "horde" or eigene == "Alliance" and "alliance" or nil
+        local seiten = { eigene }
+        for _, s in ipairs(SEITEN) do if s ~= eigene then seiten[#seiten + 1] = s end end
+
+        local rows = {}
+        for _, seite in ipairs(seiten) do
+            local gruppe = {}
+            for _, e in ipairs(order) do
+                local r = ns.Catalog.Race(e.id)
+                if r and r.side == seite then
+                    e.side = seite
+                    e.top = e.rel ~= nil and (bestes - e.rel) < RAUSCHEN
+                    e.n = played and played.n or nil
+                    e.targets = ziele
+                    e.ts = sims and sims.ts or nil
+                    e.preview = preview
+                    e.group = L["RACE_GROUP_" .. seite]
+                    gruppe[#gruppe + 1] = e
+                end
+            end
+            table.sort(gruppe, function(a, b)
+                if (a.pct or 0) ~= (b.pct or 0) then return (a.pct or 0) > (b.pct or 0) end
+                if (a.rel or -1) ~= (b.rel or -1) then return (a.rel or -1) > (b.rel or -1) end
+                return a.id < b.id
+            end)
+            for _, e in ipairs(gruppe) do rows[#rows + 1] = e end
+        end
+        return rows, preview
+    end
+
+    ---Der Satz ueber der Liste.
+    function UI.RaceHint(specID, preview)
+        local sims = ns.Recommend.RaceSims(specID)
+        local text = (sims or preview) and UI.RaceTargets() and L["RACE_HINT"] or L["RACE_HINT_NOSIM"]
+        if preview then text = "|cffD29922DEV-Vorschau mit Beispieldaten.|r  " .. text end
+        return text
+    end
+
+    ---Eine Zeile: Name, gespielt, simuliert.
+    function UI.SetRaceRow(row, data)
+        row.link = nil
+        local name, datei = rassenName(data.id)
+        row.icon:SetTexture(nil)
+        local symbol = false
+        -- SetAtlas sagt im Rueckgabewert, ob es den Atlas gibt; pcall allein
+        -- sagt nur, dass nichts geworfen wurde.
+        if datei and row.icon.SetAtlas then
+            local ok, gesetzt = pcall(row.icon.SetAtlas, row.icon, "raceicon128-" .. datei:lower() .. "-male", false)
+            symbol = ok and gesetzt ~= false
+        end
+        if not symbol then
+            local r = ns.Catalog.Race(data.id)
+            local erste = r and r.abilities and r.abilities[1]
+            row.icon:SetTexture(erste and erste.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+        end
+        row.title:SetText(data.loa and (name .. " (" .. data.loa .. ")") or name)
+        row.detail:SetText(data.pct and L["RACE_PLAYED"]:format(data.pct)
+            or (data.n and L["RACE_NOT_PLAYED"] or ""))
+        if data.rel ~= nil then
+            row.share:SetText("+" .. zahl(data.rel) .. " %")
+            S:Recolor(row.share, data.top and "success" or "textSecondary")
+        else
+            row.share:SetText("")
+        end
+        row.raceTip = data
+        row.onClick = nil
+    end
+
+    ---Der Tooltip: Faehigkeiten, und woher die Zahlen kommen.
+    function UI.RaceTooltip(owner, data)
+        tipOutside(owner)
+        local name = rassenName(data.id)
+        GameTooltip:SetText(data.loa and (name .. " (" .. data.loa .. ")") or name, 1, 1, 1)
+        local r = ns.Catalog.Race(data.id)
+        local de = GetLocale and GetLocale() == "deDE"
+        if r and r.abilities and #r.abilities > 0 then
+            GameTooltip:AddLine(" ")
+            GameTooltip:AddLine(L["RACE_TIP_ABILITIES"], S:Color("heading"))
+            for _, a in ipairs(r.abilities) do
+                GameTooltip:AddLine(("|T%d:14:14|t %s"):format(a.icon or 0, de and a.de or a.en), 1, 0.82, 0)
+                GameTooltip:AddLine(de and a.deDesc or a.enDesc, 0.9, 0.9, 0.9, true)
+            end
+        end
+        GameTooltip:AddLine(" ")
+        if data.pct and data.n then
+            GameTooltip:AddLine(L["RACE_TIP_PLAYED"]:format(data.pct, data.n), 0.7, 0.7, 0.7, true)
+        end
+        if data.rel ~= nil and data.targets then
+            GameTooltip:AddLine(L["RACE_TIP_SIM"]:format(zahl(data.rel), UI.RaceTargetLabel(data.targets)),
+                0.7, 0.7, 0.7, true)
+            GameTooltip:AddLine(L["RACE_TIP_SOURCE"]:format(tostring(data.ts or "?"):sub(1, 10)), 0.5, 0.5, 0.5, true)
+        end
+        GameTooltip:Show()
     end
 end
 

@@ -72,6 +72,14 @@ const STEPS = [
     env: {},
   },
   {
+    key: 'bloodmallet',
+    what: 'Rassen-Simulationen (bloodmallet.com, SimulationCraft)',
+    why: 'Was eine Rasse an Schaden bringt, steht in keiner Rangliste - dort sind die Spieler unterschiedlicher als die Rassen. Eine Simulation rechnet es sauber, und bloodmallet gibt seine frei heraus.',
+    script: 'collect-bloodmallet.js',
+    args: [],
+    env: {},
+  },
+  {
     key: 'raid',
     what: 'Raid, heroisch',
     why: 'Kein Aggregator veroeffentlicht Raiddaten in dieser Tiefe.',

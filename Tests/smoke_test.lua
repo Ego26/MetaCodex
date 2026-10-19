@@ -1825,7 +1825,7 @@ do
         ns.L["SECTION_enchants"])
     -- Und kein Abschnitt steht ohne Namen da.
     local ohne = {}
-    for _, key in ipairs({ "guides", "stats", "talents", "folio", "players",
+    for _, key in ipairs({ "guides", "stats", "races", "talents", "folio", "players",
         "gear", "drops", "tier", "crafted", "embellish", "enchants",
         "consumables", "remind", "settings", "info" }) do
         local text = ns.L["SECTION_" .. key]
@@ -6538,6 +6538,111 @@ do
     ns.Catalog.RuneforgeSpell = echteSpell
     ns.Profile.IsForeignClass = echtFremd
     ns.Profile.Select(nil, nil)
+end
+
+-- ------------------------------------------------------- Rassen
+--
+-- Gespielt (raider.io) und simuliert (bloodmallet) - nach Seite, die eigene
+-- zuerst; je Zandalari die beste Loa; oben gleichauf, was innerhalb des
+-- Rauschens liegt; die Zielzahl je Aktivitaet. Katalog und Daten sind
+-- nachgestellt, damit nichts am Wetter der Nacht haengt.
+do
+    local echtRace, echtIDs = ns.Catalog.Race, ns.Catalog.RaceIDs
+    local echtRaces, echtSims = ns.Recommend.Races, ns.Recommend.RaceSims
+    local echtSeite = rawget(_G, "UnitFactionGroup")
+    local echtWahl = MetaCodexDB.raceTargets
+    MetaCodexDB.raceTargets = nil
+    local KATALOG = {
+        [1] = { name = "Human", nameDE = "Mensch", side = "alliance",
+            abilities = { { icon = 1, en = "The Human Spirit", de = "Unbeugsamkeit",
+                enDesc = "Increased stats.", deDesc = "Werte erhöht." } } },
+        [6] = { name = "Tauren", nameDE = "Tauren", side = "horde", abilities = {} },
+        [31] = { name = "Zandalari Troll", nameDE = "Zandalaritroll", side = "horde", abilities = {} },
+        [24] = { name = "Pandaren", nameDE = "Pandaren", side = "both", abilities = {} },
+    }
+    ns.Catalog.Race = function(id) return KATALOG[id] end
+    ns.Catalog.RaceIDs = function() return { 1, 6, 24, 31 } end
+    ns.Recommend.Races = function() return { n = 40, { 6, 50 }, { 1, 30 }, { 31, 20 } } end
+    ns.Recommend.RaceSims = function()
+        return { ts = "2026-10-14 02:38",
+            [1] = { { 6, 1.6 }, { 31, 1.5, "Paku" }, { 31, 0.2, "Kimbul" }, { 1, 0.9 }, { 24, 0 } },
+            [5] = { { 1, 2.0 }, { 6, 0.4 } } }
+    end
+    UnitFactionGroup = function() return "Horde" end
+
+    ns.Profile.SetMode("mplus")
+    check("M+ simuliert gegen 1, 3 und 5 Ziele", table.concat(ns.UI.RaceTargetChoices() or {}, ",") == "1,3,5")
+    check("ab Werk gegen 5 Ziele", ns.UI.RaceTargets() == 5, tostring(ns.UI.RaceTargets()))
+    ns.Profile.SetRaceTargets("mplus", 1)
+    check("die Wahl gilt", ns.UI.RaceTargets() == 1)
+
+    local rows = ns.UI.RaceRows(250, "mplus")
+    check("die eigene Seite steht oben", rows[1] and rows[1].group == L["RACE_GROUP_horde"],
+        tostring(rows[1] and rows[1].group))
+    check("dort die meistgespielte zuerst", rows[1] and rows[1].id == 6)
+    local troll, mensch, panda
+    for _, r in ipairs(rows) do
+        if r.id == 31 then troll = r end
+        if r.id == 1 then mensch = r end
+        if r.id == 24 then panda = r end
+    end
+    check("die Zandalari mit ihrer besten Loa", troll and troll.loa == "Paku" and troll.rel == 1.5,
+        troll and (tostring(troll.loa) .. " " .. tostring(troll.rel)))
+    check("gleichauf mit der besten ist oben", troll and troll.top == true)
+    check("deutlich darunter nicht", mensch and mensch.top == false)
+    check("auch Ungespieltes mit Simulation steht da", panda and panda.pct == nil and panda.rel == 0)
+    check("beide Seiten am Schluss", rows[#rows] and rows[#rows].group == L["RACE_GROUP_both"])
+
+    ns.Profile.SetRaceTargets("mplus", 5)
+    local fuenf = ns.UI.RaceRows(250, "mplus")
+    local m5
+    for _, r in ipairs(fuenf) do if r.id == 1 then m5 = r end end
+    check("bei 5 Zielen eine andere Simulation", m5 and m5.rel == 2.0 and m5.top == true,
+        m5 and tostring(m5.rel))
+
+    ns.Profile.SetMode("raid")
+    check("im Raid 1 und 3 Ziele", table.concat(ns.UI.RaceTargetChoices() or {}, ",") == "1,3")
+    check("ab Werk gegen 1 Ziel", ns.UI.RaceTargets() == 1)
+    ns.Profile.SetMode("3v3")
+    check("im PvP keine Simulation", ns.UI.RaceTargetChoices() == nil and ns.UI.RaceTargets() == nil)
+    ns.Profile.SetMode("mplus")
+
+    -- Im Fenster, mit Tooltip.
+    local n = rowsInSection("races")
+    check("der Abschnitt zeigt Zeilen", n >= 4, n .. " Zeilen")
+    local zeile
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() and rawget(row, "raceTip") and row.raceTip.id == 1 then zeile = row end
+    end
+    check("eine Rassenzeile traegt ihre Daten", zeile ~= nil)
+    if zeile then
+        local zeilen = {}
+        local echtAdd = GameTooltip.AddLine
+        GameTooltip.AddLine = function(_, text) zeilen[#zeilen + 1] = tostring(text) end
+        zeile:GetScript("OnEnter")(zeile)
+        GameTooltip.AddLine = echtAdd
+        local alles = table.concat(zeilen, " | ")
+        check("der Zeiger nennt die Rassenfaehigkeit", alles:find("Unbeugsamkeit", 1, true) ~= nil
+            or alles:find("The Human Spirit", 1, true) ~= nil, alles:sub(1, 120))
+        check("und die Quelle der Simulation", alles:find("bloodmallet.com", 1, true) ~= nil)
+    end
+
+    -- Ohne Daten: in der Dev-Version die Vorschau, sonst nichts.
+    ns.Recommend.Races = function() return nil end
+    ns.Recommend.RaceSims = function() return nil end
+    local vorher = ns.version
+    ns.version = "v9.9.9"
+    check("ohne Daten kein Abschnitt", ns.Recommend.HasSection(250, "mplus", ns.Recommend.ALL, "races") == false)
+    ns.version = "dev"
+    local dev, vorschau = ns.UI.RaceRows(250, "mplus")
+    check("in der Dev-Version eine Vorschau", vorschau == true and #dev > 0, #dev .. " Zeilen")
+    ns.version = vorher
+
+    ns.Catalog.Race, ns.Catalog.RaceIDs = echtRace, echtIDs
+    ns.Recommend.Races, ns.Recommend.RaceSims = echtRaces, echtSims
+    UnitFactionGroup = echtSeite
+    MetaCodexDB.raceTargets = echtWahl
+    MetaCodexDB.section = "gear"
 end
 
 -- ------------------------------------------------------- Favorit gedroppt

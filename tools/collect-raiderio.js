@@ -286,6 +286,9 @@ const slug = (text) => String(text).toLowerCase()
       talentPlayers: 0,
       // Je Held-Baum dasselbe Zaehlwerk noch einmal.
       hero: {},
+      // Die Rasse je Spieler, unter seiner Profiladresse - so zaehlt
+      // beim Zusammenbauen niemand doppelt, der auch bei murlok steht.
+      races: {},
     });
   };
 
@@ -346,6 +349,9 @@ const slug = (text) => String(text).toLowerCase()
     }
     const specs = modes.map((mode) => entryFor(mode, m.specID));
     for (const spec of specs) spec.players++;
+    if (prof.race && prof.profile_url) {
+      for (const spec of specs) spec.races[prof.profile_url] = prof.race + '|' + (prof.faction || '');
+    }
 
     const bump = (bucket, id, slotKey) => {
       for (const spec of specs) {
@@ -580,6 +586,9 @@ const slug = (text) => String(text).toLowerCase()
           out.hero[sub] = { players: h.talentPlayers || 0, pct: share(h.talentPlayers || 0, total), ...talentOut(h) };
         }
       }
+      // Die Rassen gehen roh hinaus: Profiladresse -> "Rasse|Seite". Gezaehlt
+      // wird beim Zusammenbauen, gemeinsam mit den anderen Quellen.
+      if (entry.races && Object.keys(entry.races).length) out.races = entry.races;
       specs[specID] = out;
     }
 

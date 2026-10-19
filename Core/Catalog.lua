@@ -439,6 +439,24 @@ function Catalog.CurrentInstances()
     return out
 end
 
+---Eine Rasse: Name, Seite, Rassenfaehigkeiten (Englisch und Deutsch).
+---@param raceID number|nil
+---@return table|nil
+function Catalog.Race(raceID)
+    local c = data()
+    return c and c.races and raceID and c.races[raceID] or nil
+end
+
+---Alle spielbaren Rassen, nach Nummer.
+---@return number[]
+function Catalog.RaceIDs()
+    local c = data()
+    local out = {}
+    for id in pairs(c and c.races or {}) do out[#out + 1] = id end
+    table.sort(out)
+    return out
+end
+
 ---Die Bosse eines Schlachtzugs, in der Reihenfolge des Journals.
 ---
 ---ALLE, nicht nur die, von denen wir etwas gemessen haben. Ein

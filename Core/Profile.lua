@@ -533,6 +533,21 @@ function Profile.AnyNeed()
     return nil
 end
 
+---Bei wie vielen Zielen die Rassen-Simulation gezeigt wird - je Aktivitaet.
+---@param base string "mplus" | "raid"
+---@return number|nil
+function Profile.RaceTargets(base)
+    local db = MetaCodexDB or {}
+    return db.raceTargets and db.raceTargets[base] or nil
+end
+
+---@param base string
+---@param n number|nil
+function Profile.SetRaceTargets(base, n)
+    MetaCodexDB.raceTargets = MetaCodexDB.raceTargets or {}
+    MetaCodexDB.raceTargets[base] = n
+end
+
 ---Ob das Fenster "Favorit gedroppt" aufgeht. Ab Werk an.
 ---@return boolean
 function Profile.FavDropAlertOn()

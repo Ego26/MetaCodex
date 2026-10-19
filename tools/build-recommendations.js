@@ -16,6 +16,7 @@ const path = require('path');
 const { share } = require('./lib/share');
 const { mergeTiers } = require('./lib/merge-tiers');
 const { wornBy } = require('./lib/worn-by');
+const { tallyRaces, raceShares, raceSims } = require('./lib/races');
 
 const BASE = process.argv[2];
 if (!BASE) {
@@ -71,6 +72,15 @@ try {
   bonusMap = JSON.parse(fs.readFileSync(path.join(dir, 'bonus-map.json'), 'utf8'));
 } catch (err) {
   console.log('Keine bonus-map.json - Verzierungen bleiben ungezaehlt.');
+}
+
+// Die Rasse je Spieler, je Modus und Spec - aus allen Quellen, die sie
+// mitbringen. Gezaehlt wird am Ende, ohne Doppelte (lib/races.js).
+const racePlayers = {};
+function addRaces(mode, specID, players) {
+  const byMode = racePlayers[mode] || (racePlayers[mode] = {});
+  const list = byMode[specID] || (byMode[specID] = []);
+  for (const p of players) list.push(p);
 }
 
 const profilesOut = {};
@@ -139,6 +149,13 @@ for (const name of fs.readdirSync(dir).sort()) {
   mode[part.source] = part;
   sources.add(part.source);
   newest = Math.max(newest, part.builtOn || 0);
+  // Die Rassen aus der raider.io-Laufliste: Profiladresse -> "Rasse|Seite".
+  for (const [specID, entry] of Object.entries(part.specs)) {
+    if (!entry.races) continue;
+    addRaces(key, specID, Object.entries(entry.races)
+      .map(([url, v]) => ({ key: url, race: String(v).split('|')[0] })));
+    delete entry.races;
+  }
   // Eine Quelle, die ihre Spieler samt Ausruestung mitbringt (Battle.net):
   // die Profile gehen in das Spieler-Addon, die Rangliste bleibt hier.
   for (const [specID, entry] of Object.entries(part.specs)) {
@@ -158,6 +175,10 @@ for (const part of profileParts) {
   newest = Math.max(newest, part.builtOn || 0);
   let builds = 0, players = 0;
   for (const [specID, entry] of Object.entries(part.specs)) {
+    // Die Rassen der profilierten Spieler, erkannt an ihrer raider.io-Adresse.
+    addRaces(part.mode, specID, (entry.players || [])
+      .filter((pl) => pl.race)
+      .map((pl) => ({ key: pl.rio || pl.url, race: pl.race })));
     const spec = target.specs[specID] || (target.specs[specID] = {});
     // Ein verifizierter Build zaehlt nur, wo die Quelle keinen hat -
     // die Ketten aus der Laufliste (M+) sind die breitere Stichprobe.
@@ -769,6 +790,55 @@ emitNodePool(baseOut, out, '  ');
 // Die Regeln dafuer stehen in lib/worn-by.js und sind geprueft: ohne
 // bekannte Stichprobe keine Zeile, und unter zwanzig Prozent ist es
 // kein "gut fuer".
+// --- Rassen ----------------------------------------------------------
+//
+// Gespielt: Anteile je Modus und Spec, ab fuenfzehn Gemessenen.
+// Simuliert: bloodmallet, Abstand zur schwaechsten Rasse je Zielzahl.
+// Beides braucht die Rassenliste des Katalogs (englischer Name -> Nummer).
+let raceIndex = {};
+try {
+  raceIndex = JSON.parse(fs.readFileSync(path.join(dir, 'races.json'), 'utf8'));
+} catch (err) {
+  console.log('Keine races.json - Rassen bleiben weg.');
+}
+let raceSpecs = 0, simSpecs = 0;
+if (Object.keys(raceIndex).length) {
+  const modesOut = [];
+  for (const mode of Object.keys(racePlayers).sort()) {
+    const specsOut = [];
+    for (const specID of Object.keys(racePlayers[mode]).sort((a, b) => a - b)) {
+      const shares = raceShares(tallyRaces(racePlayers[mode][specID]), raceIndex);
+      if (!shares) continue;
+      raceSpecs += 1;
+      const rows = shares.list.map((r) => `{ ${r.id}, ${r.pct} }`).join(', ');
+      specsOut.push(`      [${specID}] = { n = ${shares.n}, ${rows} },`);
+    }
+    if (specsOut.length) modesOut.push(`    [${luaString(mode)}] = {`, ...specsOut, '    },');
+  }
+  if (modesOut.length) out.push('  races = {', ...modesOut, '  },');
+
+  let bm = null;
+  try {
+    bm = JSON.parse(fs.readFileSync(path.join(dir, 'bloodmallet-races.json'), 'utf8'));
+  } catch (err) {
+    console.log('Keine bloodmallet-races.json - Rassen ohne Simulation.');
+  }
+  const simOut = [];
+  for (const [specID, fights] of Object.entries((bm && bm.specs) || {})) {
+    const sims = raceSims(fights, raceIndex);
+    if (!sims) continue;
+    simSpecs += 1;
+    simOut.push(`    [${specID}] = { ts = ${luaString(sims.ts || '')},`);
+    for (const [targets, rows] of Object.entries(sims.byTargets)) {
+      const teile = rows.map((r) => `{ ${r.id}, ${r.rel}${r.loa ? ', ' + luaString(r.loa) : ''} }`);
+      simOut.push(`      [${targets}] = { ${teile.join(', ')} },`);
+    }
+    simOut.push('    },');
+  }
+  if (simOut.length) out.push('  raceSims = {', ...simOut, '  },');
+}
+console.log('Rassen: ' + raceSpecs + ' Modus-Speccs gespielt, ' + simSpecs + ' Speccs simuliert');
+
 const index = wornBy(byMode);
 let wornItems = 0, wornRows = 0;
 if (index.size) {

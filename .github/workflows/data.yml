@@ -104,7 +104,7 @@ jobs:
           mkdir -p tools/data harvest
           touch /tmp/started
       - name: Collect
-        run: node tools/collect-all.js . nur=catalog,raiderio,murlok
+        run: node tools/collect-all.js . nur=catalog,raiderio,murlok,bloodmallet
 
       # Nur, was DIESER Job neu geschrieben hat. Jeder Job das ganze
       # Verzeichnis hochladen zu lassen hiesse, 90 MB sechsmal je Nacht
