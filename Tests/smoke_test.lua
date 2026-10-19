@@ -6595,6 +6595,8 @@ do
         gesendet and gesendet[2] == "WHISPER" and gesendet[3] == "Gluecks-Realm"
         and gesendet[1]:find("|Hitem:424242", 1, true) ~= nil and zeileAuf == nil,
         gesendet and table.concat(gesendet, " / ") or "nichts gesendet")
+    check("das Fluestern ist Englisch, auch im deutschen Client",
+        gesendet and gesendet[1]:find("^Hey, do you need ") ~= nil, gesendet and gesendet[1])
     check("und der Knopf sagt danach Gefragt", zeile and zeile.ask.label:GetText() == L["FAV_DROP_ASKED"],
         zeile and zeile.ask.label:GetText())
     gesendet = nil

@@ -19,6 +19,11 @@ ns.Wish = Wish
 
 local L = ns.L
 
+-- Das Fluestern - IMMER auf Englisch, nicht in der Sprache des Clients.
+-- Es geht an Fremde von irgendeinem Realm; im ersten echten Lauf ging
+-- ein deutscher Satz an einen Spieler von Kazzak (19. Oktober).
+local FLUESTERN = "Hey, do you need %s? If not, I'd be really happy if you could trade it to me :)"
+
 -- Was gerade im Fenster steht, und was schon einmal gemeldet wurde.
 local offen = {}
 local gemeldet = {}
@@ -111,7 +116,7 @@ end
 function Wish.Message(entry)
     local link = entry.link or (ns.Compat.ItemInfo and select(2, ns.Compat.ItemInfo(entry.id)))
         or ("item " .. tostring(entry.id))
-    return L["FAV_WHISPER"]:format(link)
+    return FLUESTERN:format(link)
 end
 
 ---Den Spieler anfluestern - ueber die Chatzeile.
@@ -132,7 +137,7 @@ local function chatzeile(entry)
     local verlinken = (ChatFrameUtil and ChatFrameUtil.InsertLink) or ChatEdit_InsertLink
     local aktiv = (ChatFrameUtil and ChatFrameUtil.GetActiveWindow) or ChatEdit_GetActiveWindow
     if type(oeffnen) ~= "function" then return false end
-    local vor, nach = L["FAV_WHISPER"]:match("^(.-)%%s(.*)$")
+    local vor, nach = FLUESTERN:match("^(.-)%%s(.*)$")
     local link = entry.link or select(2, ns.Compat.ItemInfo(entry.id))
     if not (vor and link and type(verlinken) == "function" and type(aktiv) == "function") then
         return (pcall(oeffnen, "/w " .. entry.player .. " " .. Wish.Message(entry)))

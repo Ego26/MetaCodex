@@ -248,7 +248,6 @@ ns.RegisterLocale("deDE", {
     ["FAV_DROP_TITLE"] = "Favorit gedroppt!",
     ["FAV_DROP_WHISPER_BTN"] = "Anflüstern",
     ["FAV_DROP_ASKED"] = "Gefragt",
-    ["FAV_WHISPER"] = "Hey, brauchst du %s? Falls nicht, würde ich mich riesig freuen, wenn du es mir handelst :)",
     ["FAV_DROP_WAITING"] = "Wartet …",
     ["FAV_WHISPER_LATER"] = "Während eines Schlüssels oder Bosskampfs sperrt das Spiel Flüstern von Addons – das Flüstern geht raus, sobald das vorbei ist.",
     ["FAV_WHISPER_FAILED"] = "Direktes Flüstern ging nicht (%s) - das Flüstern steht in der Chatzeile, Enter drücken.",
