@@ -7914,15 +7914,32 @@ end
 
 -- IM KAMPF NICHT (19. Oktober).
 --
--- Gesehen: tot, die Gruppe kaempft noch - und MetaCodex ging auf, mit
--- Zielwerten ohne eigene Werte, weil das Spiel sie im Kampf geheim haelt.
--- Als Kampf zaehlt deshalb auch, wenn die eigene Wertung geheim ist: das
--- sagt das Spiel selbst, und ein toter Spieler ist nicht "im Kampf".
+-- Gesehen: tot, die Gruppe kaempft noch - und MetaCodex ging auf. Ein
+-- toter Spieler ist selbst nicht "im Kampf"; seine Gruppe schon. Also
+-- zaehlt: ich ODER jemand aus der Gruppe.
+--
+-- NICHT "die Werte sind geheim". So stand es erst da, und dann ging
+-- MetaCodex in einem laufenden Schluessel ueberhaupt nicht mehr auf: dort
+-- haelt das Spiel die Werte den ganzen Lauf lang geheim, auch zwischen
+-- den Pulls. Ohne eigene Werte stehen die Zielwerte dann eben ohne
+-- "du hast".
+local function kaempft(unit)
+    if not UnitAffectingCombat then return false end
+    local ok, ja = pcall(UnitAffectingCombat, unit)
+    if not ok then return false end
+    -- Eine geheime Antwort ist keine: lieber auf als falsch zu.
+    if type(issecretvalue) == "function" and issecretvalue(ja) then return false end
+    return ja == true
+end
+
 function UI.InFight()
     if InCombatLockdown and InCombatLockdown() then return true end
-    if type(issecretvalue) == "function" and GetCombatRating then
-        local ok, wert = pcall(GetCombatRating, CR_MASTERY or 26)
-        if ok and issecretvalue(wert) then return true end
+    if kaempft("player") then return true end
+    local raid = IsInRaid and IsInRaid()
+    local n = (GetNumGroupMembers and tonumber(GetNumGroupMembers())) or 0
+    for i = 1, n do
+        local unit = (raid and "raid" or "party") .. i
+        if (not UnitExists or UnitExists(unit)) and kaempft(unit) then return true end
     end
     return false
 end

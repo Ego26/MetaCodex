@@ -2299,11 +2299,23 @@ do
     ns.Profile.SetMode("mplus")
     local ok, fehler = pcall(rowsInSection, "stats")
     check("und die Zielwerte stehen trotzdem da", ok, tostring(fehler))
-    -- Und das Fenster geht unter diesen Umstaenden gar nicht erst auf.
+    -- Geheime Werte allein sind KEIN Kampf: in einem laufenden Schluessel
+    -- sind sie das den ganzen Lauf, auch zwischen den Pulls.
     local f = ns.UI.Frame()
     if f:IsShown() then f:Hide() end
+    local echtUnit, echtZahl, echtDa = rawget(_G, "UnitAffectingCombat"),
+        rawget(_G, "GetNumGroupMembers"), rawget(_G, "UnitExists")
+    UnitAffectingCombat = function() return false end
     ns.UI.Toggle()
-    check("mit geheimen Werten geht das Fenster nicht auf", not f:IsShown())
+    check("geheime Werte zwischen den Pulls: das Fenster geht auf", f:IsShown())
+    f:Hide()
+    -- Tot, aber die Gruppe kaempft: zu.
+    GetNumGroupMembers = function() return 5 end
+    UnitExists = function() return true end
+    UnitAffectingCombat = function(unit) return unit == "party2" end
+    ns.UI.Toggle()
+    check("kaempft die Gruppe, geht es nicht auf", not f:IsShown())
+    UnitAffectingCombat, GetNumGroupMembers, UnitExists = echtUnit, echtZahl, echtDa
     GetCombatRating, issecretvalue = echtWert, echtGeheim
 
     local echtKampf = rawget(_G, "InCombatLockdown")
