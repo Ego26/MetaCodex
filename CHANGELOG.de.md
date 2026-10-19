@@ -4,6 +4,31 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ## [Unveröffentlicht]
 
+## [1.1.20] - 2026-10-19
+
+### Neu
+
+- **Rassen.** Ein neuer Abschnitt unter Überblick: welche Rasse die
+  gemessenen Top-Spieler deiner Spec spielen, und was eine Rasse an
+  Schaden bringt.
+  - **Gespielt** kommt von raider.io - jeder Spieler der besten 2.000
+    M+-Läufe und die Profile der besten Raid- und PvP-Spieler, jeder
+    einmal gezählt. Wo eine Aktivität allein weniger als fünfzehn
+    Gemessene hat, springt ihre Familie ein (alle Raid-Schwierigkeiten,
+    alle PvP-Klammern), und sonst alle Aktivitäten der Spec - die Rasse
+    wählt man je Charakter, nicht je Aktivität. Der Tooltip sagt, wann.
+  - **Simuliert** kommt von bloodmallet.com (SimulationCraft): der
+    DPS-Vorsprung gegenüber der schwächsten Rasse, bei 1, 3 oder 5
+    Zielen in M+ und 1 oder 3 im Raid. Was innerhalb von 0,2 % an der
+    besten liegt, gilt als gleichauf - die Sims haben etwa 0,1 %
+    Messfehler. Heiler, Augmentation, Verheerung, Gleichgewicht und
+    Wächter haben dort keine Rassen-Sims und zeigen nur, was gespielt
+    wird.
+  - Eine Liste über alle Fraktionen, nach dem simulierten Vorsprung
+    sortiert; ein Filter grenzt auf Horde oder Allianz ein, Rassen
+    beider Seiten stehen bei beiden. Der Tooltip zeigt die
+    Rassenfähigkeiten, wie die Charaktererstellung sie beschreibt.
+
 ## [1.1.19] - 2026-10-19
 
 ### Neu

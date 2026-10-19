@@ -1,3 +1,12 @@
+## v1.1.20 — races
+
+### Added
+
+- **Races**, under Overview: which race the top players of your spec
+  play (raider.io), and the simulated DPS lead of each race at 1, 3 or
+  5 targets (bloodmallet.com, SimulationCraft). One list, sorted by the
+  simulation, filterable by faction; hover for the racial abilities.
+
 ## v1.1.19 — favourite dropped
 
 ### Added

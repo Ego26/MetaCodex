@@ -4,6 +4,28 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ## [Unreleased]
 
+## [1.1.20] - 2026-10-19
+
+### Added
+
+- **Races.** A new section under Overview: which race the measured top
+  players of your spec play, and what a race brings in damage.
+  - **Played** comes from raider.io - every player of the best 2,000
+    M+ runs and the profiles of the top raid and PvP players, each
+    player counted once. Where an activity alone has fewer than fifteen
+    measured players, its family steps in (all raid difficulties, all
+    PvP brackets), and failing that all activities of the spec - race
+    is chosen per character, not per activity. The tooltip says when.
+  - **Simulated** comes from bloodmallet.com (SimulationCraft): the DPS
+    lead over the weakest race, at 1, 3 or 5 targets in M+ and 1 or 3
+    in raid. Within 0.2 % of the best counts as level - the sims carry
+    about 0.1 % error. Healers, Augmentation, Devastation, Balance and
+    Guardian have no race sims there and show only what is played.
+  - One list across all factions, sorted by the simulated lead; a
+    filter narrows it to Horde or Alliance, with races of both sides
+    under each. The tooltip lists the racial abilities as the character
+    creation describes them.
+
 ## [1.1.19] - 2026-10-19
 
 ### Added
