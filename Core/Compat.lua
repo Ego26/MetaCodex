@@ -469,8 +469,15 @@ function Compat.OwnRating(key)
     local index = RATING_INDEX[key]
     if not index or not GetCombatRating then return nil end
     local ok, value = pcall(GetCombatRating, index)
-    if ok and type(value) == "number" then return math.floor(value) end
-    return nil
+    if not ok or type(value) ~= "number" then return nil end
+    -- IM KAMPF IST SIE GEHEIM (Midnight). Rechnen darf man mit ihr nicht:
+    -- math.floor auf eine geheime Zahl brach am 19. Oktober den Aufbau der
+    -- Zielwerte ab ("attempt to perform numeric conversion on a secret
+    -- number value"), und das Fenster blieb auf dem vorigen Abschnitt
+    -- stehen. Dann eben ohne eigenen Wert - bis der Kampf vorbei ist.
+    if type(issecretvalue) == "function" and issecretvalue(value) then return nil end
+    local rund, gerundet = pcall(math.floor, value)
+    return rund and gerundet or nil
 end
 
 ---Was ein weiterer Punkt Wertung bei dieser Wertung noch bringt.

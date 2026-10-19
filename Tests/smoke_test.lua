@@ -2288,6 +2288,19 @@ check("eigene Wertung lesbar", ns.Compat.OwnRating("haste") == 500,
     tostring(ns.Compat.OwnRating("haste")))
 check("Meisterschaft ist eine Wertung wie die anderen", ns.Compat.OwnRating("mastery") == 300,
     tostring(ns.Compat.OwnRating("mastery")))
+-- IM KAMPF IST DIE WERTUNG GEHEIM. Dann kein eigener Wert - und vor allem
+-- kein Fehler: der liess das Fenster auf dem vorigen Abschnitt stehen.
+do
+    local echtWert, echtGeheim = GetCombatRating, rawget(_G, "issecretvalue")
+    local GEHEIM = 1306.25
+    GetCombatRating = function() return GEHEIM end
+    issecretvalue = function(v) return v == GEHEIM end
+    check("eine geheime Wertung ergibt keinen eigenen Wert", ns.Compat.OwnRating("crit") == nil)
+    ns.Profile.SetMode("mplus")
+    local ok, fehler = pcall(rowsInSection, "stats")
+    check("und die Zielwerte stehen trotzdem da", ok, tostring(fehler))
+    GetCombatRating, issecretvalue = echtWert, echtGeheim
+end
 
 -- In M+, weil dort beide Quellen Zielwerte fuehren. Im Raid kamen sie
 -- lange nur von murlok, und murlok misst keinen Raid.
