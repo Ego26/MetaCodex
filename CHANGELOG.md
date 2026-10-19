@@ -4,6 +4,27 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ## [Unreleased]
 
+## [1.1.19] - 2026-10-19
+
+### Added
+
+- **"Favourite dropped!"** When a piece you marked as a favourite - in
+  any spec of the character - drops for someone else, a small window
+  opens after the boss or at the end of the dungeon: the item and who
+  got it, as name-realm in their class colour.
+- **Whisper with one click**: "Hey, do you need [item]? If not, I'd be
+  really happy if you could trade it to me :)" - always in English,
+  since it goes to players from any realm, and always to name-realm.
+  During a keystone or boss fight the game blocks whispers from
+  addons; then the button says "Waiting..." and the whisper goes out
+  on its own as soon as that is over.
+- It can be switched off under Settings -> Loot.
+
+### Changed
+
+- **Settings**: the on/off switches stand in four groups - Buttons,
+  Tooltip, Loot, Reminders - instead of one long list.
+
 ## [1.1.18] - 2026-10-17
 
 ### Fixed

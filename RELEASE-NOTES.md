@@ -1,3 +1,18 @@
+## v1.1.19 — favourite dropped
+
+### Added
+
+- **"Favourite dropped!"** When one of your favourites drops for
+  someone else, a window shows the item and who got it.
+- **Whisper them with one click** — in English, to name-realm. During
+  a keystone or boss fight it waits and goes out once that is over.
+- Switch it off under Settings → Loot.
+
+### Changed
+
+- Settings: the on/off switches are grouped — Buttons, Tooltip, Loot,
+  Reminders.
+
 ## v1.1.18 — scroll bar fix
 
 ### Fixed

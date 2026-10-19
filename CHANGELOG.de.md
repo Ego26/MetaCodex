@@ -4,6 +4,27 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ## [Unveröffentlicht]
 
+## [1.1.19] - 2026-10-19
+
+### Neu
+
+- **„Favorit gedroppt!"** Droppt ein Stück, das du als Favorit markiert
+  hast - in irgendeiner Spec des Charakters -, bei jemand anderem, geht
+  nach dem Boss oder am Ende des Dungeons ein kleines Fenster auf: das
+  Item und wer es bekommen hat, als Name-Realm in seiner Klassenfarbe.
+- **Anflüstern mit einem Klick**: „Hey, do you need [Item]? If not, I'd
+  be really happy if you could trade it to me :)" - immer auf
+  Englisch, weil es an Spieler von jedem Realm geht, und immer an
+  Name-Realm. Während eines Schlüssels oder Bosskampfs sperrt das Spiel
+  Flüstern von Addons; dann steht am Knopf „Wartet …", und das Flüstern
+  geht von selbst raus, sobald das vorbei ist.
+- Abschaltbar unter Einstellungen → Beute.
+
+### Geändert
+
+- **Einstellungen**: die An/Aus-Schalter stehen in vier Gruppen -
+  Knöpfe, Tooltip, Beute, Erinnerung - statt in einer langen Liste.
+
 ## [1.1.18] - 2026-10-17
 
 ### Behoben
