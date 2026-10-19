@@ -73,7 +73,9 @@ const toepfe = pooled({
 check('der Raidtopf nimmt alle Schwierigkeiten, keinen Boss', toepfe['@raid'][62].map((p) => p.key), ['a', 'a', 'b']);
 check('und zaehlt jeden einmal', [...tallyRaces(toepfe['@raid'][62]).entries()], [['Human', 1], ['Tauren', 1]]);
 check('der PvP-Topf nimmt alle Klammern', toepfe['@pvp'][62].map((p) => p.key), ['d', 'e']);
-check('M+ hat keinen Topf', Object.keys(toepfe).sort(), ['@pvp', '@raid']);
+check('und ein Topf ueber alles', Object.keys(toepfe).sort(), ['@all', '@pvp', '@raid']);
+check('der Topf ueber alles nimmt jede Aktivitaet, keinen Boss',
+  toepfe['@all'][62].map((p) => p.key).sort(), ['a', 'a', 'b', 'd', 'e', 'f']);
 
 if (failed) {
   console.error(`\n${failed} Fehler`);

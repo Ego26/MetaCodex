@@ -327,7 +327,7 @@ ns.RegisterLocale("deDE", {
     ["RACE_TARGETS_N"] = "%d Ziele",
     ["RACE_TIP_ABILITIES"] = "Rassenfähigkeiten",
     ["RACE_TIP_PLAYED"] = "Gespielt: %d %% von %d gemessenen Top-Spielern (raider.io).",
-    ["RACE_TIP_POOL"] = "Gezählt über alle Raid-Schwierigkeiten bzw. alle PvP-Klammern – eine allein hat zu wenige Gemessene, und die Rasse hängt nicht an ihr.",
+    ["RACE_TIP_POOL"] = "Gezählt über weitere Aktivitäten dieser Spec – hier allein gibt es zu wenige Gemessene, und die Rasse wählt man je Charakter, nicht je Aktivität.",
     ["RACE_TIP_SIM"] = "Simuliert: +%s %% DPS bei %s gegenüber der schwächsten Rasse.",
     ["RACE_TIP_SOURCE"] = "bloodmallet.com – SimulationCraft – Stand %s",
     ["SECTION_players"]    = "Top-Spieler",

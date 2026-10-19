@@ -113,6 +113,10 @@ function raceSims(fights, index) {
 const POOLS = {
   '@raid': (mode) => /^raid/.test(mode) && !mode.includes('/'),
   '@pvp': (mode) => ['2v2', '3v3', 'rbg', 'solo', 'blitz'].includes(mode),
+  // Und zuletzt alles: die Rasse waehlt man je Charakter, nicht je
+  // Aktivitaet. Gebraucht, wo eine Spec in einer Familie kaum vorkommt -
+  // in den besten 2.000 M+-Laeufen spielt fast niemand Feuer.
+  '@all': (mode) => !mode.includes('/'),
 };
 
 /**

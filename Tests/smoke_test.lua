@@ -6691,7 +6691,10 @@ do
         check("ohne eigene Zahlen springt der Raidtopf ein", heroisch and heroisch.pool == true and heroisch[1][1] == 6)
         check("die genaue Aktivitaet geht vor", mythisch and mythisch.pool == nil and mythisch[1][1] == 31)
         check("PvP nimmt den PvP-Topf", solo and solo[1][1] == 1)
-        check("M+ hat keinen Topf", mplus == nil)
+        check("M+ hat keinen eigenen Topf", mplus == nil)
+        MetaCodex_Recommendations.races["@all"] = { [250] = { n = 60, pool = true, { 24, 40 } } }
+        local mplus2 = ns.Recommend.Races(250, "mplus")
+        check("zuletzt springt der Topf ueber alles ein", mplus2 and mplus2[1][1] == 24)
         MetaCodex_Recommendations.races = echteDaten
         ns.Recommend.Races = echtR
     end

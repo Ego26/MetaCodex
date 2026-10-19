@@ -35,6 +35,12 @@ const DRY = !!process.env.MC_DRYRUN;
 // Wie viele Profile hoechstens abgerufen werden. Jedes ist eine Anfrage;
 // die Laufliste selbst kostet nur eine je zwanzig Laeufe.
 const PROFILE_LIMIT = Number(process.env.MC_PROFILES || 900);
+// Bis zu welcher Seite die Laufliste fuer die RASSEN gelesen wird. Die
+// Spitze allein sind immer dieselben paar hundert Spieler, fast nur
+// Meta-Specs; je Seite kostet es eine Anfrage, und sonst nichts.
+// Hundert ist die Grenze ohne Zugangsschluessel - Seite 101 antwortet mit
+// "page must be less than or equal to 100" (ausprobiert am 19. Oktober).
+const RACE_PAGES = Math.min(100, Number(process.env.MC_RACE_PAGES || 100));
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -212,6 +218,35 @@ const slug = (text) => String(text).toLowerCase()
     await sleep(250);
   }
   console.log('\n  Spieler in den Laeufen: ' + members.length);
+
+  // Weiter lesen, nur fuer die Rassen.
+  const raceOnly = [];
+  for (let page = PAGES; page < RACE_PAGES; page++) {
+    const url = 'https://raider.io/api/v1/mythic-plus/runs?season=' + season
+      + '&region=world&affixes=all&page=' + page;
+    let data;
+    try {
+      data = await patient(url);
+    } catch (err) {
+      console.log('  ! Rassenseite ' + page + ': ' + err.message);
+      break;
+    }
+    const list = data.rankings || [];
+    if (!list.length) break;
+    for (const rank of list) {
+      for (const entry of ((rank.run || {}).roster || [])) {
+        const ch = entry.character || {};
+        if (!ch.spec || !ch.spec.id || !ch.race || !ch.path) continue;
+        raceOnly.push({
+          specID: Number(ch.spec.id), race: ch.race.name,
+          faction: ch.race.faction || ch.faction || null, path: ch.path,
+        });
+      }
+    }
+    if (page % 10 === 0) process.stdout.write('r');
+    await sleep(250);
+  }
+  console.log('\n  Weitere Spieler nur fuer die Rassen: ' + raceOnly.length);
   {
     let ketten = 0;
     for (const bySpec of Object.values(runBuilds['mplus'] || {})) {
@@ -334,7 +369,7 @@ const slug = (text) => String(text).toLowerCase()
   // beim Zusammenbauen niemand doppelt zaehlt.
   {
     let mitRasse = 0;
-    for (const m of members) {
+    for (const m of members.concat(raceOnly)) {
       if (!m.race || !m.path) continue;
       entryFor('mplus', m.specID).races[m.path] = m.race + '|' + (m.faction || '');
       mitRasse += 1;

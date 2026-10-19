@@ -327,7 +327,7 @@ ns.RegisterLocale("enUS", {
     ["RACE_TARGETS_N"] = "%d targets",
     ["RACE_TIP_ABILITIES"] = "Racial abilities",
     ["RACE_TIP_PLAYED"] = "Played: %d%% of %d measured top players (raider.io).",
-    ["RACE_TIP_POOL"] = "Counted across all raid difficulties or all PvP brackets - one alone has too few measured players, and race does not depend on it.",
+    ["RACE_TIP_POOL"] = "Counted across further activities of this spec - this one alone has too few measured players, and race is chosen per character, not per activity.",
     ["RACE_TIP_SIM"] = "Simulated: +%s %% DPS at %s over the weakest race.",
     ["RACE_TIP_SOURCE"] = "bloodmallet.com - SimulationCraft - as of %s",
     ["SECTION_players"]    = "Top players",

@@ -742,6 +742,10 @@ function Recommend.Races(specID, mode)
     local topf = basis:find("^raid") and "@raid" or (not basis:find("^mplus") and "@pvp") or nil
     local hit = topf and d.races[topf] and d.races[topf][specID]
     if hit then return hit end
+    -- Und zuletzt alle Aktivitaeten dieser Spec: die Rasse waehlt man je
+    -- Charakter. In den besten M+-Laeufen kommen manche Specs kaum vor.
+    hit = d.races["@all"] and d.races["@all"][specID]
+    if hit then return hit end
     return nil
 end
 
