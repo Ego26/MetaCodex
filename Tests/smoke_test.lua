@@ -6520,6 +6520,85 @@ do
     ns.Profile.Select(nil, nil)
 end
 
+-- ------------------------------------------------------- Favorit gedroppt
+--
+-- Droppt ein Favorit dieses Charakters bei jemand anderem, geht ein
+-- Fenster auf, und ein Klick fluestert den Spieler an. Nicht beim
+-- eigenen Drop, nicht bei Fremdem, nicht abgeschaltet, nicht im Kampf.
+do
+    local echtNeed = MetaCodexDB.need
+    MetaCodexDB.need = nil
+    local SPEC = ns.Compat.CurrentSpec() or 105
+    local ANDERE = SPEC + 1
+    ns.Profile.ToggleNeed(424242, ANDERE)       -- Favorit einer ANDEREN Spec
+    local ohr = ns.Wish.__ohr
+    local function droppt(id, wer)
+        ohr:GetScript("OnEvent")(ohr, "ENCOUNTER_LOOT_RECEIVED", 2900, id,
+            "|Hitem:" .. id .. "|h[x]|h", 1, wer, "PRIEST")
+    end
+    local function fenster()
+        local f = _G.MetaCodexFavDrops
+        return f and f:IsShown() and f or nil
+    end
+
+    droppt(999001, "Fremder-Realm")
+    check("ein fremdes Stueck oeffnet nichts", fenster() == nil and #ns.Wish.Open() == 0)
+    droppt(424242, UnitName("player"))
+    check("der eigene Drop oeffnet nichts", #ns.Wish.Open() == 0)
+
+    droppt(424242, "Gluecks-Realm")
+    check("ein Favorit irgendeiner Spec oeffnet das Fenster", fenster() ~= nil)
+    check("mit einer Zeile", #ns.Wish.Open() == 1, #ns.Wish.Open() .. " Zeilen")
+    droppt(424242, "Gluecks-Realm")
+    check("dieselbe Meldung zweimal ist eine Zeile", #ns.Wish.Open() == 1)
+
+    -- Anfluestern.
+    local gesendet
+    local echtSend = rawget(_G, "SendChatMessage")
+    local echtInfo = rawget(_G, "C_ChatInfo")
+    C_ChatInfo = nil
+    SendChatMessage = function(text, art, _, an) gesendet = { text, art, an } end
+    local zeile = fenster() and fenster().rows[1]
+    if zeile then zeile.ask:GetScript("OnClick")(zeile.ask, "LeftButton") end
+    check("ein Klick fluestert den Spieler an",
+        gesendet and gesendet[2] == "WHISPER" and gesendet[3] == "Gluecks-Realm"
+        and gesendet[1]:find("|Hitem:424242", 1, true) ~= nil,
+        gesendet and table.concat(gesendet, " / ") or "nichts gesendet")
+    check("und der Knopf sagt danach Gefragt", zeile and zeile.ask.label:GetText() == L["FAV_DROP_ASKED"],
+        zeile and zeile.ask.label:GetText())
+    gesendet = nil
+    if zeile then zeile.ask:GetScript("OnClick")(zeile.ask, "LeftButton") end
+    check("ein zweiter Klick fluestert nicht noch einmal", gesendet == nil)
+    SendChatMessage, C_ChatInfo = echtSend, echtInfo
+
+    -- Zu, mit dem X: die Liste ist erledigt.
+    local function zu()
+        local f = _G.MetaCodexFavDrops
+        if f then f.close:GetScript("OnClick")(f.close, "LeftButton") end
+    end
+    zu()
+    check("geschlossen ist die Liste leer", #ns.Wish.Open() == 0)
+
+    -- Abgeschaltet: nichts.
+    ns.Profile.SetFavDropAlertOn(false)
+    droppt(424242, "Zweiter-Realm")
+    check("abgeschaltet bleibt es zu", fenster() == nil and #ns.Wish.Open() == 0)
+    ns.Profile.SetFavDropAlertOn(true)
+
+    -- Im Kampf wartet es.
+    local echtKampf = rawget(_G, "InCombatLockdown")
+    InCombatLockdown = function() return true end
+    droppt(424242, "Dritter-Realm")
+    check("im Kampf wartet das Fenster", fenster() == nil and #ns.Wish.Open() == 1)
+    InCombatLockdown = function() return false end
+    ohr:GetScript("OnEvent")(ohr, "PLAYER_REGEN_ENABLED")
+    check("nach dem Kampf geht es auf", fenster() ~= nil)
+    InCombatLockdown = echtKampf
+    zu()
+
+    MetaCodexDB.need = echtNeed
+end
+
 -- ------------------------------------------------------- Der Datenordner
 --
 -- Gemeldet am 15. Oktober: nach der Erstinstallation stand nur eine

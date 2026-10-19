@@ -503,6 +503,35 @@ function Profile.SetTooltipOthersOn(on)
     MetaCodexDB.tooltipOthers = on and true or false
 end
 
+---Ist das ein Favorit dieses Charakters - in IRGENDEINER Spec?
+---
+---Fuer das Fenster "Favorit gedroppt": wer als Heiler laeuft und ein
+---Stueck fuer seinen Schaden markiert hat, will es genauso wissen.
+---@param itemID number|nil
+---@return boolean
+function Profile.NeedAnySpec(itemID)
+    if not itemID then return false end
+    local db = MetaCodexDB or {}
+    local meine = db.need and db.need[who()]
+    for specID, liste in pairs(meine or {}) do
+        if type(specID) == "number" and type(liste) == "table" and liste[itemID] then return true end
+    end
+    return false
+end
+
+---Ob das Fenster "Favorit gedroppt" aufgeht. Ab Werk an.
+---@return boolean
+function Profile.FavDropAlertOn()
+    local db = MetaCodexDB or {}
+    if db.favDropAlert == nil then return true end
+    return db.favDropAlert and true or false
+end
+
+---@param on boolean
+function Profile.SetFavDropAlertOn(on)
+    MetaCodexDB.favDropAlert = on and true or false
+end
+
 function Profile.RemindersOn()
     local db = MetaCodexDB or {}
     if db.reminders == nil then return true end

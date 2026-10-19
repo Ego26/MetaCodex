@@ -2063,6 +2063,10 @@ local function settingsRows()
     switch(L["SET_TOOLTIP_OTHERS"], L["SET_GROUP_FEATURES"], ns.Profile.TooltipOthersOn(), function(value)
         ns.Profile.SetTooltipOthersOn(value)
     end)
+    -- Das Fenster, wenn ein Favorit bei jemand anderem droppt.
+    switch(L["SET_FAV_ALERT"], L["SET_GROUP_FEATURES"], ns.Profile.FavDropAlertOn(), function(value)
+        ns.Profile.SetFavDropAlertOn(value)
+    end)
     -- UND DER FUENFTE: der Knopf am Talentfenster.
     --
     -- Er setzt sich ungefragt in fremde Oberflaeche - an genau die
@@ -6580,6 +6584,123 @@ end
 
 ---@param text string Fuer den Fall, dass es keine Zeilen gibt
 ---@param list table[]|nil Zeilen aus Remind.Check
+-- "FAVORIT GEDROPPT!"
+--
+-- Ein kleines Fenster mit je einer Zeile pro Stueck: Symbol, Name, wer
+-- es bekommen hat, und ein Knopf zum Anfluestern. Gewuenscht am 19.
+-- Oktober nach dem Vorbild von Keystone Loot. Gebaut wird es erst,
+-- wenn es gebraucht wird; die Zeilen werden wiederverwendet.
+do
+    local favFrame
+    local ZEILEN, HOEHE = 5, 40
+
+    local function zeile(i)
+        local r = favFrame.rows[i]
+        if r then return r end
+        r = CreateFrame("Frame", nil, favFrame)
+        r:SetHeight(HOEHE)
+        r:SetPoint("TOPLEFT", S.space.md, -42 - (i - 1) * (HOEHE + 4))
+        r:SetPoint("TOPRIGHT", -S.space.md, -42 - (i - 1) * (HOEHE + 4))
+        S:Fill(r, "bgRaised")
+        S:Border(r, "borderSubtle")
+        -- Das Symbol zeigt das Tooltip des Gegenstands.
+        r.icon = CreateFrame("Button", nil, r)
+        r.icon:SetSize(30, 30)
+        r.icon:SetPoint("LEFT", 5, 0)
+        r.icon.tex = r.icon:CreateTexture(nil, "ARTWORK")
+        r.icon.tex:SetAllPoints()
+        r.icon.tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        S:Border(r.icon, "gold")
+        r.icon:SetScript("OnEnter", function(self)
+            if not self.link and not self.itemID then return end
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            if self.link then GameTooltip:SetHyperlink(self.link)
+            else GameTooltip:SetItemByID(self.itemID) end
+            GameTooltip:Show()
+        end)
+        r.icon:SetScript("OnLeave", function() GameTooltip:Hide() end)
+        r.name = S:Text(r, "body", "textPrimary")
+        r.name:SetPoint("TOPLEFT", r.icon, "TOPRIGHT", 8, -1)
+        r.name:SetPoint("RIGHT", r, "RIGHT", -112, 0)
+        r.name:SetWordWrap(false)
+        r.who = S:Text(r, "caption", "textSecondary")
+        r.who:SetPoint("BOTTOMLEFT", r.icon, "BOTTOMRIGHT", 8, 1)
+        r.ask = makeButton(r, 100, 24, L["FAV_DROP_WHISPER_BTN"], function(self)
+            if ns.Wish.Whisper(self.entry) then UI.ShowFavoriteDrops(ns.Wish.Open()) end
+        end)
+        r.ask:SetPoint("RIGHT", -6, 0)
+        favFrame.rows[i] = r
+        return r
+    end
+
+    ---Zeigt die gedroppten Favoriten.
+    ---@param list table[]  { id, link, player, class, asked }
+    function UI.ShowFavoriteDrops(list)
+        if not favFrame then
+            favFrame = CreateFrame("Frame", "MetaCodexFavDrops", UIParent)
+            favFrame:SetSize(400, 100)
+            favFrame:SetFrameStrata("DIALOG")
+            favFrame:SetToplevel(true)
+            favFrame:EnableMouse(true)
+            favFrame:SetMovable(true)
+            favFrame:SetClampedToScreen(true)
+            favFrame:RegisterForDrag("LeftButton")
+            favFrame:SetScript("OnDragStart", favFrame.StartMoving)
+            favFrame:SetScript("OnDragStop", favFrame.StopMovingOrSizing)
+            favFrame:SetPoint("TOP", UIParent, "TOP", 0, -160)
+            S:Fill(favFrame, "bgBase")
+            S:Border(favFrame, "gold")
+            local head = CreateFrame("Frame", nil, favFrame)
+            head:SetPoint("TOPLEFT")
+            head:SetPoint("TOPRIGHT")
+            head:SetHeight(34)
+            S:Fill(head, "bgRaised")
+            S:Border(head, "borderSubtle", 1, { bottom = true })
+            favFrame.star = head:CreateTexture(nil, "ARTWORK")
+            favFrame.star:SetTexture("Interface\\Common\\FavoritesIcon")
+            favFrame.star:SetSize(20, 20)
+            favFrame.star:SetPoint("LEFT", S.space.md, 0)
+            favFrame.title = S:Text(head, "title", "gold")
+            favFrame.title:SetPoint("LEFT", favFrame.star, "RIGHT", 6, 0)
+            favFrame.title:SetText(L["FAV_DROP_TITLE"])
+            favFrame.close = makeButton(head, 22, 22, "X", function()
+                favFrame:Hide()
+                ns.Wish.Clear()
+            end)
+            favFrame.close:SetPoint("RIGHT", -S.space.sm, 0)
+            favFrame.rows = {}
+            tinsert(UISpecialFrames, "MetaCodexFavDrops")
+            favFrame:SetScript("OnHide", function() ns.Wish.Clear() end)
+        end
+
+        local n = math.min(#(list or {}), ZEILEN)
+        for i = 1, ZEILEN do
+            local e = list and list[i]
+            local r = (i <= n) and zeile(i) or favFrame.rows[i]
+            if r and i <= n and e then
+                local name, link, icon = ns.Compat.ItemInfo(e.id)
+                if not icon then ns.Compat.RequestItem(e.id) end
+                r.icon.tex:SetTexture(icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+                r.icon.link, r.icon.itemID = e.link or link, e.id
+                r.name:SetText(e.link or link or name or ("#" .. e.id))
+                local farbe = e.class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[e.class]
+                local wer = e.player:gsub("%-.*$", "")
+                if farbe and farbe.WrapTextInColorCode then wer = farbe:WrapTextInColorCode(wer) end
+                r.who:SetText(L["FAV_DROP_WHO"]:format(wer))
+                r.ask.entry = e
+                r.ask.label:SetText(e.asked and L["FAV_DROP_ASKED"] or L["FAV_DROP_WHISPER_BTN"])
+                if r.ask.SetEnabled then r.ask:SetEnabled(not e.asked) end
+                r:Show()
+            elseif r then
+                r:Hide()
+            end
+        end
+        favFrame:SetHeight(42 + n * (HOEHE + 4) + S.space.sm)
+        favFrame:Show()
+        return favFrame
+    end
+end
+
 function UI.ShowReminder(text, list)
     if not remindFrame then
         remindFrame = CreateFrame("Frame", "MetaCodexReminder", UIParent)
