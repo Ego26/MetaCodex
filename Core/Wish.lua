@@ -115,6 +115,33 @@ function Wish.Whisper(entry)
     return ok
 end
 
+---Ein gespielter Drop, nur fuer die Dev-Version.
+---
+---Ein eigener Favorit, wenn es einen gibt, sonst das erste empfohlene
+---Stueck - und als Empfaenger der Spieler SELBST: so laesst sich das
+---Anfluestern ausprobieren, ohne jemand Fremdes anzuschreiben.
+function Wish.Test()
+    local id = ns.Profile.AnyNeed()
+    if not id then
+        local gear = ns.Recommend.Gear(ns.Profile.SelectedSpec(), ns.Profile.Mode(), ns.Recommend.ALL)
+        for _, liste in pairs(gear or {}) do
+            if liste[1] and liste[1].id then id = liste[1].id; break end
+        end
+    end
+    if not id then return false end
+    local name = UnitName and UnitName("player") or "?"
+    local realm = GetNormalizedRealmName and GetNormalizedRealmName()
+    local _, classFile = UnitClass and UnitClass("player")
+    offen[#offen + 1] = {
+        id = id,
+        link = select(2, ns.Compat.ItemInfo(id)),
+        player = (type(realm) == "string" and realm ~= "") and (name .. "-" .. realm) or name,
+        class = classFile,
+    }
+    Wish.Show()
+    return true
+end
+
 -- Das Ohr am Spiel.
 local ohr = CreateFrame("Frame")
 ohr:RegisterEvent("ENCOUNTER_LOOT_RECEIVED")

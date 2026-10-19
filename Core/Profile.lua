@@ -519,6 +519,20 @@ function Profile.NeedAnySpec(itemID)
     return false
 end
 
+---Irgendein Favorit dieses Charakters - fuer den Testknopf.
+---@return number|nil itemID
+function Profile.AnyNeed()
+    local db = MetaCodexDB or {}
+    for specID, liste in pairs((db.need and db.need[who()]) or {}) do
+        if type(specID) == "number" and type(liste) == "table" then
+            for itemID, ja in pairs(liste) do
+                if ja then return itemID end
+            end
+        end
+    end
+    return nil
+end
+
 ---Ob das Fenster "Favorit gedroppt" aufgeht. Ab Werk an.
 ---@return boolean
 function Profile.FavDropAlertOn()

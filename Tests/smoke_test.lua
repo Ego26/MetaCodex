@@ -6596,6 +6596,16 @@ do
     InCombatLockdown = echtKampf
     zu()
 
+    -- Der Testknopf der Dev-Version: ein Favorit, an sich selbst.
+    check("der Testknopf oeffnet das Fenster", ns.Wish.Test() == true and fenster() ~= nil)
+    local probe = ns.Wish.Open()[1]
+    check("mit dem Spieler selbst als Empfaenger",
+        probe and probe.player:gsub("%-.*$", "") == UnitName("player"),
+        probe and probe.player)
+    check("und mit einem eigenen Favoriten", probe and probe.id == 424242,
+        probe and tostring(probe.id))
+    zu()
+
     MetaCodexDB.need = echtNeed
 end
 

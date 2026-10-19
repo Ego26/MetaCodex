@@ -2067,6 +2067,16 @@ local function settingsRows()
     switch(L["SET_FAV_ALERT"], L["SET_GROUP_FEATURES"], ns.Profile.FavDropAlertOn(), function(value)
         ns.Profile.SetFavDropAlertOn(value)
     end)
+    -- Nur in der Dev-Version: das Fenster einmal zur Probe, mit dem
+    -- Spieler selbst als Empfaenger. Kein Text in den Sprachdateien -
+    -- im Paket steht diese Zeile nie.
+    if ns.version == "dev" then
+        rows[#rows + 1] = {
+            kind = "option", label = "DEV: Favorit gedroppt", value = "Testen",
+            toggle = function() ns.Wish.Test() end,
+            group = L["SET_GROUP_FEATURES"],
+        }
+    end
     -- UND DER FUENFTE: der Knopf am Talentfenster.
     --
     -- Er setzt sich ungefragt in fremde Oberflaeche - an genau die
