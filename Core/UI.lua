@@ -6665,7 +6665,23 @@ do
             favFrame:SetScript("OnDragStop", favFrame.StopMovingOrSizing)
             favFrame:SetPoint("TOP", UIParent, "TOP", 0, -160)
             S:Fill(favFrame, "bgBase")
-            S:Border(favFrame, "gold")
+            -- Der Rahmen auf einer EIGENEN Ebene ueber allem, zwei Punkte
+            -- breit. Am Fenster selbst zeichneten Kopf und Zeilen darueber,
+            -- und er war nur stellenweise zu sehen (19. Oktober).
+            local rand = CreateFrame("Frame", nil, favFrame)
+            rand:SetAllPoints()
+            rand:SetFrameLevel(favFrame:GetFrameLevel() + 20)
+            local dick = S:Pixel(2)
+            for _, seite in ipairs({ { "TOPLEFT", "TOPRIGHT", true }, { "BOTTOMLEFT", "BOTTOMRIGHT", true },
+                { "TOPLEFT", "BOTTOMLEFT" }, { "TOPRIGHT", "BOTTOMRIGHT" } }) do
+                local t = rand:CreateTexture(nil, "OVERLAY")
+                t:SetTexture("Interface\\Buttons\\WHITE8X8")
+                t:SetVertexColor(S:Color("gold"))
+                t:SetPoint(seite[1])
+                t:SetPoint(seite[2])
+                if seite[3] then t:SetHeight(dick) else t:SetWidth(dick) end
+            end
+            favFrame.rand = rand
             local head = CreateFrame("Frame", nil, favFrame)
             head:SetPoint("TOPLEFT")
             head:SetPoint("TOPRIGHT")

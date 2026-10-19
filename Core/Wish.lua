@@ -103,16 +103,26 @@ function Wish.Message(entry)
     return L["FAV_WHISPER"]:format(link)
 end
 
----Den Spieler anfluestern.
+---Den Spieler anfluestern - ueber die Chatzeile.
+---
+---Direkt senden tat im Spiel nichts (19. Oktober): der Versand lief
+---still ins Leere. Jetzt oeffnet der Klick die Chatzeile mit dem
+---fertigen Fluestern, und Enter schickt es ab. Das geht immer, denn
+---der Spieler sendet selbst - und kann den Satz vorher aendern.
 ---@param entry table
 ---@return boolean
 function Wish.Whisper(entry)
     if not entry or entry.asked then return false end
-    local senden = (C_ChatInfo and C_ChatInfo.SendChatMessage) or SendChatMessage
-    if type(senden) ~= "function" then return false end
-    local ok = pcall(senden, Wish.Message(entry), "WHISPER", nil, entry.player)
-    if ok then entry.asked = true end
-    return ok
+    local text = "/w " .. entry.player .. " " .. Wish.Message(entry)
+    local oeffnen = (ChatFrameUtil and ChatFrameUtil.OpenChat) or ChatFrame_OpenChat
+    if type(oeffnen) ~= "function" then return false end
+    local ok, fehler = pcall(oeffnen, text)
+    if not ok then
+        ns.Print(tostring(fehler))
+        return false
+    end
+    entry.asked = true
+    return true
 end
 
 ---Ein gespielter Drop, nur fuer die Dev-Version.

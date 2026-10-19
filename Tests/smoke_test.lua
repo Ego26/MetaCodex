@@ -6569,23 +6569,24 @@ do
     check("dieselbe Meldung zweimal ist eine Zeile", #ns.Wish.Open() == 1)
 
     -- Anfluestern.
+    -- Die Chatzeile wird vorbereitet; Enter druckt der Spieler.
     local gesendet
-    local echtSend = rawget(_G, "SendChatMessage")
-    local echtInfo = rawget(_G, "C_ChatInfo")
-    C_ChatInfo = nil
-    SendChatMessage = function(text, art, _, an) gesendet = { text, art, an } end
+    local echtOpen = rawget(_G, "ChatFrame_OpenChat")
+    local echtUtil = rawget(_G, "ChatFrameUtil")
+    ChatFrameUtil = nil
+    ChatFrame_OpenChat = function(text) gesendet = text end
     local zeile = fenster() and fenster().rows[1]
     if zeile then zeile.ask:GetScript("OnClick")(zeile.ask, "LeftButton") end
-    check("ein Klick fluestert den Spieler an",
-        gesendet and gesendet[2] == "WHISPER" and gesendet[3] == "Gluecks-Realm"
-        and gesendet[1]:find("|Hitem:424242", 1, true) ~= nil,
-        gesendet and table.concat(gesendet, " / ") or "nichts gesendet")
+    check("ein Klick legt das Fluestern in die Chatzeile",
+        type(gesendet) == "string" and gesendet:find("/w Gluecks-Realm ", 1, true) == 1
+        and gesendet:find("|Hitem:424242", 1, true) ~= nil,
+        tostring(gesendet))
     check("und der Knopf sagt danach Gefragt", zeile and zeile.ask.label:GetText() == L["FAV_DROP_ASKED"],
         zeile and zeile.ask.label:GetText())
     gesendet = nil
     if zeile then zeile.ask:GetScript("OnClick")(zeile.ask, "LeftButton") end
     check("ein zweiter Klick fluestert nicht noch einmal", gesendet == nil)
-    SendChatMessage, C_ChatInfo = echtSend, echtInfo
+    ChatFrame_OpenChat, ChatFrameUtil = echtOpen, echtUtil
 
     -- Zu, mit dem X: die Liste ist erledigt.
     local function zu()
