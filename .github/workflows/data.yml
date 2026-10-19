@@ -53,8 +53,8 @@ on:
         default: ""
       only:
         description: "Nur diese Quellen neu holen, Komma-Liste: catalog,
-          raiderio, murlok, raid, raid-mythic, raid-normal, consumables,
-          keys, bnet, profiles. Zusammen mit reuse: die Ernte jener Nacht
+          raiderio, murlok, bloodmallet, raid, raid-mythic, raid-normal,
+          consumables, keys, bnet, profiles. Zusammen mit reuse: die Ernte jener Nacht
           wird genommen und NUR diese Quellen frisch geholt. raider.io,
           murlok und der Katalog kosten kein Stundenkontingent - damit
           ist eine Aenderung an ihnen in einer halben Stunde drin statt
