@@ -1,3 +1,12 @@
+## v1.1.21 — open in Mythic+ again
+
+### Fixed
+
+- **MetaCodex opens inside a Mythic+ key again** — only your own combat
+  keeps it closed now, not your group's.
+- **Your values during the key**: remembered from before the run and
+  shown as such, since the game keeps them secret inside a key.
+
 ## v1.1.20 — races
 
 ### Added

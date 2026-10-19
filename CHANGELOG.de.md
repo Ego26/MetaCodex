@@ -4,6 +4,23 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ## [Unveröffentlicht]
 
+## [1.1.21] - 2026-10-19
+
+### Behoben
+
+- **MetaCodex ging in einem Mythisch+-Schlüssel nicht auf.** In einem
+  laufenden Schlüssel hält das Spiel deine Kampfwertungen den ganzen Lauf
+  geheim, auch zwischen den Pulls, und v1.1.20 hielt das für einen
+  Kampf. Jetzt hält nur dein eigener Kampf das Fenster zu - es geht auf,
+  während die Gruppe ohne dich pullt, und schließt sich weiter, wenn du
+  selbst kämpfst.
+- **Deine Werte im Schlüssel.** Die Zielwerte zeigten dort keine eigenen
+  Bahnen. MetaCodex merkt sich deine Wertungen jetzt, wann immer das
+  Spiel sie herausgibt - beim Betreten einer Welt oder Instanz, also vor
+  dem Start des Schlüssels, und bei jedem Wechsel der Ausrüstung - und
+  zeigt sie im Lauf mit „Stand vor dem Lauf". Dort ändern sie sich
+  nicht; die Ausrüstung ist dieselbe.
+
 ## [1.1.20] - 2026-10-19
 
 ### Neu

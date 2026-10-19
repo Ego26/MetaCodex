@@ -4,6 +4,22 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ## [Unreleased]
 
+## [1.1.21] - 2026-10-19
+
+### Fixed
+
+- **MetaCodex did not open during a Mythic+ key.** Inside a running key
+  the game keeps your combat ratings secret for the whole run, between
+  pulls too, and v1.1.20 took that for combat. Now only your own combat
+  keeps the window closed - it opens while the group pulls without you,
+  and still closes when you start a fight yourself.
+- **Your values in the key.** The stat targets showed no bars of your
+  own there. MetaCodex now remembers your ratings whenever the game
+  hands them out - on entering a world or instance, before the key
+  starts, and on every gear change - and shows them during the run,
+  marked "as before the run". They do not change there; the gear is the
+  same.
+
 ## [1.1.20] - 2026-10-19
 
 ### Added
