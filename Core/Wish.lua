@@ -48,6 +48,33 @@ local function mitRealm(name)
 end
 Wish.WithRealm = mitRealm
 
+---Die Klassenkennung ("ROGUE") fuer die Farbe des Namens.
+---
+---Das Ereignis liefert womoeglich den uebersetzten Namen ("Schurke").
+---Dann wird er zurueckgefuehrt; und geht auch das nicht, kennt das
+---Spiel die Klasse jedes Gruppenmitglieds beim Namen.
+local function klasse(angabe, player)
+    local farben = RAID_CLASS_COLORS or {}
+    if type(angabe) == "string" and farben[angabe] then return angabe end
+    local info = C_CreatureInfo and C_CreatureInfo.GetClassInfo
+    if type(angabe) == "string" and type(info) == "function" then
+        for id = 1, 20 do
+            local k = info(id)
+            if type(k) == "table" and (k.className == angabe or k.classFile == angabe) then
+                return k.classFile
+            end
+        end
+    end
+    if type(UnitClass) == "function" and type(player) == "string" then
+        for _, name in ipairs({ player, (player:gsub("%-.*$", "")) }) do
+            local _, datei = UnitClass(name)
+            if type(datei) == "string" and farben[datei] then return datei end
+        end
+    end
+    return nil
+end
+Wish.ClassOf = klasse
+
 ---Bin das ich?
 local function ich(name)
     local selbst = UnitName and UnitName("player")
@@ -83,7 +110,7 @@ function Wish.Seen(itemID, link, player, classFile)
         id = itemID,
         link = type(link) == "string" and link or nil,
         player = mitRealm(player),
-        class = type(classFile) == "string" and classFile or nil,
+        class = klasse(classFile, player),
     }
     Wish.Show()
     return true
@@ -241,7 +268,9 @@ function Wish.Test()
     if not id then return false end
     local name = UnitName and UnitName("player") or "?"
     local realm = GetNormalizedRealmName and GetNormalizedRealmName()
-    local _, classFile = UnitClass and UnitClass("player")
+    -- NICHT "UnitClass and UnitClass(...)": das "and" schneidet auf einen
+    -- Wert ab, und die Kennung kam nie an - der Name stand grau.
+    local classFile = klasse(nil, "player")
     offen[#offen + 1] = {
         id = id,
         link = select(2, ns.Compat.ItemInfo(id)),

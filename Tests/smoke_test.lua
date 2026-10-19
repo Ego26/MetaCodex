@@ -6571,6 +6571,22 @@ do
     local werZeile = fenster() and fenster().rows[1].who:GetText() or ""
     check("die Zeile nennt Name-Realm, sonst nichts",
         werZeile:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") == "Gluecks-Realm", werZeile)
+    -- Die Klasse fuer die Farbe: Kennung, uebersetzter Name, Gruppe.
+    do
+        local echtFarben, echtInfo, echtUnit = rawget(_G, "RAID_CLASS_COLORS"),
+            rawget(_G, "C_CreatureInfo"), rawget(_G, "UnitClass")
+        RAID_CLASS_COLORS = { ROGUE = {}, PRIEST = {} }
+        C_CreatureInfo = { GetClassInfo = function(id)
+            if id == 4 then return { className = "Schurke", classFile = "ROGUE" } end
+        end }
+        UnitClass = function(name) if name == "Gruppe" then return "Priester", "PRIEST" end end
+        check("eine Kennung bleibt Kennung", ns.Wish.ClassOf("ROGUE", "x") == "ROGUE")
+        check("ein uebersetzter Name wird zur Kennung", ns.Wish.ClassOf("Schurke", "x") == "ROGUE",
+            tostring(ns.Wish.ClassOf("Schurke", "x")))
+        check("ohne Angabe fragt es die Gruppe", ns.Wish.ClassOf(nil, "Gruppe-Realm") == "PRIEST",
+            tostring(ns.Wish.ClassOf(nil, "Gruppe-Realm")))
+        RAID_CLASS_COLORS, C_CreatureInfo, UnitClass = echtFarben, echtInfo, echtUnit
+    end
     -- Immer mit Realm: ohne ihn haengt der eigene an.
     local echtRealm = rawget(_G, "GetNormalizedRealmName")
     GetNormalizedRealmName = function() return "Blackhand" end
