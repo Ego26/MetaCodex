@@ -1036,7 +1036,10 @@ local function categoriesIn(section, rows)
             label = key and L["CONSUM_" .. key]
         elseif section.key == "races" then
             -- Nach Fraktion: wer Horde spielt, waehlt unter der Horde.
-            key = row.side
+            -- "Beide Fraktionen" ist keine Wahl - das waere dasselbe wie
+            -- "alle" (19. Oktober). Wer auf beiden Seiten spielbar ist,
+            -- steht beim Filtern bei beiden.
+            key = row.side ~= "both" and row.side or nil
             label = key and L["RACE_GROUP_" .. key]
         elseif section.key == "drops" then
             -- Gefiltert wird nach der ART des Fundorts, nicht nach der
@@ -5856,6 +5859,8 @@ function UI.Refresh()
                 or (section.key == "drops") and row.place
                 or (section.key == "races") and row.side
                 or row.slot
+            -- Eine Rasse beider Seiten passt zu jeder Fraktion.
+            if section.key == "races" and row.side == "both" then key = picked end
             if key == picked then kept[#kept + 1] = row end
         end
         currentRows = kept

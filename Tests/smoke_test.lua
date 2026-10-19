@@ -6649,11 +6649,29 @@ do
     for _, row in ipairs(wow.rows()) do
         local tip = row:IsShown() and rawget(row, "raceTip")
         if tip then
-            if tip.side == "horde" then horde = horde + 1 else fremd = fremd + 1 end
+            -- Beide Seiten gehoeren dazu: spielbar ist es auch als Horde.
+            if tip.side == "horde" or tip.side == "both" then horde = horde + 1 else fremd = fremd + 1 end
         end
     end
     check("der Fraktionsfilter laesst nur die Horde stehen", horde > 0 and fremd == 0,
         horde .. " Horde, " .. fremd .. " andere")
+    -- Beide Fraktionen ist keine eigene Wahl, und wer auf beiden Seiten
+    -- spielbar ist, steht bei Horde UND Allianz.
+    local wahl = {}
+    for _, cat in ipairs(ns.UI.Frame().__categories or {}) do wahl[#wahl + 1] = cat.key end
+    check("zur Wahl stehen nur Horde und Allianz", table.concat(wahl, ",") ~= ""
+        and not table.concat(wahl, ","):find("both", 1, true), table.concat(wahl, ","))
+    ns.Recommend.RaceSims = function() return { ts = "x", [5] = { { 24, 1.0 }, { 1, 0.5 }, { 6, 0 } } } end
+    for _, seite in ipairs({ "horde", "alliance" }) do
+        ns.Profile.SetCategory("races", seite)
+        rowsInSection("races")
+        local panda = false
+        for _, row in ipairs(wow.rows()) do
+            local tip = row:IsShown() and rawget(row, "raceTip")
+            if tip and tip.id == 24 then panda = true end
+        end
+        check("der Pandaren steht auch bei " .. seite, panda)
+    end
     ns.Profile.SetCategory("races", nil)
 
     -- Ohne Daten: in der Dev-Version die Vorschau, sonst nichts.
