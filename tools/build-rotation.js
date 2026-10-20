@@ -196,11 +196,12 @@ const bare = (s) => String(s || '').replace(/_/g, '');
   console.log('Build:', build);
   const db2 = async (table, extra) => parseCSV(await patient(`https://wago.tools/db2/${table}/csv?build=${build}${extra || ''}`));
   const [spellNames, specSpells, skillLines, chrSpecs, overrides, traitDefs, spellMisc, durations,
-    spellTexts, classOptions, chrClasses, spellCooldowns, auraOptions] = await Promise.all([
+    spellTexts, classOptions, chrClasses, spellCooldowns, auraOptions, spellPower, itemRows] = await Promise.all([
     db2('SpellName'), db2('SpecializationSpells'), db2('SkillLineAbility'), db2('ChrSpecialization'),
     db2('SpellEffect', '&filter%5BEffectAura%5D=332'),
     db2('TraitDefinition'), db2('SpellMisc'), db2('SpellDuration'),
     db2('Spell'), db2('SpellClassOptions'), db2('ChrClasses'), db2('SpellCooldowns'), db2('SpellAuraOptions'),
+    db2('SpellPower'), db2('Item'),
   ]);
   const nameEN = new Map(spellNames.map((r) => [Number(r.ID), r.Name_lang]));
 
@@ -270,6 +271,17 @@ const bare = (s) => String(s || '').replace(/_/g, '');
     const ms = Math.max(Number(r.RecoveryTime) || 0, Number(r.CategoryRecoveryTime) || 0);
     if (ms > 0 && !cdSeconds.has(Number(r.SpellID))) cdSeconds.set(Number(r.SpellID), ms / 1000);
   }
+  // A spell's cost: rage, runic power, astral power, insanity, fury and pain
+  // are stored times ten (Starsurge: 400 for 40).
+  const ZEHNTEL = new Set([1, 6, 8, 13, 17, 18]);
+  const costs = new Map();
+  for (const r of spellPower) {
+    const id = Number(r.SpellID);
+    const c = Number(r.ManaCost) || 0;
+    if (c > 0 && !costs.has(id)) costs.set(id, ZEHNTEL.has(Number(r.PowerType)) ? c / 10 : c);
+  }
+  // An item's kind: weapons are class 2, a dagger subclass 15.
+  const itemKind = new Map(itemRows.map((r) => [Number(r.ID), { cls: Number(r.ClassID), sub: Number(r.SubclassID) }]));
   const maxStacks = new Map();
   for (const r of auraOptions) {
     const n = Number(r.CumulativeAura) || 0;
@@ -446,6 +458,12 @@ const bare = (s) => String(s || '').replace(/_/g, '');
       return best ? best.id : null;
     };
     const simcKlasse = simcBuffs[s.cls.replace(/-/g, '_')] || new Map();
+    // All IDs of a name, the class's family first (for values like a
+    // cooldown's length, which only some of them carry).
+    const kandidaten = (k) => {
+      const ids = idsByBare.get(String(k || '').replace(/_/g, '')) || [];
+      return [...ids].sort((x, y) => (familyOfSpell.get(y) === family) - (familyOfSpell.get(x) === family));
+    };
     const spell = (k) => {
       const sid = simcKlasse.get(k);
       if (sid && nameEN.has(sid)) return sid;
@@ -527,7 +545,7 @@ const bare = (s) => String(s || '').replace(/_/g, '');
       const satz = (conds) => {
         let acc = null;
         for (const text of conds) {
-          const r = apl.fold(apl.parse(text), c);
+          const r = apl.fold(apl.parse(apl.simcNames(text)), c);
           if (r.lo === 0 && r.hi === 0) continue;
           const rec = apl.vereinfacht(apl.records(r, sp));
           if (apl.isOther(rec) || rec[0] === 'true' || rec[0] === 'false') return undefined;
@@ -550,7 +568,7 @@ const bare = (s) => String(s || '').replace(/_/g, '');
       if (!d || resolving.has(name)) return null;
       resolving.add(name);
       try {
-        const folds = (text) => apl.fold(apl.parse(text), c);
+        const folds = (text) => apl.fold(apl.parse(apl.simcNames(text)), c);
         const live = d.filter((o) => {
           if (!o.if) return true;
           const r = folds(o.if);
@@ -559,7 +577,7 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         if (!live.length) return { num: 0 };
         // Only ever reset to its default: that value, always (Retribution's
         // pre_es_wake).
-        if (live.every((o) => o.op === 'reset')) return apl.parse(String(live[live.length - 1].default || 0));
+        if (live.every((o) => o.op === 'reset')) return apl.parse(apl.simcNames(String(live[live.length - 1].default || 0)));
         const valueOf = (o) => {
           if (o.if) {
             const r = folds(o.if);
@@ -583,9 +601,9 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         const v = values[0];
         if (v.startsWith('?:')) {
           const [cond, yes, no] = v.slice(2).split('\u0000');
-          return { op: '?:', c: apl.parse(cond), a: apl.parse(yes), b: apl.parse(no) };
+          return { op: '?:', c: apl.parse(apl.simcNames(cond)), a: apl.parse(apl.simcNames(yes)), b: apl.parse(apl.simcNames(no)) };
         }
-        return apl.parse(v);
+        return apl.parse(apl.simcNames(v));
       } finally {
         resolving.delete(name);
       }
@@ -681,10 +699,20 @@ const bare = (s) => String(s || '').replace(/_/g, '');
       }
       // Set bonus measured: four or more slots whose top item is a set piece.
       let setPieces = 0;
-      for (const items of Object.values(best.entry.gear || {})) {
+      // Armour slots only: the trinkets of a raid carry "set" too, and
+      // counted, the four-piece bonus was assumed too easily (21 October).
+      const SET_SLOTS = new Set(['Head', 'Shoulders', 'Chest', 'Hands', 'Legs', 'Back', 'Wrist', 'Waist', 'Feet']);
+      for (const [slot, items] of Object.entries(best.entry.gear || {})) {
+        if (!SET_SLOTS.has(slot)) continue;
         const first = list(items)[0];
         if (first && (first.kind === 'set' || setItems.has(first.id))) setPieces += 1;
       }
+      // The weapon most measured players carry, by kind (SimC: main_hand.dagger).
+      const waffe = (slot) => {
+        const key = slot === 'main_hand' ? 'Main Hand' : 'Off Hand';
+        const first = list((best.entry.gear || {})[key])[0];
+        return first ? itemKind.get(first.id) : undefined;
+      };
       const setBonus = (name) => {
         const mm = name.match(/^([a-z]+\d+)_(\d)pc$/);
         if (!mm || mm[1] !== current) return false;
@@ -741,7 +769,7 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         const plain = k.replace(/_(self|buff|debuff|dot)$/, '');
         if (specVersion.has(k)) return specVersion.get(k);
         if (specVersion.has(plain)) return specVersion.get(plain);
-        return spell(k) || spell(plain);
+        return spell(k) || spell(plain) || spell(plain.replace(/_(cat|bear)$/, '')) || spell(plain.replace(/s$/, ''));
       };
       // The IDs the measured players actually cast win for actions.
       const castIds = new Set(gemessen ? [...gemessen.by.keys()] : []);
@@ -765,13 +793,28 @@ const bare = (s) => String(s || '').replace(/_/g, '');
           fightStyle: mode === 'mplus' ? 'dungeonslice' : 'patchwerk',
           setBonus, targets, apex,
           cdOf: (k) => {
-            for (const id of [actionSpellFor(k, castIds), spellM(k), ...racialIds(k)]) {
+            for (const id of [actionSpellFor(k, castIds), spellM(k), ...racialIds(k), ...kandidaten(k)]) {
               if (id && cdSeconds.get(id)) return cdSeconds.get(id);
             }
             return undefined;
           },
           stacksOf: (k) => { const id = spellM(k); return id ? maxStacks.get(id) : undefined; },
-          durOf: (k) => { const id = spellM(k); const ms = id ? lastsMs.get(id) : 0; return ms > 0 ? ms / 1000 : undefined; },
+          durOf: (k) => {
+            for (const id of [spellM(k), ...kandidaten(k)]) {
+              const ms = id ? lastsMs.get(id) : 0;
+              if (ms > 0) return ms / 1000;
+            }
+            return undefined;
+          },
+          costOf: (k) => {
+            for (const id of [actionSpellFor(k, castIds), ...kandidaten(k)]) if (id && costs.has(id)) return costs.get(id);
+            return undefined;
+          },
+          weapon: (slot, kind) => {
+            const w = waffe(slot);
+            if (!w) return null;
+            return kind === 'dagger' ? w.sub === 15 : null;
+          },
           isLatch: (name) => latchShape(name) !== null,
         };
         c.variable = (name) => variableIn(name, c);
@@ -935,7 +978,7 @@ const bare = (s) => String(s || '').replace(/_/g, '');
     'remover', 'chargesunder', 'chargesfull', 'doton', 'charges', 'tgtis', 'tgtmin', 'tgtmax', 'hpunder', 'hpover',
     'timeunder', 'timeover', 'resnotcap', 'resfull', 'resenough', 'resmin', 'resunder', 'resis', 'respctmin',
     'respctunder', 'ago', 'castleft', 'castdone', 'myhpunder', 'myhpover', 'surge', 'nosurge', 'notyet', 'already',
-    'since', 'notsince', 'cmp']);
+    'since', 'notsince', 'cmp', 'multunder']);
   const fremd = new Set();
   const pruefe = (c) => {
     if (!Array.isArray(c)) return;

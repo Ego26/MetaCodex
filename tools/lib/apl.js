@@ -181,6 +181,19 @@ function atomRange(a, ctx) {
   if (head === 'action' && p[2] === 'placed') return [0, 1];
   if (head === 'stat') return [0, INF];
   if (a === 'health.pct') return [0, 100];
+  if (head === 'action' && p[2] === 'cost' && ctx.costOf) {
+    const c = ctx.costOf(p[1]);
+    if (c !== undefined) return [c, c];
+  }
+  // The weapon the measured players carry (Rogue: daggers).
+  if ((head === 'main_hand' || head === 'off_hand') && ctx.weapon) {
+    const w = ctx.weapon(head, p[1]);
+    if (w !== null && w !== undefined) return w ? [1, 1] : [0, 0];
+  }
+  // In melee range: the lists ask the distance only to Charge or Harpoon in.
+  if (a === 'target.distance') return [5, 5];
+  // A cast time is a few seconds at most.
+  if (head === 'action' && (p[2] === 'cast_time' || p[2] === 'execute_time')) return [0, 10];
   if ((head === 'buff' || head === 'debuff' || head === 'dot') && p[2] === 'duration' && ctx.durOf) {
     const sec = ctx.durOf(p[1]);
     if (sec) return [sec, sec];
@@ -453,6 +466,7 @@ function recordsOf(e, spell) {
     if (p[0] === 'action' && p[2] === 'executing' && sp(p[1])) return ['casting', sp(p[1])];
     if (p[0] === 'action' && p[2] === 'in_flight' && sp(p[1])) return ['flying', sp(p[1])];
     if (p[0] === 'stealthed') return ['stealthed'];
+    if (RESOURCES.has(p[0]) && p.length === 1) return ['resmin', p[0], 1];
     if (p[0] === 'action' && p[2] === 'demonsurge_available' && sp(p[1]) && sp('demonsurge')) return ['surge', sp('demonsurge'), sp(p[1])];
     if (p[0] === 'action' && p[2] === 'placed' && sp(p[1])) return ['placed', sp(p[1])];
     // A state the list keeps over the fight.
@@ -507,6 +521,7 @@ function compare(e, spell) {
   if ((p[0] === 'dot' || p[0] === 'action') && p[2] === 'pmultiplier' && n !== null && spell(p[1])) {
     if (lt && n <= 1) return ['weakdot', spell(p[1])];
     if (!lt && n >= 1) return ['strongdot', spell(p[1])];
+    if (lt) return ['multunder', spell(p[1]), n];
   }
   // A bleed's strength (Feral): the new one would be stronger than the running one.
   if (at === 'persistent_multiplier' || (b.atom || '') === 'persistent_multiplier') {
@@ -536,7 +551,7 @@ function compare(e, spell) {
     }
     return generic();
   }
-  if ((p[0] === 'buff' || p[0] === 'debuff') && (p[2] === 'stack' || p[2] === 'react') && n !== null && spell(p[1])) {
+  if ((p[0] === 'buff' || p[0] === 'debuff' || p[0] === 'dot') && (p[2] === 'stack' || p[2] === 'react') && n !== null && spell(p[1])) {
     const id = spell(p[1]);
     if (big) return ['stackmin', id, atLeast(n)];
     if (op === '<' || op === '<=') return below(n) <= 1 ? ['down', id] : ['stackunder', id, below(n)];
@@ -632,6 +647,12 @@ function noun(e, spell) {
     if (p[0] === 'action' && p[2] === 'in_flight_remains' && spell(p[1])) return ['flyleft', spell(p[1])];
     if (RESOURCES.has(p[0]) && p[1] === 'regen') return ['regen', p[0]];
     return null;
+  }
+  if ((e.op === '<?' || e.op === '>?') && e.a && e.b) {
+    const x = noun(e.a, spell);
+    const y = noun(e.b, spell);
+    if (!x || !y) return null;
+    return [e.op === '<?' ? 'min' : 'max', x, y];
   }
   if ((e.op === '*' || e.op === '+' || e.op === '-') && e.a && e.b) {
     const x = noun(e.a, spell);
@@ -729,6 +750,53 @@ const NOISE = new Set(['snapshot_stats', 'variable', 'use_item', 'use_items', 'p
  *            isTalentSpell(slug), talent(slug) }
  * Returns { lines: [{ s, c: [records...], any: [[records...]...], t }], moving: [ids], keep: [ids], miss: Set }
  */
+/**
+ * SimC's other spellings of the same thing, written the one way the
+ * translator reads. Used on every condition AND on every variable's value
+ * (21 October: "active_dots.moonfire" stood in a variable and stayed vague).
+ */
+function simcNames(text) {
+  return String(text)
+    // SimC's other spellings of the same thing.
+    .replace(/\.remains_expected\b/g, '.remains')
+    // What Reap would consume: the soul fragments there are (SimC: the lower
+    // of the fragments and the most it takes).
+    .replace(/\baction\.[a-z0-9_]+\.souls_consumed\b/g, 'soul_fragments')
+    // More of SimC's spellings: a typo kept in the lists, the Paladin's
+    // ground effect, a talent asked as an action.
+    .replace(/\bactive_dots\./g, 'active_dot.')
+    .replace(/\baction\.([a-z0-9_]+)\.(charges_fractional|charges|full_recharge_time)\b/g, 'cooldown.$1.$2')
+    .replace(/(^|[^\w.])demonic_art\b/g, '$1buff.demonic_art.up')
+    // Firestarter: the talent, against a target above 90 % health.
+    .replace(/\bfirestarter\.active\b/g, '(talent.firestarter&target.health.pct>90)')
+    .replace(/\.base_deficit\b/g, '.deficit')
+    // Feral's Moonfire is Moonfire; a racial's cooldown and its buff's length.
+    .replace(/\bmoonfire_cat\b/g, 'moonfire')
+    .replace(/\baction\.([a-z0-9_]+)\.cooldown\b/g, 'cooldown.$1.duration')
+    .replace(/\baction\.([a-z0-9_]+)\.duration\b/g, 'buff.$1.duration')
+    .replace(/\baction\.([a-z0-9_]+)\.ready\b/g, 'cooldown.$1.ready')
+    .replace(/\baction\.([a-z0-9_]+)\.channeling\b/g, 'action.$1.executing')
+    // SimC's settings, at their defaults (engine/class_modules): the Death
+    // Knight's first Anti-Magic Shell at 20 seconds; no pause; in melee range.
+    .replace(/\bdeath_knight\.first_ams_cast\b/g, '20')
+    .replace(/\btarget\.cooldown\.pause_action\.remains\b/g, '0')
+    .replace(/(^|[^\w.])priority_rotation\b/g, '$10')
+    .replace(/\btarget\.has_absorb\b/g, '0')
+    .replace(/\bpriest\.force_devour_matter\b/g, '0')
+    .replace(/\.regen_combined\b/g, '.regen')
+    .replace(/\bbuff\.twist_of_fate_can_trigger_on_ally_heal\.up\b/g, '0')
+    // "chi<chi.max": not full.
+    .replace(/\b([a-z_]+)<\1\.max\b/g, '$1.deficit>0')
+    .replace(/\bcooldown\.invoke_power_infusion_0\./g, 'cooldown.power_infusion.')
+    .replace(/(^|[^\w.])consecration\.up\b/g, '$1buff.consecration.up')
+    .replace(/\baction\.([a-z0-9_]+)\.enabled\b/g, 'talent.$1')
+    // A buff's last trigger and a spell's last cast: the same "how long ago".
+    .replace(/\btime-buff\.([a-z0-9_]+)\.last_trigger\b/g, 'time-action.$1.last_used')
+    .replace(/\bdot\.([a-z0-9_]+)\.active_dots\b/g, 'active_dot.$1')
+    .replace(/\bbuff\.([a-z0-9_]+)\.at_max_stacks\b/g, '(buff.$1.stack>=buff.$1.max_stack)')
+;
+}
+
 function buildTab(lists, start, ctx, resolve) {
   const lines = [];
   const moving = [];
@@ -751,32 +819,12 @@ function buildTab(lists, start, ctx, resolve) {
     pmultiplier: (a) => `dot.${a}.pmultiplier`,
     in_flight: (a) => `action.${a}.in_flight`,
     cast_time: (a) => `action.${a}.cast_time`,
+    execute_time: (a) => `action.${a}.cast_time`,
+    duration: (a) => `buff.${a}.duration`,
   };
-  const own = (text, action) => text
-    // SimC's other spellings of the same thing.
-    .replace(/\.remains_expected\b/g, '.remains')
-    // What Reap would consume: the soul fragments there are (SimC: the lower
-    // of the fragments and the most it takes).
-    .replace(/\baction\.[a-z0-9_]+\.souls_consumed\b/g, 'soul_fragments')
-    // More of SimC's spellings: a typo kept in the lists, the Paladin's
-    // ground effect, a talent asked as an action.
-    .replace(/\bactive_dots\./g, 'active_dot.')
-    .replace(/\baction\.([a-z0-9_]+)\.(charges_fractional|charges|full_recharge_time)\b/g, 'cooldown.$1.$2')
-    .replace(/(^|[^\w.])demonic_art\b/g, '$1buff.demonic_art.up')
-    // Firestarter: the talent, against a target above 90 % health.
-    .replace(/\bfirestarter\.active\b/g, '(talent.firestarter&target.health.pct>90)')
-    .replace(/\.base_deficit\b/g, '.deficit')
-    // "chi<chi.max": not full.
-    .replace(/\b([a-z_]+)<\1\.max\b/g, '$1.deficit>0')
-    .replace(/\bcooldown\.invoke_power_infusion_0\./g, 'cooldown.power_infusion.')
-    .replace(/(^|[^\w.])consecration\.up\b/g, '$1buff.consecration.up')
-    .replace(/\baction\.([a-z0-9_]+)\.enabled\b/g, 'talent.$1')
-    // A buff's last trigger and a spell's last cast: the same "how long ago".
-    .replace(/\btime-buff\.([a-z0-9_]+)\.last_trigger\b/g, 'time-action.$1.last_used')
-    .replace(/\bdot\.([a-z0-9_]+)\.active_dots\b/g, 'active_dot.$1')
-    .replace(/\bbuff\.([a-z0-9_]+)\.at_max_stacks\b/g, '(buff.$1.stack>=buff.$1.max_stack)')
+  const own = (text, action) => simcNames(text)
     .replace(
-    /(^|[^\w.])(combo_strike|cooldown_react|refreshable|ticking|remains|charges_fractional|charges|full_recharge_time|executing|pmultiplier|in_flight|cast_time)(?![\w.])/g,
+    /(^|[^\w.])(combo_strike|cooldown_react|refreshable|ticking|remains|charges_fractional|charges|full_recharge_time|executing|pmultiplier|in_flight|cast_time|execute_time|duration)(?![\w.])/g,
     (m, pre, name) => pre + '(' + BARE[name](action) + ')');
 
   // The resolver, and through it the states a list keeps over the fight.
@@ -870,4 +918,4 @@ function buildTab(lists, start, ctx, resolve) {
   return { lines: merged.filter((l) => !l.never), moving, keep, items, miss };
 }
 
-module.exports = { parse, parseApl, fold, records, buildTab, tokenize, NOISE, RACIALS, isOther, show, logVague, vereinfacht };
+module.exports = { parse, parseApl, fold, records, buildTab, tokenize, NOISE, RACIALS, isOther, show, logVague, vereinfacht, simcNames };

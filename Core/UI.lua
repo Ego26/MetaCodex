@@ -7185,6 +7185,7 @@ do
             return L["ROT_N_" .. k]:format(nm(n[2]))
         end
         if k == "inflight" or k == "rtb" or k == "tgt" then return L["ROT_N_" .. k] end
+        if k == "min" or k == "max" then return L["ROT_N_" .. k]:format(wert(n[2], nm), wert(n[3], nm)) end
         if k == "stat" then
             local stat = L["STAT_" .. tostring(n[2])]
             return L["ROT_N_stat"]:format(stat ~= "STAT_" .. tostring(n[2]) and stat or tostring(n[2]))
@@ -7218,7 +7219,9 @@ do
         if PLAIN[kind] then return L["ROT_C_" .. kind] end
         -- Wie lange her: vor weniger / mehr als N Sek. gewirkt.
         if kind == "ago" then return L["ROT_C_ago_" .. tostring(c[3])]:format(nm(c[2]), zahl(c[4])) end
-        if kind == "castleft" or kind == "castdone" then return L["ROT_C_" .. kind]:format(nm(c[2]), zahl(c[3])) end
+        if kind == "castleft" or kind == "castdone" or kind == "multunder" then
+            return L["ROT_C_" .. kind]:format(nm(c[2]), zahl(c[3]))
+        end
         if kind == "myhpunder" or kind == "myhpover" then return L["ROT_C_" .. kind]:format(zahl(c[2])) end
         -- Dämonenwoge: Woge, Fähigkeit.
         if kind == "surge" or kind == "nosurge" then return L["ROT_C_" .. kind]:format(nm(c[2]), nm(c[3])) end
@@ -7271,12 +7274,8 @@ do
             local oder = table.concat(opts, L["ROT_OR"])
             parts[#parts + 1] = #parts > 0 and ("(" .. oder .. ")") or oder
         end
-        -- Was sich nicht sagen liess, steht EINMAL am Ende (20. Oktober):
-        -- "und weitere Bedingungen erfuellt sind" - oder, wenn sonst nichts
-        -- bekannt ist, "bestimmte Bedingungen erfuellt sind".
-        if line.more then
-            parts[#parts + 1] = #parts > 0 and L["ROT_C_more"] or L["ROT_C_other"]
-        end
+        -- Was SimC zusaetzlich rechnet und im Spiel nicht sichtbar ist, steht
+        -- nicht als Text im Satz, sondern als "≈" an seinem Ende (21. Oktober).
         return liste(parts)
     end
 
@@ -7316,7 +7315,10 @@ do
         return L["ROT_I_use"]:format(art)
     end
 
-    local function satz(line, tab, last, nm)
+    -- "≈" als Link: der Zeiger darauf erklaert es (OnHyperlinkEnter).
+    local VAGE = "  |Hmcvage|h|cff8b949e\226\137\136|r|h"
+
+    local function satzOhneZeichen(line, tab, last, nm)
         nm = nm or zauber
         if line.ik and line.ik ~= "racial" then return gegenstandSatz(line, nm) end
         local name = nm(line.s)
@@ -7327,8 +7329,15 @@ do
         if ziel then return L["ROT_S_target"]:format(name, ziel) end
         if when ~= "" then return L["ROT_S_if"]:format(name, when) end
         if tab == "pre" then return L["ROT_S_pre"]:format(name) end
+        if line.more then return L["ROT_S_some"]:format(name) end
         if last and (tab == "st" or tab == "aoe") then return L["ROT_S_filler"]:format(name) end
         return L["ROT_S_cd"]:format(name)
+    end
+
+    local function satz(line, tab, last, nm)
+        local text = satzOhneZeichen(line, tab, last, nm)
+        if line.more then text = text .. VAGE end
+        return text
     end
     UI.RotationSentence = satz
 
@@ -7508,7 +7517,12 @@ do
         if type(frame.SetHyperlinksEnabled) == "function" then frame:SetHyperlinksEnabled(true) end
         frame:SetScript("OnHyperlinkEnter", function(self, link)
             GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT")
-            GameTooltip:SetHyperlink(link)
+            if link == "mcvage" then
+                GameTooltip:SetText(L["ROT_VAGUE_TITLE"], 1, 1, 1)
+                GameTooltip:AddLine(L["ROT_VAGUE_TIP"], 0.85, 0.85, 0.85, true)
+            else
+                GameTooltip:SetHyperlink(link)
+            end
             GameTooltip:Show()
         end)
         frame:SetScript("OnHyperlinkLeave", function() GameTooltip:Hide() end)

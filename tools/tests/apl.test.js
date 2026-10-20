@@ -145,6 +145,15 @@ check('Aufladungen einer Aktion sind die der Abklingzeit',
 check('Wirkzeit als Wert',
   tab('actions=lightning_bolt,if=buff.stormkeeper.remains<action.lava_burst.cast_time', [1, 1])[0].c,
   [['cmp', ['rem', 6], 'lt', ['casttime', 1]]]);
+check('Min/Max als Vergleich',
+  tab('actions=lightning_bolt,if=(cooldown.ascendance.remains<?cooldown.stormkeeper.remains)>5', [1, 1])[0].c,
+  [['cmp', ['min', ['cd', 10], ['cd', 6]], 'gt', ['n', 5]]]);
+check('Waffe aus der gemessenen Ausruestung',
+  apl.buildTab(apl.parseApl('actions=lightning_bolt,if=!main_hand.dagger\nactions+=/chain_lightning'), 'default',
+    { ...ctx([1, 1]), weapon: () => true }, resolve).lines.map((l) => l.s), [8]);
+check('Kosten aus den Spieldaten',
+  apl.buildTab(apl.parseApl('actions=lightning_bolt,if=action.earthquake.cost>50'), 'default',
+    { ...ctx([1, 1]), costOf: () => 60 }, resolve).lines[0].c, []);
 // Schmuck ist ausgenommen: die Rotation gilt ohne Benutzen-Effekt.
 check('Schmuck-Bedingungen fallen aus der Rotation',
   tab('actions=ascendance,if=trinket.1.cooldown.remains>20|buff.stormkeeper.up', [1, 1])[0].c, [['up', 6]]);

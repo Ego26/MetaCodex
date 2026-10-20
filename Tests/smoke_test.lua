@@ -6749,6 +6749,8 @@ do
         { "myhpunder", 50 }, { "myhpover", 50 }, { "surge", 1, 2 }, { "nosurge", 1, 2 },
         { "notyet", { "up", 1 } }, { "already", { "up", 1 } }, { "since", { "up", 1 }, { "up", 2 } },
         { "notsince", { "up", 1 }, { "up", 2 } },
+        { "multunder", 1, 1.2 }, { "cmp", { "min", { "cd", 1 }, { "cd", 2 } }, "gt", { "n", 5 } },
+        { "cmp", { "max", { "rem", 1 }, { "rem", 2 } }, "lt", { "n", 5 } },
         { "cmp", { "dots", 1 }, "ge", { "tgt" } }, { "cmp", { "full", 1 }, "le", { "gcd" } },
         { "cmp", { "usable", 1 }, "ge", { "rem", 2 } }, { "cmp", { "casttime", 1 }, "lt", { "rem", 2 } },
         { "cmp", { "flyleft", 1 }, "lt", { "n", 1 } }, { "cmp", { "inflight" }, "eq", { "n", 0 } },
@@ -6764,11 +6766,13 @@ do
     end
     check("jede Satzart hat eine Vorlage", #ohne == 0, table.concat(ohne, ", "))
     -- Hoechstens einmal je Satz: der Merker steht am Ende, einmal.
+    -- Was SimC zusaetzlich rechnet: ein "≈" am Ende, einmal, kein Text.
     local einmal = ns.UI.RotationSentence({ s = 1, c = { { "up", 2 } }, more = true }, "st", false)
-    check("weitere Bedingungen einmal am Ende", select(2, einmal:gsub(L["ROT_C_more"], "")) == 1
+    check("Simuliertes als Zeichen am Ende, einmal", select(2, einmal:gsub("|Hmcvage|h", "")) == 1
         and not einmal:find(L["ROT_C_other"], 1, true), einmal)
     local nurVage = ns.UI.RotationSentence({ s = 1, more = true }, "st", false)
-    check("ohne Bekanntes: bestimmte Bedingungen", nurVage:find(L["ROT_C_other"], 1, true) ~= nil, nurVage)
+    check("ohne Bekanntes: unter bestimmten Umstaenden", nurVage:find(L["ROT_S_some"]:format("#1"), 1, true) == 1
+        and nurVage:find("|Hmcvage|h", 1, true) ~= nil, nurVage)
     -- Zwei Werte verglichen, als Satz.
     local vergleich = say({ "cmp", { "rem", 1 }, "gt", { "mul", { "gcd" }, { "n", 2 } } })
     check("ein Vergleich zweier Werte als Satz",
@@ -6884,6 +6888,12 @@ do
         if ueber then ueber(e, "spell:260734") end
         GameTooltip.SetHyperlink = echtLink
         check("ueber einem Namen sein eigener Tooltip", linkGezeigt == "spell:260734", tostring(linkGezeigt))
+        local titel
+        local echtText = GameTooltip.SetText
+        GameTooltip.SetText = function(_, t) titel = t end
+        if ueber then ueber(e, "mcvage") end
+        GameTooltip.SetText = echtText
+        check("das Zeichen erklaert sich", titel == L["ROT_VAGUE_TITLE"], tostring(titel))
         -- Reiter Flaeche: zwei Saetze, kein Ablauf.
         local flaeche
         for _, b in ipairs(karte.tabs) do if b.key == "aoe" then flaeche = b end end
