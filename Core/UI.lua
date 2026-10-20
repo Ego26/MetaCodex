@@ -60,8 +60,15 @@ local SIDEBAR = 196
 ---
 ---Feste 196 Pixel waren richtig, solange die Schrift fest war. Bei
 ---125 % stand "Verzauberungen & Steine" bis an die Kante.
+-- MINDESTENS SO BREIT WIE DER LAENGSTE EINTRAG (20. Oktober).
+--
+-- Die Schrift ist STANDARD_TEXT_FONT, und die tauschen UI-Addons wie ElvUI
+-- gegen eine eigene. Bei einem Streamer war sie breiter, und "Handwerk &
+-- Verzierungen" lief ueber den Rand der Seitenleiste in den Inhalt. Die
+-- Breite folgte nur dem Schriftfaktor, nie dem Text. Jetzt misst das
+-- Auffrischen die Eintraege (UI.sidebarNeed), und die Leiste waechst mit.
 local function sidebarWidth()
-    return math.floor(SIDEBAR * (S.fontScale or 1) + 0.5)
+    return math.max(math.floor(SIDEBAR * (S.fontScale or 1) + 0.5), UI.sidebarNeed or 0)
 end
 
 local function contentWidth()
@@ -5369,6 +5376,18 @@ function UI.Refresh()
     -- bei 125 % der Titel auf dem Spec-Knopf und der Text der
     -- Seitenleiste auf ihrer Kante.
     frame.logo:SetSize(26 * fs, 26 * fs)
+    -- Was der laengste Eintrag braucht: sein Text, sein Einzug, der Rand des
+    -- Knopfs links und rechts und der Rand der Leiste.
+    local need = 0
+    for _, button in ipairs(navButtons) do
+        local w = tonumber(button.label:GetStringWidth()) or 0
+        local einzug = (button.section and button.section.sub) and 14 or 0
+        need = math.max(need, w + einzug + S.space.md * 3 + 4)
+    end
+    for _, head in ipairs(groupHeads) do
+        need = math.max(need, (tonumber(head.label:GetStringWidth()) or 0) + 14 + S.space.md * 3 + 4)
+    end
+    UI.sidebarNeed = math.ceil(need)
     frame.sidebar:SetWidth(MASS.sidebarWidth())
     frame.content:ClearAllPoints()
     frame.content:SetPoint("TOPLEFT", MASS.sidebarWidth(), -MASS.HEADER)
@@ -7122,10 +7141,21 @@ do
         return C_Spell and C_Spell.GetSpellTexture and C_Spell.GetSpellTexture(id) or nil
     end
 
-    -- Im Satz: Symbol in Zeilenhoehe, Name in Gold.
+    -- EIN SYMBOL IM SATZ: so gross wie die Schrift, mittig zur Zeile, der
+    -- Rand abgeschnitten. Mit ":0" sass es auf der Grundlinie und ragte nach
+    -- oben heraus - nicht mittig neben dem Namen (20. Oktober).
+    local function imSatz(tex)
+        if not tex then return "" end
+        local h = math.floor((S.font and S.font.title or 15) * (S.fontScale or 1) + 0.5)
+        return ("|T%s:%d:%d:0:-%d:64:64:5:59:5:59|t "):format(tostring(tex), h, h, math.floor(h * 0.27 + 0.5))
+    end
+
+    -- Im Satz: Symbol mittig zur Zeile, Name in Gold.
+    -- JEDER NAME EIN LINK (20. Oktober): ein Satz ist ein Textfeld, und der
+    -- Zeiger zeigte den Zauber der ganzen Zeile, egal ueber welchem Namen er
+    -- stand. Als Link meldet jeder Name sich selbst (OnHyperlinkEnter).
     local function gold(id)
-        local tex = symbol(id)
-        return (tex and ("|T" .. tostring(tex) .. ":0|t ") or "") .. "|cffffd100" .. zauber(id) .. "|r"
+        return "|Hspell:" .. tostring(id) .. "|h" .. imSatz(symbol(id)) .. "|cffffd100" .. zauber(id) .. "|r|h"
     end
 
     local function resource(key)
@@ -7216,6 +7246,12 @@ do
             local oder = table.concat(opts, L["ROT_OR"])
             parts[#parts + 1] = #parts > 0 and ("(" .. oder .. ")") or oder
         end
+        -- Was sich nicht sagen liess, steht EINMAL am Ende (20. Oktober):
+        -- "und weitere Bedingungen erfuellt sind" - oder, wenn sonst nichts
+        -- bekannt ist, "bestimmte Bedingungen erfuellt sind".
+        if line.more then
+            parts[#parts + 1] = #parts > 0 and L["ROT_C_more"] or L["ROT_C_other"]
+        end
         return liste(parts)
     end
 
@@ -7228,8 +7264,8 @@ do
     local function gegenstand(id, mitSymbol)
         local name = C_Item and C_Item.GetItemNameByID and C_Item.GetItemNameByID(id)
         local tex = mitSymbol and C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(id)
-        return (tex and ("|T" .. tostring(tex) .. ":0|t ") or "") .. "|cffffd100"
-            .. (type(name) == "string" and name or L["ROT_I_POTION"]) .. "|r"
+        return "|Hitem:" .. tostring(id) .. "|h" .. imSatz(tex) .. "|cffffd100"
+            .. (type(name) == "string" and name or L["ROT_I_POTION"]) .. "|r|h"
     end
     local SCHMUCK = "Interface\\Icons\\INV_Jewelry_TrinketPVP_01"
 
@@ -7249,7 +7285,7 @@ do
             return text
         end
         -- Schmuck: welcher, entscheidet die Ausruestung - die Art sagt wann.
-        local art = (nm ~= zauber and ("|T" .. SCHMUCK .. ":0|t ") or "")
+        local art = (nm ~= zauber and imSatz(SCHMUCK) or "")
             .. "|cffffd100" .. L["ROT_I_" .. line.ik .. "_name"] .. "|r"
         if when ~= "" then return L["ROT_I_use_if"]:format(art, when) end
         return L["ROT_I_use"]:format(art)
@@ -7418,13 +7454,21 @@ do
             else
                 GameTooltip:SetHyperlink("spell:" .. d.spell)
             end
-            if d.line then UI.RotationTooltip(d) end
             GameTooltip:Show()
         end)
         frame:SetScript("OnLeave", function(self)
             if self.hl then self.hl:SetAlpha(0) end
             GameTooltip:Hide()
         end)
+        -- Die Namen im Satz: ueber einem Namen sein Tooltip, daneben wieder
+        -- der der Zeile.
+        if type(frame.SetHyperlinksEnabled) == "function" then frame:SetHyperlinksEnabled(true) end
+        frame:SetScript("OnHyperlinkEnter", function(self, link)
+            GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT")
+            GameTooltip:SetHyperlink(link)
+            GameTooltip:Show()
+        end)
+        frame:SetScript("OnHyperlinkLeave", function() GameTooltip:Hide() end)
     end
 
     local function eintrag(f, i)
@@ -7440,6 +7484,10 @@ do
         e.text:SetWordWrap(true)
         if e.text.SetSpacing then e.text:SetSpacing(LEADING) end
         tooltipAn(e)
+        -- KEIN TOOLTIP FUER DIE GANZE ZEILE (20. Oktober): er zeigte den
+        -- gewirkten Zauber, egal ueber welchem Namen der Zeiger stand. Die
+        -- Zeile wird nur hinterlegt; ihre Namen haben jeder ihren eigenen.
+        e:SetScript("OnEnter", function(self) self.hl:SetAlpha(1) end)
         f.entries[i] = e
         return e
     end
@@ -7489,11 +7537,23 @@ do
         f.tl.endText:SetWordWrap(true)
         f.tl.note = S:Text(f, "body", "textMuted")
         f.entries = {}
-        f.foot = S:Text(f, "title", "textPrimary")
+        -- IN BEWEGUNG: eine eigene Karte mit Ueberschrift und Akzentstreifen.
+        -- Als Satz unter einer Linie wirkte er wie ein vergessener Rest
+        -- (20. Oktober).
+        f.move = CreateFrame("Frame", nil, f)
+        tooltipAn(f.move)
+        S:Fill(f.move, "bgOverlay")
+        f.move.stripe = f.move:CreateTexture(nil, "ARTWORK")
+        f.move.stripe:SetTexture("Interface\\Buttons\\WHITE8X8")
+        f.move.stripe:SetVertexColor(S:Color("accent"))
+        f.move.stripe:SetPoint("TOPLEFT")
+        f.move.stripe:SetPoint("BOTTOMLEFT")
+        f.move.stripe:SetWidth(S:Pixel(3))
+        f.move.title = S:Text(f.move, "caption", "accent")
+        f.foot = S:Text(f.move, "title", "textPrimary")
         f.foot:SetJustifyH("LEFT")
         f.foot:SetWordWrap(true)
         if f.foot.SetSpacing then f.foot:SetSpacing(LEADING) end
-        f.footRule = linie(f)
         panelOf[row] = f
         return f
     end
@@ -7644,60 +7704,35 @@ do
         end
         for i = #lines + 1, #f.entries do f.entries[i]:Hide() end
 
-        -- In Bewegung: abgesetzt durch eine Linie, im selben Einzug.
+        -- In Bewegung: die Karte unter der Prioritaet.
         local mv = {}
         if tab == "st" or tab == "aoe" then
             for _, id in ipairs(r.mv or {}) do mv[#mv + 1] = gold(id) end
         end
-        f.footRule:ClearAllPoints()
-        f.footRule:SetPoint("TOPLEFT", PAD + TEXT_X, -(y + 2))
-        f.footRule:SetWidth(satzW)
-        f.footRule:SetShown(#mv > 0)
-        f.foot:ClearAllPoints()
-        f.foot:SetPoint("TOPLEFT", PAD + TEXT_X, -(y + 2 + GAP))
-        f.foot:SetWidth(satzW)
-        f.foot:SetText(#mv > 0 and L["ROT_S_move"]:format(liste(mv)) or "")
-        f.foot:SetShown(#mv > 0)
         if #mv > 0 then
-            y = y + 2 + GAP + math.ceil(tonumber(f.foot:GetStringHeight()) or 16) + GAP
+            local INNEN = 14
+            f.move.title:ClearAllPoints()
+            f.move.title:SetPoint("TOPLEFT", INNEN, -10)
+            f.move.title:SetText(upperText(L["ROT_MOVE_TITLE"]))
+            local titelH = math.ceil(tonumber(f.move.title:GetStringHeight()) or 12)
+            f.foot:ClearAllPoints()
+            f.foot:SetPoint("TOPLEFT", INNEN, -(10 + titelH + 6))
+            f.foot:SetWidth(innen - INNEN * 2)
+            f.foot:SetText(L["ROT_S_move"]:format(liste(mv)))
+            f.foot:Show()
+            local h = 10 + titelH + 6 + math.ceil(tonumber(f.foot:GetStringHeight()) or 16) + 12
+            f.move:ClearAllPoints()
+            f.move:SetPoint("TOPLEFT", PAD, -(y + 4))
+            f.move:SetSize(innen, h)
+            f.move:Show()
+            y = y + 4 + h + GAP
+        else
+            f.move:Hide()
         end
         f:Show()
         row.__rotPanel = f
         data.panelH = (y - GAP + PAD) / fs
         return f
-    end
-
-    ---Unter dem Zauber-Tooltip: wann, Teil fuer Teil.
-    function UI.RotationTooltip(data)
-        local line = data.line or {}
-        if line.keepUp then return end
-        local hat = (line.c and #line.c > 0) or line.any or line.t
-        GameTooltip:AddLine(" ")
-        GameTooltip:AddLine(L["ROT_TIP_WHEN"], S:Color("heading"))
-        if not hat then
-            GameTooltip:AddLine(L["ROT_ALWAYS"], 0.9, 0.9, 0.9, true)
-        end
-        if line.t then
-            GameTooltip:AddLine(L["ROT_T_" .. tostring(line.t[1])]:format(zauber(line.t[2])), 0.9, 0.9, 0.9, true)
-        end
-        for _, c in ipairs(line.c or {}) do
-            GameTooltip:AddLine("\194\183 " .. say(c, true), 0.9, 0.9, 0.9, true)
-        end
-        if line.any then
-            GameTooltip:AddLine(L["ROT_ONEOF"], 0.8, 0.8, 0.8, true)
-            for _, g in ipairs(line.any) do
-                local sub = {}
-                for _, c in ipairs(g) do sub[#sub + 1] = say(c) end
-                GameTooltip:AddLine("   \194\183 " .. table.concat(sub, L["ROT_AND"]), 0.9, 0.9, 0.9, true)
-            end
-        end
-        -- Was die Logs dazu sagen: wie viele der Gemessenen ihn wirken, wie oft.
-        if type(line.m) == "table" then
-            GameTooltip:AddLine(" ")
-            GameTooltip:AddLine(L["ROT_TIP_MEASURED"]:format(line.m[1] or 0, zahl(line.m[2] or 0)), 0.55, 0.8, 1, true)
-        end
-        GameTooltip:AddLine(" ")
-        GameTooltip:AddLine(L["ROT_TIP_SOURCE"], 0.5, 0.5, 0.5, true)
     end
 end
 

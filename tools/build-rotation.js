@@ -194,24 +194,15 @@ const bare = (s) => String(s || '').replace(/_/g, '');
   const build = map.build;
   console.log('Build:', build);
   const db2 = async (table, extra) => parseCSV(await patient(`https://wago.tools/db2/${table}/csv?build=${build}${extra || ''}`));
-  const [spellNames, specSpells, skillLines, chrSpecs, overrides, traitDefs, spellMisc, durations] = await Promise.all([
+  const [spellNames, specSpells, skillLines, chrSpecs, overrides, traitDefs, spellMisc, durations,
+    spellTexts, classOptions, chrClasses] = await Promise.all([
     db2('SpellName'), db2('SpecializationSpells'), db2('SkillLineAbility'), db2('ChrSpecialization'),
     db2('SpellEffect', '&filter%5BEffectAura%5D=332'),
     db2('TraitDefinition'), db2('SpellMisc'), db2('SpellDuration'),
+    db2('Spell'), db2('SpellClassOptions'), db2('ChrClasses'),
   ]);
   const nameEN = new Map(spellNames.map((r) => [Number(r.ID), r.Name_lang]));
-  const globalByName = new Map();
-  for (const [id, n] of nameEN) {
-    const k = slug(n);
-    if (!globalByName.has(k) || globalByName.get(k) < id) globalByName.set(k, id);
-  }
-  // SimC drops the hyphen ("dance_of_chiji"), the slug keeps it as an
-  // underscore ("dance_of_chi_ji"): a second index without either.
-  const globalByBare = new Map();
-  for (const [id, n] of nameEN) {
-    const k = slug(n).replace(/_/g, '');
-    if (k && (!globalByBare.has(k) || globalByBare.get(k) < id)) globalByBare.set(k, id);
-  }
+
   // Replacements: the spell in EffectMiscValue_0 is replaced by the one in
   // EffectBasePoints while the aura holds.
   // What replaces what - the rules and why are in tools/lib/replace.js.
@@ -246,6 +237,46 @@ const bare = (s) => String(s || '').replace(/_/g, '');
     for (const k of block.matchAll(/\[(\d+)\] = "set"/g)) setItems.add(Number(k[1]));
   }
   const classOf = new Map(specs.map((r) => [Number(r.ID), Number(r.ClassID)]));
+
+  // WHICH OF MANY SPELLS OF ONE NAME (20 October). "Devour" has 145 IDs,
+  // "Metamorphosis" 83; the first hit was an internal one without a word of
+  // tooltip. Every candidate of a name is scored instead:
+  //   cast by the measured players (the logs)            +16
+  //   the spec's, a talent's or the class line's spell     +8
+  //   the class's spell family (SpellClassOptions)         +4
+  //   a description of its own (not "$@spelldesc...")      +2, a borrowed one +1
+  //   for a buff: a buff text                              +2
+  //   an icon                                              +1
+  //   no text at all                                       -10
+  // Ties: among the class's own spells the lower ID (the base spell), among
+  // the rest the newer one.
+  const idsByBare = new Map();
+  for (const [id, n] of nameEN) {
+    const k = slug(n).replace(/_/g, '');
+    if (!k) continue;
+    if (!idsByBare.has(k)) idsByBare.set(k, []);
+    idsByBare.get(k).push(id);
+  }
+  const textOf = new Map(spellTexts.map((r) => [Number(r.ID), { d: r.Description_lang || '', a: r.AuraDescription_lang || '' }]));
+  const familyOfSpell = new Map(classOptions.map((r) => [Number(r.SpellID), Number(r.SpellClassSet)]));
+  const familyOfClass = new Map(chrClasses.map((r) => [Number(r.ID), Number(r.SpellClassSet)]));
+  const iconOf = new Map();
+  for (const r of spellMisc) if (!iconOf.has(Number(r.SpellID))) iconOf.set(Number(r.SpellID), Number(r.SpellIconFileDataID) || 0);
+  const scoreOf = (id, use, own, family, cast) => {
+    let p = 0;
+    if (cast && cast.has(id)) p += 16;
+    if (own.has(id)) p += 8;
+    if (family && familyOfSpell.get(id) === family) p += 4;
+    const t = textOf.get(id) || { d: '', a: '' };
+    if (t.d && !t.d.startsWith('$@')) p += 2;
+    else if (t.d) p += 1;
+    if (use === 'aura' && t.a) p += 2;
+    // No text at all: no use for a tooltip (Arcane Charge 190427, five of
+    // the six Surging Totems). Only when nothing else is there.
+    if (!t.d && !t.a) p -= 10;
+    if (iconOf.get(id)) p += 1;
+    return p;
+  };
 
   // The openers measured around raid pulls (tools/collect-wcl.js), from the
   // base files only - the per-boss files hold the same pulls again.
@@ -357,11 +388,25 @@ const bare = (s) => String(s || '').replace(/_/g, '');
     // 318044): the older one is the one on the bar.
     skillLines.filter((r) => classLines.has(r.SkillLine)).map((r) => Number(r.Spell))
       .sort((a, b) => a - b).forEach(add);
-    const byBare = new Map();
-    for (const [k, ids] of byName) if (!byBare.has(k.replace(/_/g, ''))) byBare.set(k.replace(/_/g, ''), ids[0]);
-    const spell = (k) => (byName.get(k) || [])[0] || byBare.get(k.replace(/_/g, ''))
-      || globalByName.get(k) || globalByName.get(k.replace(/_(tier|buff|debuff|proc)$/, ''))
-      || globalByBare.get(k.replace(/_/g, '')) || null;
+    // The best ID of a name for this spec (see scoreOf above).
+    const own = new Set([...byName.values()].flat());
+    const family = familyOfClass.get(classOf.get(s.id) || 0) || 0;
+    const pick = (k, use, cast) => {
+      const cands = idsByBare.get(String(k || '').replace(/_/g, '')) || [];
+      let best = null;
+      for (const id of cands) {
+        const p = scoreOf(id, use, own, family, cast);
+        // A tie among the class's own spells goes to the lower ID (the base
+        // spell); among the rest to the newer one - old IDs stay in the game
+        // data long after their spell is gone (Devour 272793 of an earlier
+        // expansion against the Devourer's 1217610).
+        const better = !best || p > best.p
+          || (p === best.p && (own.has(id) && own.has(best.id) ? id < best.id : id > best.id));
+        if (better) best = { id, p };
+      }
+      return best ? best.id : null;
+    };
+    const spell = (k) => pick(k, 'aura') || pick(k.replace(/_(tier|buff|debuff|proc)$/, ''), 'aura');
     // SimC's own names for a form-bound or merged action.
     const ALIAS = { any_dnd: 'death_and_decay' };
     // Racials: the rows of the class lines' table that carry a race mask.
@@ -369,11 +414,12 @@ const bare = (s) => String(s || '').replace(/_/g, '');
       .filter((r) => Number(r.RaceMasks_0 || 0) !== 0 && slug(nameEN.get(Number(r.Spell))) === k
         && (Number(r.ClassMask || 0) === 0 || (Number(r.ClassMask) & classBit)))
       .map((r) => Number(r.Spell)))].sort((x, y) => x - y);
-    const actionSpell = (k) => {
+    const actionSpellFor = (k, cast) => {
       const name = ALIAS[k] || k;
       const plain = name.replace(/_(cat|bear)$/, '');
-      return (byName.get(name) || byName.get(plain) || [])[0] || globalByName.get(name) || globalByName.get(plain) || null;
+      return pick(name, 'action', cast) || pick(plain, 'action', cast);
     };
+    const actionSpell = (k) => actionSpellFor(k, null);
 
     // VARIABLES, inlined where their value is certain.
     //
@@ -549,13 +595,24 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         bs_inc: ['incarnation_avatar_of_ashamane', 'berserk'],
         ca_inc: ['incarnation_chosen_of_elune', 'celestial_alignment'],
       };
+      // The spec's own version of a spell is what its list means by the name:
+      // the Devourer's Metamorphosis is Void Metamorphosis.
+      const specVersion = new Map();
+      for (const [old, list] of replacements) {
+        for (const r of list) if (r.spec === s.id) specVersion.set(slug(nameEN.get(old)), r.neu);
+      }
       const spellM = (k) => {
         const alias = ALIAS[k];
         if (alias) return spell(alias.find((x) => taken.has(bare(x))) || alias[alias.length - 1]);
-        return spell(k) || spell(k.replace(/_(self|buff|debuff|dot)$/, ''));
+        const plain = k.replace(/_(self|buff|debuff|dot)$/, '');
+        if (specVersion.has(k)) return specVersion.get(k);
+        if (specVersion.has(plain)) return specVersion.get(plain);
+        return spell(k) || spell(plain);
       };
+      // The IDs the measured players actually cast win for actions.
+      const castIds = new Set(gemessen ? [...gemessen.by.keys()] : []);
       const resolve = {
-        spell: spellM, actionSpell,
+        spell: spellM, actionSpell: (k) => actionSpellFor(k, castIds),
         isTalentSpell: (k) => treeSpells.has(bare(k)),
         talent: (k) => taken.has(bare(k)),
         // By NAME: the list's Flame Shock may be another ID of the same spell
@@ -640,7 +697,7 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         return m ? [Math.round(m.share * 100), Math.round(m.cpm * 10) / 10] : undefined;
       };
       const pack = (lines) => lines.map((l) => ({ s: l.s, c: l.c.length ? l.c : undefined, any: l.any,
-        t: l.t || undefined, m: messung(l.s) }));
+        t: l.t || undefined, m: messung(l.s), more: l.more || undefined }));
       // The typical opener: the logs' spells mapped onto this class's own
       // (potions, trinkets and racials fall out - they are not its spells),
       // then the order most players follow. Raid only: see lib/opener.js.
@@ -677,7 +734,7 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         items: Object.keys(items).length ? items : undefined,
         cast: gemessen && gemessen.players >= MIN_MEASURED ? gemessen.players : undefined,
       };
-      const others = [...st.lines, ...aoe.lines].filter((l) => l.c.some(apl.isOther)).length;
+      const others = [...st.lines, ...aoe.lines].filter((l) => l.more || l.c.some(apl.isOther)).length;
       report.push(`${s.id} ${file} ${mode}: st ${st.lines.length}, aoe ${aoe.lines.length}, pre ${preLines.length}`
         + `, vague ${others}${measured ? `, opener ${measured.pre.length}|${measured.post.length} of ${measured.n}` : ''}`
         + `${miss.size ? ', unknown: ' + [...miss].join(' ') : ''}`

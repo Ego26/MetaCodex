@@ -78,8 +78,18 @@ check('auch gegen den globalen Cooldown',
   tab('actions=lightning_bolt,if=cooldown.ascendance.remains>gcd.max*2', [1, 1])[0].c,
   [['cmp', ['cd', 10], 'gt', ['mul', ['gcd'], ['n', 2]]]]);
 // Was sich nicht benennen laesst, wird nicht geraten.
-check('Unbekanntes wird "other"',
-  tab('actions=lightning_bolt,if=hot_streak_spells_in_flight=1', [1, 1])[0].c, [['other']]);
+check('Unbekanntes wird ein Merker, keine Bedingung',
+  (() => { const l = tab('actions=lightning_bolt,if=hot_streak_spells_in_flight=1', [1, 1])[0]; return [l.c, l.more]; })(),
+  [[], true]);
+// Hoechstens einmal je Satz: Bekanntes bleibt, Unbekanntes wird EIN Merker,
+// und ein Oder mit unbekanntem Zweig ist als Ganzes unbekannt.
+check('Bekanntes bleibt, Unbekanntes einmal',
+  (() => {
+    const l = tab('actions=lightning_bolt,if=buff.stormkeeper.up&hot_streak_spells_in_flight=1'
+      + '&(foo.bar|buff.ascendance.up)&(baz.qux=2)', [1, 1])[0];
+    return [l.c, l.more];
+  })(),
+  [[['up', 6]], true]);
 // Schmuck ist ausgenommen: die Rotation gilt ohne Benutzen-Effekt.
 check('Schmuck-Bedingungen fallen aus der Rotation',
   tab('actions=ascendance,if=trinket.1.cooldown.remains>20|buff.stormkeeper.up', [1, 1])[0].c, [['up', 6]]);

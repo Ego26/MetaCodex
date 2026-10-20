@@ -3025,7 +3025,9 @@ do
     local w, h = ns.Profile.WindowSize()
     check("Groesse wird gemerkt", w == 1200 and h == 800, tostring(w) .. "x" .. tostring(h))
     rowsInSection("gear")
-    local expected = 1200 - 196 - 48 - 20
+    -- Die Leiste ist so breit wie ihr laengster Eintrag, mindestens 196.
+    local leiste = f.sidebar:GetWidth()
+    local expected = 1200 - leiste - 48 - 20
     local wrong = 0
     for _, row in ipairs(wow.rows()) do
         if row:IsShown() and row:GetWidth() ~= expected then wrong = wrong + 1 end
@@ -3036,9 +3038,36 @@ do
     rowsInSection("gear")
     wrong = 0
     for _, row in ipairs(wow.rows()) do
-        if row:IsShown() and row:GetWidth() ~= 960 - 196 - 48 - 20 then wrong = wrong + 1 end
+        if row:IsShown() and row:GetWidth() ~= 960 - leiste - 48 - 20 then wrong = wrong + 1 end
     end
     check("und wieder zurueck", wrong == 0, wrong .. " Zeilen falsch")
+end
+
+-- EINE BREITERE SCHRIFT (ElvUI & Co. tauschen STANDARD_TEXT_FONT): jeder
+-- Eintrag der Seitenleiste passt hinein, die Leiste waechst mit, und der
+-- Inhalt rueckt nach rechts. Bei einem Streamer lief "Handwerk &
+-- Verzierungen" ueber den Rand (20. Oktober).
+do
+    local f = _G.MetaCodexFrame
+    local echt = wow.Mock and wow.Mock.methods and wow.Mock.methods.GetStringWidth
+    local breit = function(self) return #tostring(self.__text or "") * 11 end
+    if echt then wow.Mock.methods.GetStringWidth = breit end
+    rowsInSection("stats")
+    local leiste = f.sidebar:GetWidth()
+    local zuBreit = 0
+    for _, button in ipairs({ f.sidebar:GetChildren() }) do
+        local label = rawget(button, "label")
+        if label and button:IsShown() then
+            local abschnitt = rawget(button, "section")
+            local einzug = (type(abschnitt) == "table" and rawget(abschnitt, "sub")) and 14 or 0
+            if label:GetStringWidth() + einzug + 12 * 3 > leiste then zuBreit = zuBreit + 1 end
+        end
+    end
+    check("mit breiter Schrift passt jeder Eintrag in die Leiste", zuBreit == 0 and leiste > 196,
+        zuBreit .. " zu breit, Leiste " .. tostring(leiste))
+    if echt then wow.Mock.methods.GetStringWidth = echt end
+    rowsInSection("stats")
+    check("und mit der alten Schrift wieder schmal", f.sidebar:GetWidth() <= 210, tostring(f.sidebar:GetWidth()))
 end
 
 
@@ -6704,6 +6733,12 @@ do
     check("die Ressource beim Namen", say({ "resmin", "maelstrom", 83 }) == L["ROT_C_resmin"]:format("83", L["ROT_RES_maelstrom"]))
     check("eine unbekannte Ressource ohne Unterstrich", say({ "resmin", "astral_dust", 3 }):find("astral dust", 1, true) ~= nil)
     check("Unbekanntes ehrlich", say({ "other" }) == L["ROT_C_other"])
+    -- Hoechstens einmal je Satz: der Merker steht am Ende, einmal.
+    local einmal = ns.UI.RotationSentence({ s = 1, c = { { "up", 2 } }, more = true }, "st", false)
+    check("weitere Bedingungen einmal am Ende", select(2, einmal:gsub(L["ROT_C_more"], "")) == 1
+        and not einmal:find(L["ROT_C_other"], 1, true), einmal)
+    local nurVage = ns.UI.RotationSentence({ s = 1, more = true }, "st", false)
+    check("ohne Bekanntes: bestimmte Bedingungen", nurVage:find(L["ROT_C_other"], 1, true) ~= nil, nurVage)
     -- Zwei Werte verglichen, als Satz.
     local vergleich = say({ "cmp", { "rem", 1 }, "gt", { "mul", { "gcd" }, { "n", 2 } } })
     check("ein Vergleich zweier Werte als Satz",
@@ -6771,18 +6806,24 @@ do
         check("mit Pull-Marke", karte.tl.pullText:IsShown() and karte.tl.pullText:GetText() == L["ROT_PULL"])
         check("und in Bewegung darunter", karte.foot:IsShown()
             and (karte.foot:GetText() or ""):find(L["ROT_S_move"]:match("^(.-)%%s"), 1, true) ~= nil)
-        -- Der Zeiger eines Satzes sagt, wann.
+        -- Ueber der Zeile selbst kein Tooltip - nur ueber ihren Namen.
         local e = karte.entries[1]
-        local zeilen = {}
-        local echtAdd = GameTooltip.AddLine
-        GameTooltip.AddLine = function(_, text) zeilen[#zeilen + 1] = tostring(text) end
+        local geoeffnet = false
+        local echtOwner = GameTooltip.SetOwner
+        GameTooltip.SetOwner = function() geoeffnet = true end
         e:GetScript("OnEnter")(e)
-        GameTooltip.AddLine = echtAdd
-        local alles = table.concat(zeilen, " | ")
-        check("der Zeiger sagt wann", alles:find(L["ROT_TIP_WHEN"], 1, true) ~= nil, alles:sub(1, 160))
-        check("und eins davon", alles:find(L["ROT_ONEOF"], 1, true) ~= nil)
-        check("und was die Logs dazu sagen", alles:find(L["ROT_TIP_MEASURED"]:format(98, "12,3"), 1, true) ~= nil
-            or alles:find(L["ROT_TIP_MEASURED"]:format(98, "12.3"), 1, true) ~= nil, alles:sub(1, 200))
+        GameTooltip.SetOwner = echtOwner
+        check("ueber der Zeile kein Tooltip", geoeffnet == false)
+        -- Jeder Name im Satz ist ein Link mit eigenem Tooltip, nicht die Zeile.
+        check("die Namen im Satz sind Links", (e.text:GetText() or ""):find("|Hspell:51505|h", 1, true) ~= nil
+            and (e.text:GetText() or ""):find("|Hspell:260734|h", 1, true) ~= nil, e.text:GetText())
+        local linkGezeigt
+        local echtLink = GameTooltip.SetHyperlink
+        GameTooltip.SetHyperlink = function(_, link) linkGezeigt = link end
+        local ueber = e:GetScript("OnHyperlinkEnter")
+        if ueber then ueber(e, "spell:260734") end
+        GameTooltip.SetHyperlink = echtLink
+        check("ueber einem Namen sein eigener Tooltip", linkGezeigt == "spell:260734", tostring(linkGezeigt))
         -- Reiter Flaeche: zwei Saetze, kein Ablauf.
         local flaeche
         for _, b in ipairs(karte.tabs) do if b.key == "aoe" then flaeche = b end end

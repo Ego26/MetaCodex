@@ -492,6 +492,41 @@ function conjuncts(rec) {
   return [rec];
 }
 
+// "UNTER BESTIMMTEN BEDINGUNGEN" HOECHSTENS EINMAL JE SATZ (20. Oktober).
+//
+// Beim Tierherrschafts-Jaeger stand es viermal in einem Satz. Eine
+// Oder-Gruppe mit einem unbekannten Zweig ist als Ganzes unbekannt (der
+// Zweig kann immer greifen); eine Und-Kette behaelt, was sie weiss. Was
+// am Ende einer Zeile unbekannt bleibt, wird ein Merker (more) statt einer
+// Bedingung - und im Satz einmal "und weitere Bedingungen erfuellt sind".
+const OTHER = ['other'];
+function vereinfacht(r) {
+  if (r[0] === 'or' || r[0] === 'and') {
+    const a = vereinfacht(r[1]);
+    const b = vereinfacht(r[2]);
+    if (a[0] === 'other' || b[0] === 'other') return OTHER;
+    return [r[0], a, b];
+  }
+  return r;
+}
+function vageEinmal(l) {
+  const c = l.c.map(vereinfacht);
+  let more = c.some((x) => x[0] === 'other');
+  l.c = c.filter((x) => x[0] !== 'other');
+  if (l.any) {
+    const any = l.any.map((g) => g.map(vereinfacht));
+    // "eins davon" ist ein Oder: ein unbekannter Zweig macht es unbekannt.
+    if (any.some((g) => g.some((x) => x[0] === 'other'))) {
+      delete l.any;
+      more = true;
+    } else {
+      l.any = any;
+    }
+  }
+  if (more) l.more = true;
+  else delete l.more;
+}
+
 const isOther = (r) => r[0] === 'other' || ((r[0] === 'and' || r[0] === 'or') && r.slice(1).some(isOther));
 const keyOf = (r) => JSON.stringify(r);
 
@@ -631,6 +666,7 @@ function buildTab(lists, start, ctx, resolve) {
       l.any = l.any.map((g) => g.filter((x) => !shared.has(keyOf(x))));
       if (l.any.some((g) => g.length === 0)) delete l.any; // one branch always holds
     }
+    vageEinmal(l);
   }
   return { lines: merged, moving, keep, items, miss };
 }
