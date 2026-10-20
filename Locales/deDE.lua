@@ -294,6 +294,7 @@ ns.RegisterLocale("deDE", {
     ["DROPS_NOTHING"]      = "Für diese Spec ist in dieser Aktivität nichts gemessen.",
     ["FOLIO_HINT"]         = "Welche Rune die besten Spieler in jeder Reihe des Omnium-Folianten nehmen.",
     ["FOLIO_ROW"]          = "Reihe %d – gemessen an %d Spielern",
+    ["FOLIO_ROW_FROM"] = "Reihe %d – aus %s, gemessen an %d Spielern",
     ["FOLIO_ROW_ONE"]      = "Reihe %d – hier gibt es nichts zu wählen",
     ["FOLIO_ONLY"]         = "Die einzige Rune dieser Reihe",
     ["FOLIO_DERIVED"]      = "Gerechnet, nicht gesehen",

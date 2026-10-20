@@ -179,7 +179,16 @@ function Compat.SpecsForClass(classID)
     for index = 1, 5 do
         local ok, id, name, _, icon = pcall(get, classID, index)
         if not ok or not id then break end
-        out[#out + 1] = { id = id, name = name, icon = icon }
+        -- NICHT die Anfaenger-Spezialisierung, die das Spiel als fuenfte
+        -- liefert: beim Druiden stand im Menue ein leerer fuenfter
+        -- Eintrag (20. Oktober). Sie hat keinen Namen - und kennt der
+        -- Katalog die Spec nicht, gibt es fuer sie ohnehin keine Messung.
+        local leer = type(name) ~= "string" or name == ""
+        local fremd = ns.Catalog and ns.Catalog.Ready and ns.Catalog.Ready()
+            and ns.Catalog.SpecSlug and not ns.Catalog.SpecSlug(id)
+        if not leer and not fremd then
+            out[#out + 1] = { id = id, name = name, icon = icon }
+        end
     end
     return out
 end

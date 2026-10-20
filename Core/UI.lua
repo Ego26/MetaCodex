@@ -2506,9 +2506,45 @@ end
 --
 -- Die Tests haben es nicht gesehen: die Test-VM kennt diese Grenze
 -- nicht. Gemerkt hat es das Spiel.
+-- Wo eine Reihe fehlt, die verwandten Aktivitaeten - in dieser Folge.
+-- Reihe 5 braucht zehn Gemessene je Spec; der Treffsicherheits-Jaeger
+-- hatte in den hohen Schluesseln neun, und die Reihe fehlte (20. Oktober).
+UI.FOLIO_BORROW = {
+    mplus = { "mplus-keys", "raid" },
+    ["mplus-keys"] = { "mplus", "raid" },
+    raid = { "raid-mythic", "raid-normal", "mplus" },
+    ["raid-mythic"] = { "raid", "raid-normal", "mplus" },
+    ["raid-normal"] = { "raid", "raid-mythic", "mplus" },
+}
+
 function UI.FolioRows(specID, mode, source)
-    local rows, from = ns.Recommend.Folio(specID, mode, source)
-    if not rows then return {}, nil end
+    local eigene, from = ns.Recommend.Folio(specID, mode, source)
+    if not eigene then return {}, nil end
+
+    -- JEDE REIHE, notfalls aus der verwandten Aktivitaet. Die Zahl bleibt
+    -- gemessen - nur woanders, und der Kopf der Reihe sagt wo.
+    local byRow = {}
+    for _, row in ipairs(eigene) do byRow[row.row or 0] = row end
+    local basis = ns.Recommend.BaseMode and ns.Recommend.BaseMode(mode) or mode
+    basis = tostring(basis):match("^([^/]+)") or basis
+    for r = 1, 5 do
+        if not byRow[r] then
+            for _, anders in ipairs(UI.FOLIO_BORROW[basis] or {}) do
+                local fremd = ns.Recommend.Folio(specID, anders, ns.Recommend.ALL)
+                for _, row in ipairs(fremd or {}) do
+                    if row.row == r and not byRow[r] then
+                        local kopie = {}
+                        for k, v in pairs(row) do kopie[k] = v end
+                        kopie.borrowed = anders
+                        byRow[r] = kopie
+                    end
+                end
+                if byRow[r] then break end
+            end
+        end
+    end
+    local rows = {}
+    for r = 1, 5 do if byRow[r] then rows[#rows + 1] = byRow[r] end end
 
     local out = {}
 
@@ -2527,7 +2563,9 @@ function UI.FolioRows(specID, mode, source)
         -- Die Grundlage steht im Gruppenkopf, nicht im Kleingedruckten:
         -- wer den Anteil liest, soll im selben Blick sehen, worauf er
         -- ruht.
-        local group = L["FOLIO_ROW"]:format(row.row or 0, row.seen or 0)
+        local group = row.borrowed
+            and L["FOLIO_ROW_FROM"]:format(row.row or 0, ns.ModeLabel(row.borrowed) or row.borrowed, row.seen or 0)
+            or L["FOLIO_ROW"]:format(row.row or 0, row.seen or 0)
         for _, pick in ipairs(row.picks or {}) do
             if pick.derived then
                 -- Diese eine Rune hinterlaesst im Kampf nichts. Ihre

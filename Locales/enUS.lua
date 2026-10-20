@@ -294,6 +294,7 @@ ns.RegisterLocale("enUS", {
     ["DROPS_NOTHING"]      = "Nothing measured for this spec in this activity.",
     ["FOLIO_HINT"]         = "Which rune the best players take in each row of the Omnium Folio.",
     ["FOLIO_ROW"]          = "Row %d - measured on %d players",
+    ["FOLIO_ROW_FROM"] = "Row %d - from %s, measured on %d players",
     ["FOLIO_ROW_ONE"]      = "Row %d - no choice here",
     ["FOLIO_ONLY"]         = "The only rune in this row",
     ["FOLIO_DERIVED"]      = "Worked out, not seen",

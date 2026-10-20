@@ -6603,6 +6603,47 @@ do
     ns.Profile.Select(nil, nil)
 end
 
+-- ------------------------------------------------------- Foliant: jede Reihe
+--
+-- Fehlt eine Reihe in der gewaehlten Aktivitaet (zu wenige Gemessene),
+-- kommt sie aus der verwandten - und der Kopf sagt woher.
+do
+    local echt = ns.Recommend.Folio
+    ns.Recommend.Folio = function(_, mode)
+        if mode == "mplus" then
+            return { { row = 1, seen = 9, picks = { { spell = 1, pct = 100 } } },
+                { row = 3, only = 3 },
+                { row = 4, seen = 9, picks = { { spell = 4, pct = 100 } } } }, "warcraftlogs.com"
+        elseif mode == "mplus-keys" then
+            return { { row = 2, seen = 40, picks = { { spell = 2, pct = 60 } } },
+                { row = 5, seen = 40, picks = { { spell = 5, pct = 70 } } } }, "warcraftlogs.com"
+        end
+    end
+    local rows = ns.UI.FolioRows(254, "mplus", ns.Recommend.ALL)
+    local reihen, geliehen = {}, nil
+    for _, r in ipairs(rows) do
+        local nr = tonumber(tostring(r.group):match("(%d)"))
+        if nr and reihen[#reihen] ~= nr then reihen[#reihen + 1] = nr end
+        if r.spell == 5 then geliehen = r.group end
+    end
+    check("jede Reihe des Folianten steht da", table.concat(reihen, ",") == "1,2,3,4,5", table.concat(reihen, ","))
+    check("die geliehene Reihe sagt, woher", geliehen and geliehen:find(ns.ModeLabel("mplus-keys") or "?", 1, true) ~= nil,
+        tostring(geliehen))
+    ns.Recommend.Folio = echt
+end
+
+-- Die Anfaenger-Spezialisierung steht nicht im Menue: ohne Namen, ohne Messung.
+do
+    local echtC, echtG = rawget(_G, "C_SpecializationInfo"), rawget(_G, "GetSpecializationInfoForClassID")
+    C_SpecializationInfo = nil
+    GetSpecializationInfoForClassID = function(_, i)
+        if i <= 4 then return 101 + i, "Spec " .. i, "", 1 end  -- 102-105, der Druide
+        if i == 5 then return 1447, "", "", 1 end
+    end
+    check("vier Speccs, keine leere fuenfte", #ns.Compat.SpecsForClass(11) == 4, #ns.Compat.SpecsForClass(11) .. " Speccs")
+    C_SpecializationInfo, GetSpecializationInfoForClassID = echtC, echtG
+end
+
 -- ------------------------------------------------------- Rassen
 --
 -- Gespielt (raider.io) und simuliert (bloodmallet) - nach Seite, die eigene
