@@ -28,7 +28,11 @@ param(
     [switch]$LokaleDaten,
 
     # Das Nachtlauf-Zip neu holen, auch wenn schon eines liegt.
-    [switch]$Neu
+    [switch]$Neu,
+
+    # Die Rotation aus tools\data\rotation.lua auch dann anhaengen, wenn der
+    # Nachtlauf eine mitbringt - zum Ausprobieren am Generator.
+    [switch]$LokaleRotation
 )
 
 $ErrorActionPreference = "Stop"
@@ -201,17 +205,24 @@ function Invoke-Sync {
     # keine neue Datei, also kein Neustart des Spiels noetig.
     $rotation = Join-Path $RepoRoot "tools\data\rotation.lua"
     $empfehlungen = Join-Path $AddOns "MetaCodex_Data\Recommendations.lua"
-    # Eine schon angehaengte Rotation wird ersetzt, nicht doppelt angehaengt.
+    # BRINGT DER NACHTLAUF EINE MIT, BLEIBT SIE: nur er hat die Messungen aus
+    # den Logs (welche Zauber ersetzt sind, welche Zeilen gespielt werden). Die
+    # lokale ersetzt sie nur mit -LokaleRotation. robocopy kopiert die Datei
+    # des Nachtlaufs bei jedem Sync frisch, weil die angehaengte abweicht.
     # Ohne BOM geschrieben: Set-Content -Encoding UTF8 setzt in PowerShell 5.1
     # eines an den Dateianfang.
     if ((Test-Path $rotation) -and (Test-Path $empfehlungen)) {
         $utf8 = New-Object System.Text.UTF8Encoding($false)
         $text = [System.IO.File]::ReadAllText($empfehlungen, $utf8)
         $marke = $text.IndexOf("`n-- ERZEUGT von tools/build-rotation.js")
-        if ($marke -ge 0) { $text = $text.Substring(0, $marke) }
-        $text = $text + [System.IO.File]::ReadAllText($rotation, $utf8)
-        [System.IO.File]::WriteAllText($empfehlungen, $text, $utf8)
-        Write-Host "Rotation: aus tools\data\rotation.lua angehaengt" -ForegroundColor DarkGray
+        if ($marke -ge 0 -and -not $LokaleRotation) {
+            Write-Host "Rotation: die des Nachtlaufs (mit Messung)" -ForegroundColor DarkGray
+        } else {
+            if ($marke -ge 0) { $text = $text.Substring(0, $marke) }
+            $text = $text + [System.IO.File]::ReadAllText($rotation, $utf8)
+            [System.IO.File]::WriteAllText($empfehlungen, $text, $utf8)
+            Write-Host "Rotation: aus tools\data\rotation.lua angehaengt" -ForegroundColor DarkGray
+        }
     }
 
     # Die Auswertung je Dungeon ist freiwillig: fehlt sie, faellt nur die
