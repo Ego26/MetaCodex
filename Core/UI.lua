@@ -7691,6 +7691,11 @@ do
                 GameTooltip:AddLine("   \194\183 " .. table.concat(sub, L["ROT_AND"]), 0.9, 0.9, 0.9, true)
             end
         end
+        -- Was die Logs dazu sagen: wie viele der Gemessenen ihn wirken, wie oft.
+        if type(line.m) == "table" then
+            GameTooltip:AddLine(" ")
+            GameTooltip:AddLine(L["ROT_TIP_MEASURED"]:format(line.m[1] or 0, zahl(line.m[2] or 0)), 0.55, 0.8, 1, true)
+        end
         GameTooltip:AddLine(" ")
         GameTooltip:AddLine(L["ROT_TIP_SOURCE"], 0.5, 0.5, 0.5, true)
     end

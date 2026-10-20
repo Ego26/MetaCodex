@@ -374,6 +374,7 @@ ns.RegisterLocale("enUS", {
     ["ROT_ONEOF"] = "One of these:",
     ["ROT_TIP_WHEN"] = "When",
     ["ROT_TIP_SOURCE"] = "From the SimulationCraft priority list (GPL-3.0), cut to the talents of the measured build.",
+    ["ROT_TIP_MEASURED"] = "Measured: %d%% of the top players cast it, %s times per minute.",
     ["ROT_T_shortest"] = "on the target where %s runs out first",
     ["ROT_T_longest"] = "on the target where %s lasts longest",
     ["ROT_C_other"] = "certain conditions are met",

@@ -25,6 +25,7 @@ const zlib = require('zlib');
 const loadout = require('./loadout');
 const apl = require('./lib/apl');
 const opener = require('./lib/opener');
+const { buildReplacements, replacedNames: namesReplaced } = require('./lib/replace');
 const { worthRetrying, waitSeconds } = require('./lib/http-retry');
 
 const BASE = path.resolve(process.argv[2] || '.');
@@ -190,9 +191,10 @@ const bare = (s) => String(s || '').replace(/_/g, '');
   const build = map.build;
   console.log('Build:', build);
   const db2 = async (table, extra) => parseCSV(await patient(`https://wago.tools/db2/${table}/csv?build=${build}${extra || ''}`));
-  const [spellNames, specSpells, skillLines, chrSpecs, overrides] = await Promise.all([
+  const [spellNames, specSpells, skillLines, chrSpecs, overrides, traitDefs, spellMisc, durations] = await Promise.all([
     db2('SpellName'), db2('SpecializationSpells'), db2('SkillLineAbility'), db2('ChrSpecialization'),
     db2('SpellEffect', '&filter%5BEffectAura%5D=332'),
+    db2('TraitDefinition'), db2('SpellMisc'), db2('SpellDuration'),
   ]);
   const nameEN = new Map(spellNames.map((r) => [Number(r.ID), r.Name_lang]));
   const globalByName = new Map();
@@ -209,15 +211,21 @@ const bare = (s) => String(s || '').replace(/_/g, '');
   }
   // Replacements: the spell in EffectMiscValue_0 is replaced by the one in
   // EffectBasePoints while the aura holds.
-  const replacedBy = new Map();
-  for (const r of overrides) {
-    const neu = Math.round(Number(r.EffectBasePointsF) || 0);
-    const alt = Number(r.EffectMiscValue_0) || 0;
-    if (neu > 0 && alt > 0) {
-      if (!replacedBy.has(alt)) replacedBy.set(alt, new Set());
-      replacedBy.get(alt).add(neu);
-    }
+  // What replaces what - the rules and why are in tools/lib/replace.js.
+  const durationMs = new Map(durations.map((r) => [Number(r.ID), Number(r.Duration)]));
+  const lastsMs = new Map();
+  for (const r of spellMisc) {
+    const id = Number(r.SpellID);
+    if (lastsMs.has(id) && Number(r.DifficultyID) !== 0) continue;
+    lastsMs.set(id, durationMs.get(Number(r.DurationIndex)) || 0);
   }
+  const replacements = buildReplacements({
+    auras: overrides.map((r) => ({ carrier: Number(r.SpellID), old: Number(r.EffectMiscValue_0) || 0,
+      neu: Math.round(Number(r.EffectBasePointsF) || 0) })),
+    traits: traitDefs.map((r) => ({ old: Number(r.OverridesSpellID) || 0, neu: Number(r.SpellID) || 0 })),
+    specs: specSpells.map((r) => ({ spec: Number(r.SpecID), old: Number(r.OverridesSpellID) || 0, neu: Number(r.SpellID) || 0 })),
+    lastsMs: (id) => lastsMs.get(id) || 0,
+  });
 
   const rec = readLuaTable(fs.readFileSync(REC, 'utf8'));
   const specs = Object.entries(chrSpecs).length ? chrSpecs : [];
@@ -249,6 +257,38 @@ const bare = (s) => String(s || '').replace(/_/g, '');
       openersBySpec.get(Number(id)).push(...e.openers);
     }
   }
+
+  // WHAT THE TOP PLAYERS CAST, per spec and activity (tools/collect-wcl.js):
+  // players, minutes, and per spell [id, casts, players who cast it]. The
+  // base files only - the per-dungeon and per-boss files repeat the pulls.
+  const castFiles = { mplus: ['wcl-mplus.json'], raid: ['wcl-raid.json', 'wcl-raid-mythic.json', 'wcl-raid-normal.json'] };
+  const castsBy = {};
+  for (const [mode, files] of Object.entries(castFiles)) {
+    castsBy[mode] = new Map();
+    for (const name of files) {
+      const file = path.join(BASE, 'tools', 'data', name);
+      if (!fs.existsSync(file)) continue;
+      const j = JSON.parse(fs.readFileSync(file, 'utf8'));
+      for (const [id, e] of Object.entries(j.specs || {})) {
+        if (!e.casts || !e.casts.players) continue;
+        const acc = castsBy[mode].get(Number(id)) || { players: 0, minutes: 0, by: new Map() };
+        acc.players += e.casts.players;
+        acc.minutes += e.casts.minutes;
+        for (const [g, n, wer] of e.casts.by) {
+          const b = acc.by.get(g) || [0, 0];
+          b[0] += n;
+          b[1] += wer;
+          acc.by.set(g, b);
+        }
+        castsBy[mode].set(Number(id), acc);
+      }
+    }
+  }
+  // Below this many measured players a share says too little.
+  const MIN_MEASURED = 20;
+  // A line whose spell fewer than this part of the measured players cast is
+  // not played - whatever the simulation says.
+  const PLAYED_FROM = 0.03;
 
   const out = {};
   const report = [];
@@ -466,6 +506,39 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         return setPieces >= Number(mm[2]);
       };
       const known = (id) => takenIds.has(id) || taken.has(bare(slug(nameEN.get(id))));
+      // The measurement of this spec and activity, by spell NAME: the part of
+      // the players who cast it at all, and how often per minute.
+      const gemessen = castsBy[mode] && castsBy[mode].get(s.id);
+      const proName = new Map();
+      if (gemessen && gemessen.players >= MIN_MEASURED) {
+        for (const [g, [n, wer]] of gemessen.by) {
+          const k = slug(nameEN.get(g));
+          if (!k) continue;
+          const a = proName.get(k) || { share: 0, cpm: 0 };
+          // Two IDs of one spell: the larger share, the casts added up.
+          a.share = Math.max(a.share, Math.min(1, wer / gemessen.players));
+          a.cpm += n / Math.max(1, gemessen.minutes);
+          proName.set(k, a);
+        }
+      }
+      const share = proName.size ? (name) => (proName.get(name) || { share: 0 }).share : null;
+      const replacedNames = namesReplaced(replacements, {
+        specID: s.id, known, nameOf: (id) => slug(nameEN.get(id)), share,
+      });
+      if (process.env.MC_DEBUG === String(s.id)) console.log('  ersetzt:', [...replacedNames].join(' '));
+      // MC_REPLACED=1: which of the list's own actions a replacement removes.
+      if (process.env.MC_REPLACED) {
+        const acts = new Set(Object.values(lists).flat().map((x) => x.action));
+        const weg = [...replacedNames].filter((n) => acts.has(n));
+        for (const [old, list] of replacements) {
+          const n = slug(nameEN.get(old));
+          if (!weg.includes(n)) continue;
+          for (const r of list) {
+            const has = r.spec !== undefined ? r.spec === s.id : known(r.neu);
+            if (has && slug(nameEN.get(r.neu)) !== n) console.log(`  ${s.id} ${mode}: ${n} (${old}) <- ${slug(nameEN.get(r.neu))} (${r.neu}) [${r.from}]`);
+          }
+        }
+      }
       // SimC's short names for "whichever of the two the build takes".
       const ALIAS = {
         bs_inc: ['incarnation_avatar_of_ashamane', 'berserk'],
@@ -480,7 +553,10 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         spell: spellM, actionSpell,
         isTalentSpell: (k) => treeSpells.has(bare(k)),
         talent: (k) => taken.has(bare(k)),
-        replaced: (id) => [...(replacedBy.get(id) || [])].some(known),
+        // By NAME: the list's Flame Shock may be another ID of the same spell
+        // than the one Voltaic Blaze names. A replacement by a spell of the
+        // same name (a spec's own version) is no replacement.
+        replaced: (id) => replacedNames.has(slug(nameEN.get(id))),
       };
       const ctx = (targets, trinket) => {
         const c = {
@@ -535,10 +611,31 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         report.push(`${s.id} ${file} ${mode}: empty, skipped`);
         continue;
       }
+      // EVERY LINE AGAINST THE LOGS: a spell hardly any measured player
+      // casts is not played, and its line goes - whatever the simulation
+      // says. Before the pull and while moving are not checked: the first
+      // happens before the fight, the second rarely.
+      const ungespielt = [];
+      if (share) {
+        for (const tab of [st, aoe]) {
+          tab.lines = tab.lines.filter((l) => {
+            const k = slug(nameEN.get(l.s));
+            if (share(k) >= PLAYED_FROM) return true;
+            ungespielt.push(k);
+            return false;
+          });
+        }
+      }
       const miss = new Set([...st.miss, ...aoe.miss, ...pre.miss]);
       const keep = [...new Set([...st.keep, ...aoe.keep, ...pre.keep])];
       const preLines = pre.lines.filter((l) => !keep.includes(l.s));
-      const pack = (lines) => lines.map((l) => ({ s: l.s, c: l.c.length ? l.c : undefined, any: l.any, t: l.t || undefined }));
+      // Each line carries its measurement: percent of players, casts per minute.
+      const messung = (id) => {
+        const m = proName.get(slug(nameEN.get(id)));
+        return m ? [Math.round(m.share * 100), Math.round(m.cpm * 10) / 10] : undefined;
+      };
+      const pack = (lines) => lines.map((l) => ({ s: l.s, c: l.c.length ? l.c : undefined, any: l.any,
+        t: l.t || undefined, m: messung(l.s) }));
       // The typical opener: the logs' spells mapped onto this class's own
       // (potions, trinkets and racials fall out - they are not its spells),
       // then the order most players follow. Raid only: see lib/opener.js.
@@ -573,11 +670,14 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         aoe: pack(aoe.lines),
         mv: [...new Set([...st.moving, ...aoe.moving])],
         items: Object.keys(items).length ? items : undefined,
+        cast: gemessen && gemessen.players >= MIN_MEASURED ? gemessen.players : undefined,
       };
       const others = [...st.lines, ...aoe.lines].filter((l) => l.c.some(apl.isOther)).length;
       report.push(`${s.id} ${file} ${mode}: st ${st.lines.length}, aoe ${aoe.lines.length}, pre ${preLines.length}`
         + `, vague ${others}${measured ? `, opener ${measured.pre.length}|${measured.post.length} of ${measured.n}` : ''}`
-        + `${miss.size ? ', unknown: ' + [...miss].join(' ') : ''}`);
+        + `${miss.size ? ', unknown: ' + [...miss].join(' ') : ''}`
+        + `${gemessen ? `, measured ${gemessen.players}` : ', not measured'}`
+        + `${ungespielt.length ? ', not played: ' + [...new Set(ungespielt)].join(' ') : ''}`);
     }
   }
   console.log(report.join('\n'));

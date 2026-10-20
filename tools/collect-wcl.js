@@ -1230,6 +1230,15 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
   const openerZiel = Number(process.env.MC_OPENER_REPORTS || 300);
   const openerSchritt = codes.length > openerZiel ? Math.ceil(codes.length / openerZiel) : 1;
   let openerKaputt = false;
+  // WAS DIE BESTEN WIRKEN - je Spieler jeder Zauber, ueber den ganzen Kampf.
+  //
+  // Eine Abfrage je Kampf liefert alle Spieler. Gebraucht fuer die Rotation
+  // (tools/build-rotation.js): ob ein Zauber wirklich ersetzt ist, ob eine
+  // Zeile der Simulation ueberhaupt gespielt wird, und fuer die Heiler, fuer
+  // die es keine Simulation gibt. Gestuft wie der Ablauf.
+  const castZiel = Number(process.env.MC_CAST_REPORTS || 300);
+  const castSchritt = codes.length > castZiel ? Math.ceil(codes.length / castZiel) : 1;
+  let castKaputt = false;
   for (const [code, info] of codes) {
     folioIndex += 1;
     const mitFolio = (folioIndex % folioSchritt) === 0;
@@ -1770,6 +1779,38 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
       }
     }
 
+    if ((folioIndex % castSchritt) === 0 && specBySource.size && !castKaputt) {
+      try {
+        const t = await gql(`
+          query ($code: String!, $fight: Int!) {
+            reportData { report(code: $code) { table(dataType: Casts, fightIDs: [$fight]) } }
+          }`, { code, fight: fightID });
+        const tab = t.reportData.report.table && t.reportData.report.table.data;
+        for (const e of (tab && tab.entries) || []) {
+          const spec = specBySource.get(Number(e.id));
+          const minutes = Number(e.activeTime || (tab && tab.totalTime) || 0) / 60000;
+          if (!spec || !(minutes > 0)) continue;
+          for (const mode of active) {
+            const x = entryFor(mode, spec);
+            const c = x.casts || (x.casts = { players: 0, minutes: 0, by: {} });
+            c.players += 1;
+            c.minutes += minutes;
+            for (const a of e.abilities || []) {
+              const g = Number(a.guid);
+              if (!g) continue;
+              const b = c.by[g] || (c.by[g] = [0, 0]);
+              b[0] += Number(a.total) || 0;
+              b[1] += 1;
+            }
+          }
+        }
+      } catch (err) {
+        castKaputt = true;
+        console.log('\n  ! Zauber-Abfrage abgelehnt, sammle ohne sie weiter: '
+          + String(err.message).slice(0, 120));
+      }
+    }
+
     process.stdout.write('.');
     await sleep(250);
   }
@@ -2197,6 +2238,18 @@ Haeufigste nicht zugeordnete Auren (${missedAuras.size} verschiedene):`);
       if (entry.openers && entry.openers.length) {
         out.openers = entry.openers;
       }
+      // Je Zauber: wie oft insgesamt, und wie viele Spieler ihn ueberhaupt
+      // wirkten - die fuenfzig haeufigsten.
+      if (entry.casts && entry.casts.players) {
+        out.casts = {
+          players: entry.casts.players,
+          minutes: Math.round(entry.casts.minutes),
+          by: Object.entries(entry.casts.by)
+            .map(([g, [n, wer]]) => [Number(g), n, wer])
+            .sort((x, y) => y[1] - x[1])
+            .slice(0, 50),
+        };
+      }
 
       const builds = Object.entries(entry.builds || {}).sort((a, b) => b[1] - a[1]);
       if (builds.length) {
@@ -2256,6 +2309,13 @@ Haeufigste nicht zugeordnete Auren (${missedAuras.size} verschiedene):`);
 Probelauf ${mode}, ${Object.keys(specs).length} Speccs, Spec ${id}:`);
       for (const c of (one || {}).consumables || []) {
         console.log(`  ${String(c.pct).padStart(3)}%  ${c.kind.padEnd(7)} ${c.name || '(ohne Gegenstand)'}`);
+      }
+      const zauber = (one || {}).casts;
+      if (zauber) {
+        console.log(`  Zauber: ${zauber.players} Spieler, ${zauber.minutes} Minuten, z. B.`);
+        for (const [g, n, wer] of zauber.by.slice(0, 6)) {
+          console.log(`    ${g}: ${(n / zauber.minutes).toFixed(1)} je Minute, von ${wer} Spielern`);
+        }
       }
       const ablaeufe = (one || {}).openers || [];
       if (ablaeufe.length) {

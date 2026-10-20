@@ -374,6 +374,7 @@ ns.RegisterLocale("deDE", {
     ["ROT_ONEOF"] = "Eins davon:",
     ["ROT_TIP_WHEN"] = "Wann",
     ["ROT_TIP_SOURCE"] = "Aus der Prioritätsliste von SimulationCraft (GPL-3.0), zugeschnitten auf die Talente des gemessenen Builds.",
+    ["ROT_TIP_MEASURED"] = "Gemessen: %d %% der Top-Spieler wirken ihn, %s-mal pro Minute.",
     ["ROT_T_shortest"] = "auf das Ziel, auf dem %s zuerst ausläuft",
     ["ROT_T_longest"] = "auf das Ziel, auf dem %s am längsten läuft",
     ["ROT_C_other"] = "bestimmte Bedingungen erfüllt sind",

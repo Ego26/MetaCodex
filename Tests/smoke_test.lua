@@ -6660,7 +6660,7 @@ do
         keep = { 192106 },
         pre = { { s = 191634 } },
         st = {
-            { s = 51505, c = { { "down", 260734 }, { "resnotcap", "maelstrom", 15 } },
+            { s = 51505, m = { 98, 12.3 }, c = { { "down", 260734 }, { "resnotcap", "maelstrom", 15 } },
                 any = { { { "charges", 51505, 1.8 } }, { { "resmin", "maelstrom", 83 } } } },
             { s = 117014, t = { "shortest", 197209 }, c = { { "or", { "up", 260734 }, { "resfull", "maelstrom", 15 } } } },
             { s = 114050 },
@@ -6781,6 +6781,8 @@ do
         local alles = table.concat(zeilen, " | ")
         check("der Zeiger sagt wann", alles:find(L["ROT_TIP_WHEN"], 1, true) ~= nil, alles:sub(1, 160))
         check("und eins davon", alles:find(L["ROT_ONEOF"], 1, true) ~= nil)
+        check("und was die Logs dazu sagen", alles:find(L["ROT_TIP_MEASURED"]:format(98, "12,3"), 1, true) ~= nil
+            or alles:find(L["ROT_TIP_MEASURED"]:format(98, "12.3"), 1, true) ~= nil, alles:sub(1, 200))
         -- Reiter Flaeche: zwei Saetze, kein Ablauf.
         local flaeche
         for _, b in ipairs(karte.tabs) do if b.key == "aoe" then flaeche = b end end
