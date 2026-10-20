@@ -23,7 +23,7 @@ const INF = Infinity;
 
 function tokenize(s) {
   const out = [];
-  const re = /\s*(>=|<=|!=|>\?|<\?|[()!&|=<>+\-*%/@]|[0-9]+(?:\.[0-9]+)?|[a-zA-Z_][a-zA-Z0-9_.]*)/gy;
+  const re = /\s*(>=|<=|!=|>\?|<\?|%%|[()!&|=<>+\-*%/@]|[0-9]+(?:\.[0-9]+)?|[a-zA-Z_][a-zA-Z0-9_.]*)/gy;
   let m;
   while ((m = re.exec(s)) && m[0]) out.push(m[1]);
   return out;
@@ -35,7 +35,7 @@ function parse(s) {
   let i = 0;
   const peek = () => t[i];
   const next = () => t[i++];
-  const BIN = [['|'], ['&'], ['=', '!=', '<', '>', '<=', '>='], ['+', '-'], ['*', '%', '/', '>?', '<?']];
+  const BIN = [['|'], ['&'], ['=', '!=', '<', '>', '<=', '>='], ['+', '-'], ['*', '%', '%%', '/', '>?', '<?']];
   function level(l) {
     if (l === BIN.length) return unary();
     let left = level(l + 1);
@@ -54,6 +54,13 @@ function parse(s) {
     next();
     if (tok === undefined) return { num: 0 };
     if (/^[0-9]/.test(tok)) return { num: Number(tok) };
+    // floor(x), ceil(x): the only functions the lists use.
+    if ((tok === 'floor' || tok === 'ceil') && peek() === '(') {
+      next();
+      const e = level(0);
+      if (peek() === ')') next();
+      return { op: tok, a: e };
+    }
     return { atom: tok };
   }
   return level(0);
@@ -83,8 +90,8 @@ function parseApl(text) {
 
 const RESOURCES = new Set(['maelstrom', 'energy', 'rage', 'focus', 'runic_power', 'insanity', 'fury',
   'astral_power', 'lunar_power', 'combo_points', 'holy_power', 'soul_shard', 'soul_shards', 'chi',
-  'essence', 'mana', 'rune', 'runes', 'pain']);
-const RES_MAX = { combo_points: 7, holy_power: 5, soul_shard: 5, soul_shards: 5, chi: 6, essence: 6, rune: 6, runes: 6 };
+  'essence', 'mana', 'rune', 'runes', 'pain', 'soul_fragments']);
+const RES_MAX = { soul_fragments: 6, combo_points: 7, holy_power: 5, soul_shard: 5, soul_shards: 5, chi: 6, essence: 6, rune: 6, runes: 6 };
 
 const known = (v) => ({ num: v, lo: v, hi: v });
 const isTrue = (x) => x.lo > 0 || x.hi < 0;
@@ -100,6 +107,38 @@ const clean = (v, d) => (Number.isNaN(v) ? d : v);
 function atomRange(a, ctx) {
   const p = a.split('.');
   const head = p[0];
+  // SCHMUCK UND TRANK: gerechnet ohne Schmuck mit Benutzen-Effekt. Ob einer
+  // bereit ist, haengt an der Ausruestung, nicht an der Rotation - und die
+  // Zeilen dazu stellten mehr als die Haelfte aller vagen Bedingungen.
+  if (ctx.trinket && (head === 'trinket' || head === 'this_trinket')) {
+    // Der gedachte Schmuck: im ersten Platz einer mit Buff oder einer mit
+    // Schaden, im zweiten keiner mit Benutzen-Effekt.
+    const slot = head === 'this_trinket' ? '1' : p[1];
+    const rest = head === 'this_trinket' ? p.slice(1).join('.') : p.slice(2).join('.');
+    if (slot !== '1') return [0, 0];
+    const t = ctx.trinket;
+    if (rest === 'has_use_buff') return t.buff ? [1, 1] : [0, 0];
+    if (rest === 'has_use_damage') return t.buff ? [0, 0] : [1, 1];
+    if (rest === 'has_cooldown' || rest === 'cooldown.ready' || rest === 'cooldown.up') return [1, 1];
+    if (rest === 'cooldown.duration') return [t.cd, t.cd];
+    if (rest === 'cooldown.remains') return [0, 0];
+    if (rest === 'proc.any_dps.duration' || rest === 'buff_duration') return t.buff ? [20, 20] : [0, 0];
+    if (/^has_buff\./.test(rest)) return t.buff ? [1, 1] : [0, 0];
+    return [0, 0];
+  }
+  if (head === 'trinket' || head === 'this_trinket' || head === 'equipped' || head === 'potion') return [0, 0];
+  // Der Kampfstil ist je Aktivitaet bekannt: M+ ist ein Dungeon, Raid nicht.
+  if (head === 'fight_style') return p[1] === ctx.fightStyle ? [1, 1] : [0, 0];
+  // Unterbrechen und Laufwege stehen in keiner Prioritaet.
+  if (a === 'target.debuff.casting.react' || head === 'movement' || a === 'moving') return [0, 0];
+  // Feuer: Versengen in der Hinrichtungsphase - das Ziel unter 30 % Leben.
+  if (a === 'scorch_execute.active') return [0, 1];
+  // Die Rotation gilt im Kampf; ein Bosskampf ist der Raid.
+  if (a === 'in_combat') return [1, 1];
+  if (a === 'in_boss_encounter') return ctx.fightStyle === 'patchwerk' ? [1, 1] : [0, 0];
+  // Entschieden wird am Ende des globalen Cooldowns, nicht mittendrin.
+  if (a === 'gcd.remains') return [0, 0];
+  if (a === 'gcd' || a === 'gcd.max') return [0.75, 1.5];
   if (head === 'talent') return ctx.talent(p[1]) ? [1, 1] : [0, 0];
   if (head === 'hero_tree') return ctx.hero(p[1]) ? [1, 1] : [0, 0];
   if (head === 'set_bonus') return ctx.setBonus(p.slice(1).join('.')) ? [1, 1] : [0, 0];
@@ -136,7 +175,6 @@ function atomRange(a, ctx) {
     const max = RES_MAX[head] || 150;
     return [0, max];
   }
-  if (a === 'gcd' || a === 'gcd.max' || a === 'gcd.remains') return [0, 2];
   if (a === 'time') return [0, INF];
   if (head === 'target' && p[1] === 'health') return [0, 100];
   return [0, INF];
@@ -164,6 +202,21 @@ function fold(e, ctx, depth = 0) {
     const a = fold(e.a, ctx, depth + 1);
     if (a.lo === a.hi) return known(-a.lo);
     return { op: 'neg', a, lo: -a.hi, hi: -a.lo };
+  }
+  if (e.op === 'floor' || e.op === 'ceil') {
+    const a = fold(e.a, ctx, depth + 1);
+    const fn = e.op === 'floor' ? Math.floor : Math.ceil;
+    if (a.lo === a.hi) return known(fn(a.lo));
+    return { op: e.op, a, lo: Number.isFinite(a.lo) ? Math.floor(a.lo) : a.lo, hi: Number.isFinite(a.hi) ? Math.ceil(a.hi) : a.hi };
+  }
+  // Ein bedingter Wert (variable,op=setif): Bedingung bekannt, Zweig bekannt.
+  if (e.op === '?:') {
+    const c = fold(e.c, ctx, depth + 1);
+    if (isTrue(c)) return fold(e.a, ctx, depth + 1);
+    if (isFalse(c)) return fold(e.b, ctx, depth + 1);
+    const a = fold(e.a, ctx, depth + 1);
+    const b = fold(e.b, ctx, depth + 1);
+    return { op: '?:', c, a, b, lo: Math.min(a.lo, b.lo), hi: Math.max(a.hi, b.hi) };
   }
   if (e.op === 'abs') {
     const a = fold(e.a, ctx, depth + 1);
@@ -207,6 +260,7 @@ function fold(e, ctx, depth = 0) {
       case '-': return x - y;
       case '*': return (x === 0 || y === 0) ? 0 : x * y;
       case '%': case '/': return y ? x / y : 0;
+      case '%%': return y ? x % y : 0;
       case '>?': return Math.max(x, y);
       case '<?': return Math.min(x, y);
       default: return 0;
@@ -216,6 +270,7 @@ function fold(e, ctx, depth = 0) {
   let lo, hi;
   if (e.op === '-') { lo = a.lo - b.hi; hi = a.hi - b.lo; }
   else if (e.op === '/' || e.op === '%') { lo = -INF; hi = INF; if (b.lo > 0 && a.lo >= 0) { lo = 0; } }
+  else if (e.op === '%%') { lo = a.lo >= 0 ? 0 : -INF; hi = Number.isFinite(b.hi) ? Math.abs(b.hi) : INF; }
   else {
     const c = [calc(a.lo, b.lo), calc(a.lo, b.hi), calc(a.hi, b.lo), calc(a.hi, b.hi)].map((x) => clean(x, 0));
     lo = Math.min(...c); hi = Math.max(...c);
@@ -233,14 +288,52 @@ const hasAtom = (e, pred) => !!e && ((e.atom && pred(e.atom)) || hasAtom(e.a, pr
  * Turns a folded condition into records. spell(slug) -> id|null.
  * Records: [kind, ...args]; "or"/"and" nest.
  */
+/** A folded expression back as text - for the report of what stayed vague. */
+function show(e) {
+  if (!e) return '?';
+  if (e.num !== undefined) return String(round(e.num));
+  if (e.atom) return e.atom;
+  if (e.op === '!') return '!' + show(e.a);
+  if (e.op === 'neg') return '-' + show(e.a);
+  if (e.op === 'abs') return '@' + show(e.a);
+  return '(' + show(e.a) + e.op + show(e.b) + ')';
+}
+
+// What stayed vague, counted - set by the caller that wants the report.
+let vagueLog = null;
+function logVague(map) { vagueLog = map; }
+
 function records(e, spell) {
+  const r = recordsOf(e, spell);
+  if (vagueLog && r[0] === 'other') {
+    // Variables and atoms by their kind, numbers out: "buff.X.remains>cooldown.Y.remains".
+    const key = show(e).replace(/\b\d+(\.\d+)?\b/g, 'N');
+    vagueLog.set(key, (vagueLog.get(key) || 0) + 1);
+  }
+  return r;
+}
+
+function recordsOf(e, spell) {
+  if (e.atom === 'scorch_execute.active') return ['hpunder', 30];
+  if (e.op === '!' && e.a && e.a.atom === 'scorch_execute.active') return ['hpover', 30];
   const other = ['other'];
   const sp = (slug) => spell(slug);
   if (e.op === '&') return ['and', records(e.a, spell), records(e.b, spell)];
   if (e.op === '|') return ['or', records(e.a, spell), records(e.b, spell)];
   if (e.op === '!') {
     const inner = e.a;
+    // Nach innen gezogen: "nicht (A oder B)" ist "nicht A und nicht B".
+    if (inner.op === '!') return records(inner.a, spell);
+    if (inner.op === '|') return ['and', records({ op: '!', a: inner.a }, spell), records({ op: '!', a: inner.b }, spell)];
+    if (inner.op === '&') return ['or', records({ op: '!', a: inner.a }, spell), records({ op: '!', a: inner.b }, spell)];
+    const NEG = { '<': '>=', '>': '<=', '<=': '>', '>=': '<', '=': '!=', '!=': '=' };
+    if (NEG[inner.op]) return records({ op: NEG[inner.op], a: inner.a, b: inner.b }, spell);
     if (inner.atom) {
+      const q = inner.atom.split('.');
+      if (q[0] === 'pet' && (q[2] === 'active' || q[2] === 'remains') && petSpell(q[1], spell)) return ['down', petSpell(q[1], spell)];
+      if (q[0] === 'cooldown' && q[2] === 'remains' && sp(q[1])) return ['ready', sp(q[1])];
+      if ((q[0] === 'buff' || q[0] === 'debuff' || q[0] === 'dot') && q[2] === 'remains' && sp(q[1])) return ['down', sp(q[1])];
+      if (q[0] === 'action' && q[2] === 'executing' && sp(q[1])) return ['notcasting', sp(q[1])];
       const p = inner.atom.split('.');
       if ((p[0] === 'buff' || p[0] === 'debuff') && (p[2] === 'up' || p[2] === 'react') && sp(p[1])) return ['down', sp(p[1])];
       if ((p[0] === 'buff' || p[0] === 'debuff' || p[0] === 'dot') && p[2] === 'ticking' && sp(p[1])) return ['down', sp(p[1])];
@@ -257,6 +350,11 @@ function records(e, spell) {
     if ((p[0] === 'dot' || p[0] === 'debuff' || p[0] === 'buff') && p[2] === 'refreshable' && sp(p[1])) return ['refresh', sp(p[1])];
     if (p[0] === 'cooldown' && (p[2] === 'ready' || p[2] === 'up') && sp(p[1])) return ['ready', sp(p[1])];
     if ((p[0] === 'prev_gcd' || p[0] === 'prev') && sp(p[p.length - 1])) return ['prev', sp(p[p.length - 1])];
+    if (p[0] === 'pet' && (p[2] === 'active' || p[2] === 'remains') && petSpell(p[1], spell)) return ['up', petSpell(p[1], spell)];
+    // "cooldown.X.remains" allein: X hat noch Abklingzeit; "buff.X.remains": X laeuft.
+    if (p[0] === 'cooldown' && p[2] === 'remains' && sp(p[1])) return ['notready', sp(p[1])];
+    if ((p[0] === 'buff' || p[0] === 'debuff' || p[0] === 'dot') && p[2] === 'remains' && sp(p[1])) return ['up', sp(p[1])];
+    if (p[0] === 'action' && p[2] === 'executing' && sp(p[1])) return ['casting', sp(p[1])];
     return other;
   }
   if (['<', '>', '<=', '>=', '=', '!='].includes(e.op)) return compare(e, spell);
@@ -272,71 +370,112 @@ function compare(e, spell) {
   const n = numOf(b);
   const at = a.atom || '';
   const p = at.split('.');
-  const other = ['other'];
+  // What no special case can say goes to the general comparison: "the
+  // remaining time of X is greater than the cooldown of Y".
+  const generic = () => {
+    const na = noun(a, spell);
+    const nb = noun(b, spell);
+    const CMP = { '>': 'gt', '>=': 'ge', '<': 'lt', '<=': 'le', '=': 'eq', '!=': 'ne' };
+    if (na && nb && !(na[0] === 'n' && nb[0] === 'n')) return ['cmp', na, CMP[op], nb];
+    return ['other'];
+  };
   const big = op === '>' || op === '>=';
   // a > n means at least n + 1 for whole counts.
   const atLeast = (x) => (op === '>' ? x + 1 : x);
   const below = (x) => (op === '<=' ? x + 1 : x);
 
   if (at === 'active_enemies' || p[0] === 'spell_targets' || at === 'desired_targets') {
-    if (n === null) return other;
+    if (n === null) return generic();
     if (op === '=') return ['tgtis', n];
     if (big) return ['tgtmin', atLeast(n)];
     if (op === '<' || op === '<=') return ['tgtmax', op === '<' ? n - 1 : n];
-    return other;
+    return generic();
   }
   if (RESOURCES.has(p[0])) {
     const res = p[0];
     if (p[1] === 'deficit') return big ? ['resnotcap', res, n] : ['resfull', res, n];
-    if (p[1] === 'pct') return n === null ? other : (big ? ['respctmin', res, atLeast(n)] : ['respctunder', res, below(n)]);
+    if (p[1] === 'pct') return n === null ? generic() : (big ? ['respctmin', res, atLeast(n)] : ['respctunder', res, below(n)]);
     if (p[1] === 'time_to_max') return big ? ['resnotcap', res, null] : ['resfull', res, null];
-    if (p.length === 1 || p[1] === 'current') {
-      if (n === null) return big ? ['resenough', res] : other;
+    if (p.length === 1 || p[1] === 'current' || p[1] === 'total' || p[1] === 'active') {
+      if (n === null) return big ? ['resenough', res] : generic();
       if (op === '=') return ['resis', res, n];
       return big ? ['resmin', res, atLeast(n)] : ['resunder', res, below(n)];
     }
-    return other;
+    return generic();
   }
   if ((p[0] === 'buff' || p[0] === 'debuff') && (p[2] === 'stack' || p[2] === 'react') && n !== null && spell(p[1])) {
     const id = spell(p[1]);
     if (big) return ['stackmin', id, atLeast(n)];
     if (op === '<' || op === '<=') return below(n) <= 1 ? ['down', id] : ['stackunder', id, below(n)];
     if (op === '=') return n === 0 ? ['down', id] : ['stackis', id, n];
-    return other;
+    return generic();
   }
   if ((p[0] === 'buff' || p[0] === 'debuff' || p[0] === 'dot') && p[2] === 'remains' && spell(p[1])) {
     const id = spell(p[1]);
-    if (n === null) return other;
+    if (n === null) return generic();
     if (op === '<' || op === '<=') return ['remunder', id, n];
     if (big) return n === 0 ? ['up', id] : ['remover', id, n];
-    return other;
+    return generic();
   }
   if (p[0] === 'cooldown' && spell(p[1])) {
     const id = spell(p[1]);
     if (p[2] === 'remains') {
-      if (hasAtom(b, (x) => x.startsWith('gcd'))) return (op === '<' || op === '<=') ? ['cdsoon', id] : other;
-      if (n === null) return other;
+      if (hasAtom(b, (x) => x.startsWith('gcd'))) return (op === '<' || op === '<=') ? ['cdsoon', id] : generic();
+      if (n === null) return generic();
       if (op === '<' || op === '<=') return n <= 0 ? ['ready', id] : ['cdunder', id, n];
       if (big) return n <= 0 && op === '>' ? ['notready', id] : ['cdover', id, n];
-      return other;
+      return generic();
     }
     if ((p[2] === 'charges' || p[2] === 'charges_fractional') && n !== null) {
       if (big) return ['charges', id, p[2] === 'charges' ? atLeast(n) : Math.round(n * 10) / 10];
       if (op === '<' || op === '<=') return ['chargesunder', id, below(Math.ceil(n))];
-      return other;
+      return generic();
     }
     if (p[2] === 'full_recharge_time' && n !== null && (op === '<' || op === '<=')) return ['chargesfull', id, n];
-    return other;
+    return generic();
   }
   if (p[0] === 'active_dot' && n !== null && spell(p[1])) {
     if (op === '=' || big) return ['doton', spell(p[1]), big ? atLeast(n) : n];
-    return other;
+    return generic();
   }
   if (p[0] === 'target' && p[1] === 'health' && p[2] === 'pct' && n !== null) {
     return (op === '<' || op === '<=') ? ['hpunder', n] : ['hpover', n];
   }
   if (at === 'time' && n !== null) return (op === '<' || op === '<=') ? ['timeunder', n] : ['timeover', n];
-  return other;
+  return generic();
+}
+
+/** The spell behind a pet: its own name, or what summons it. */
+const PET_SPELL = { army_ghoul: 'army_of_the_dead', apoc_ghoul: 'apocalypse', ghoul: 'raise_dead' };
+function petSpell(name, spell) {
+  if (PET_SPELL[name] && spell(PET_SPELL[name])) return spell(PET_SPELL[name]);
+  return spell(name) || spell('summon_' + name) || spell('raise_' + name) || null;
+}
+
+/** A value as a noun ("the cooldown of X"), or null. */
+function noun(e, spell) {
+  if (!e) return null;
+  if (e.lo === e.hi && Number.isFinite(e.lo)) return ['n', round(e.lo)];
+  if (e.atom) {
+    const p = e.atom.split('.');
+    if ((p[0] === 'buff' || p[0] === 'debuff' || p[0] === 'dot') && p[2] === 'remains' && spell(p[1])) return ['rem', spell(p[1])];
+    if ((p[0] === 'buff' || p[0] === 'debuff') && (p[2] === 'stack' || p[2] === 'react') && spell(p[1])) return ['stk', spell(p[1])];
+    if (p[0] === 'cooldown' && p[2] === 'remains' && spell(p[1])) return ['cd', spell(p[1])];
+    if (p[0] === 'cooldown' && (p[2] === 'charges' || p[2] === 'charges_fractional') && spell(p[1])) return ['chg', spell(p[1])];
+    if (p[0] === 'pet' && p[2] === 'remains' && petSpell(p[1], spell)) return ['rem', petSpell(p[1], spell)];
+    if (RESOURCES.has(p[0]) && (p.length === 1 || p[1] === 'total' || p[1] === 'active')) return ['res', p[0]];
+    if (RESOURCES.has(p[0]) && p[1] === 'deficit') return ['def', p[0]];
+    if (e.atom === 'gcd' || e.atom === 'gcd.max') return ['gcd'];
+    return null;
+  }
+  if ((e.op === '*' || e.op === '+' || e.op === '-') && e.a && e.b) {
+    const x = noun(e.a, spell);
+    const y = noun(e.b, spell);
+    if (!x || !y) return null;
+    const kind = e.op === '*' ? 'mul' : (e.op === '+' ? 'plus' : 'minus');
+    return [kind, x, y];
+  }
+  return null;
 }
 
 /** Flattens a top-level AND into its parts. */
@@ -349,6 +488,19 @@ const isOther = (r) => r[0] === 'other' || ((r[0] === 'and' || r[0] === 'or') &&
 const keyOf = (r) => JSON.stringify(r);
 
 // ------------------------------------------------------------------ lists
+
+// Trank, Schmuck, Volksfaehigkeiten: nicht in der Prioritaet, aber mit ihrer
+// Bedingung gesammelt - fuer den eigenen Reiter "Traenke & Schmuck".
+const RACIALS = new Set(['blood_fury', 'berserking', 'fireblood', 'ancestral_call', 'arcane_torrent',
+  'lights_judgment', 'bag_of_tricks', 'arcane_pulse', 'haymaker', 'rocket_barrage', 'azerite_surge']);
+function itemKind(action, opts) {
+  if (action === 'potion') return 'potion';
+  if (action === 'use_items') return 'trinket';
+  // Nur der Platz, nicht ein bestimmter Schmuck: den traegt nicht jeder.
+  if (action === 'use_item' && /^trinket1$/.test(opts.slot || '')) return 'trinket';
+  if (RACIALS.has(action)) return 'racial';
+  return null;
+}
 
 const NOISE = new Set(['snapshot_stats', 'variable', 'use_item', 'use_items', 'potion', 'invoke_external_buff',
   'blood_fury', 'berserking', 'fireblood', 'ancestral_call', 'arcane_torrent', 'lights_judgment',
@@ -371,14 +523,31 @@ function buildTab(lists, start, ctx, resolve) {
   const lines = [];
   const moving = [];
   const keep = [];
+  const items = [];
   const miss = new Set();
   const visiting = new Set();
+
+  // Was eine Zeile ueber ihren eigenen Zauber sagt, ohne ihn zu nennen.
+  const BARE = {
+    combo_strike: (a) => `!prev_gcd.1.${a}`,
+    cooldown_react: () => '1',
+    refreshable: (a) => `dot.${a}.refreshable`,
+    ticking: (a) => `dot.${a}.ticking`,
+    remains: (a) => `dot.${a}.remains`,
+    charges_fractional: (a) => `cooldown.${a}.charges_fractional`,
+    charges: (a) => `cooldown.${a}.charges`,
+    full_recharge_time: (a) => `cooldown.${a}.full_recharge_time`,
+    executing: (a) => `action.${a}.executing`,
+  };
+  const own = (text, action) => text.replace(
+    /(^|[^\w.])(combo_strike|cooldown_react|refreshable|ticking|remains|charges_fractional|charges|full_recharge_time|executing)(?![\w.])/g,
+    (m, pre, name) => pre + '(' + BARE[name](action) + ')');
 
   function walk(listName, outer) {
     if (visiting.has(listName)) return false;
     visiting.add(listName);
     for (const { action, opts } of lists[listName] || []) {
-      let cond = opts.if ? fold(parse(opts.if), ctx) : known(1);
+      let cond = opts.if ? fold(parse(own(opts.if, action)), ctx) : known(1);
       if (isFalse(cond)) continue;
       const conds = isTrue(cond) ? [] : conjuncts(records(cond, resolve.spell));
       const all = [...outer, ...conds];
@@ -390,6 +559,14 @@ function buildTab(lists, start, ctx, resolve) {
         // fails. With a condition that always holds, the tab ends here.
         if (action === 'run_action_list' && isTrue(cond) && outer.length === 0) { visiting.delete(listName); return true; }
         if (stop && isTrue(cond) && outer.length === 0) { visiting.delete(listName); return true; }
+        continue;
+      }
+      const kind = itemKind(action, opts);
+      if (kind) {
+        // Die erste Zeile je Art (und je Volksfaehigkeit) gilt - wie in der
+        // Prioritaet: was darunter steht, kommt nur, wenn sie nicht greift.
+        const key = kind === 'racial' ? action : kind;
+        if (!items.some((x) => x.key === key)) items.push({ key, kind, action, c: all });
         continue;
       }
       if (NOISE.has(action)) continue;
@@ -446,7 +623,7 @@ function buildTab(lists, start, ctx, resolve) {
       if (l.any.some((g) => g.length === 0)) delete l.any; // one branch always holds
     }
   }
-  return { lines: merged, moving, keep, miss };
+  return { lines: merged, moving, keep, items, miss };
 }
 
-module.exports = { parse, parseApl, fold, records, buildTab, tokenize, NOISE, isOther };
+module.exports = { parse, parseApl, fold, records, buildTab, tokenize, NOISE, RACIALS, isOther, show, logVague };

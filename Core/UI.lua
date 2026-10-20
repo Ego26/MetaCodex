@@ -7136,7 +7136,28 @@ do
 
     -- Bedingung -> Nebensatz ("Meister der Elemente aktiv ist").
     local SPELL1 = { up = true, down = true, refresh = true, ready = true, notready = true,
-        cdsoon = true, prev = true, notprev = true }
+        cdsoon = true, prev = true, notprev = true, casting = true, notcasting = true }
+
+    -- Ein Wert als Hauptwort, fuer Vergleiche zweier Werte.
+    local function wert(n, nm)
+        if type(n) ~= "table" then return "?" end
+        local k = n[1]
+        if k == "n" then return zahl(n[2]) end
+        if k == "gcd" then return L["ROT_N_gcd"] end
+        if k == "res" then return resource(n[2]) end
+        if k == "def" then return L["ROT_N_def"]:format(resource(n[2])) end
+        if k == "rem" or k == "cd" or k == "chg" or k == "stk" then return L["ROT_N_" .. k]:format(nm(n[2])) end
+        -- "2 globale Cooldowns" statt "ein globaler Cooldown × 2".
+        if k == "mul" and type(n[2]) == "table" and type(n[3]) == "table" then
+            local g, z = n[2], n[3]
+            if g[1] == "n" then g, z = z, g end
+            if g[1] == "gcd" and z[1] == "n" then return L["ROT_N_gcds"]:format(zahl(z[2])) end
+        end
+        if k == "mul" or k == "plus" or k == "minus" then
+            return L["ROT_N_" .. k]:format(wert(n[2], nm), wert(n[3], nm))
+        end
+        return "?"
+    end
     local SPELLN = { cdunder = true, cdover = true, stackmin = true, stackunder = true, stackis = true,
         remunder = true, remover = true, chargesunder = true, chargesfull = true, doton = true }
     local RESN = { resmin = true, resunder = true, resis = true, respctmin = true, respctunder = true }
@@ -7167,6 +7188,9 @@ do
             return L["ROT_C_" .. kind]:format(resource(c[2]))
         end
         if kind == "resenough" then return L["ROT_C_resenough"]:format(resource(c[2])) end
+        if kind == "cmp" then
+            return L["ROT_CMP_" .. tostring(c[3])]:format(wert(c[2], nm), wert(c[4], nm))
+        end
         if RESN[kind] then return L["ROT_C_" .. kind]:format(zahl(c[3]), resource(c[2])) end
         return L["ROT_C_other"]
     end
@@ -7200,8 +7224,40 @@ do
     ---@param tab string  "st", "aoe" oder "pre"
     ---@param last boolean die letzte Zeile ohne Bedingung ist der Fueller
     ---@param nm function|nil wie ein Zauber heisst (Vorgabe: schlicht)
+    -- Ein Gegenstand im Satz: Symbol und Name in Gold, wie ein Zauber.
+    local function gegenstand(id, mitSymbol)
+        local name = C_Item and C_Item.GetItemNameByID and C_Item.GetItemNameByID(id)
+        local tex = mitSymbol and C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(id)
+        return (tex and ("|T" .. tostring(tex) .. ":0|t ") or "") .. "|cffffd100"
+            .. (type(name) == "string" and name or L["ROT_I_POTION"]) .. "|r"
+    end
+    local SCHMUCK = "Interface\\Icons\\INV_Jewelry_TrinketPVP_01"
+
+    ---Der Satz einer Zeile im Reiter "Traenke & Schmuck".
+    local function gegenstandSatz(line, nm)
+        local when = wann(line, nm)
+        if line.ik == "potion" then
+            local name = gegenstand(line.item, nm ~= zauber)
+            local text
+            if when ~= "" then text = L["ROT_I_potion_if"]:format(name, when)
+            elseif line.pre then text = L["ROT_I_potion_pre"]:format(name)
+            else text = L["ROT_I_potion"]:format(name) end
+            if line.pre and when ~= "" then text = text .. " " .. L["ROT_I_prepot"] end
+            if line.pct then
+                text = text .. "  |cff" .. S:Hex("textMuted") .. L["ROT_I_measured"]:format(line.pct) .. "|r"
+            end
+            return text
+        end
+        -- Schmuck: welcher, entscheidet die Ausruestung - die Art sagt wann.
+        local art = (nm ~= zauber and ("|T" .. SCHMUCK .. ":0|t ") or "")
+            .. "|cffffd100" .. L["ROT_I_" .. line.ik .. "_name"] .. "|r"
+        if when ~= "" then return L["ROT_I_use_if"]:format(art, when) end
+        return L["ROT_I_use"]:format(art)
+    end
+
     local function satz(line, tab, last, nm)
         nm = nm or zauber
+        if line.ik and line.ik ~= "racial" then return gegenstandSatz(line, nm) end
         local name = nm(line.s)
         if line.keepUp then return L["ROT_S_keep"]:format(name) end
         local when = wann(line, nm)
@@ -7210,16 +7266,39 @@ do
         if ziel then return L["ROT_S_target"]:format(name, ziel) end
         if when ~= "" then return L["ROT_S_if"]:format(name, when) end
         if tab == "pre" then return L["ROT_S_pre"]:format(name) end
-        if last then return L["ROT_S_filler"]:format(name) end
+        if last and (tab == "st" or tab == "aoe") then return L["ROT_S_filler"]:format(name) end
         return L["ROT_S_cd"]:format(name)
     end
     UI.RotationSentence = satz
 
     -- Die Reiter, in der Reihenfolge wie bei Wowhead.
-    local TABS = { "st", "aoe", "pre" }
+    local TABS = { "st", "aoe", "pre", "items" }
 
     ---Die Zeilen eines Reiters.
     local function zeilenVon(r, tab)
+        -- Traenke & Schmuck: der gemessene Trank, die beiden Arten Schmuck,
+        -- und die Volksfaehigkeit, die dieser Charakter kennt.
+        if tab == "items" then
+            local it, out = r.items or {}, {}
+            if it.potion then
+                -- Den Namen anfordern, falls der Client ihn noch nicht kennt.
+                if it.potion.item and C_Item and C_Item.RequestLoadItemDataByID then
+                    pcall(C_Item.RequestLoadItemDataByID, it.potion.item)
+                end
+                out[#out + 1] = { ik = "potion", item = it.potion.item, pct = it.potion.pct,
+                    pre = it.potion.pre, c = it.potion.c }
+            end
+            if it.buff then out[#out + 1] = { ik = "buff", c = it.buff.c } end
+            if it.dmg then out[#out + 1] = { ik = "dmg", c = it.dmg.c } end
+            for _, v in ipairs(it.racial or {}) do
+                local kennt
+                for _, id in ipairs(v.s or {}) do
+                    if IsPlayerSpell and IsPlayerSpell(id) then kennt = id end
+                end
+                if kennt then out[#out + 1] = { ik = "racial", s = kennt, c = v.c } end
+            end
+            return out
+        end
         if tab == "pre" then
             local pre = {}
             for _, id in ipairs(r.keep or {}) do pre[#pre + 1] = { s = id, keepUp = true } end
@@ -7277,7 +7356,7 @@ do
         local r = ns.Recommend.Rotation(specID, mode)
         if not r then return "" end
         local held = r.hero and ns.Catalog.SubTreeName and ns.Catalog.SubTreeName(r.hero) or "?"
-        local text = L["ROT_HINT"]:format(held, r.n or 0)
+        local text = L["ROT_HINT"]:format(held, r.n or 0) .. "  " .. L["ROT_NO_TRINKET"]
         if r.set then text = text .. "  " .. L["ROT_SET"] end
         if ns.version == "dev" then text = "|cffD29922DEV-Vorschau.|r  " .. text end
         return text
@@ -7330,9 +7409,11 @@ do
         frame:SetScript("OnEnter", function(self)
             if self.hl then self.hl:SetAlpha(1) end
             local d = rawget(self, "rotData")
-            if not d then return end
+            if not d or not (d.spell or d.item) then return end
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            if GameTooltip.SetSpellByID then
+            if d.item then
+                if GameTooltip.SetItemByID then GameTooltip:SetItemByID(d.item) end
+            elseif GameTooltip.SetSpellByID then
                 GameTooltip:SetSpellByID(d.spell)
             else
                 GameTooltip:SetHyperlink("spell:" .. d.spell)
@@ -7540,7 +7621,7 @@ do
         end
 
         -- Die Prioritaet.
-        setzeUeberschrift(f.headPrio, tab == "pre" and L["ROT_TAB_pre"] or L["ROT_PRIORITY"], y, innen)
+        setzeUeberschrift(f.headPrio, (tab == "pre" or tab == "items") and L["ROT_TAB_" .. tab] or L["ROT_PRIORITY"], y, innen)
         y = y + 24 + 16
         local lines = zeilenVon(r, tab)
         local nr = 0
@@ -7557,7 +7638,7 @@ do
             e.text:SetText(satz(line, tab, letzte, gold))
             local h = math.ceil(tonumber(e.text:GetStringHeight()) or 16)
             e:SetHeight(h)
-            e.rotData = { spell = line.s, line = line, tab = tab, nr = nr }
+            e.rotData = { spell = line.s, item = line.item, line = line, tab = tab, nr = nr }
             e:Show()
             y = y + h + GAP
         end
@@ -7565,7 +7646,7 @@ do
 
         -- In Bewegung: abgesetzt durch eine Linie, im selben Einzug.
         local mv = {}
-        if tab ~= "pre" then
+        if tab == "st" or tab == "aoe" then
             for _, id in ipairs(r.mv or {}) do mv[#mv + 1] = gold(id) end
         end
         f.footRule:ClearAllPoints()

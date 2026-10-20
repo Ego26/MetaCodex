@@ -6668,6 +6668,12 @@ do
         },
         aoe = { { s = 61882, c = { { "tgtmin", 5 } } }, { s = 188443 } },
         mv = { 188389 },
+        items = {
+            potion = { item = 241308, pct = 94, c = { { "or", { "up", 2825 }, { "ready", 114050 } } } },
+            buff = { c = { { "ready", 114050 } } },
+            dmg = { c = { { "cdover", 114050, 20 } } },
+            racial = { { s = { 26297 } }, { s = { 33697 } } },
+        },
     }
     ns.Recommend.Rotation = function(_, mode) return mode:find("^mplus") and ROT or nil end
     ns.Profile.SetMode("mplus")
@@ -6698,6 +6704,10 @@ do
     check("die Ressource beim Namen", say({ "resmin", "maelstrom", 83 }) == L["ROT_C_resmin"]:format("83", L["ROT_RES_maelstrom"]))
     check("eine unbekannte Ressource ohne Unterstrich", say({ "resmin", "astral_dust", 3 }):find("astral dust", 1, true) ~= nil)
     check("Unbekanntes ehrlich", say({ "other" }) == L["ROT_C_other"])
+    -- Zwei Werte verglichen, als Satz.
+    local vergleich = say({ "cmp", { "rem", 1 }, "gt", { "mul", { "gcd" }, { "n", 2 } } })
+    check("ein Vergleich zweier Werte als Satz",
+        vergleich == L["ROT_CMP_gt"]:format(L["ROT_N_rem"]:format("#1"), L["ROT_N_gcds"]:format("2")), vergleich)
 
     -- Der Beispiel-Ablauf: davor aus der Liste, danach gemessen - in der
     -- Dev-Version bis dahin ein Platzhalter, der es sagt.
@@ -6714,6 +6724,31 @@ do
     vor = ns.UI.RotationTimeline(ROT)
     check("ohne gemessenes Davor das aus der Liste", table.concat(vor, ",") == "192106,191634")
     ROT.opener = nil
+
+    -- Traenke & Schmuck: Trank mit Messung, zwei Arten Schmuck, und nur die
+    -- Volksfaehigkeit, die der Charakter kennt.
+    do
+        local echtKennt = rawget(_G, "IsPlayerSpell")
+        IsPlayerSpell = function(id) return id == 26297 end
+        ns.Profile.SetMode("mplus")
+        MetaCodexDB.rotationTab = "items"
+        rowsInSection("rotation")
+        local k
+        for _, row in ipairs(wow.rows()) do
+            if row:IsShown() and rawget(row, "__rotPanel") then k = row.__rotPanel end
+        end
+        local saetze = {}
+        for _, e in ipairs(k and k.entries or {}) do if e:IsShown() then saetze[#saetze + 1] = e.text:GetText() or "" end end
+        check("Traenke & Schmuck: Trank, zwei Schmuck, eine Volksfaehigkeit", #saetze == 4, #saetze .. " Saetze")
+        check("der Trank nennt den Anteil", (saetze[1] or ""):find(L["ROT_I_measured"]:format(94), 1, true) ~= nil, saetze[1])
+        check("der Schmuck mit Buff hat seine Bedingung", (saetze[2] or ""):find(L["ROT_I_buff_name"], 1, true) ~= nil, saetze[2])
+        check("nur die eigene Volksfaehigkeit", (saetze[4] or ""):find("26297", 1, true) ~= nil
+            and not table.concat(saetze, " "):find("33697", 1, true), saetze[4])
+        check("kein Fueller im Gegenstand-Reiter", not table.concat(saetze, " "):find(L["ROT_S_filler"]:match("^(.-)%%s"), 1, true)
+            or L["ROT_S_filler"]:match("^(.-)%%s") == L["ROT_S_cd"]:match("^(.-)%%s"))
+        IsPlayerSpell = echtKennt
+        MetaCodexDB.rotationTab = nil
+    end
 
     -- Im Fenster: EINE Zeile, die Karte.
     local n = rowsInSection("rotation")

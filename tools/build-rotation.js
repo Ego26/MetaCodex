@@ -200,6 +200,13 @@ const bare = (s) => String(s || '').replace(/_/g, '');
     const k = slug(n);
     if (!globalByName.has(k) || globalByName.get(k) < id) globalByName.set(k, id);
   }
+  // SimC drops the hyphen ("dance_of_chiji"), the slug keeps it as an
+  // underscore ("dance_of_chi_ji"): a second index without either.
+  const globalByBare = new Map();
+  for (const [id, n] of nameEN) {
+    const k = slug(n).replace(/_/g, '');
+    if (k && (!globalByBare.has(k) || globalByBare.get(k) < id)) globalByBare.set(k, id);
+  }
   // Replacements: the spell in EffectMiscValue_0 is replaced by the one in
   // EffectBasePoints while the aura holds.
   const replacedBy = new Map();
@@ -245,6 +252,9 @@ const bare = (s) => String(s || '').replace(/_/g, '');
 
   const out = {};
   const report = [];
+  // MC_VAGUE=1: which conditions stayed vague, most frequent first.
+  const vague = process.env.MC_VAGUE ? new Map() : null;
+  apl.logVague(vague);
   // Heiler nicht: ihre Listen sind reine Schadenslisten, und wer heilt,
   // spielt nicht nach ihnen.
   const fileOf = (s) => `${s.cls.replace(/-/g, '')}_${s.spec.replace(/-/g, '_')}.simc`;
@@ -270,6 +280,8 @@ const bare = (s) => String(s || '').replace(/_/g, '');
 
   for (const s of catSpecs.filter((x) => texts.has(x.id))) {
     const file = fileOf(s);
+    // MC_VAGUE=<specID>: only this spec's vague conditions.
+    if (vague) apl.logVague(process.env.MC_VAGUE === '1' || process.env.MC_VAGUE === String(s.id) ? vague : null);
     const text = texts.get(s.id);
     const lists = apl.parseApl(text);
     const treeId = map.treeBySpec[s.id];
@@ -300,30 +312,78 @@ const bare = (s) => String(s || '').replace(/_/g, '');
     // 318044): the older one is the one on the bar.
     skillLines.filter((r) => classLines.has(r.SkillLine)).map((r) => Number(r.Spell))
       .sort((a, b) => a - b).forEach(add);
-    const spell = (k) => (byName.get(k) || [])[0] || globalByName.get(k) || globalByName.get(k.replace(/_(tier|buff|debuff|proc)$/, '')) || null;
+    const byBare = new Map();
+    for (const [k, ids] of byName) if (!byBare.has(k.replace(/_/g, ''))) byBare.set(k.replace(/_/g, ''), ids[0]);
+    const spell = (k) => (byName.get(k) || [])[0] || byBare.get(k.replace(/_/g, ''))
+      || globalByName.get(k) || globalByName.get(k.replace(/_(tier|buff|debuff|proc)$/, ''))
+      || globalByBare.get(k.replace(/_/g, '')) || null;
     // SimC's own names for a form-bound or merged action.
     const ALIAS = { any_dnd: 'death_and_decay' };
+    // Racials: the rows of the class lines' table that carry a race mask.
+    const racialIds = (k) => [...new Set(skillLines
+      .filter((r) => Number(r.RaceMasks_0 || 0) !== 0 && slug(nameEN.get(Number(r.Spell))) === k
+        && (Number(r.ClassMask || 0) === 0 || (Number(r.ClassMask) & classBit)))
+      .map((r) => Number(r.Spell)))].sort((x, y) => x - y);
     const actionSpell = (k) => {
       const name = ALIAS[k] || k;
       const plain = name.replace(/_(cat|bear)$/, '');
       return (byName.get(name) || byName.get(plain) || [])[0] || globalByName.get(name) || globalByName.get(plain) || null;
     };
 
-    // Variables defined exactly once without a condition are inlined.
+    // VARIABLES, inlined where their value is certain.
+    //
+    // A list sets a variable once, or the same way in several places, or
+    // under a condition (op=setif: value if the condition holds, else
+    // value_else). Definitions whose own condition folds to false for this
+    // build drop out first - one per hero tree is common. What is left must
+    // be one value; anything that adds up over the fight (op=add, max, ...)
+    // stays unknown.
     const defs = new Map();
     for (const l of Object.values(lists)) {
       for (const { action, opts } of l) {
         if (action !== 'variable' || !opts.name) continue;
         if (!defs.has(opts.name)) defs.set(opts.name, []);
-        defs.get(opts.name).push(opts);
+        const d = defs.get(opts.name);
+        const key = JSON.stringify(opts);
+        if (!d.some((x) => JSON.stringify(x) === key)) d.push(opts);
       }
     }
-    const variable = (name) => {
+    const resolving = new Set();
+    const variableIn = (name, c) => {
       const d = defs.get(name);
-      if (!d || d.length !== 1) return null;
-      const o = d[0];
-      if (o.if || (o.op && o.op !== 'set') || o.value === undefined) return null;
-      return apl.parse(o.value);
+      if (!d || resolving.has(name)) return null;
+      resolving.add(name);
+      try {
+        const folds = (text) => apl.fold(apl.parse(text), c);
+        const live = d.filter((o) => {
+          if (!o.if) return true;
+          const r = folds(o.if);
+          return !(r.lo === 0 && r.hi === 0);
+        });
+        if (!live.length) return { num: 0 };
+        const valueOf = (o) => {
+          if (o.if) {
+            const r = folds(o.if);
+            if (!(r.lo > 0 || r.hi < 0)) return null;
+          }
+          const op = o.op || 'set';
+          if (op === 'set' && o.value !== undefined) return o.value;
+          if (op === 'setif' && o.condition !== undefined) {
+            return `?:${o.condition}\u0000${o.value || 0}\u0000${o.value_else || 0}`;
+          }
+          return null;
+        };
+        const values = live.map(valueOf);
+        if (values.some((v) => v === null) || new Set(values).size !== 1) return null;
+        const v = values[0];
+        if (v.startsWith('?:')) {
+          const [cond, yes, no] = v.slice(2).split('\u0000');
+          return { op: '?:', c: apl.parse(cond), a: apl.parse(yes), b: apl.parse(no) };
+        }
+        return apl.parse(v);
+      } finally {
+        resolving.delete(name);
+      }
     };
 
     // What the spec gets for free: the granted nodes of any string of it.
@@ -406,22 +466,69 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         return setPieces >= Number(mm[2]);
       };
       const known = (id) => takenIds.has(id) || taken.has(bare(slug(nameEN.get(id))));
+      // SimC's short names for "whichever of the two the build takes".
+      const ALIAS = {
+        bs_inc: ['incarnation_avatar_of_ashamane', 'berserk'],
+        ca_inc: ['incarnation_chosen_of_elune', 'celestial_alignment'],
+      };
+      const spellM = (k) => {
+        const alias = ALIAS[k];
+        if (alias) return spell(alias.find((x) => taken.has(bare(x))) || alias[alias.length - 1]);
+        return spell(k) || spell(k.replace(/_(self|buff|debuff|dot)$/, ''));
+      };
       const resolve = {
-        spell, actionSpell,
+        spell: spellM, actionSpell,
         isTalentSpell: (k) => treeSpells.has(bare(k)),
         talent: (k) => taken.has(bare(k)),
         replaced: (id) => [...(replacedBy.get(id) || [])].some(known),
       };
-      const ctx = (targets) => ({
-        talent: (k) => taken.has(bare(k)),
-        isTalentSpell: (k) => treeSpells.has(bare(k)),
-        hero: (k) => bare(k) === bare(heroName),
-        setBonus, targets, variable,
-      });
+      const ctx = (targets, trinket) => {
+        const c = {
+          trinket,
+          talent: (k) => taken.has(bare(k)),
+          isTalentSpell: (k) => treeSpells.has(bare(k)),
+          hero: (k) => bare(k) === bare(heroName),
+          // SimC's names: a dungeon pull for M+, a boss for the raid.
+          fightStyle: mode === 'mplus' ? 'dungeonslice' : 'patchwerk',
+          setBonus, targets,
+        };
+        c.variable = (name) => variableIn(name, c);
+        return c;
+      };
       const start = lists.default ? 'default' : Object.keys(lists)[0];
       const st = apl.buildTab(lists, start, ctx([1, 1]), resolve);
       const aoe = apl.buildTab(lists, start, ctx([3, 8]), resolve);
       const pre = apl.buildTab(lists, 'precombat', ctx([1, 1]), resolve);
+      // TRAENKE & SCHMUCK. Der Trank: welcher gemessen wird und wann die Liste
+      // ihn trinkt. Der Schmuck: zweimal gerechnet, mit einem gedachten
+      // Buff-Schmuck und einem Schadens-Schmuck im ersten Platz - welcher es
+      // ist, entscheidet die Ausruestung. Volksfaehigkeiten je Rasse; das
+      // Addon zeigt nur die eigene.
+      const mitBuff = apl.buildTab(lists, start, ctx([1, 1], { buff: true, cd: 120 }), resolve);
+      const mitSchaden = apl.buildTab(lists, start, ctx([1, 1], { buff: false, cd: 90 }), resolve);
+      const erste = (r, kind) => r.items.find((x) => x.kind === kind);
+      const trank = list(best.entry.consumables).find((x) => x && x.kind === 'potion');
+      const trankZeile = erste(st, 'potion');
+      const items = {};
+      if (trankZeile || erste(pre, 'potion')) {
+        items.potion = {
+          item: trank ? trank.id : undefined,
+          pct: trank ? trank.pct : undefined,
+          pre: erste(pre, 'potion') ? true : undefined,
+          c: trankZeile && trankZeile.c.length ? trankZeile.c : undefined,
+          at: trankZeile ? undefined : 'pre',
+        };
+      }
+      const buffZeile = erste(mitBuff, 'trinket');
+      if (buffZeile) items.buff = { c: buffZeile.c.length ? buffZeile.c : undefined };
+      const schadenZeile = erste(mitSchaden, 'trinket');
+      if (schadenZeile) items.dmg = { c: schadenZeile.c.length ? schadenZeile.c : undefined };
+      const volk = st.items.filter((x) => x.kind === 'racial')
+        // Every variant of the racial for this class (Blood Fury has three);
+        // the addon shows the one the character knows.
+        .map((x) => ({ s: racialIds(x.action), c: x.c.length ? x.c : undefined }))
+        .filter((x) => x.s.length);
+      if (volk.length) items.racial = volk;
       // Nichts uebrig: der Build passt nicht zur Liste (beim Braumeister liest
       // sich der String noch nicht sauber). Dann lieber keine Rotation.
       if (st.lines.length === 0 && aoe.lines.length === 0) {
@@ -465,6 +572,7 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         st: pack(st.lines),
         aoe: pack(aoe.lines),
         mv: [...new Set([...st.moving, ...aoe.moving])],
+        items: Object.keys(items).length ? items : undefined,
       };
       const others = [...st.lines, ...aoe.lines].filter((l) => l.c.some(apl.isOther)).length;
       report.push(`${s.id} ${file} ${mode}: st ${st.lines.length}, aoe ${aoe.lines.length}, pre ${preLines.length}`
@@ -473,6 +581,10 @@ const bare = (s) => String(s || '').replace(/_/g, '');
     }
   }
   console.log(report.join('\n'));
+  if (vague) {
+    console.log('\nVage Bedingungen (je Ausdruck, ueber alle Speccs):');
+    for (const [k, n] of [...vague].sort((x, y) => y[1] - x[1]).slice(0, 80)) console.log(String(n).padStart(5), k);
+  }
 
   const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
   const lines = [

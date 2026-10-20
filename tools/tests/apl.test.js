@@ -70,8 +70,30 @@ check('Wiederholung weiter unten faellt weg',
   tab('actions=chain_lightning,if=buff.stormkeeper.up\nactions+=/lightning_bolt\nactions+=/chain_lightning,if=buff.stormkeeper.up', [1, 1])
     .map((l) => l.s), [8, 4]);
 // Was sich nicht sagen laesst, wird nicht geraten.
+// Zwei benennbare Werte: ein Vergleich als Satz.
+check('zwei Werte werden ein Vergleich',
+  tab('actions=lightning_bolt,if=buff.stormkeeper.remains>cooldown.ascendance.remains', [1, 1])[0].c,
+  [['cmp', ['rem', 6], 'gt', ['cd', 10]]]);
+check('auch gegen den globalen Cooldown',
+  tab('actions=lightning_bolt,if=cooldown.ascendance.remains>gcd.max*2', [1, 1])[0].c,
+  [['cmp', ['cd', 10], 'gt', ['mul', ['gcd'], ['n', 2]]]]);
+// Was sich nicht benennen laesst, wird nicht geraten.
 check('Unbekanntes wird "other"',
-  tab('actions=lightning_bolt,if=buff.stormkeeper.remains>cooldown.ascendance.remains', [1, 1])[0].c, [['other']]);
+  tab('actions=lightning_bolt,if=hot_streak_spells_in_flight=1', [1, 1])[0].c, [['other']]);
+// Schmuck ist ausgenommen: die Rotation gilt ohne Benutzen-Effekt.
+check('Schmuck-Bedingungen fallen aus der Rotation',
+  tab('actions=ascendance,if=trinket.1.cooldown.remains>20|buff.stormkeeper.up', [1, 1])[0].c, [['up', 6]]);
+// Variablen mit Bedingung (setif) werden aufgeloest.
+check('bedingte Variable wird aufgeloest',
+  apl.buildTab(apl.parseApl('actions=lightning_bolt,if=variable.x'), 'default',
+    { ...ctx([1, 1]), variable: (n) => (n === 'x' ? { op: '?:', c: apl.parse('talent.tempest'), a: apl.parse('0'), b: apl.parse('1') } : null) },
+    resolve).lines[0].c, []);
+// Verneinte Oder-Kette: nicht A und nicht B.
+check('nicht (A oder B) ist nicht A und nicht B',
+  tab('actions=lightning_bolt,if=!(buff.stormkeeper.up|buff.ascendance.up)', [1, 1])[0].c, [['down', 6], ['down', 10]]);
+// Kurzform auf der eigenen Zeile.
+check('refreshable meint den eigenen DoT',
+  tab('actions=flame_shock,if=refreshable', [1, 1])[0].c, [['refresh', 9]]);
 // Ein ersetzter Zauber steht nie da.
 check('ersetzter Zauber faellt weg',
   apl.buildTab(apl.parseApl('actions=natures_swiftness\nactions+=/lightning_bolt'), 'default', ctx([1, 1]),
