@@ -23,6 +23,7 @@ const fs = require('fs');
 const path = require('path');
 const bnet = require('./bnet');
 const { share } = require('./lib/share');
+const { specShares } = require('./lib/comps');
 
 const BASE = process.argv[2];
 if (!BASE) {
@@ -351,6 +352,10 @@ function summarise(players) {
   // Je Modus und Spec die Kandidaten aus allen Regionen, nach Wertung.
   const candidates = {};   // mode -> specID -> [{ name, realm, region, rating }]
   const unspecced = {};    // mode -> [{ name, realm, region, rating }]  (Spec noch unbekannt)
+  // Fuer "Specs unter den Top-Spielern": je Modus die Spitze der
+  // Rangliste mit Spec. Teams fuehrt keine Rangliste - nur Charaktere.
+  const topSpecs = {};     // mode -> spec ids der Spitze
+  const ladders = {};      // mode -> region -> [{ rating, spec }]  (Shuffle, Blitz)
   for (const region of REGIONS) {
     const seasons = await api(region, '/data/wow/pvp-season/index', 'dynamic-' + region);
     const season = seasons && seasons.current_season && seasons.current_season.id;
@@ -375,6 +380,13 @@ function summarise(players) {
       try {
         data = await api(region, '/data/wow/pvp-season/' + season + '/pvp-leaderboard/' + encodeURIComponent(name), 'dynamic-' + region);
       } catch (e) { console.log('  ! ' + name + ': ' + e.message); continue; }
+      // Die ganze Rangliste je Spec, bevor sie gekuerzt wird: wer in
+      // Shuffle oben steht, entscheidet die Wertung ueber ALLE Specs.
+      if (specID) {
+        const byRegion = ladders[mode] || (ladders[mode] = {});
+        const list = byRegion[region] || (byRegion[region] = []);
+        for (const e of (data && data.entries) || []) list.push({ rating: Number(e.rating) || 0, spec: specID });
+      }
       const entries = ((data && data.entries) || []).slice(0, specID ? MAX * 2 : SCAN);
       for (const e of entries) {
         if (!e.character || !e.character.name || !e.character.realm) continue;
@@ -405,10 +417,34 @@ function summarise(players) {
       looked += 1;
       const active = specs && specs.active_specialization && Number(specs.active_specialization.id);
       if (!active) continue;
+      (topSpecs[mode] || (topSpecs[mode] = [])).push(active);
       const bucket = bySpec[active] || (bySpec[active] = []);
       if (bucket.length < MAX * 2) bucket.push(row);
     }
     console.log(mode + ': ' + looked + ' Profile gelesen, ' + Object.keys(bySpec).length + ' Speccs');
+  }
+
+  // Shuffle und Blitz: je Region die besten SCAN ueber alle Specs.
+  for (const [mode, byRegion] of Object.entries(ladders)) {
+    for (const list of Object.values(byRegion)) {
+      list.sort((a, b) => b.rating - a.rating);
+      for (const row of list.slice(0, SCAN)) (topSpecs[mode] || (topSpecs[mode] = [])).push(row.spec);
+    }
+  }
+  {
+    const modesOut = {};
+    for (const [mode, list] of Object.entries(topSpecs)) {
+      const shares = specShares(list);
+      if (shares) modesOut[mode] = shares;
+    }
+    if (Object.keys(modesOut).length) {
+      const file = path.join(DIR, 'bnet-specs.json');
+      fs.writeFileSync(file, JSON.stringify({
+        source: 'Battle.net', kind: 'pvpspecs', builtOn: stamp, scan: SCAN, regions: REGIONS, modes: modesOut,
+      }, null, 1), 'utf8');
+      console.log('geschrieben: ' + path.relative(BASE, file) + ' (' + Object.entries(modesOut)
+        .map(([m, s]) => m + ' ' + s.players).join(', ') + ')');
+    }
   }
 
   // Je Modus: die Profile lesen, pruefen, zusammenfassen.

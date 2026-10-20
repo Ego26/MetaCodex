@@ -29,6 +29,8 @@ const https = require('https');
 // Die Zaehlregel fuer Verbrauchsgueter - eigene Datei, eigener Test.
 const { countsForThisFight } = require('./lib/consumable-window');
 const { share, shares } = require('./lib/share');
+// Gruppen in Top-Runs: wer mit wem im selben Kampf stand.
+const { groupFromSpecs, compsByMode, raidCounts } = require('./lib/comps');
 
 const BASE = process.argv[2];
 if (!BASE) {
@@ -247,6 +249,10 @@ const FOLIO_QUERY = FOLIO.map((r, i) =>
 const BASE_MODE = KIND === 'mplus'
   ? (KEY_RANGE ? 'mplus-keys' : 'mplus')
   : (RAID_NAME[DIFFICULTY] || `raid-${DIFFICULTY}`);
+
+// Je Kampf die Specs aller Spieler darin, fuer "Gruppen in Top-Runs".
+// Die Spielerschleife kennt sie ohnehin; keine Abfrage mehr.
+const FIGHT_SPECS = [];   // { specs: number[], key, dungeon }
 
 // ---------------------------------------------------------- Zugangsdaten
 
@@ -1483,6 +1489,11 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
       }
     }
 
+    // Die Gruppe dieses Kampfes: jede erkannte Spec einmal je Spieler.
+    // Nur aus der allgemeinen Rangliste, nicht aus der Nachlese je Spec.
+    if (specBySource.size && !info.nachlese) {
+      FIGHT_SPECS.push({ specs: [...specBySource.values()], key: currentKey, dungeon: info.dungeon || null });
+    }
 
     // --- Der Foliant -------------------------------------------------
     //
@@ -1824,7 +1835,10 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
         for (const rank of list.slice(0, 3)) {
           const report = rank.report;
           if (report && report.code && !reports.has(report.code) && !extra.has(report.code)) {
-            extra.set(report.code, { fightID: report.fightID, key: Number(rank.bracketData) || 0, dungeon: enc.name, raid: enc.raid || null });
+            // Als Nachlese markiert: diese Kaempfe sind gewaehlt, WEIL eine
+            // bestimmte Spec darin stand - fuer die Gruppen waere das eine
+            // Verzerrung zugunsten der seltenen Specs.
+            extra.set(report.code, { fightID: report.fightID, key: Number(rank.bracketData) || 0, dungeon: enc.name, raid: enc.raid || null, nachlese: true });
             found += 1;
           }
         }
@@ -2290,6 +2304,34 @@ Probelauf ${mode}, ${Object.keys(specs).length} Speccs, Spec ${id}:`);
     fs.writeFileSync(file, JSON.stringify(payload, null, 1), 'utf8');
     console.log(`geschrieben: ${file}`);
     console.log(`  ${Object.keys(specs).length} Speccs`);
+  }
+
+  // Die Gruppen in eine eigene Datei, wie beim raider.io-Sammler.
+  //
+  // M+ (+7 bis +21): ganze Fuenfergruppen, je Dungeon. Im Raid gibt es
+  // keine "haeufigste Gruppe" aus zwanzig - dort gehen die rohen
+  // Zaehlungen hinaus, damit das Zusammenbauen alle Schwierigkeiten zu
+  // "Raid (alle)" addieren kann.
+  if (FIGHT_SPECS.length) {
+    const compFile = path.join(dir, `wcl-comps-${BASE_MODE}.json`);
+    let compPayload = null;
+    if (KIND === 'mplus') {
+      const comps = compsByMode(FIGHT_SPECS.map((f) => groupFromSpecs(f.specs, f.key, f.dungeon)), BASE_MODE);
+      if (comps[BASE_MODE]) {
+        compPayload = { source: 'warcraftlogs.com', kind: 'comps', builtOn: stamp, comps };
+        console.log(`Gruppen: ${comps[BASE_MODE].runs} Laeufe, ${comps[BASE_MODE].distinct} verschiedene`);
+      }
+    } else {
+      const counts = raidCounts(FIGHT_SPECS.map((f) => f.specs));
+      if (counts.kills) {
+        compPayload = { source: 'warcraftlogs.com', kind: 'raidcomps', mode: BASE_MODE, builtOn: stamp, counts };
+        console.log(`Raid-Aufstellung: ${counts.kills} Kills, Ø ${Math.round(counts.players / counts.kills)} Spieler`);
+      }
+    }
+    if (compPayload && !DRY) {
+      fs.writeFileSync(compFile, JSON.stringify(compPayload, null, 1), 'utf8');
+      console.log(`geschrieben: ${compFile}`);
+    }
   }
 
   await noteCost(true);

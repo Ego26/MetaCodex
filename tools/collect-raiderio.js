@@ -22,6 +22,7 @@ const https = require('https');
 const zlib = require('zlib');
 const Loadout = require('./loadout');
 const { share } = require('./lib/share');
+const { groupOf, compsByMode } = require('./lib/comps');
 
 const BASE = process.argv[2];
 if (!BASE) {
@@ -163,6 +164,10 @@ const slug = (text) => String(text).toLowerCase()
   // Held-Baum, der aus einem Build zwei macht.
   const runBuilds = {};   // mode -> specID -> text -> Anzahl
   const decodedRuns = [];  // { mode, specID, text, decoded }
+  // Die Gruppen der Laeufe, so wie sie gespielt wurden: ein Tank, ein
+  // Heiler, drei Schadensverursacher. Fuer den Abschnitt "Gruppen in
+  // Top-Runs" - dieselbe Laufliste, keine einzige Anfrage mehr.
+  const groups = [];
   const noteBuild = (mode, specID, text) => {
     if (!text) return;
     const byMode = runBuilds[mode] || (runBuilds[mode] = {});
@@ -187,6 +192,7 @@ const slug = (text) => String(text).toLowerCase()
     if (!list.length) break;
     for (const rank of list) {
       const run = rank.run || {};
+      groups.push(groupOf(run));
       for (const entry of run.roster || []) {
         const ch = entry.character || {};
         if (!ch.spec || !ch.spec.id) continue;
@@ -234,6 +240,8 @@ const slug = (text) => String(text).toLowerCase()
     const list = data.rankings || [];
     if (!list.length) break;
     for (const rank of list) {
+      // Auch die Gruppen: je mehr Laeufe, desto weniger zerfallen sie.
+      groups.push(groupOf(rank.run));
       for (const entry of ((rank.run || {}).roster || [])) {
         const ch = entry.character || {};
         if (!ch.spec || !ch.spec.id || !ch.race || !ch.path) continue;
@@ -247,6 +255,7 @@ const slug = (text) => String(text).toLowerCase()
     await sleep(250);
   }
   console.log('\n  Weitere Spieler nur fuer die Rassen: ' + raceOnly.length);
+  console.log('  Gruppen aus den Laeufen: ' + groups.filter(Boolean).length);
   {
     let ketten = 0;
     for (const bySpec of Object.values(runBuilds['mplus'] || {})) {
@@ -716,6 +725,26 @@ const slug = (text) => String(text).toLowerCase()
 
     fs.writeFileSync(file, JSON.stringify(payload, null, 1), 'utf8');
     console.log('geschrieben: ' + file + ' (' + Object.keys(specs).length + ' Speccs)');
+  }
+
+  // Die Gruppen in eine eigene Datei: sie gehoeren zu keiner Spec.
+  {
+    const comps = compsByMode(groups);
+    const file = path.join(dir, 'rio-comps.json');
+    if (!comps.mplus) {
+      console.log('  ! keine Gruppen - ' + file + ' bleibt unberuehrt.');
+    } else if (DRY) {
+      const all = comps.mplus;
+      console.log('\nProbelauf Gruppen: ' + all.runs + ' Laeufe, ' + all.distinct
+        + ' verschiedene Gruppen, ' + (Object.keys(comps).length - 1) + ' Dungeons');
+      console.log('  ' + file + ' bleibt unberuehrt.');
+    } else {
+      fs.writeFileSync(file, JSON.stringify({
+        source: 'raider.io', kind: 'comps', season, builtOn: stamp, comps,
+      }, null, 1), 'utf8');
+      console.log('geschrieben: ' + file + ' (' + comps.mplus.runs + ' Laeufe, '
+        + (Object.keys(comps).length - 1) + ' Dungeons)');
+    }
   }
 
   console.log('\nJetzt zusammenbauen: node tools/build-recommendations.js .');

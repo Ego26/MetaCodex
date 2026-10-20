@@ -17,6 +17,7 @@ const { share } = require('./lib/share');
 const { mergeTiers } = require('./lib/merge-tiers');
 const { wornBy } = require('./lib/worn-by');
 const { tallyRaces, raceShares, raceSims, pooled } = require('./lib/races');
+const { addRaidCounts, raidShares } = require('./lib/comps');
 
 const BASE = process.argv[2];
 if (!BASE) {
@@ -64,6 +65,8 @@ const dungeons = {};
 const craftLevels = {};
 let newest = 0;
 const profileParts = [];
+// Die Gruppen der Top-Runs: rio-comps.json, wcl-comps-*.json, bnet-specs.json.
+const compsParts = [];
 // Fuer das Spieler-Addon: Modus -> Spec -> Spieler mit Ausruestung.
 // Welche Bonus-ID welche Werte setzt, und welche eine Verzierung
 // anhaengt. Der Katalog schreibt sie heraus.
@@ -98,6 +101,12 @@ function addProfiles(mode, specID, profiles) {
 for (const name of fs.readdirSync(dir).sort()) {
   if (!name.endsWith('.json')) continue;
   const part = JSON.parse(fs.readFileSync(path.join(dir, name), 'utf8'));
+  // Die Gruppen der Top-Runs gehoeren zu keiner Spec und zu keiner
+  // Quelle-je-Modus: eine eigene Tabelle, unten geschrieben.
+  if (part.kind === 'comps' || part.kind === 'raidcomps' || part.kind === 'pvpspecs') {
+    compsParts.push(part);
+    continue;
+  }
   // Profile kommen NACH allen anderen dran: sie ergaenzen, was eine
   // Quelle nicht hat, und dafuer muss die Quelle schon da sein.
   if (part.craftLevels) {
@@ -842,6 +851,90 @@ if (Object.keys(raceIndex).length) {
   if (simOut.length) out.push('  raceSims = {', ...simOut, '  },');
 }
 console.log('Rassen: ' + raceSpecs + ' Modus-Speccs gespielt, ' + simSpecs + ' Speccs simuliert');
+
+// --- Gruppen in Top-Runs ---------------------------------------------
+//
+// Drei Arten, je nachdem, was die Quelle weiss:
+//
+//   modes  M+: Specs je Rolle als { Spec, Anteil der Runs, hoechster
+//          Key }, darunter die haeufigsten ganzen Gruppen. raider.io fuer
+//          die hohen Keys ("mplus"), Warcraft Logs fuer +7 bis +21
+//          ("mplus-keys"), jeweils auch je Dungeon.
+//   raid   Je Schwierigkeit und zusammen ("@raid"): je Spec { Spec,
+//          Anteil der Kills, wie viele im Schnitt }, dazu die Aufstellung.
+//   pvp    Je Klammer: { Spec, Anteil der Top-Spieler } - Teams fuehrt
+//          keine Rangliste.
+//
+// Klein genug fuer diese Datei: so steht die Auswahl je Dungeon auch
+// ohne das Dungeon-Addon.
+const compModesIn = {};    // mode -> Zaehlung, mit Quelle
+let raidIn = {};           // mode -> rohe Zaehlung
+let pvpIn = null;
+let compsBuilt = 0, compsSeason = '';
+for (const part of compsParts) {
+  compsBuilt = Math.max(compsBuilt, Number(part.builtOn) || 0);
+  if (part.kind === 'comps') {
+    if (part.season) compsSeason = part.season;
+    for (const [mode, c] of Object.entries(part.comps || {})) compModesIn[mode] = { source: part.source, ...c };
+  } else if (part.kind === 'raidcomps' && part.mode && part.counts) {
+    raidIn[part.mode] = part.counts;
+  } else if (part.kind === 'pvpspecs') {
+    pvpIn = part;
+  }
+}
+const raidModes = Object.keys(raidIn).sort();
+if (raidModes.length) {
+  raidIn['@raid'] = raidModes.reduce((sum, m) => addRaidCounts(sum, raidIn[m]), { kills: 0, players: 0, specs: {} });
+}
+if (Object.keys(compModesIn).length || raidModes.length || pvpIn) {
+  const roleRows = (list) => '{ ' + (list || []).map((r) => `{ ${r.spec}, ${r.pct}, ${r.maxKey} }`).join(', ') + ' }';
+  out.push('  comps = {');
+  out.push(`    builtOn = ${compsBuilt}, season = ${luaString(compsSeason)},`);
+  out.push('    modes = {');
+  for (const [mode, c] of Object.entries(compModesIn)) {
+    out.push(`      [${luaString(mode)}] = { source = ${luaString(c.source || '')}, runs = ${c.runs}, minKey = ${c.minKey}, maxKey = ${c.maxKey}, distinct = ${c.distinct},`);
+    out.push(`        tank = ${roleRows(c.tank)},`);
+    out.push(`        healer = ${roleRows(c.healer)},`);
+    out.push(`        dps = ${roleRows(c.dps)},`);
+    out.push('        groups = {');
+    for (const g of c.groups || []) {
+      out.push(`          { specs = { ${g.specs.join(', ')} }, n = ${g.n}, pct = ${g.pct}, maxKey = ${g.maxKey} },`);
+    }
+    out.push('        },');
+    out.push('      },');
+  }
+  out.push('    },');
+  // Raid: { Spec, Anteil der Kills, Anzahl im Schnitt }.
+  const raidRows = (list) => '{ ' + (list || []).map((r) => `{ ${r.spec}, ${r.pct}, ${r.avg} }`).join(', ') + ' }';
+  out.push('    raid = {');
+  for (const mode of Object.keys(raidIn)) {
+    const r = raidShares(raidIn[mode]);
+    if (!r) continue;
+    out.push(`      [${luaString(mode)}] = { kills = ${r.kills}, size = ${r.size},`);
+    out.push(`        setup = { tank = ${r.setup.tank}, healer = ${r.setup.healer}, dps = ${r.setup.dps} },`);
+    out.push(`        tank = ${raidRows(r.tank)},`);
+    out.push(`        healer = ${raidRows(r.healer)},`);
+    out.push(`        dps = ${raidRows(r.dps)},`);
+    out.push('      },');
+  }
+  out.push('    },');
+  // PvP: { Spec, Anteil der Top-Spieler }.
+  const pvpRows = (list) => '{ ' + (list || []).map((r) => `{ ${r.spec}, ${r.pct} }`).join(', ') + ' }';
+  out.push('    pvp = {');
+  for (const [mode, s] of Object.entries((pvpIn && pvpIn.modes) || {})) {
+    out.push(`      [${luaString(mode)}] = { players = ${s.players},`);
+    out.push(`        tank = ${pvpRows(s.tank)}, healer = ${pvpRows(s.healer)},`);
+    out.push(`        dps = ${pvpRows(s.dps)},`);
+    out.push('      },');
+  }
+  out.push('    },');
+  out.push('  },');
+  console.log('Gruppen in Top-Runs: ' + Object.keys(compModesIn).length + ' M+-Modi, '
+    + raidModes.length + ' Raid-Schwierigkeiten, '
+    + Object.keys((pvpIn && pvpIn.modes) || {}).length + ' PvP-Klammern');
+} else {
+  console.log('Keine Gruppen-Dateien - Gruppen in Top-Runs bleiben weg.');
+}
 
 const index = wornBy(byMode);
 let wornItems = 0, wornRows = 0;
