@@ -199,6 +199,8 @@ function atomRange(a, ctx) {
     if (sec) return [sec, sec];
   }
   if (a === 'rtb_buffs') return [0, 7];
+  // The most combo points a finisher spends (SimC: 5 plus the stratagems).
+  if (a === 'cp_max_spend' && ctx.cpMax) return [ctx.cpMax, ctx.cpMax];
   // The potion is not part of the priority: its cooldown never holds a line.
   if (head === 'cooldown' && p[1] === 'potion') {
     if (p[2] === 'remains') return [0, 0];
@@ -380,6 +382,12 @@ function records(e, spell) {
 }
 
 function recordsOf(e, spell) {
+  // IF-THEN-ELSE (a variable set, then overwritten under a condition): "C and
+  // A, or not C and B" - with A and B known, that is a plain condition.
+  if (e.op === '?:' && spell.fold) {
+    const fall = spell.fold({ op: '|', a: { op: '&', a: e.c, b: e.a }, b: { op: '&', a: { op: '!', a: e.c }, b: e.b } });
+    if (fall.op !== '?:') return recordsOf(fall, spell);
+  }
   // A known value inside a condition: always or never.
   if (e.num !== undefined) return e.num ? ['true'] : ['false'];
   // CASES (20 October): a threshold that depends on one or two yes/no values
@@ -433,6 +441,7 @@ function recordsOf(e, spell) {
       if (q[0] === 'action' && q[2] === 'executing' && sp(q[1])) return ['notcasting', sp(q[1])];
       if (q[0] === 'action' && q[2] === 'in_flight' && sp(q[1])) return ['notflying', sp(q[1])];
       if (q[0] === 'stealthed') return ['notstealthed'];
+      { const sc = inner.atom.match(/^buff\.supercharge_(\d)\.up$/); if (sc) return ['notcharged', Number(sc[1])]; }
       if (q[0] === 'action' && q[2] === 'demonsurge_available' && sp(q[1]) && sp('demonsurge')) return ['nosurge', sp('demonsurge'), sp(q[1])];
       if (q[0] === 'action' && q[2] === 'placed' && sp(q[1])) return ['notplaced', sp(q[1])];
       if (q[0] === 'variable' && spell.latch) {
@@ -453,6 +462,10 @@ function recordsOf(e, spell) {
   }
   if (e.atom) {
     const p = e.atom.split('.');
+    // Supercharger: supercharge_N is up while at least N combo points are
+    // charged. Before the general "buff up": SimC's source names a spell for
+    // each, and "Supercharger active" would not say which.
+    { const sc = e.atom.match(/^buff\.supercharge_(\d)\.up$/); if (sc) return ['charged', Number(sc[1])]; }
     if ((p[0] === 'buff' || p[0] === 'debuff') && (p[2] === 'up' || p[2] === 'react') && sp(p[1])) return ['up', sp(p[1])];
     if ((p[0] === 'buff' || p[0] === 'debuff') && p[2] === 'down' && sp(p[1])) return ['down', sp(p[1])];
     if ((p[0] === 'dot' || p[0] === 'debuff') && p[2] === 'ticking' && sp(p[1])) return ['up', sp(p[1])];
@@ -553,7 +566,7 @@ function compare(e, spell) {
   }
   if ((p[0] === 'buff' || p[0] === 'debuff' || p[0] === 'dot') && (p[2] === 'stack' || p[2] === 'react') && n !== null && spell(p[1])) {
     const id = spell(p[1]);
-    if (big) return ['stackmin', id, atLeast(n)];
+    if (big) return atLeast(n) <= 1 ? ['up', id] : ['stackmin', id, atLeast(n)];
     if (op === '<' || op === '<=') return below(n) <= 1 ? ['down', id] : ['stackunder', id, below(n)];
     if (op === '=') return n === 0 ? ['down', id] : ['stackis', id, n];
     return generic();
@@ -838,7 +851,12 @@ function buildTab(lists, start, ctx, resolve) {
     for (const { action, opts } of lists[listName] || []) {
       const laufen = opts.moving === '1' || opts.moving === 'true';
       const cx = laufen ? { ...ctx, moving: true } : ctx;
-      let cond = opts.if ? fold(parse(own(opts.if, action)), cx) : known(1);
+      // target_if without min:/max:/first: is a condition too: SimC casts on
+      // the first target it holds for, and not at all without one
+      // ("sunfire,target_if=refreshable").
+      const tiCond = opts.target_if && !/^(min|max|first):/.test(opts.target_if) ? opts.target_if : '';
+      const ifText = [opts.if, tiCond].filter(Boolean).map((x) => `(${x})`).join('&');
+      let cond = ifText ? fold(parse(own(ifText, action)), cx) : known(1);
       if (isFalse(cond)) continue;
       const conds = isTrue(cond) ? [] : conjuncts(records(cond, sp));
       const all = [...outer, ...conds];

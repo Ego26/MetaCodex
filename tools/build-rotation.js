@@ -26,6 +26,7 @@ const loadout = require('./loadout');
 const apl = require('./lib/apl');
 const opener = require('./lib/opener');
 const { simcBuffMap } = require('./lib/simc-buffs');
+const { simplify, simpleConditions } = require('./lib/simplify');
 const { buildReplacements, replacedNames: namesReplaced } = require('./lib/replace');
 const { worthRetrying, waitSeconds } = require('./lib/http-retry');
 
@@ -196,14 +197,24 @@ const bare = (s) => String(s || '').replace(/_/g, '');
   console.log('Build:', build);
   const db2 = async (table, extra) => parseCSV(await patient(`https://wago.tools/db2/${table}/csv?build=${build}${extra || ''}`));
   const [spellNames, specSpells, skillLines, chrSpecs, overrides, traitDefs, spellMisc, durations,
-    spellTexts, classOptions, chrClasses, spellCooldowns, auraOptions, spellPower, itemRows] = await Promise.all([
+    spellTexts, classOptions, chrClasses, spellCooldowns, auraOptions, spellPower, itemRows,
+    spellCategories, spellCategory] = await Promise.all([
     db2('SpellName'), db2('SpecializationSpells'), db2('SkillLineAbility'), db2('ChrSpecialization'),
     db2('SpellEffect', '&filter%5BEffectAura%5D=332'),
     db2('TraitDefinition'), db2('SpellMisc'), db2('SpellDuration'),
     db2('Spell'), db2('SpellClassOptions'), db2('ChrClasses'), db2('SpellCooldowns'), db2('SpellAuraOptions'),
-    db2('SpellPower'), db2('Item'),
+    db2('SpellPower'), db2('Item'), db2('SpellCategories'), db2('SpellCategory'),
   ]);
   const nameEN = new Map(spellNames.map((r) => [Number(r.ID), r.Name_lang]));
+  // A talent's spell is often its passive; the one on the bar is the trait's
+  // VisibleSpellID (Ancestral Swiftness: passive 448861, cast 443454 with its
+  // cooldown).
+  const visibleOf = new Map();
+  for (const r of traitDefs) {
+    const id = Number(r.SpellID);
+    const vis = Number(r.VisibleSpellID) || 0;
+    if (vis && vis !== id && nameEN.get(vis) === nameEN.get(id)) visibleOf.set(id, vis);
+  }
 
   // Replacements: the spell in EffectMiscValue_0 is replaced by the one in
   // EffectBasePoints while the aura holds.
@@ -215,12 +226,14 @@ const bare = (s) => String(s || '').replace(/_/g, '');
     if (lastsMs.has(id) && Number(r.DifficultyID) !== 0) continue;
     lastsMs.set(id, durationMs.get(Number(r.DurationIndex)) || 0);
   }
+  const auraTextOf = new Map(spellTexts.map((r) => [Number(r.ID), r.AuraDescription_lang || '']));
   const replacements = buildReplacements({
     auras: overrides.map((r) => ({ carrier: Number(r.SpellID), old: Number(r.EffectMiscValue_0) || 0,
-      neu: Math.round(Number(r.EffectBasePointsF) || 0) })),
+      neu: Math.round(Number(r.EffectBasePointsF) || 0), book: Number(r.EffectMiscValue_1) === 2 })),
     traits: traitDefs.map((r) => ({ old: Number(r.OverridesSpellID) || 0, neu: Number(r.SpellID) || 0 })),
     specs: specSpells.map((r) => ({ spec: Number(r.SpecID), old: Number(r.OverridesSpellID) || 0, neu: Number(r.SpellID) || 0 })),
     lastsMs: (id) => lastsMs.get(id) || 0,
+    buffText: (id) => auraTextOf.get(id) || '',
   });
 
   const rec = readLuaTable(fs.readFileSync(REC, 'utf8'));
@@ -270,6 +283,14 @@ const bare = (s) => String(s || '').replace(/_/g, '');
   for (const r of spellCooldowns) {
     const ms = Math.max(Number(r.RecoveryTime) || 0, Number(r.CategoryRecoveryTime) || 0);
     if (ms > 0 && !cdSeconds.has(Number(r.SpellID))) cdSeconds.set(Number(r.SpellID), ms / 1000);
+  }
+  // A spell with charges keeps its cooldown in the charge category
+  // (Celestial Alignment: one second above, 180 here).
+  const rechargeOfCategory = new Map(spellCategory.map((r) => [Number(r.ID), Number(r.ChargeRecoveryTime) || 0]));
+  const rechargeSeconds = new Map();
+  for (const r of spellCategories) {
+    const ms = rechargeOfCategory.get(Number(r.ChargeCategory)) || 0;
+    if (ms > 0 && !rechargeSeconds.has(Number(r.SpellID))) rechargeSeconds.set(Number(r.SpellID), ms / 1000);
   }
   // A spell's cost: rage, runic power, astral power, insanity, fury and pain
   // are stored times ten (Starsurge: 400 for 40).
@@ -455,6 +476,7 @@ const bare = (s) => String(s || '').replace(/_/g, '');
           || (p === best.p && (own.has(id) && own.has(best.id) ? id < best.id : id > best.id));
         if (better) best = { id, p };
       }
+      if (best && use === 'action' && visibleOf.has(best.id)) return visibleOf.get(best.id);
       return best ? best.id : null;
     };
     const simcKlasse = simcBuffs[s.cls.replace(/-/g, '_')] || new Map();
@@ -596,6 +618,16 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         const sicher = live.filter((o) => o.if && (() => { const r = folds(o.if); return r.lo > 0 || r.hi < 0; })());
         const ohne = live.filter((o) => !o.if);
         const gelten = sicher.length ? sicher : (ohne.length && ohne.length === live.length ? ohne : live);
+        // A value, then overwritten under conditions, in one list (Outlaw's
+        // finish_condition): an if-then-else chain, in the list's order.
+        const ordnung = (varDefs.get(name) || []).filter((o) => (o.op || 'set') === 'set' && o.value !== undefined);
+        if (ordnung.length >= 2 && !ordnung[0].if && ordnung.slice(1).every((o) => o.if && o.list === ordnung[0].list)) {
+          let t = apl.parse(apl.simcNames(ordnung[0].value));
+          for (const o of ordnung.slice(1)) {
+            t = { op: '?:', c: apl.parse(apl.simcNames(o.if)), a: apl.parse(apl.simcNames(o.value)), b: t };
+          }
+          return t;
+        }
         const values = gelten.map((o) => valueOf({ ...o, if: undefined }));
         if (values.some((v) => v === null) || new Set(values).size !== 1) return null;
         const v = values[0];
@@ -792,6 +824,8 @@ const bare = (s) => String(s || '').replace(/_/g, '');
           // SimC's names: a dungeon pull for M+, a boss for the raid.
           fightStyle: mode === 'mplus' ? 'dungeonslice' : 'patchwerk',
           setBonus, targets, apex,
+          cpMax: 5 + ['deeper_stratagem', 'sanguine_stratagem', 'devious_stratagem', 'secret_stratagem']
+            .filter((t) => taken.has(bare(t))).length,
           cdOf: (k) => {
             for (const id of [actionSpellFor(k, castIds), spellM(k), ...racialIds(k), ...kandidaten(k)]) {
               if (id && cdSeconds.get(id)) return cdSeconds.get(id);
@@ -874,6 +908,29 @@ const bare = (s) => String(s || '').replace(/_/g, '');
             return false;
           });
         }
+      }
+      // AS A GUIDE WRITES IT (tools/lib/simplify.js): only what a player checks,
+      // nothing vague, at most three conditions, nothing pointless.
+      // MC_RAW=1 keeps the full translation, to compare.
+      if (!process.env.MC_RAW) {
+        // Trinkets, potion, racials: the same plain words.
+        const klar = (x) => { if (x && x.c) x.c = simpleConditions(x.c, { nameOf: (id) => nameEN.get(id) || String(id) }); };
+        klar(items.potion);
+        klar(items.buff);
+        klar(items.dmg);
+        (items.racial || []).forEach(klar);
+        const cdOf = ctx([1, 1]).cdOf;
+        const einfach = {
+          // A cooldown of 20 seconds or more stays "on cooldown" rather than vanish.
+          isCooldown: (id) => {
+            const k = slug(nameEN.get(id));
+            const recharge = Math.max(0, ...[id, ...kandidaten(k)].map((x) => rechargeSeconds.get(x) || 0));
+            return Math.max(cdOf(k) || 0, recharge) >= 20;
+          },
+          nameOf: (id) => nameEN.get(id) || String(id),
+        };
+        st.lines = simplify(st.lines, einfach);
+        aoe.lines = simplify(aoe.lines, einfach);
       }
       const miss = new Set([...st.miss, ...aoe.miss, ...pre.miss]);
       const keep = [...new Set([...st.keep, ...aoe.keep, ...pre.keep])];
@@ -978,7 +1035,7 @@ const bare = (s) => String(s || '').replace(/_/g, '');
     'remover', 'chargesunder', 'chargesfull', 'doton', 'charges', 'tgtis', 'tgtmin', 'tgtmax', 'hpunder', 'hpover',
     'timeunder', 'timeover', 'resnotcap', 'resfull', 'resenough', 'resmin', 'resunder', 'resis', 'respctmin',
     'respctunder', 'ago', 'castleft', 'castdone', 'myhpunder', 'myhpover', 'surge', 'nosurge', 'notyet', 'already',
-    'since', 'notsince', 'cmp', 'multunder']);
+    'since', 'notsince', 'cmp', 'multunder', 'charged', 'notcharged']);
   const fremd = new Set();
   const pruefe = (c) => {
     if (!Array.isArray(c)) return;
@@ -996,6 +1053,26 @@ const bare = (s) => String(s || '').replace(/_/g, '');
     }
   }
   if (fremd.size) console.log('WARNUNG: Satzarten ohne Vorlage im Addon:', [...fremd].join(', '));
+  // A spell and its sure replacement in one list: never (lib/replace.js).
+  const nebeneinander = new Set();
+  for (const [specId, modes] of Object.entries(out)) {
+    for (const [mode, r] of Object.entries(modes)) {
+      for (const v of r.heroes || [r]) {
+        const da = new Set(['st', 'aoe', 'pre'].flatMap((tab) => (v[tab] || []).map((l) => slug(nameEN.get(l.s)))));
+        for (const id of v.keep || []) da.add(slug(nameEN.get(id)));
+        for (const [old, list] of replacements) {
+          const alt = slug(nameEN.get(old));
+          if (!alt || !da.has(alt)) continue;
+          for (const x of list) {
+            const neu = slug(nameEN.get(x.neu));
+            if (x.proc || neu === alt || !da.has(neu) || (x.spec !== undefined && x.spec !== Number(specId))) continue;
+            nebeneinander.add(`${specId} ${mode} ${v.hero || ''}: ${alt} + ${neu}`);
+          }
+        }
+      }
+    }
+  }
+  if (nebeneinander.size) console.log('WARNUNG: Zauber neben seinem Ersatz:', [...nebeneinander].join('; '));
 
   // SELF-CHECK before it touches the game data: the fragment must read back
   // as the table it was written from. If not, nothing is appended - the

@@ -154,6 +154,15 @@ check('Waffe aus der gemessenen Ausruestung',
 check('Kosten aus den Spieldaten',
   apl.buildTab(apl.parseApl('actions=lightning_bolt,if=action.earthquake.cost>50'), 'default',
     { ...ctx([1, 1]), costOf: () => 60 }, resolve).lines[0].c, []);
+check('mindestens 1 Stapel ist aktiv',
+  tab('actions=lightning_bolt,if=buff.stormkeeper.stack>=1', [1, 1])[0].c, [['up', 6]]);
+check('aufgeladene Combopunkte',
+  apl.buildTab(apl.parseApl('actions=lightning_bolt,if=buff.supercharge_2.up&!buff.supercharge_3.up'), 'default', ctx([1, 1]), { ...resolve, spell: (k) => IDS[k] || 470406 }).lines[0].c,
+  [['charged', 2], ['notcharged', 3]]);
+check('Wenn-dann-sonst wird ein Oder',
+  apl.buildTab(apl.parseApl('actions=lightning_bolt,if=variable.fin'), 'default',
+    { ...ctx([1, 1]), variable: (n) => (n === 'fin' ? { op: '?:', c: apl.parse('buff.ascendance.up'), a: apl.parse('1'), b: apl.parse('buff.stormkeeper.up') } : null) },
+    resolve).lines[0].c, [['or', ['up', 10], ['and', ['down', 10], ['up', 6]]]]);
 // Schmuck ist ausgenommen: die Rotation gilt ohne Benutzen-Effekt.
 check('Schmuck-Bedingungen fallen aus der Rotation',
   tab('actions=ascendance,if=trinket.1.cooldown.remains>20|buff.stormkeeper.up', [1, 1])[0].c, [['up', 6]]);
@@ -185,6 +194,13 @@ check('Schmuck, Trank und Unterbrechen fallen weg',
 check('Liste des anderen Heldenbaums faellt weg',
   tab('actions=run_action_list,name=sb,if=hero_tree.stormbringer\nactions+=/lightning_bolt\nactions.sb=chain_lightning', [1, 1])
     .map((l) => l.s), [4]);
+// "target_if=refreshable" ohne min:/max: ist eine Bedingung: auf ein Ziel,
+// bei dem sie gilt - ohne so ein Ziel kein Flammenschock.
+check('target_if ohne min/max ist eine Bedingung',
+  tab('actions=flame_shock,target_if=refreshable,if=buff.stormkeeper.down\nactions+=/lightning_bolt', [1, 1])[0].c,
+  [['down', 6], ['refresh', 9]]);
+check('target_if mit min: waehlt nur das Ziel',
+  tab('actions=flame_shock,target_if=min:dot.flame_shock.remains\nactions+=/lightning_bolt', [1, 1])[0].c, []);
 
 console.log(failed === 0 ? '\nalles gruen' : `\n${failed} Fehler`);
 process.exit(failed === 0 ? 0 : 1);

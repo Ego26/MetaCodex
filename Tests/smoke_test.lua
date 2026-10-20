@@ -6728,6 +6728,8 @@ do
     local say = ns.UI.RotationSay
     check("ein Oder allein ohne Klammern", not say({ "or", { "up", 1 }, { "up", 2 } }, true):find("(", 1, true))
     check("ein Oder in einem Satz mit Klammern", say({ "or", { "up", 1 }, { "up", 2 } }):find("(", 1, true) == 1)
+    local doppelt = say({ "or", { "or", { "up", 1 }, { "up", 2 } }, { "up", 3 } })
+    check("ein Oder im Oder: eine Klammer", select(2, doppelt:gsub("%(", "")) == 1, doppelt)
     check("fast zwei Aufladungen", say({ "charges", 5, 1.8 }) == L["ROT_C_chargesnear"]:format("#5", "2"),
         say({ "charges", 5, 1.8 }))
     check("die Ressource beim Namen", say({ "resmin", "maelstrom", 83 }) == L["ROT_C_resmin"]:format("83", L["ROT_RES_maelstrom"]))
@@ -6749,7 +6751,7 @@ do
         { "myhpunder", 50 }, { "myhpover", 50 }, { "surge", 1, 2 }, { "nosurge", 1, 2 },
         { "notyet", { "up", 1 } }, { "already", { "up", 1 } }, { "since", { "up", 1 }, { "up", 2 } },
         { "notsince", { "up", 1 }, { "up", 2 } },
-        { "multunder", 1, 1.2 }, { "cmp", { "min", { "cd", 1 }, { "cd", 2 } }, "gt", { "n", 5 } },
+        { "multunder", 1, 1.2 }, { "charged", 2 }, { "notcharged", 2 }, { "cmp", { "min", { "cd", 1 }, { "cd", 2 } }, "gt", { "n", 5 } },
         { "cmp", { "max", { "rem", 1 }, { "rem", 2 } }, "lt", { "n", 5 } },
         { "cmp", { "dots", 1 }, "ge", { "tgt" } }, { "cmp", { "full", 1 }, "le", { "gcd" } },
         { "cmp", { "usable", 1 }, "ge", { "rem", 2 } }, { "cmp", { "casttime", 1 }, "lt", { "rem", 2 } },
@@ -6765,14 +6767,16 @@ do
         end
     end
     check("jede Satzart hat eine Vorlage", #ohne == 0, table.concat(ohne, ", "))
-    -- Hoechstens einmal je Satz: der Merker steht am Ende, einmal.
-    -- Was SimC zusaetzlich rechnet: ein "≈" am Ende, einmal, kein Text.
-    local einmal = ns.UI.RotationSentence({ s = 1, c = { { "up", 2 } }, more = true }, "st", false)
-    check("Simuliertes als Zeichen am Ende, einmal", select(2, einmal:gsub("|Hmcvage|h", "")) == 1
-        and not einmal:find(L["ROT_C_other"], 1, true), einmal)
+    -- Nur Klares: kein "unter bestimmten Umstaenden", kein Zeichen - auch
+    -- wenn alte Daten noch "more" tragen.
+    local klar = ns.UI.RotationSentence({ s = 1, c = { { "up", 2 } }, more = true }, "st", false)
+    check("kein Zeichen fuer Simuliertes", not klar:find("|H", 1, true) or klar:find("|Hmcvage", 1, true) == nil, klar)
     local nurVage = ns.UI.RotationSentence({ s = 1, more = true }, "st", false)
-    check("ohne Bekanntes: unter bestimmten Umstaenden", nurVage:find(L["ROT_S_some"]:format("#1"), 1, true) == 1
-        and nurVage:find("|Hmcvage|h", 1, true) ~= nil, nurVage)
+    check("kein 'unter bestimmten Umstaenden'", nurVage == L["ROT_S_cd"]:format("#1"), nurVage)
+    -- Eine Aufladung, nicht "1 Aufladungen".
+    check("eine Aufladung", say({ "charges", 5, 1 }) == L["ROT_C_charges1"]:format("#5"), say({ "charges", 5, 1 }))
+    check("fast eine Aufladung", say({ "charges", 5, 0.8 }) == L["ROT_C_chargesnear1"]:format("#5"), say({ "charges", 5, 0.8 }))
+    check("keine Aufladung", say({ "chargesunder", 5, 1 }) == L["ROT_C_chargesunder1"]:format("#5"), say({ "chargesunder", 5, 1 }))
     -- Zwei Werte verglichen, als Satz.
     local vergleich = say({ "cmp", { "rem", 1 }, "gt", { "mul", { "gcd" }, { "n", 2 } } })
     check("ein Vergleich zweier Werte als Satz",
@@ -6888,12 +6892,6 @@ do
         if ueber then ueber(e, "spell:260734") end
         GameTooltip.SetHyperlink = echtLink
         check("ueber einem Namen sein eigener Tooltip", linkGezeigt == "spell:260734", tostring(linkGezeigt))
-        local titel
-        local echtText = GameTooltip.SetText
-        GameTooltip.SetText = function(_, t) titel = t end
-        if ueber then ueber(e, "mcvage") end
-        GameTooltip.SetText = echtText
-        check("das Zeichen erklaert sich", titel == L["ROT_VAGUE_TITLE"], tostring(titel))
         -- Reiter Flaeche: zwei Saetze, kein Ablauf.
         local flaeche
         for _, b in ipairs(karte.tabs) do if b.key == "aoe" then flaeche = b end end

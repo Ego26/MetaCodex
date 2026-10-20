@@ -13,34 +13,47 @@
 // seconds, and Lightning Bolt is replaced now and then, not for good. So an
 // aura counts only when its carrier lasts forever.
 //
-// THE LOGS DECIDE where they can (20 October). No table tells a proc that
-// lasts "until used" (Coup de Grace over Dispatch, Hammer of Wrath over
-// Judgment) from a replacement for good (Ancestral Swiftness): same
-// attributes, same endless duration. What the measured players cast does:
-// if hardly anyone with this build casts the old spell and many cast the
-// new one, it is replaced; if a fair share still casts the old one, it is
-// not - whatever a table says. Without a measurement only the talent's own
-// "Replaces ..." and the spec's spells count; an aura stays unproven.
+// A PROC OR FOR GOOD (21 October). A proc that lasts "until used" (Coup de
+// Grace over Dispatch, Hammer of Wrath over Judgment) and a replacement for
+// good (Ancestral Swiftness) share attributes and the endless duration. Two
+// fields tell them apart: a proc is a buff the player sees, with a buff text
+// ("Able to perform a Coup de Grace."); and the effect's second value is 2
+// for a replacement in the spellbook (Ancestral Swiftness, Wither, Drain
+// Soul), 0 for one on the action bar only, which comes and goes (Shadowburn
+// over Conflagrate below 20 percent health, Holy Armaments over Divine Toll:
+// the lists cast both).
+//
+// So a talent's "Replaces ...", the spec's own spells and a hidden passive
+// that replaces in the spellbook always count. Only a visible buff needs the logs: if hardly anyone casts
+// the old spell and many cast the new one, it is replaced; without a
+// measurement it is not. The logs never overrule the others - their shares
+// are the whole spec's, every hero tree mixed: half the Elementals play
+// Stormbringer and cast Nature's Swiftness, the Farseer half never does.
 //
 // Compared by NAME, not by ID: the list's Flame Shock can be another ID of
 // the same spell than the one Voltaic Blaze names. A replacement by a spell
 // of the same name (a spec's own version) is no replacement.
 
 /**
- * @param {{auras: Array<{carrier:number, old:number, neu:number}>,
+ * @param {{auras: Array<{carrier:number, old:number, neu:number, book?:boolean}>,
  *          traits: Array<{old:number, neu:number}>,
  *          specs: Array<{spec:number, old:number, neu:number}>,
- *          lastsMs: (id:number) => number}} src
- * @returns {Map<number, Array<{neu:number, spec?:number}>>} old -> replacements
+ *          lastsMs: (id:number) => number,
+ *          buffText?: (id:number) => string}} src
+ * @returns {Map<number, Array<{neu:number, spec?:number, from:string, proc?:boolean}>>} old -> replacements
  */
 function buildReplacements(src) {
   const map = new Map();
-  const add = (old, neu, spec, from) => {
+  const add = (old, neu, spec, from, proc) => {
     if (!(old > 0 && neu > 0) || old === neu) return;
     if (!map.has(old)) map.set(old, []);
-    map.get(old).push({ neu, spec, from });
+    map.get(old).push(proc ? { neu, spec, from, proc } : { neu, spec, from });
   };
-  for (const a of src.auras) if (!(src.lastsMs(a.carrier) > 0)) add(a.old, a.neu, undefined, 'aura ' + a.carrier);
+  const buffText = src.buffText || (() => '');
+  for (const a of src.auras) {
+    if (src.lastsMs(a.carrier) > 0) continue;
+    add(a.old, a.neu, undefined, 'aura ' + a.carrier, Boolean(buffText(a.carrier)) || !a.book);
+  }
   for (const t of src.traits) add(t.old, t.neu, undefined, 'trait');
   for (const s of src.specs) add(s.old, s.neu, s.spec, 'spec');
   return map;
@@ -64,16 +77,15 @@ function replacedNames(map, build) {
       // build has it.
       const has = r.spec !== undefined ? r.spec === build.specID : build.known(r.neu);
       if (!has || build.nameOf(r.neu) === oldName) continue;
-      const alt = build.share ? build.share(oldName) : null;
-      const neu = build.share ? build.share(build.nameOf(r.neu)) : null;
-      if (alt !== null && neu !== null) {
-        // Measured: hardly anyone casts the old one, many the new one.
-        if (alt < REPLACED_BELOW && neu >= REPLACING_FROM) out.add(oldName);
+      if (!r.proc) {
+        out.add(oldName);
         continue;
       }
-      // Not measured: an aura proves nothing.
-      if (String(r.from || '').startsWith('aura')) continue;
-      out.add(oldName);
+      // A visible buff: the logs decide - hardly anyone casts the old one,
+      // many the new one. Not measured: it proves nothing.
+      const alt = build.share ? build.share(oldName) : null;
+      const neu = build.share ? build.share(build.nameOf(r.neu)) : null;
+      if (alt !== null && neu !== null && alt < REPLACED_BELOW && neu >= REPLACING_FROM) out.add(oldName);
     }
   }
   return out;

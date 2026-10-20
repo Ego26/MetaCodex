@@ -32,6 +32,17 @@ function simcBuffMap(text) {
     members.set(key, Number(nums[nums.length - 1]));
   }
   const out = new Map();
+  // Buffs made in a loop from a list of IDs (the Rogue's supercharge_1..7):
+  //   std::array<unsigned int, 7> supercharger_ids = { 470398, 470406, ... };
+  //   make_buff( this, fmt::format( "supercharge_{}", i + 1 ), ... find_spell( supercharger_ids[ i ] ) ...
+  const arrays = new Map();
+  const arrRe = /std::array<[^>]*>\s*([A-Za-z_]\w*)\s*=\s*\{([\d,\s]+)\}/g;
+  while ((m = arrRe.exec(text))) arrays.set(m[1], m[2].split(',').map((x) => Number(x.trim())).filter(Boolean));
+  const loopRe = /fmt::format\(\s*"([a-z0-9_]+)_\{\}"\s*,\s*i\s*\+\s*1\s*\)[^;]{0,200}?([A-Za-z_]\w*)\s*\[\s*i\s*\]/g;
+  while ((m = loopRe.exec(text))) {
+    const ids = arrays.get(m[2]);
+    if (ids) ids.forEach((id, i) => out.set(`${m[1]}_${i + 1}`, id));
+  }
   // The rest stops at the next quote: a line without ";" would otherwise run
   // into the next buff and swallow its name.
   const buffRe = /"([a-z0-9_]+)"\s*,\s*([^;"]{0,260})/g;

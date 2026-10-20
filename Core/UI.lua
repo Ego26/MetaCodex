@@ -7212,9 +7212,15 @@ do
         local kind = c[1]
         if kind == "and" then return say(c[2], false, nm) .. L["ROT_AND"] .. say(c[3], false, nm) end
         if kind == "or" then
-            local text = say(c[2], false, nm) .. L["ROT_OR"] .. say(c[3], false, nm)
+            -- Ein Oder im Oder ist dieselbe Gruppe: eine Klammer, nicht zwei.
+            local function glied(x)
+                if type(x) == "table" and x[1] == "or" then return glied(x[2]) .. L["ROT_OR"] .. glied(x[3]) end
+                return say(x, false, nm)
+            end
+            local text = glied(c)
             return top and text or ("(" .. text .. ")")
         end
+        if kind == "charged" or kind == "notcharged" then return L["ROT_C_" .. kind]:format(zahl(c[2])) end
         if SPELL1[kind] then return L["ROT_C_" .. kind]:format(nm(c[2])) end
         if PLAIN[kind] then return L["ROT_C_" .. kind] end
         -- Wie lange her: vor weniger / mehr als N Sek. gewirkt.
@@ -7230,11 +7236,16 @@ do
         if kind == "since" or kind == "notsince" then
             return L["ROT_C_" .. kind]:format(say(c[2], true, nm), say(c[3], true, nm))
         end
+        -- Eine Aufladung, nicht "1 Aufladungen".
+        if kind == "chargesunder" and c[3] == 1 then return L["ROT_C_chargesunder1"]:format(nm(c[2])) end
         if SPELLN[kind] then return L["ROT_C_" .. kind]:format(nm(c[2]), zahl(c[3])) end
         if kind == "charges" then
             if type(c[3]) == "number" and c[3] % 1 ~= 0 then
-                return L["ROT_C_chargesnear"]:format(nm(c[2]), zahl(math.ceil(c[3])))
+                local n = math.ceil(c[3])
+                if n == 1 then return L["ROT_C_chargesnear1"]:format(nm(c[2])) end
+                return L["ROT_C_chargesnear"]:format(nm(c[2]), zahl(n))
             end
+            if c[3] == 1 then return L["ROT_C_charges1"]:format(nm(c[2])) end
             return L["ROT_C_charges"]:format(nm(c[2]), zahl(c[3]))
         end
         if kind == "tgtis" or kind == "tgtmin" or kind == "tgtmax"
@@ -7315,10 +7326,10 @@ do
         return L["ROT_I_use"]:format(art)
     end
 
-    -- "≈" als Link: der Zeiger darauf erklaert es (OnHyperlinkEnter).
-    local VAGE = "  |Hmcvage|h|cff8b949e\226\137\136|r|h"
-
-    local function satzOhneZeichen(line, tab, last, nm)
+    -- Nur Klares: was SimulationCraft zusaetzlich rechnet, nimmt schon der
+    -- Generator heraus (tools/lib/simplify.js) - kein "unter bestimmten
+    -- Umstaenden", kein Zeichen dafuer (21. Oktober).
+    local function satz(line, tab, last, nm)
         nm = nm or zauber
         if line.ik and line.ik ~= "racial" then return gegenstandSatz(line, nm) end
         local name = nm(line.s)
@@ -7329,15 +7340,8 @@ do
         if ziel then return L["ROT_S_target"]:format(name, ziel) end
         if when ~= "" then return L["ROT_S_if"]:format(name, when) end
         if tab == "pre" then return L["ROT_S_pre"]:format(name) end
-        if line.more then return L["ROT_S_some"]:format(name) end
         if last and (tab == "st" or tab == "aoe") then return L["ROT_S_filler"]:format(name) end
         return L["ROT_S_cd"]:format(name)
-    end
-
-    local function satz(line, tab, last, nm)
-        local text = satzOhneZeichen(line, tab, last, nm)
-        if line.more then text = text .. VAGE end
-        return text
     end
     UI.RotationSentence = satz
 
@@ -7517,12 +7521,7 @@ do
         if type(frame.SetHyperlinksEnabled) == "function" then frame:SetHyperlinksEnabled(true) end
         frame:SetScript("OnHyperlinkEnter", function(self, link)
             GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT")
-            if link == "mcvage" then
-                GameTooltip:SetText(L["ROT_VAGUE_TITLE"], 1, 1, 1)
-                GameTooltip:AddLine(L["ROT_VAGUE_TIP"], 0.85, 0.85, 0.85, true)
-            else
-                GameTooltip:SetHyperlink(link)
-            end
+            GameTooltip:SetHyperlink(link)
             GameTooltip:Show()
         end)
         frame:SetScript("OnHyperlinkLeave", function() GameTooltip:Hide() end)
