@@ -1,0 +1,88 @@
+// Die Regeln hinter dem Abschnitt "Rotation" (tools/lib/apl.js).
+//
+// Was der Build sicher weiss, faellt aus der Bedingung heraus; was nicht,
+// bleibt stehen oder wird ehrlich zu "unter bestimmten Bedingungen".
+const apl = require('../lib/apl');
+
+let failed = 0;
+function check(what, got, want) {
+  const ok = JSON.stringify(got) === JSON.stringify(want);
+  if (!ok) failed += 1;
+  console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${what}`
+    + (ok ? '' : `\n          bekommen: ${JSON.stringify(got)}`
+      + `\n          erwartet: ${JSON.stringify(want)}`));
+}
+
+const IDS = { lava_burst: 1, master_of_the_elements: 2, tempest: 3, lightning_bolt: 4, lightning_shield: 5,
+  stormkeeper: 6, earthquake: 7, chain_lightning: 8, flame_shock: 9, ascendance: 10 };
+const TAKEN = new Set(['master_of_the_elements', 'lava_burst', 'stormkeeper', 'earthquake']);
+const TREE = new Set(['master_of_the_elements', 'tempest', 'lava_burst', 'stormkeeper', 'earthquake']);
+const ctx = (targets) => ({
+  talent: (k) => TAKEN.has(k), isTalentSpell: (k) => TREE.has(k), hero: (k) => k === 'farseer',
+  setBonus: () => false, targets, variable: () => null,
+});
+const resolve = {
+  spell: (k) => IDS[k] || null, actionSpell: (k) => IDS[k] || null,
+  isTalentSpell: (k) => TREE.has(k), talent: (k) => TAKEN.has(k), replaced: (id) => id === 99,
+};
+const tab = (text, targets, start = 'default') => apl.buildTab(apl.parseApl(text), start, ctx(targets), resolve).lines;
+
+// Ein Talent, das der Build nicht nimmt: die Zeile gibt es nicht.
+check('Zeile fuer ein fehlendes Talent faellt weg',
+  tab('actions=tempest\nactions+=/lightning_bolt', [1, 1]).map((l) => l.s), [4]);
+// Ein genommenes Talent in der Bedingung ist wahr und verschwindet.
+check('genommenes Talent faellt aus der Bedingung',
+  tab('actions=lava_burst,if=talent.master_of_the_elements&buff.master_of_the_elements.down', [1, 1])[0].c,
+  [['down', 2]]);
+// Der Buff eines fehlenden Talents kommt nie: "wenn Tempest aktiv" ist falsch.
+check('Buff eines fehlenden Talents ist nie aktiv',
+  tab('actions=lightning_bolt,if=buff.tempest.up\nactions+=/chain_lightning', [1, 1]).map((l) => l.s), [8]);
+// Mit Bereichen: (0 oder 1) + 1 >= 1 gilt immer.
+check('Bereiche falten auch Summen',
+  tab('actions=lava_burst,if=buff.stormkeeper.up+talent.earthquake>=1', [1, 1])[0].c, []);
+// Zielzahl: im Einzelziel falsch, in der Flaeche offen und vorn.
+check('Flaechenzeile fehlt im Einzelziel',
+  tab('actions=earthquake,if=spell_targets.chain_lightning>=5\nactions+=/lightning_bolt', [1, 1]).map((l) => l.s), [4]);
+check('in der Flaeche steht die Zielzahl vorn',
+  tab('actions=earthquake,if=buff.stormkeeper.up&spell_targets.chain_lightning>=5', [3, 8])[0].c,
+  [['tgtmin', 5], ['up', 6]]);
+// run_action_list mit erfuellter Bedingung: der Rest der Liste laeuft nie.
+const zweiListen = 'actions=run_action_list,name=aoe,if=active_enemies>=3\n'
+  + 'actions+=/run_action_list,name=st\nactions.aoe=chain_lightning\nactions.st=lightning_bolt';
+check('Einzelziel springt in die st-Liste', tab(zweiListen, [1, 1]).map((l) => l.s), [4]);
+check('Flaeche springt in die aoe-Liste und hoert dort auf', tab(zweiListen, [3, 8]).map((l) => l.s), [8]);
+// Ein eigener Schild "wenn nicht aktiv" gehoert vor den Kampf.
+const schild = apl.buildTab(apl.parseApl('actions=lightning_shield,if=buff.lightning_shield.down\nactions+=/lightning_bolt'),
+  'default', ctx([1, 1]), resolve);
+check('Schild aufrechterhalten wandert nach vorn', [schild.keep, schild.lines.map((l) => l.s)], [[5], [4]]);
+// Ein Cooldown "wenn sein Buff fehlt" in einer Unterliste bleibt eine Zeile.
+const sk = apl.buildTab(apl.parseApl('actions=run_action_list,name=st\nactions.st=stormkeeper,if=!buff.stormkeeper.up\nactions.st+=/lightning_bolt'),
+  'default', ctx([1, 1]), resolve);
+check('Cooldown in der Unterliste wird nicht "aktiv halten"', [sk.keep, sk.lines.map((l) => l.s)], [[], [6, 4]]);
+// Dieselbe Aktion zweimal hintereinander: gemeinsamer Teil + eins davon.
+const zwei = tab('actions=lava_burst,if=buff.master_of_the_elements.down&maelstrom.deficit>15&cooldown.lava_burst.charges_fractional>1.8\n'
+  + 'actions+=/lava_burst,if=buff.master_of_the_elements.down&maelstrom.deficit>15&maelstrom>83', [1, 1]);
+check('zwei Zeilen werden eine', zwei.length, 1);
+check('gemeinsamer Teil', zwei[0].c, [['down', 2], ['resnotcap', 'maelstrom', 15]]);
+check('und eins davon', zwei[0].any, [[['charges', 1, 1.8]], [['resmin', 'maelstrom', 84]]]);
+// Dieselbe Zeile weiter unten greift nie anders.
+check('Wiederholung weiter unten faellt weg',
+  tab('actions=chain_lightning,if=buff.stormkeeper.up\nactions+=/lightning_bolt\nactions+=/chain_lightning,if=buff.stormkeeper.up', [1, 1])
+    .map((l) => l.s), [8, 4]);
+// Was sich nicht sagen laesst, wird nicht geraten.
+check('Unbekanntes wird "other"',
+  tab('actions=lightning_bolt,if=buff.stormkeeper.remains>cooldown.ascendance.remains', [1, 1])[0].c, [['other']]);
+// Ein ersetzter Zauber steht nie da.
+check('ersetzter Zauber faellt weg',
+  apl.buildTab(apl.parseApl('actions=natures_swiftness\nactions+=/lightning_bolt'), 'default', ctx([1, 1]),
+    { ...resolve, actionSpell: (k) => (k === 'natures_swiftness' ? 99 : IDS[k]) }).lines.map((l) => l.s), [4]);
+// Rauschen: Schmuck, Traenke, Unterbrechen.
+check('Schmuck, Trank und Unterbrechen fallen weg',
+  tab('actions=use_item,slot=trinket1\nactions+=/potion\nactions+=/wind_shear\nactions+=/lightning_bolt', [1, 1]).map((l) => l.s), [4]);
+// Heldenbaum.
+check('Liste des anderen Heldenbaums faellt weg',
+  tab('actions=run_action_list,name=sb,if=hero_tree.stormbringer\nactions+=/lightning_bolt\nactions.sb=chain_lightning', [1, 1])
+    .map((l) => l.s), [4]);
+
+console.log(failed === 0 ? '\nalles gruen' : `\n${failed} Fehler`);
+process.exit(failed === 0 ? 0 : 1);

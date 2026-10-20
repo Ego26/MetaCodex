@@ -13,6 +13,7 @@ tools/data/last-run.log
 # Daten liegen nicht im Git: sie aendern sich jede Nacht und wiegen 60 MB.
 # Die Action baut sie und haengt das Paket an das Release "nightly".
 tools/data/*.json
+tools/data/*.lua
 MetaCodex_Data/*.lua
 MetaCodex_Dungeons/*.lua
 MetaCodex_Players/*.lua

@@ -196,6 +196,24 @@ function Invoke-Sync {
         Write-Host "MetaCodex_Data fehlt - erst die Sammler laufen lassen." -ForegroundColor Yellow
     }
 
+    # Die Rotation aus dem eigenen Lauf von tools/build-rotation.js, solange
+    # der Nachtlauf sie noch nicht mitbringt. Angehaengt wie im Nachtlauf:
+    # keine neue Datei, also kein Neustart des Spiels noetig.
+    $rotation = Join-Path $RepoRoot "tools\data\rotation.lua"
+    $empfehlungen = Join-Path $AddOns "MetaCodex_Data\Recommendations.lua"
+    # Eine schon angehaengte Rotation wird ersetzt, nicht doppelt angehaengt.
+    # Ohne BOM geschrieben: Set-Content -Encoding UTF8 setzt in PowerShell 5.1
+    # eines an den Dateianfang.
+    if ((Test-Path $rotation) -and (Test-Path $empfehlungen)) {
+        $utf8 = New-Object System.Text.UTF8Encoding($false)
+        $text = [System.IO.File]::ReadAllText($empfehlungen, $utf8)
+        $marke = $text.IndexOf("`n-- ERZEUGT von tools/build-rotation.js")
+        if ($marke -ge 0) { $text = $text.Substring(0, $marke) }
+        $text = $text + [System.IO.File]::ReadAllText($rotation, $utf8)
+        [System.IO.File]::WriteAllText($empfehlungen, $text, $utf8)
+        Write-Host "Rotation: aus tools\data\rotation.lua angehaengt" -ForegroundColor DarkGray
+    }
+
     # Die Auswertung je Dungeon ist freiwillig: fehlt sie, faellt nur die
     # Dungeon-Auswahl weg. Deshalb hier auch keine Warnung.
     $dungeonSource = Join-Path $datenWurzel "MetaCodex_Dungeons"

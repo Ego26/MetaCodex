@@ -447,6 +447,13 @@ jobs:
           node tools/build-recommendations.js .
           test -s MetaCodex_Data/Catalog.lua
           test -s MetaCodex_Data/Recommendations.lua
+          # The rotation (SimulationCraft lists folded with the measured
+          # builds, plus the openers measured around raid pulls) goes onto
+          # the end of Recommendations.lua - no new file, no TOC change.
+          # It needs two outside sources (wago.tools, GitHub); if one is
+          # down, the night ships without a rotation instead of failing.
+          node tools/build-rotation.js . MetaCodex_Data/Recommendations.lua --append \
+            || echo "::warning::Rotation not built - shipped without it"
 
       # Erst sichern, dann weitermachen.
       #

@@ -22,6 +22,7 @@
 // also rund zwanzig Datensaetze je Abruf statt einem.
 
 const fs = require('fs');
+const opener = require('./lib/opener');
 const { worthRetrying, waitSeconds } = require('./lib/http-retry');
 const path = require('path');
 const https = require('https');
@@ -1213,9 +1214,20 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
       + `(${Math.ceil(codes.length / folioSchritt)} von ${codes.length})`);
   }
   let folioIndex = -1;
+  // DER ABLAUF UM DEN PULL - nur im Raid, und nur an jedem N-ten Bericht.
+  //
+  // Im Raid beginnt der Kampf mit dem Pull; was davor gewirkt wird, ist
+  // Vorbereitung, und ein Precast landet am Pull. In einem M+-Log beginnt
+  // der Kampf mit dem Schluessel, nicht mit der ersten Gruppe - dort waere
+  // "nach dem Pull" geraten. Eine Abfrage mehr je Bericht, darum gestuft
+  // wie der Foliant: ein paar hundert Bericht genuegen fuer die Mehrheit.
+  const openerZiel = Number(process.env.MC_OPENER_REPORTS || 300);
+  const openerSchritt = codes.length > openerZiel ? Math.ceil(codes.length / openerZiel) : 1;
+  let openerKaputt = false;
   for (const [code, info] of codes) {
     folioIndex += 1;
     const mitFolio = (folioIndex % folioSchritt) === 0;
+    const mitAblauf = KIND === 'raid' && (folioIndex % openerSchritt) === 0;
     const fightID = info.fightID;
     // Ein hoher Key zaehlt in beide Auswertungen: er ist ein M+-Lauf
     // und ausserdem ein hoher.
@@ -1711,6 +1723,42 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
       process.stdout.write('?');
     }
 
+    // Der Ablauf um den Pull: zwanzig Sekunden davor bis fuenfzehn danach,
+    // je Spieler einer bekannten Spec.
+    if (mitAblauf && thisFight && specBySource.size && !openerKaputt) {
+      const pull = Number(thisFight.startTime);
+      try {
+        const casts = await gql(`
+          query ($code: String!, $from: Float!, $to: Float!) {
+            reportData { report(code: $code) {
+              events(dataType: Casts, startTime: $from, endTime: $to, limit: 4000,
+                     filterExpression: "source.type = \\"player\\"") { data }
+            } }
+          }`, { code, from: pull - opener.PRE_MS, to: pull + opener.POST_MS });
+        const bySource = new Map();
+        for (const ev of (casts.reportData.report.events.data || [])) {
+          const src = Number(ev.sourceID);
+          if (!specBySource.has(src)) continue;
+          if (!bySource.has(src)) bySource.set(src, []);
+          bySource.get(src).push(ev);
+        }
+        for (const [src, evs] of bySource) {
+          const seq = opener.sequenceOf(evs, pull);
+          if (!seq.post.length) continue;
+          for (const mode of active) {
+            const spec = entryFor(mode, specBySource.get(src));
+            spec.openers = spec.openers || [];
+            if (spec.openers.length < 120) spec.openers.push(seq);
+          }
+        }
+      } catch (err) {
+        // Der Ablauf haftet nicht fuer den Rest: einmal melden, dann ohne.
+        openerKaputt = true;
+        console.log('\n  ! Ablauf-Abfrage abgelehnt, sammle ohne sie weiter: '
+          + String(err.message).slice(0, 120));
+      }
+    }
+
     process.stdout.write('.');
     await sleep(250);
   }
@@ -2129,6 +2177,12 @@ Haeufigste nicht zugeordnete Auren (${missedAuras.size} verschiedene):`);
         }
         if (reihen.length) out.folio = reihen;
       }
+      // Die rohen Ablaeufe; welcher der uebliche ist, entscheidet
+      // tools/build-rotation.js - erst dort ist bekannt, welche Zauber zur
+      // Rotation gehoeren und welche (Trank, Schmuck) nicht.
+      if (entry.openers && entry.openers.length) {
+        out.openers = entry.openers;
+      }
 
       const builds = Object.entries(entry.builds || {}).sort((a, b) => b[1] - a[1]);
       if (builds.length) {
@@ -2188,6 +2242,11 @@ Haeufigste nicht zugeordnete Auren (${missedAuras.size} verschiedene):`);
 Probelauf ${mode}, ${Object.keys(specs).length} Speccs, Spec ${id}:`);
       for (const c of (one || {}).consumables || []) {
         console.log(`  ${String(c.pct).padStart(3)}%  ${c.kind.padEnd(7)} ${c.name || '(ohne Gegenstand)'}`);
+      }
+      const ablaeufe = (one || {}).openers || [];
+      if (ablaeufe.length) {
+        console.log(`  Ablaeufe um den Pull: ${ablaeufe.length}, z. B.`);
+        for (const a of ablaeufe.slice(0, 3)) console.log(`    vor ${a.pre.join(' ')} | nach ${a.post.join(' ')}`);
       }
       if (COMPARE) {
         // Alle Speccs, beide Regeln, dieselbe Stichprobe. Nur wo sich

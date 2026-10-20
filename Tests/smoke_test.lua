@@ -6644,6 +6644,125 @@ do
     C_SpecializationInfo, GetSpecializationInfoForClassID = echtC, echtG
 end
 
+-- ------------------------------------------------------- Rotation
+--
+-- Aus SimulationCraft, gefaltet mit dem Build: im Addon stehen nur IDs und
+-- kleine Bedingungen. Geprueft: die Saetze wie bei Wowhead, die Karte mit
+-- Reitern und Beispiel-Ablauf, der Tooltip - und dass der Abschnitt nur in
+-- der Dev-Version steht.
+do
+    local echt = ns.Recommend.Rotation
+    local vorher = ns.version
+    local vorherTab = MetaCodexDB.rotationTab
+    MetaCodexDB.rotationTab = nil
+    local ROT = {
+        hero = 56, n = 131, set = "mid2",
+        keep = { 192106 },
+        pre = { { s = 191634 } },
+        st = {
+            { s = 51505, c = { { "down", 260734 }, { "resnotcap", "maelstrom", 15 } },
+                any = { { { "charges", 51505, 1.8 } }, { { "resmin", "maelstrom", 83 } } } },
+            { s = 117014, t = { "shortest", 197209 }, c = { { "or", { "up", 260734 }, { "resfull", "maelstrom", 15 } } } },
+            { s = 114050 },
+            { s = 188196 },
+        },
+        aoe = { { s = 61882, c = { { "tgtmin", 5 } } }, { s = 188443 } },
+        mv = { 188389 },
+    }
+    ns.Recommend.Rotation = function(_, mode) return mode:find("^mplus") and ROT or nil end
+    ns.Profile.SetMode("mplus")
+
+    ns.version = "v9.9.9"
+    check("im Paket keine Rotation", not ns.Recommend.HasSection(262, "mplus", ns.Recommend.ALL, "rotation"))
+    ns.version = "dev"
+    check("in der Dev-Version die Rotation", ns.Recommend.HasSection(262, "mplus", ns.Recommend.ALL, "rotation"))
+    check("im PvP keine", not ns.Recommend.HasSection(262, "3v3", ns.Recommend.ALL, "rotation"))
+
+    -- Die Saetze.
+    local satz = ns.UI.RotationSentence
+    check("ohne Bedingung: sobald verfuegbar", satz({ s = 114050 }, "st", false) == L["ROT_S_cd"]:format("#114050"),
+        satz({ s = 114050 }, "st", false))
+    check("die letzte ohne Bedingung ist der Fueller", satz({ s = 188196 }, "st", true) == L["ROT_S_filler"]:format("#188196"))
+    check("vor dem Pull", satz({ s = 191634 }, "pre", false) == L["ROT_S_pre"]:format("#191634"))
+    check("aktiv halten", satz({ s = 192106, keepUp = true }, "pre", false) == L["ROT_S_keep"]:format("#192106"))
+    local mit = satz(ROT.st[1], "st", false)
+    check("mit Bedingung ein ganzer Satz", mit:find(L["ROT_S_if"]:match("^(.-)%%s"), 1, true) == 1
+        and mit:find(L["ROT_RES_maelstrom"], 1, true) ~= nil, mit)
+    check("drei Teile: A, B und C", select(2, mit:gsub(", ", "")) >= 1, mit)
+
+    local say = ns.UI.RotationSay
+    check("ein Oder allein ohne Klammern", not say({ "or", { "up", 1 }, { "up", 2 } }, true):find("(", 1, true))
+    check("ein Oder in einem Satz mit Klammern", say({ "or", { "up", 1 }, { "up", 2 } }):find("(", 1, true) == 1)
+    check("fast zwei Aufladungen", say({ "charges", 5, 1.8 }) == L["ROT_C_chargesnear"]:format("#5", "2"),
+        say({ "charges", 5, 1.8 }))
+    check("die Ressource beim Namen", say({ "resmin", "maelstrom", 83 }) == L["ROT_C_resmin"]:format("83", L["ROT_RES_maelstrom"]))
+    check("eine unbekannte Ressource ohne Unterstrich", say({ "resmin", "astral_dust", 3 }):find("astral dust", 1, true) ~= nil)
+    check("Unbekanntes ehrlich", say({ "other" }) == L["ROT_C_other"])
+
+    -- Der Beispiel-Ablauf: davor aus der Liste, danach gemessen - in der
+    -- Dev-Version bis dahin ein Platzhalter, der es sagt.
+    -- Kein Platzhalter: die ersten Zeilen der Prioritaet sind keine
+    -- Reihenfolge (Sturmhueter stand doppelt da).
+    local vor, nach = ns.UI.RotationTimeline(ROT)
+    check("vor dem Pull: aktiv halten und Vorkampf", table.concat(vor, ",") == "192106,191634", table.concat(vor, ","))
+    check("ohne Messung nichts nach dem Pull", #nach == 0, #nach .. " Zauber")
+    ROT.opener = { n = 40, pre = { 192106, 51505 }, post = { 191634, 117014 } }
+    vor, nach = ns.UI.RotationTimeline(ROT)
+    check("mit Messung der gemessene Ablauf", table.concat(nach, ",") == "191634,117014")
+    check("davor die Liste und dahinter der gemessene Precast", table.concat(vor, ",") == "192106,191634,51505", table.concat(vor, ","))
+    ROT.opener = { n = 40, pre = {}, post = { 191634 } }
+    vor = ns.UI.RotationTimeline(ROT)
+    check("ohne gemessenes Davor das aus der Liste", table.concat(vor, ",") == "192106,191634")
+    ROT.opener = nil
+
+    -- Im Fenster: EINE Zeile, die Karte.
+    local n = rowsInSection("rotation")
+    check("eine Karte statt einer Liste", n == 1, n .. " Zeilen")
+    local karte
+    for _, row in ipairs(wow.rows()) do
+        if row:IsShown() and rawget(row, "__rotPanel") then karte = row.__rotPanel end
+    end
+    check("die Karte steht da", karte ~= nil)
+    local function gezeigt()
+        local k = 0
+        for _, e in ipairs(karte and karte.entries or {}) do if e:IsShown() then k = k + 1 end end
+        return k
+    end
+    if karte then
+        check("Einzelziel offen: vier Saetze", gezeigt() == 4, gezeigt() .. " Saetze")
+        local zeit = 0
+        for _, b in ipairs(karte.tl.icons) do if b:IsShown() then zeit = zeit + 1 end end
+        check("der Ablauf zeigt nur, was vor dem Pull kommt", zeit == 2, zeit .. " Symbole")
+        check("mit Pull-Marke", karte.tl.pullText:IsShown() and karte.tl.pullText:GetText() == L["ROT_PULL"])
+        check("und in Bewegung darunter", karte.foot:IsShown()
+            and (karte.foot:GetText() or ""):find(L["ROT_S_move"]:match("^(.-)%%s"), 1, true) ~= nil)
+        -- Der Zeiger eines Satzes sagt, wann.
+        local e = karte.entries[1]
+        local zeilen = {}
+        local echtAdd = GameTooltip.AddLine
+        GameTooltip.AddLine = function(_, text) zeilen[#zeilen + 1] = tostring(text) end
+        e:GetScript("OnEnter")(e)
+        GameTooltip.AddLine = echtAdd
+        local alles = table.concat(zeilen, " | ")
+        check("der Zeiger sagt wann", alles:find(L["ROT_TIP_WHEN"], 1, true) ~= nil, alles:sub(1, 160))
+        check("und eins davon", alles:find(L["ROT_ONEOF"], 1, true) ~= nil)
+        -- Reiter Flaeche: zwei Saetze, kein Ablauf.
+        local flaeche
+        for _, b in ipairs(karte.tabs) do if b.key == "aoe" then flaeche = b end end
+        flaeche:GetScript("OnClick")(flaeche)
+        rowsInSection("rotation")
+        check("der Reiter Flaeche zeigt zwei Saetze", gezeigt() == 2, gezeigt() .. " Saetze")
+        local zeit2 = 0
+        for _, b in ipairs(karte.tl.icons) do if b:IsShown() then zeit2 = zeit2 + 1 end end
+        check("und keinen Ablauf", zeit2 == 0, zeit2 .. " Symbole")
+    end
+
+    MetaCodexDB.rotationTab = vorherTab
+    ns.version = vorher
+    ns.Recommend.Rotation = echt
+    MetaCodexDB.section = "stats"
+end
+
 -- ------------------------------------------------------- Rassen
 --
 -- Gespielt (raider.io) und simuliert (bloodmallet) - nach Seite, die eigene

@@ -756,6 +756,18 @@ function Recommend.RaceSims(specID)
     return d and d.raceSims and specID and d.raceSims[specID] or nil
 end
 
+---Die Rotation einer Spec (SimulationCraft, gefaltet mit dem gemessenen
+---Build - tools/build-rotation.js). Je Familie: M+ oder Raid; PvP hat keine.
+---@return table|nil { hero, set, n, src, pre, keep, st, aoe, mv }
+function Recommend.Rotation(specID, mode)
+    local d = data()
+    local r = d and d.rotation and d.rotation.specs and specID and d.rotation.specs[specID]
+    if not r or type(mode) ~= "string" then return nil end
+    if mode:find("^mplus") then return r["mplus"] end
+    if mode:find("^raid") then return r["raid"] end
+    return nil
+end
+
 ---Hat diese Quelle etwas fuer diesen Abschnitt?
 ---
 ---Gebraucht, um es VOR dem Klick zu sagen. Ein Waehler, der alle Quellen
@@ -819,6 +831,9 @@ function Recommend.HasSection(specID, mode, source, section)
         -- Vorschau auch ohne beides.
         return Recommend.Races(specID, mode) ~= nil or Recommend.RaceSims(specID) ~= nil
             or ns.version == "dev"
+    elseif section == "rotation" then
+        -- Vorerst nur in der Dev-Version (20. Oktober).
+        return ns.version == "dev" and Recommend.Rotation(specID, mode) ~= nil
     elseif section == "enchants" then
         local entry = Recommend.For(specID, mode, source)
         return entry ~= nil and (entry.enchants ~= nil or entry.gems ~= nil)

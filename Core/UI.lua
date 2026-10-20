@@ -150,6 +150,11 @@ local remindFrame
 -- genau eine Zeile steht, wiederholt sich nur selbst.
 local SECTIONS = {
     { key = "guides",      group = "GROUP_OVERVIEW" },
+    -- Die Rotation steht neben den Guides: sie beantwortet dieselbe Frage
+    -- ("wie spiele ich das?"), nur im Fenster statt auf einer Webseite.
+    -- Unter den Talenten stand sie falsch (20. Oktober) - sie ist auf den
+    -- Build zugeschnitten, aber selbst keiner.
+    { key = "rotation",    group = "GROUP_OVERVIEW" },
     { key = "stats",       group = "GROUP_OVERVIEW" },
     -- Welche Rasse gespielt wird und was sie in der Simulation bringt.
     { key = "races",       group = "GROUP_OVERVIEW" },
@@ -3459,6 +3464,7 @@ local function resetRow(row)
     row.dropName = nil
     row.dropNote = nil
     row.raceTip = nil
+    if UI.RotationPanelHide then UI.RotationPanelHide(row) end
     -- Auch der Tausch: eine wiederverwendete Zeile zeigte sonst den
     -- Zeiger ihres Vorgaengers.
     row.swapAdded = nil
@@ -4133,6 +4139,16 @@ local function setItemRow(row, data)
 
     if data.kind == "race" then
         UI.SetRaceRow(row, data)
+        return
+    end
+
+    if data.kind == "rotpanel" then
+        row.bg:SetAlpha(0)
+        row.icon:SetTexture(nil)
+        row.title:SetText("")
+        row.detail:SetText("")
+        row.share:SetText("")
+        UI.RotationPanelFill(row, data)
         return
     end
 
@@ -5805,6 +5821,10 @@ function UI.Refresh()
         end)
         hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted)
             or L["FOLIO_HINT"])
+    elseif section.key == "rotation" then
+        currentRows = UI.RotationRows(specID, mode)
+        hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted)
+            or UI.RotationHint(specID, mode))
     elseif section.key == "drops" then
         currentRows, fromSource = withFallback(function(source)
             return UI.DropRows(specID, mode, source)
@@ -6282,6 +6302,8 @@ function UI.Refresh()
             place(row, MASS.SUB_ROW_HEIGHT * (S.fontScale or 1))
         elseif data.kind == "buildcard" then
             place(row, (MASS.CARD_HEIGHT + 16) * (S.fontScale or 1))
+        elseif data.kind == "rotpanel" then
+            place(row, ((data.panelH or 200) + S.space.sm * 2) * (S.fontScale or 1))
         elseif data.kind == "drcard" then
             -- Luft darueber, damit die Karte nicht an der letzten
             -- Bahn klebt.
@@ -7069,6 +7091,527 @@ do
             GameTooltip:AddLine(L["RACE_TIP_SOURCE"]:format(tostring(data.ts or "?"):sub(1, 10)), 0.5, 0.5, 0.5, true)
         end
         GameTooltip:Show()
+    end
+end
+
+-- ------------------------------------------------------------ Rotation
+--
+-- Aus den Prioritaetslisten von SimulationCraft, gefaltet mit dem
+-- gemessenen Build (tools/build-rotation.js). Gespeichert sind nur
+-- Zauber-IDs und kleine Bedingungen ({ "up", 260734 }); Name, Symbol und
+-- Satz entstehen hier, in der Sprache des Clients.
+--
+-- Aufgebaut wie bei Wowhead (20. Oktober): Reiter, darueber ein
+-- Beispiel-Ablauf um den Pull, darunter die Prioritaet als nummerierte
+-- Saetze - "Wirke Sturmhueter, sobald verfuegbar." - mit den Zaubern in
+-- Gold und ihrem Symbol im Text.
+do
+    local function zahl(x)
+        if type(x) ~= "number" then return tostring(x or "?") end
+        local text = (x % 1 == 0) and tostring(x) or ("%.1f"):format(x)
+        if GetLocale and GetLocale() == "deDE" then text = text:gsub("%.", ",") end
+        return text
+    end
+
+    local function zauber(id)
+        local name = C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(id)
+        return type(name) == "string" and name or ("#" .. tostring(id))
+    end
+
+    local function symbol(id)
+        return C_Spell and C_Spell.GetSpellTexture and C_Spell.GetSpellTexture(id) or nil
+    end
+
+    -- Im Satz: Symbol in Zeilenhoehe, Name in Gold.
+    local function gold(id)
+        local tex = symbol(id)
+        return (tex and ("|T" .. tostring(tex) .. ":0|t ") or "") .. "|cffffd100" .. zauber(id) .. "|r"
+    end
+
+    local function resource(key)
+        local text = L["ROT_RES_" .. tostring(key)]
+        if text == "ROT_RES_" .. tostring(key) then text = (tostring(key):gsub("_", " ")) end
+        return text
+    end
+
+    -- Bedingung -> Nebensatz ("Meister der Elemente aktiv ist").
+    local SPELL1 = { up = true, down = true, refresh = true, ready = true, notready = true,
+        cdsoon = true, prev = true, notprev = true }
+    local SPELLN = { cdunder = true, cdover = true, stackmin = true, stackunder = true, stackis = true,
+        remunder = true, remover = true, chargesunder = true, chargesfull = true, doton = true }
+    local RESN = { resmin = true, resunder = true, resis = true, respctmin = true, respctunder = true }
+
+    local function say(c, top, nm)
+        nm = nm or zauber
+        if type(c) ~= "table" then return L["ROT_C_other"] end
+        local kind = c[1]
+        if kind == "and" then return say(c[2], false, nm) .. L["ROT_AND"] .. say(c[3], false, nm) end
+        if kind == "or" then
+            local text = say(c[2], false, nm) .. L["ROT_OR"] .. say(c[3], false, nm)
+            return top and text or ("(" .. text .. ")")
+        end
+        if SPELL1[kind] then return L["ROT_C_" .. kind]:format(nm(c[2])) end
+        if SPELLN[kind] then return L["ROT_C_" .. kind]:format(nm(c[2]), zahl(c[3])) end
+        if kind == "charges" then
+            if type(c[3]) == "number" and c[3] % 1 ~= 0 then
+                return L["ROT_C_chargesnear"]:format(nm(c[2]), zahl(math.ceil(c[3])))
+            end
+            return L["ROT_C_charges"]:format(nm(c[2]), zahl(c[3]))
+        end
+        if kind == "tgtis" or kind == "tgtmin" or kind == "tgtmax"
+            or kind == "hpunder" or kind == "hpover" or kind == "timeunder" or kind == "timeover" then
+            return L["ROT_C_" .. kind]:format(zahl(c[2]))
+        end
+        if kind == "resnotcap" or kind == "resfull" then
+            if c[3] then return L["ROT_C_" .. kind .. "n"]:format(resource(c[2]), zahl(c[3])) end
+            return L["ROT_C_" .. kind]:format(resource(c[2]))
+        end
+        if kind == "resenough" then return L["ROT_C_resenough"]:format(resource(c[2])) end
+        if RESN[kind] then return L["ROT_C_" .. kind]:format(zahl(c[3]), resource(c[2])) end
+        return L["ROT_C_other"]
+    end
+    UI.RotationSay = say
+
+    -- "A, B und C" statt "A und B und C".
+    local function liste(parts)
+        if #parts <= 1 then return parts[1] or "" end
+        return table.concat(parts, ", ", 1, #parts - 1) .. L["ROT_AND"] .. parts[#parts]
+    end
+
+    ---Die Bedingungen einer Zeile als ein Nebensatz.
+    local function wann(line, nm)
+        local parts = {}
+        for _, c in ipairs(line.c or {}) do parts[#parts + 1] = say(c, #(line.c or {}) == 1, nm) end
+        if line.any then
+            local opts = {}
+            for _, g in ipairs(line.any) do
+                local sub = {}
+                for _, c in ipairs(g) do sub[#sub + 1] = say(c, false, nm) end
+                opts[#opts + 1] = table.concat(sub, L["ROT_AND"])
+            end
+            local oder = table.concat(opts, L["ROT_OR"])
+            parts[#parts + 1] = #parts > 0 and ("(" .. oder .. ")") or oder
+        end
+        return liste(parts)
+    end
+
+    ---Der ganze Satz einer Zeile, wie bei Wowhead.
+    ---@param line table { s, c, any, t, keepUp }
+    ---@param tab string  "st", "aoe" oder "pre"
+    ---@param last boolean die letzte Zeile ohne Bedingung ist der Fueller
+    ---@param nm function|nil wie ein Zauber heisst (Vorgabe: schlicht)
+    local function satz(line, tab, last, nm)
+        nm = nm or zauber
+        local name = nm(line.s)
+        if line.keepUp then return L["ROT_S_keep"]:format(name) end
+        local when = wann(line, nm)
+        local ziel = line.t and L["ROT_T_" .. tostring(line.t[1])]:format(nm(line.t[2])) or nil
+        if ziel and when ~= "" then return L["ROT_S_target_if"]:format(name, ziel, when) end
+        if ziel then return L["ROT_S_target"]:format(name, ziel) end
+        if when ~= "" then return L["ROT_S_if"]:format(name, when) end
+        if tab == "pre" then return L["ROT_S_pre"]:format(name) end
+        if last then return L["ROT_S_filler"]:format(name) end
+        return L["ROT_S_cd"]:format(name)
+    end
+    UI.RotationSentence = satz
+
+    -- Die Reiter, in der Reihenfolge wie bei Wowhead.
+    local TABS = { "st", "aoe", "pre" }
+
+    ---Die Zeilen eines Reiters.
+    local function zeilenVon(r, tab)
+        if tab == "pre" then
+            local pre = {}
+            for _, id in ipairs(r.keep or {}) do pre[#pre + 1] = { s = id, keepUp = true } end
+            for _, line in ipairs(r.pre or {}) do pre[#pre + 1] = line end
+            return pre
+        end
+        return r[tab] or {}
+    end
+
+    ---Welcher Reiter offen ist. Einer ohne Zeilen wird nicht gezeigt.
+    function UI.RotationTab(r)
+        local tab = MetaCodexDB and MetaCodexDB.rotationTab or "st"
+        if r and #zeilenVon(r, tab) == 0 then
+            for _, t in ipairs(TABS) do if #zeilenVon(r, t) > 0 then return t end end
+        end
+        return tab
+    end
+
+    ---Der Beispiel-Ablauf: vor dem Pull aus der Liste, danach gemessen.
+    ---
+    ---Was vor dem Pull gewirkt wird, sagt SimulationCraft. Was danach kommt,
+    ---sagt es nicht - das kaeme aus den Logs (r.opener). KEIN PLATZHALTER
+    ---(20. Oktober): die ersten Zeilen der Prioritaet sind keine Reihenfolge,
+    ---und als Ablauf gelesen stand Sturmhueter zweimal und Flammenschock
+    ---doppelt da. Ohne Messung endet der Ablauf am Pull.
+    ---@return table vor, table nach
+    function UI.RotationTimeline(r)
+        local vor = {}
+        for _, line in ipairs(zeilenVon(r, "pre")) do vor[#vor + 1] = line.s end
+        local o = r.opener
+        if type(o) == "table" and type(o.post) == "table" and #o.post > 0 then
+            -- Davor: die Vorkampf-Liste - Schild und Waffe wirkt man lange vor
+            -- dem Pull, das steht in keinem Log -, und dahinter, an der Marke,
+            -- jeder gemessene Precast, der dort noch fehlt.
+            local schon = {}
+            for _, id in ipairs(vor) do schon[id] = true end
+            for _, id in ipairs(type(o.pre) == "table" and o.pre or {}) do
+                if not schon[id] then vor[#vor + 1] = id; schon[id] = true end
+            end
+            return vor, o.post
+        end
+        return vor, {}
+    end
+
+    ---EINE Zeile fuer den ganzen Abschnitt: die Karte (20. Oktober). Als
+    ---Liste stand jeder Zauber auf zwei Zeilen untereinander, und man musste
+    ---scrollen; die Rotation will man auf einen Blick.
+    function UI.RotationRows(specID, mode)
+        local r = ns.Recommend.Rotation(specID, mode)
+        if not r then return {} end
+        return { { kind = "rotpanel", rot = r } }
+    end
+
+    function UI.RotationHint(specID, mode)
+        local r = ns.Recommend.Rotation(specID, mode)
+        if not r then return "" end
+        local held = r.hero and ns.Catalog.SubTreeName and ns.Catalog.SubTreeName(r.hero) or "?"
+        local text = L["ROT_HINT"]:format(held, r.n or 0)
+        if r.set then text = text .. "  " .. L["ROT_SET"] end
+        if ns.version == "dev" then text = "|cffD29922DEV-Vorschau.|r  " .. text end
+        return text
+    end
+
+    -- Die Karte: je Zeile der Liste gebaut, wenn sie gebraucht wird, und
+    -- beim Zuruecksetzen der Zeile versteckt - wie die anderen Karten.
+    local panelOf = setmetatable({}, { __mode = "k" })
+    local PAD, TAB_H, TL_ICON, TL_STEP = 18, 30, 40, 56
+    -- Das Raster der Prioritaet: Einzug der Nummer und des Satzes, Abstand
+    -- zwischen zwei Punkten, Zeilenabstand innerhalb eines Satzes.
+    local NR_W, TEXT_X, GAP, LEADING = 30, 40, 10, 4
+
+    local function linie(f)
+        local t = f:CreateTexture(nil, "ARTWORK")
+        t:SetTexture("Interface\\Buttons\\WHITE8X8")
+        t:SetVertexColor(S:Color("borderSubtle"))
+        t:SetHeight(S:Pixel(1))
+        return t
+    end
+
+    -- Eine Ueberschrift wie bei Wowhead: Wort in der Mitte, Linien links
+    -- und rechts.
+    local function ueberschrift(f)
+        local h = { text = S:Text(f, "display", "accent"), links = linie(f), rechts = linie(f) }
+        return h
+    end
+
+    local function setzeUeberschrift(h, text, y, innen)
+        h.text:ClearAllPoints()
+        h.text:SetPoint("TOP", h.text:GetParent(), "TOP", 0, -y)
+        h.text:SetText(upperText(text))
+        local tw = tonumber(h.text:GetStringWidth()) or 80
+        local seite = math.max(0, (innen - tw) / 2 - 14)
+        h.links:ClearAllPoints()
+        h.links:SetPoint("TOPLEFT", PAD, -(y + 12))
+        h.links:SetWidth(seite)
+        h.rechts:ClearAllPoints()
+        h.rechts:SetPoint("TOPRIGHT", -PAD, -(y + 12))
+        h.rechts:SetWidth(seite)
+        for _, t in pairs(h) do t:Show() end
+    end
+
+    local function zeigeUeberschrift(h, an)
+        for _, t in pairs(h) do t:SetShown(an) end
+    end
+
+    -- Ein Feld mit Zauber-Tooltip: Symbol der Zeitleiste oder Satz.
+    local function tooltipAn(frame)
+        frame:SetScript("OnEnter", function(self)
+            if self.hl then self.hl:SetAlpha(1) end
+            local d = rawget(self, "rotData")
+            if not d then return end
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            if GameTooltip.SetSpellByID then
+                GameTooltip:SetSpellByID(d.spell)
+            else
+                GameTooltip:SetHyperlink("spell:" .. d.spell)
+            end
+            if d.line then UI.RotationTooltip(d) end
+            GameTooltip:Show()
+        end)
+        frame:SetScript("OnLeave", function(self)
+            if self.hl then self.hl:SetAlpha(0) end
+            GameTooltip:Hide()
+        end)
+    end
+
+    local function eintrag(f, i)
+        if f.entries[i] then return f.entries[i] end
+        local e = CreateFrame("Button", nil, f)
+        e.hl = S:Fill(e, "bgHover", 0)
+        e.nr = S:Text(e, "title", "textPrimary")
+        e.nr:SetPoint("TOPRIGHT", e, "TOPLEFT", NR_W, 0)
+        e.nr:SetJustifyH("RIGHT")
+        e.text = S:Text(e, "title", "textPrimary")
+        e.text:SetPoint("TOPLEFT", TEXT_X, 0)
+        e.text:SetJustifyH("LEFT")
+        e.text:SetWordWrap(true)
+        if e.text.SetSpacing then e.text:SetSpacing(LEADING) end
+        tooltipAn(e)
+        f.entries[i] = e
+        return e
+    end
+
+    local function zeitIcon(f, i)
+        if f.tl.icons[i] then return f.tl.icons[i] end
+        local b = CreateFrame("Button", nil, f)
+        b:SetSize(TL_ICON, TL_ICON)
+        b.icon = b:CreateTexture(nil, "ARTWORK")
+        b.icon:SetAllPoints()
+        b.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+        S:Border(b, "borderStrong")
+        tooltipAn(b)
+        f.tl.icons[i] = b
+        return b
+    end
+
+    local function bauen(row)
+        if panelOf[row] then return panelOf[row] end
+        local f = CreateFrame("Frame", nil, row)
+        S:Fill(f, "bgRaised")
+        S:Border(f, "borderSubtle")
+        f.tabs = {}
+        for i, key in ipairs(TABS) do
+            local b = makeButton(f, 130, TAB_H, L["ROT_TAB_" .. key], function()
+                MetaCodexDB.rotationTab = key
+                UI.Refresh()
+            end)
+            b.key = key
+            S:ApplyFont(b.label, "title", "textPrimary")
+            f.tabs[i] = b
+        end
+        f.headTl = ueberschrift(f)
+        f.headPrio = ueberschrift(f)
+        f.tl = { icons = {} }
+        f.tl.track = f:CreateTexture(nil, "BORDER")
+        f.tl.track:SetTexture("Interface\\Buttons\\WHITE8X8")
+        f.tl.track:SetVertexColor(S:Color("borderSubtle"))
+        f.tl.track:SetHeight(6)
+        f.tl.pull = f:CreateTexture(nil, "ARTWORK")
+        f.tl.pull:SetTexture("Interface\\Buttons\\WHITE8X8")
+        f.tl.pull:SetVertexColor(S:Color("textSecondary"))
+        f.tl.pull:SetSize(3, TL_ICON + 4)
+        f.tl.pullText = S:Text(f, "title", "textPrimary")
+        f.tl.endText = S:Text(f, "body", "textSecondary")
+        f.tl.endText:SetJustifyH("CENTER")
+        f.tl.endText:SetWordWrap(true)
+        f.tl.note = S:Text(f, "body", "textMuted")
+        f.entries = {}
+        f.foot = S:Text(f, "title", "textPrimary")
+        f.foot:SetJustifyH("LEFT")
+        f.foot:SetWordWrap(true)
+        if f.foot.SetSpacing then f.foot:SetSpacing(LEADING) end
+        f.footRule = linie(f)
+        panelOf[row] = f
+        return f
+    end
+
+    function UI.RotationPanelHide(row)
+        if panelOf[row] then panelOf[row]:Hide() end
+    end
+
+    ---Die Zeitleiste zeichnen; gibt die neue Hoehe zurueck.
+    local function zeitleiste(f, r, y, innen)
+        local vor, nach = UI.RotationTimeline(r)
+        local tl = f.tl
+        local alle = {}
+        for _, id in ipairs(vor) do alle[#alle + 1] = id end
+        for _, id in ipairs(nach) do alle[#alle + 1] = id end
+        if #alle == 0 then
+            zeigeUeberschrift(f.headTl, false)
+            for _, b in ipairs(tl.icons) do b:Hide() end
+            for _, k in ipairs({ "track", "pull", "pullText", "endText", "note" }) do tl[k]:Hide() end
+            return y
+        end
+        setzeUeberschrift(f.headTl, L["ROT_TIMELINE"], y, innen)
+        y = y + 40
+        -- Die Pull-Marke steht zwischen dem letzten Zauber davor und dem
+        -- ersten danach.
+        -- Ohne Messung danach: Platz fuer "weiter nach Prioritaet" rechts der Marke.
+        local breite = #alle * TL_STEP + 12 + (#nach == 0 and 150 or 0)
+        local x0 = PAD + math.max(0, (innen - breite) / 2)
+        tl.pullText:ClearAllPoints()
+        tl.pullText:SetText(L["ROT_PULL"])
+        local iconY = y + 24
+        tl.track:ClearAllPoints()
+        tl.track:SetPoint("TOPLEFT", x0 - 10, -(iconY + TL_ICON / 2 - 3))
+        tl.track:SetWidth(breite + 8)
+        tl.track:Show()
+        local x = x0
+        for i, id in ipairs(alle) do
+            if i == #vor + 1 then
+                tl.pull:ClearAllPoints()
+                tl.pull:SetPoint("TOPLEFT", x - 2, -(iconY - 2))
+                tl.pullText:SetPoint("BOTTOM", tl.pull, "TOP", 0, 3)
+                x = x + 12
+            end
+            local b = zeitIcon(f, i)
+            b:ClearAllPoints()
+            b:SetPoint("TOPLEFT", x, -iconY)
+            b.icon:SetTexture(symbol(id) or "Interface\\Icons\\INV_Misc_QuestionMark")
+            b.rotData = { spell = id }
+            b:Show()
+            x = x + TL_STEP
+        end
+        for i = #alle + 1, #tl.icons do tl.icons[i]:Hide() end
+        -- Alles vor dem Pull: die Marke steht hinter dem letzten.
+        if #vor == #alle then
+            tl.pull:ClearAllPoints()
+            tl.pull:SetPoint("TOPLEFT", x - 2, -(iconY - 2))
+            tl.pullText:SetPoint("BOTTOM", tl.pull, "TOP", 0, 3)
+        end
+        tl.pull:Show()
+        tl.pullText:Show()
+        -- Weiter mit der Prioritaet: unter dem letzten gemessenen Zauber,
+        -- ohne Messung gleich rechts neben der Pull-Marke.
+        tl.endText:ClearAllPoints()
+        if #nach > 0 then
+            tl.endText:SetPoint("TOP", tl.icons[#alle], "BOTTOM", 0, -6)
+            tl.endText:SetWidth(TL_STEP + 40)
+            tl.endText:SetJustifyH("CENTER")
+            tl.endText:SetText(L["ROT_CONTINUE"])
+            tl.endText:Show()
+            y = iconY + TL_ICON + 6 + (tonumber(tl.endText:GetStringHeight()) or 28)
+        else
+            tl.endText:SetPoint("LEFT", tl.pull, "RIGHT", 12, 0)
+            tl.endText:SetWidth(150)
+            tl.endText:SetJustifyH("LEFT")
+            tl.endText:SetText(L["ROT_CONTINUE"])
+            tl.endText:Show()
+            y = iconY + TL_ICON
+        end
+        -- Woher der Ablauf kommt, unter ihm.
+        local o = r.opener
+        if #nach > 0 and type(o) == "table" and o.n then
+            tl.note:ClearAllPoints()
+            tl.note:SetPoint("TOP", f, "TOP", 0, -(y + 8))
+            tl.note:SetText(L["ROT_TIMELINE_FROM"]:format(o.n))
+            tl.note:Show()
+            y = y + 8 + (tonumber(tl.note:GetStringHeight()) or 14)
+        else
+            tl.note:Hide()
+        end
+        return y + 18
+    end
+
+    ---Fuellt die Karte und sagt, wie hoch sie ist (data.panelH, ohne Schriftfaktor).
+    function UI.RotationPanelFill(row, data)
+        local r = data.rot
+        local f = bauen(row)
+        local fs = S.fontScale or 1
+        local w = math.max(240, contentWidth() - S.space.sm * 2)
+        local innen = w - PAD * 2
+        f:ClearAllPoints()
+        f:SetPoint("TOPLEFT", S.space.sm, -S.space.sm)
+        f:SetPoint("BOTTOMRIGHT", -S.space.sm, S.space.sm)
+
+        -- Die Reiter.
+        local tab = UI.RotationTab(r)
+        local x = PAD
+        for _, b in ipairs(f.tabs) do
+            local n = #zeilenVon(r, b.key)
+            b.label:SetText(L["ROT_TAB_" .. b.key])
+            local bw = math.max(110, (tonumber(b.label:GetStringWidth()) or 80) + 32)
+            b:SetWidth(bw)
+            b:ClearAllPoints()
+            b:SetPoint("TOPLEFT", x, -PAD)
+            b:SetShown(n > 0)
+            setButtonActive(b, b.key == tab)
+            if n > 0 then x = x + bw + 6 end
+        end
+        local y = PAD + TAB_H + 18
+
+        -- Der Beispiel-Ablauf, nur beim Einzelziel - wie bei Wowhead.
+        if tab == "st" then
+            y = zeitleiste(f, r, y, innen)
+        else
+            zeitleiste(f, { st = {} }, y, innen)
+        end
+
+        -- Die Prioritaet.
+        setzeUeberschrift(f.headPrio, tab == "pre" and L["ROT_TAB_pre"] or L["ROT_PRIORITY"], y, innen)
+        y = y + 24 + 16
+        local lines = zeilenVon(r, tab)
+        local nr = 0
+        local satzW = innen - TEXT_X
+        for i, line in ipairs(lines) do
+            local e = eintrag(f, i)
+            e:ClearAllPoints()
+            e:SetPoint("TOPLEFT", PAD, -y)
+            e:SetWidth(innen)
+            nr = nr + 1
+            e.nr:SetText("|cffffd100" .. nr .. ".|r")
+            e.text:SetWidth(satzW)
+            local letzte = i == #lines and not line.c and not line.any and not line.t
+            e.text:SetText(satz(line, tab, letzte, gold))
+            local h = math.ceil(tonumber(e.text:GetStringHeight()) or 16)
+            e:SetHeight(h)
+            e.rotData = { spell = line.s, line = line, tab = tab, nr = nr }
+            e:Show()
+            y = y + h + GAP
+        end
+        for i = #lines + 1, #f.entries do f.entries[i]:Hide() end
+
+        -- In Bewegung: abgesetzt durch eine Linie, im selben Einzug.
+        local mv = {}
+        if tab ~= "pre" then
+            for _, id in ipairs(r.mv or {}) do mv[#mv + 1] = gold(id) end
+        end
+        f.footRule:ClearAllPoints()
+        f.footRule:SetPoint("TOPLEFT", PAD + TEXT_X, -(y + 2))
+        f.footRule:SetWidth(satzW)
+        f.footRule:SetShown(#mv > 0)
+        f.foot:ClearAllPoints()
+        f.foot:SetPoint("TOPLEFT", PAD + TEXT_X, -(y + 2 + GAP))
+        f.foot:SetWidth(satzW)
+        f.foot:SetText(#mv > 0 and L["ROT_S_move"]:format(liste(mv)) or "")
+        f.foot:SetShown(#mv > 0)
+        if #mv > 0 then
+            y = y + 2 + GAP + math.ceil(tonumber(f.foot:GetStringHeight()) or 16) + GAP
+        end
+        f:Show()
+        row.__rotPanel = f
+        data.panelH = (y - GAP + PAD) / fs
+        return f
+    end
+
+    ---Unter dem Zauber-Tooltip: wann, Teil fuer Teil.
+    function UI.RotationTooltip(data)
+        local line = data.line or {}
+        if line.keepUp then return end
+        local hat = (line.c and #line.c > 0) or line.any or line.t
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine(L["ROT_TIP_WHEN"], S:Color("heading"))
+        if not hat then
+            GameTooltip:AddLine(L["ROT_ALWAYS"], 0.9, 0.9, 0.9, true)
+        end
+        if line.t then
+            GameTooltip:AddLine(L["ROT_T_" .. tostring(line.t[1])]:format(zauber(line.t[2])), 0.9, 0.9, 0.9, true)
+        end
+        for _, c in ipairs(line.c or {}) do
+            GameTooltip:AddLine("\194\183 " .. say(c, true), 0.9, 0.9, 0.9, true)
+        end
+        if line.any then
+            GameTooltip:AddLine(L["ROT_ONEOF"], 0.8, 0.8, 0.8, true)
+            for _, g in ipairs(line.any) do
+                local sub = {}
+                for _, c in ipairs(g) do sub[#sub + 1] = say(c) end
+                GameTooltip:AddLine("   \194\183 " .. table.concat(sub, L["ROT_AND"]), 0.9, 0.9, 0.9, true)
+            end
+        end
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine(L["ROT_TIP_SOURCE"], 0.5, 0.5, 0.5, true)
     end
 end
 
