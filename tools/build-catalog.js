@@ -647,10 +647,24 @@ function emitEnchants(groups) {
     tree.nodes.push({ id: Number(row.ID), type: Number(row.Type) || 0, subTree: Number(row.TraitSubTreeID) || 0, entries });
   }
   for (const tree of Object.values(treesOut)) tree.nodes.sort((a, b) => a.id - b.id);
-  const treeBySpec = {};
+  // EIN Baum je Spec, und nie ein Testbaum. Die Tabelle fuehrt fuer den
+  // Furor-Krieger zwei, und der letzte war Blizzards "UI Test"-Baum: die
+  // Furor-Builds wurden gegen den falschen Baum gelesen, ohne Heldenbaum
+  // (20. Oktober). Vorrang hat der Baum, den die Klasse teilt.
+  const testTrees = new Set(subTreesEN.filter((r) => /\btest\b/i.test(r.Name_lang || ''))
+    .map((r) => Number(r.TraitTreeID)));
+  const candidates = new Map();
   for (const row of traitLoadouts) {
     const spec = Number(row.ChrSpecializationID), tree = Number(row.TraitTreeID);
-    if (spec && tree && treesOut[tree]) treeBySpec[spec] = tree;
+    if (!spec || !tree || !treesOut[tree] || testTrees.has(tree)) continue;
+    if (!candidates.has(spec)) candidates.set(spec, new Set());
+    candidates.get(spec).add(tree);
+  }
+  const sharedBy = new Map();
+  for (const trees of candidates.values()) for (const t of trees) sharedBy.set(t, (sharedBy.get(t) || 0) + 1);
+  const treeBySpec = {};
+  for (const [spec, trees] of candidates) {
+    treeBySpec[spec] = [...trees].sort((a, b) => (sharedBy.get(b) - sharedBy.get(a)) || (a - b))[0];
   }
   const subTrees = {};
   const deName = new Map(subTreesDE.map((r) => [Number(r.ID), r.Name_lang]));
