@@ -358,7 +358,7 @@ ns.RegisterLocale("enUS", {
     ["ROT_S_if"] = "Cast %s if %s.",
     ["ROT_S_target"] = "Cast %s %s.",
     ["ROT_S_target_if"] = "Cast %s %s if %s.",
-    ["ROT_S_move"] = "While moving, use %s.",
+    ["ROT_S_move"] = "When you have to move: %s.",
     ["ROT_TAB_pre"] = "Before the pull",
     ["ROT_TAB_st"] = "Single target",
     ["ROT_TAB_aoe"] = "AoE (3+ targets)",

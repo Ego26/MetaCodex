@@ -358,7 +358,7 @@ ns.RegisterLocale("deDE", {
     ["ROT_S_if"] = "Wirke %s, wenn %s.",
     ["ROT_S_target"] = "Wirke %s %s.",
     ["ROT_S_target_if"] = "Wirke %s %s, wenn %s.",
-    ["ROT_S_move"] = "Nutze in Bewegung %s.",
+    ["ROT_S_move"] = "Wenn du laufen musst: %s.",
     ["ROT_TAB_pre"] = "Vor dem Pull",
     ["ROT_TAB_st"] = "Einzelziel",
     ["ROT_TAB_aoe"] = "Flächenschaden (ab 3)",

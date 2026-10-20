@@ -91,6 +91,12 @@ check('bedingte Variable wird aufgeloest',
 // Verneinte Oder-Kette: nicht A und nicht B.
 check('nicht (A oder B) ist nicht A und nicht B',
   tab('actions=lightning_bolt,if=!(buff.stormkeeper.up|buff.ascendance.up)', [1, 1])[0].c, [['down', 6], ['down', 10]]);
+// Laufen: eine Zeile fuers Laufen gilt beim Laufen (Gunst des Geistwandlers
+// fehlte, weil "movement.distance>6" im Stehen falsch ist), sonst nicht.
+const lauf = apl.buildTab(apl.parseApl('actions=lightning_shield,moving=1,if=movement.distance>6\n'
+  + 'actions+=/lightning_bolt,if=movement.distance>6\nactions+=/flame_shock,moving=1'), 'default', ctx([1, 1]), resolve);
+check('Zeilen fuers Laufen gelten beim Laufen', lauf.moving, [5, 9]);
+check('und nur dort', lauf.lines.map((l) => l.s), []);
 // Kurzform auf der eigenen Zeile.
 check('refreshable meint den eigenen DoT',
   tab('actions=flame_shock,if=refreshable', [1, 1])[0].c, [['refresh', 9]]);

@@ -130,7 +130,15 @@ function atomRange(a, ctx) {
   // Der Kampfstil ist je Aktivitaet bekannt: M+ ist ein Dungeon, Raid nicht.
   if (head === 'fight_style') return p[1] === ctx.fightStyle ? [1, 1] : [0, 0];
   // Unterbrechen und Laufwege stehen in keiner Prioritaet.
-  if (a === 'target.debuff.casting.react' || head === 'movement' || a === 'moving') return [0, 0];
+  // Laufen: nur fuer die Zeilen, die fuers Laufen da sind (moving=1) - dort
+  // wird gelaufen, und zwar weiter als ein paar Schritte. Sonst steht man.
+  if (head === 'movement' || a === 'moving') {
+    if (!ctx.moving) return [0, 0];
+    if (a === 'moving') return [1, 1];
+    if (p[1] === 'distance') return [10, 40];
+    return [0, INF];
+  }
+  if (a === 'target.debuff.casting.react') return [0, 0];
   // Feuer: Versengen in der Hinrichtungsphase - das Ziel unter 30 % Leben.
   if (a === 'scorch_execute.active') return [0, 1];
   // Die Rotation gilt im Kampf; ein Bosskampf ist der Raid.
@@ -547,7 +555,8 @@ function buildTab(lists, start, ctx, resolve) {
     if (visiting.has(listName)) return false;
     visiting.add(listName);
     for (const { action, opts } of lists[listName] || []) {
-      let cond = opts.if ? fold(parse(own(opts.if, action)), ctx) : known(1);
+      const laufen = opts.moving === '1' || opts.moving === 'true';
+      let cond = opts.if ? fold(parse(own(opts.if, action)), laufen ? { ...ctx, moving: true } : ctx) : known(1);
       if (isFalse(cond)) continue;
       const conds = isTrue(cond) ? [] : conjuncts(records(cond, resolve.spell));
       const all = [...outer, ...conds];
