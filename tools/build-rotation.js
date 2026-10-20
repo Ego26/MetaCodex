@@ -173,7 +173,10 @@ function luaValue(v, indent) {
   if (Array.isArray(v)) return '{ ' + v.map((x) => luaValue(x, indent)).join(', ') + ' }';
   if (v === null || v === undefined) return 'nil';
   if (typeof v === 'string') return JSON.stringify(v);
-  if (typeof v === 'boolean' || typeof v === 'number') return String(v);
+  if (typeof v === 'boolean') return String(v);
+  // Nie Infinity oder NaN: in Lua waere das ein Name, und "-Infinity" ein
+  // Rechenfehler beim Laden - die ganze Datendatei laege brach.
+  if (typeof v === 'number') return Number.isFinite(v) ? String(v) : 'nil';
   const parts = Object.entries(v).filter(([, x]) => x !== undefined && x !== null)
     .map(([k, x]) => (/^[A-Za-z_][A-Za-z0-9_]*$/.test(k) ? k : '[' + JSON.stringify(k) + ']') + ' = ' + luaValue(x, indent));
   return '{ ' + parts.join(', ') + ' }';
@@ -318,7 +321,9 @@ const bare = (s) => String(s || '').replace(/_/g, '');
   const current = seasons.length ? seasons[0][0] + seasons[0][1] : null;
   console.log('Tier-Set der Saison:', current);
 
+  // One spec that fails costs that spec, not the night.
   for (const s of catSpecs.filter((x) => texts.has(x.id))) {
+   try {
     const file = fileOf(s);
     // MC_VAGUE=<specID>: only this spec's vague conditions.
     if (vague) apl.logVague(process.env.MC_VAGUE === '1' || process.env.MC_VAGUE === String(s.id) ? vague : null);
@@ -679,6 +684,10 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         + `${gemessen ? `, measured ${gemessen.players}` : ', not measured'}`
         + `${ungespielt.length ? ', not played: ' + [...new Set(ungespielt)].join(' ') : ''}`);
     }
+   } catch (err) {
+    delete out[s.id];
+    report.push(`${s.id}: FAILED, left out - ${String(err && err.stack || err).split('\n').slice(0, 2).join(' ')}`);
+   }
   }
   console.log(report.join('\n'));
   if (vague) {
@@ -707,6 +716,16 @@ const bare = (s) => String(s || '').replace(/_/g, '');
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.writeFileSync(target, fragment, 'utf8');
   console.log('Geschrieben:', target, `(${Object.keys(out).length} Speccs, ${Math.round(fragment.length / 1024)} KB)`);
+  // SELF-CHECK before it touches the game data: the fragment must read back
+  // as the table it was written from. If not, nothing is appended - the
+  // night ships without a rotation rather than with a broken data file.
+  const body = fragment.slice(fragment.indexOf('MetaCodex_Recommendations.rotation = {'));
+  const back = readLuaTable(body);
+  const ids = Object.keys((back && back.specs) || {});
+  if (ids.length !== Object.keys(out).length || /\b(Infinity|NaN|undefined)\b/.test(fragment)) {
+    console.error(`Selbstpruefung fehlgeschlagen: ${ids.length} von ${Object.keys(out).length} Speccs gelesen - nichts angehaengt`);
+    process.exit(1);
+  }
   if (APPEND) {
     fs.appendFileSync(REC, fragment, 'utf8');
     console.log('Angehaengt an', REC);

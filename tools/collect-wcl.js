@@ -1194,6 +1194,20 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
   // je Spieler die Spec-ID direkt (kein Namensabgleich mehr), die
   // Ausruestung, die Auren beim Pull und die Talente. Gleicher Preis,
   // dreifacher Ertrag.
+  // EIN DECKEL FUER DEN GANZEN LAUF, auch ueber die Nachlese (20. Oktober).
+  //
+  // Jede dieser Abfragen kostet Punkte, und die Nacht wartet schon heute am
+  // Stundenlimit: der Raid-Job brauchte 146 von 330 Minuten. Ein Raid-Lauf
+  // liest hoechstens 300 Berichte - eine Stufung "jeder N-te bis 300" haette
+  // dort JEDEN Bericht zweimal mehr abgefragt, und der Job waere ueber seine
+  // Frist gelaufen. Also feste Zahlen: genug fuer die Mehrheit je Spec, und
+  // die Nacht wird um Minuten laenger, nicht um Stunden.
+  //   Ablauf: 100 Raid-Berichte je Lauf (drei Laeufe: 300 Pulls, je ~20 Spieler)
+  //   Zauber: 100 je Raid-Lauf, 300 je M+-Lauf (fuenf Spieler je Lauf)
+  const openerDeckel = Number(process.env.MC_OPENER_REPORTS || 100);
+  const castDeckel = Number(process.env.MC_CAST_REPORTS || (KIND === 'raid' ? 100 : 300));
+  let openerGemacht = 0;
+  let castGemacht = 0;
   const readReports = async (codes) => {
   // Der Foliant haengt NICHT an jedem Bericht.
   //
@@ -1227,8 +1241,7 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
   // der Kampf mit dem Schluessel, nicht mit der ersten Gruppe - dort waere
   // "nach dem Pull" geraten. Eine Abfrage mehr je Bericht, darum gestuft
   // wie der Foliant: ein paar hundert Bericht genuegen fuer die Mehrheit.
-  const openerZiel = Number(process.env.MC_OPENER_REPORTS || 300);
-  const openerSchritt = codes.length > openerZiel ? Math.ceil(codes.length / openerZiel) : 1;
+  const openerSchritt = codes.length > openerDeckel ? Math.ceil(codes.length / openerDeckel) : 1;
   let openerKaputt = false;
   // WAS DIE BESTEN WIRKEN - je Spieler jeder Zauber, ueber den ganzen Kampf.
   //
@@ -1236,13 +1249,12 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
   // (tools/build-rotation.js): ob ein Zauber wirklich ersetzt ist, ob eine
   // Zeile der Simulation ueberhaupt gespielt wird, und fuer die Heiler, fuer
   // die es keine Simulation gibt. Gestuft wie der Ablauf.
-  const castZiel = Number(process.env.MC_CAST_REPORTS || 300);
-  const castSchritt = codes.length > castZiel ? Math.ceil(codes.length / castZiel) : 1;
+  const castSchritt = codes.length > castDeckel ? Math.ceil(codes.length / castDeckel) : 1;
   let castKaputt = false;
   for (const [code, info] of codes) {
     folioIndex += 1;
     const mitFolio = (folioIndex % folioSchritt) === 0;
-    const mitAblauf = KIND === 'raid' && (folioIndex % openerSchritt) === 0;
+    const mitAblauf = KIND === 'raid' && openerGemacht < openerDeckel && (folioIndex % openerSchritt) === 0;
     const fightID = info.fightID;
     // Ein hoher Key zaehlt in beide Auswertungen: er ist ein M+-Lauf
     // und ausserdem ein hoher.
@@ -1746,6 +1758,7 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
     // Der Ablauf um den Pull: zwanzig Sekunden davor bis fuenfzehn danach,
     // je Spieler einer bekannten Spec.
     if (mitAblauf && thisFight && specBySource.size && !openerKaputt) {
+      openerGemacht += 1;
       const pull = Number(thisFight.startTime);
       try {
         const casts = await gql(`
@@ -1779,7 +1792,8 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
       }
     }
 
-    if ((folioIndex % castSchritt) === 0 && specBySource.size && !castKaputt) {
+    if (castGemacht < castDeckel && (folioIndex % castSchritt) === 0 && specBySource.size && !castKaputt) {
+      castGemacht += 1;
       try {
         const t = await gql(`
           query ($code: String!, $fight: Int!) {
