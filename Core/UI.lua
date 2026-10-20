@@ -7166,7 +7166,11 @@ do
 
     -- Bedingung -> Nebensatz ("Meister der Elemente aktiv ist").
     local SPELL1 = { up = true, down = true, refresh = true, ready = true, notready = true,
-        cdsoon = true, prev = true, notprev = true, casting = true, notcasting = true }
+        cdsoon = true, prev = true, notprev = true, casting = true, notcasting = true,
+        flying = true, notflying = true, stronger = true, notstronger = true, weakdot = true, strongdot = true,
+        placed = true, notplaced = true }
+    -- Ohne Argument (Verstohlenheit).
+    local PLAIN = { stealthed = true, notstealthed = true }
 
     -- Ein Wert als Hauptwort, fuer Vergleiche zweier Werte.
     local function wert(n, nm)
@@ -7176,7 +7180,16 @@ do
         if k == "gcd" then return L["ROT_N_gcd"] end
         if k == "res" then return resource(n[2]) end
         if k == "def" then return L["ROT_N_def"]:format(resource(n[2])) end
-        if k == "rem" or k == "cd" or k == "chg" or k == "stk" then return L["ROT_N_" .. k]:format(nm(n[2])) end
+        if k == "rem" or k == "cd" or k == "chg" or k == "stk" or k == "dots" or k == "full"
+            or k == "usable" or k == "casttime" or k == "flyleft" then
+            return L["ROT_N_" .. k]:format(nm(n[2]))
+        end
+        if k == "inflight" or k == "rtb" or k == "tgt" then return L["ROT_N_" .. k] end
+        if k == "stat" then
+            local stat = L["STAT_" .. tostring(n[2])]
+            return L["ROT_N_stat"]:format(stat ~= "STAT_" .. tostring(n[2]) and stat or tostring(n[2]))
+        end
+        if k == "regen" then return L["ROT_N_regen"]:format(resource(n[2])) end
         -- "2 globale Cooldowns" statt "ein globaler Cooldown × 2".
         if k == "mul" and type(n[2]) == "table" and type(n[3]) == "table" then
             local g, z = n[2], n[3]
@@ -7202,6 +7215,18 @@ do
             return top and text or ("(" .. text .. ")")
         end
         if SPELL1[kind] then return L["ROT_C_" .. kind]:format(nm(c[2])) end
+        if PLAIN[kind] then return L["ROT_C_" .. kind] end
+        -- Wie lange her: vor weniger / mehr als N Sek. gewirkt.
+        if kind == "ago" then return L["ROT_C_ago_" .. tostring(c[3])]:format(nm(c[2]), zahl(c[4])) end
+        if kind == "castleft" or kind == "castdone" then return L["ROT_C_" .. kind]:format(nm(c[2]), zahl(c[3])) end
+        if kind == "myhpunder" or kind == "myhpover" then return L["ROT_C_" .. kind]:format(zahl(c[2])) end
+        -- Dämonenwoge: Woge, Fähigkeit.
+        if kind == "surge" or kind == "nosurge" then return L["ROT_C_" .. kind]:format(nm(c[2]), nm(c[3])) end
+        -- Zustände über den Kampf: ein Nebensatz in einem Nebensatz.
+        if kind == "notyet" or kind == "already" then return L["ROT_C_" .. kind]:format(say(c[2], true, nm)) end
+        if kind == "since" or kind == "notsince" then
+            return L["ROT_C_" .. kind]:format(say(c[2], true, nm), say(c[3], true, nm))
+        end
         if SPELLN[kind] then return L["ROT_C_" .. kind]:format(nm(c[2]), zahl(c[3])) end
         if kind == "charges" then
             if type(c[3]) == "number" and c[3] % 1 ~= 0 then
@@ -7382,14 +7407,32 @@ do
     ---EINE Zeile fuer den ganzen Abschnitt: die Karte (20. Oktober). Als
     ---Liste stand jeder Zauber auf zwei Zeilen untereinander, und man musste
     ---scrollen; die Rotation will man auf einen Blick.
+    ---WELCHER HELDENBAUM (20. Oktober, wie Wowheads Schalter): gewaehlt, sonst
+    ---der eigene aktive, wenn man diese Spec spielt, sonst der meistgespielte.
+    ---@return table variant  die Rotation dieses Heldenbaums
+    function UI.RotationVariant(specID, r)
+        if not r or type(r.heroes) ~= "table" or #r.heroes == 0 then return r end
+        local function finde(id)
+            for _, v in ipairs(r.heroes) do if v.hero == id then return v end end
+        end
+        local gewaehlt = MetaCodexDB and MetaCodexDB.rotationHero and MetaCodexDB.rotationHero[specID]
+        if gewaehlt and finde(gewaehlt) then return finde(gewaehlt) end
+        local eigene = ns.Compat and ns.Compat.ActiveSpecID and ns.Compat.ActiveSpecID()
+        if eigene == specID and C_ClassTalents and C_ClassTalents.GetActiveHeroTalentSpec then
+            local ok, aktiv = pcall(C_ClassTalents.GetActiveHeroTalentSpec)
+            if ok and aktiv and finde(aktiv) then return finde(aktiv) end
+        end
+        return r.heroes[1]
+    end
+
     function UI.RotationRows(specID, mode)
         local r = ns.Recommend.Rotation(specID, mode)
         if not r then return {} end
-        return { { kind = "rotpanel", rot = r } }
+        return { { kind = "rotpanel", rot = r, spec = specID } }
     end
 
     function UI.RotationHint(specID, mode)
-        local r = ns.Recommend.Rotation(specID, mode)
+        local r = UI.RotationVariant(specID, ns.Recommend.Rotation(specID, mode))
         if not r then return "" end
         local held = r.hero and ns.Catalog.SubTreeName and ns.Catalog.SubTreeName(r.hero) or "?"
         local text = L["ROT_HINT"]:format(held, r.n or 0) .. "  " .. L["ROT_NO_TRINKET"]
@@ -7648,7 +7691,8 @@ do
 
     ---Fuellt die Karte und sagt, wie hoch sie ist (data.panelH, ohne Schriftfaktor).
     function UI.RotationPanelFill(row, data)
-        local r = data.rot
+        local alle = data.rot
+        local r = UI.RotationVariant(data.spec, alle)
         local f = bauen(row)
         local fs = S.fontScale or 1
         local w = math.max(240, contentWidth() - S.space.sm * 2)
@@ -7671,6 +7715,34 @@ do
             setButtonActive(b, b.key == tab)
             if n > 0 then x = x + bw + 6 end
         end
+        -- Der Heldenbaum-Schalter rechts in derselben Zeile, je Baum mit Anteil.
+        f.heroes = rawget(f, "heroes") or {}
+        local varianten = (type(alle.heroes) == "table" and #alle.heroes > 1) and alle.heroes or {}
+        local rechts = PAD
+        for i = #varianten, 1, -1 do
+            local v = varianten[i]
+            local b = f.heroes[i]
+            if not b then
+                b = makeButton(f, 120, TAB_H, "", function(self)
+                    MetaCodexDB.rotationHero = MetaCodexDB.rotationHero or {}
+                    MetaCodexDB.rotationHero[self.spec] = self.hero
+                    UI.Refresh()
+                end)
+                S:ApplyFont(b.label, "title", "textPrimary")
+                f.heroes[i] = b
+            end
+            b.hero, b.spec = v.hero, data.spec
+            local name = v.hero and ns.Catalog.SubTreeName and ns.Catalog.SubTreeName(v.hero) or "?"
+            b.label:SetText(v.pct and (name .. "  " .. v.pct .. " %") or name)
+            local bw = math.max(110, (tonumber(b.label:GetStringWidth()) or 80) + 32)
+            b:SetWidth(bw)
+            b:ClearAllPoints()
+            b:SetPoint("TOPRIGHT", -rechts, -PAD)
+            setButtonActive(b, v == r)
+            b:Show()
+            rechts = rechts + bw + 6
+        end
+        for i = #varianten + 1, #f.heroes do f.heroes[i]:Hide() end
         local y = PAD + TAB_H + 18
 
         -- Der Beispiel-Ablauf, nur beim Einzelziel - wie bei Wowhead.

@@ -150,9 +150,54 @@ function atomRange(a, ctx) {
   if (head === 'talent') return ctx.talent(p[1]) ? [1, 1] : [0, 0];
   if (head === 'hero_tree') return ctx.hero(p[1]) ? [1, 1] : [0, 0];
   if (head === 'set_bonus') return ctx.setBonus(p.slice(1).join('.')) ? [1, 1] : [0, 0];
-  // The end of a fight, the time to die, raid events: none in the tab.
+  // The end of a fight, the time to die: a long fight. Not "infinite" -
+  // the lists compute with it ("fight_remains % cooldown"), and infinity
+  // left those sums undefined (20 October). An hour is long enough that no
+  // "fight is about to end" line ever applies.
   if (a === 'fight_remains' || a === 'target.time_to_die' || a === 'time_to_die' || a === 'target.fight_remains'
-    || a === 'expected_combat_length') return [INF, INF];
+    || a === 'expected_combat_length') return [3600, 3600];
+  // APEX: the N-th tier of the spec's tiered apex talent (SimC
+  // engine/player/player.cpp). Known from the measured build.
+  if (head === 'apex') {
+    const on = ctx.apex ? ctx.apex(Number(p[1])) : null;
+    if (on === null) return [0, 1];
+    return on ? [1, 1] : [0, 0];
+  }
+  // A cooldown's length and a buff's most stacks: game data.
+  if (head === 'cooldown' && p[2] === 'duration' && ctx.cdOf) {
+    const sec = ctx.cdOf(p[1]);
+    if (sec) return [sec, sec];
+  }
+  if ((head === 'buff' || head === 'debuff') && p[2] === 'max_stack' && ctx.stacksOf) {
+    const n = ctx.stacksOf(p[1]);
+    if (n) return [n, n];
+  }
+  if (a === 'target.time_to_die.remains') return [3600, 3600];
+  // Consumables are not part of the priority.
+  if (head === 'consumable') return [0, 0];
+  if (head === 'stealthed') return [0, 1];
+  // Demon Hunter: a Demonsurge ready for this ability - only with the talent.
+  if (head === 'action' && p[2] === 'demonsurge_available') return ctx.talent('demonsurge') ? [0, 1] : [0, 0];
+  if (head === 'action' && p[2] === 'placed') return [0, 1];
+  if (head === 'stat') return [0, INF];
+  if (a === 'health.pct') return [0, 100];
+  if ((head === 'buff' || head === 'debuff' || head === 'dot') && p[2] === 'duration' && ctx.durOf) {
+    const sec = ctx.durOf(p[1]);
+    if (sec) return [sec, sec];
+  }
+  if (a === 'rtb_buffs') return [0, 7];
+  // The potion is not part of the priority: its cooldown never holds a line.
+  if (head === 'cooldown' && p[1] === 'potion') {
+    if (p[2] === 'remains') return [0, 0];
+    if (p[2] === 'duration') return [300, 300];
+    return [1, 1];
+  }
+  // Trinket and potion variables: without an on-use trinket they are off.
+  if (head === 'variable' && !ctx.trinket && /trinket|potion/.test(p[1] || '')) return [0, 0];
+  // A state the list keeps over the fight (see latchOf): on or off.
+  if (head === 'variable' && ctx.isLatch && ctx.isLatch(p[1])) return [0, 1];
+  // Spells in flight (Fireball on its way to the target).
+  if (/_in_flight$/.test(a) || (head === 'action' && p[2] === 'in_flight')) return [0, 5];
   if (head === 'raid_event') {
     if (/\.in$|\.cooldown$/.test(a)) return [INF, INF];
     return [0, 0];
@@ -322,6 +367,37 @@ function records(e, spell) {
 }
 
 function recordsOf(e, spell) {
+  // A known value inside a condition: always or never.
+  if (e.num !== undefined) return e.num ? ['true'] : ['false'];
+  // CASES (20 October): a threshold that depends on one or two yes/no values
+  // ("fewer fragments than 4 with Fiery Brand up, else 5 minus Metamorphosis")
+  // is said case by case - each case a condition of its own.
+  if (['<', '>', '<=', '>=', '=', '!='].includes(e.op) && spell.fold) {
+    const direkt = compare(e, spell);
+    if (direkt[0] !== 'other') return direkt;
+    const ja = [...new Set(boolAtoms(e))];
+    if (ja.length >= 1 && ja.length <= 2) {
+      let acc = null;
+      for (let mask = 0; mask < (1 << ja.length); mask += 1) {
+        const fest = new Map(ja.map((a, i) => [a, (mask >> i) & 1]));
+        const r = spell.fold(setze(e, fest));
+        if (r.lo === 0 && r.hi === 0) continue;
+        const teil = (r.lo > 0 || r.hi < 0) ? null : recordsOf(r, spell);
+        if (teil && isOther(teil)) return ['other'];
+        let fall = null;
+        for (const [a, v] of fest) {
+          const atom = recordsOf({ atom: a, lo: 0, hi: 1 }, spell);
+          if (isOther(atom)) return ['other'];
+          const c = v ? atom : recordsOf({ op: '!', a: { atom: a, lo: 0, hi: 1 }, lo: 0, hi: 1 }, spell);
+          fall = fall ? ['and', fall, c] : c;
+        }
+        if (teil) fall = ['and', fall, teil];
+        acc = acc ? ['or', acc, fall] : fall;
+      }
+      if (acc) return acc;
+    }
+    return direkt;
+  }
   if (e.atom === 'scorch_execute.active') return ['hpunder', 30];
   if (e.op === '!' && e.a && e.a.atom === 'scorch_execute.active') return ['hpover', 30];
   const other = ['other'];
@@ -342,6 +418,18 @@ function recordsOf(e, spell) {
       if (q[0] === 'cooldown' && q[2] === 'remains' && sp(q[1])) return ['ready', sp(q[1])];
       if ((q[0] === 'buff' || q[0] === 'debuff' || q[0] === 'dot') && q[2] === 'remains' && sp(q[1])) return ['down', sp(q[1])];
       if (q[0] === 'action' && q[2] === 'executing' && sp(q[1])) return ['notcasting', sp(q[1])];
+      if (q[0] === 'action' && q[2] === 'in_flight' && sp(q[1])) return ['notflying', sp(q[1])];
+      if (q[0] === 'stealthed') return ['notstealthed'];
+      if (q[0] === 'action' && q[2] === 'demonsurge_available' && sp(q[1]) && sp('demonsurge')) return ['nosurge', sp('demonsurge'), sp(q[1])];
+      if (q[0] === 'action' && q[2] === 'placed' && sp(q[1])) return ['notplaced', sp(q[1])];
+      if (q[0] === 'variable' && spell.latch) {
+        const l = spell.latch(q[1]);
+        if (l) {
+          if (l[0] === 'notyet') return ['already', l[1]];
+          if (l[0] === 'already') return ['notyet', l[1]];
+          if (l[0] === 'since') return ['notsince', l[1], l[2]];
+        }
+      }
       const p = inner.atom.split('.');
       if ((p[0] === 'buff' || p[0] === 'debuff') && (p[2] === 'up' || p[2] === 'react') && sp(p[1])) return ['down', sp(p[1])];
       if ((p[0] === 'buff' || p[0] === 'debuff' || p[0] === 'dot') && p[2] === 'ticking' && sp(p[1])) return ['down', sp(p[1])];
@@ -363,6 +451,15 @@ function recordsOf(e, spell) {
     if (p[0] === 'cooldown' && p[2] === 'remains' && sp(p[1])) return ['notready', sp(p[1])];
     if ((p[0] === 'buff' || p[0] === 'debuff' || p[0] === 'dot') && p[2] === 'remains' && sp(p[1])) return ['up', sp(p[1])];
     if (p[0] === 'action' && p[2] === 'executing' && sp(p[1])) return ['casting', sp(p[1])];
+    if (p[0] === 'action' && p[2] === 'in_flight' && sp(p[1])) return ['flying', sp(p[1])];
+    if (p[0] === 'stealthed') return ['stealthed'];
+    if (p[0] === 'action' && p[2] === 'demonsurge_available' && sp(p[1]) && sp('demonsurge')) return ['surge', sp('demonsurge'), sp(p[1])];
+    if (p[0] === 'action' && p[2] === 'placed' && sp(p[1])) return ['placed', sp(p[1])];
+    // A state the list keeps over the fight.
+    if (p[0] === 'variable' && spell.latch) {
+      const l = spell.latch(p[1]);
+      if (l) return l;
+    }
     return other;
   }
   if (['<', '>', '<=', '>=', '=', '!='].includes(e.op)) return compare(e, spell);
@@ -392,6 +489,34 @@ function compare(e, spell) {
   const atLeast = (x) => (op === '>' ? x + 1 : x);
   const below = (x) => (op === '<=' ? x + 1 : x);
 
+  const lt = op === '<' || op === '<=';
+  // How long ago a spell was cast: "cooldown.X.duration - cooldown.X.remains"
+  // and "time - action.X.last_used" (20 October).
+  if (a.op === '-' && a.a && a.b && n !== null) {
+    const x = (a.a.atom || '').split('.');
+    const y = (a.b.atom || '').split('.');
+    const seit = (x[0] === 'cooldown' && x[2] === 'duration' && y[0] === 'cooldown' && y[2] === 'remains' && x[1] === y[1])
+      ? y[1]
+      : (a.a.atom === 'time' && y[0] === 'action' && y[2] === 'last_used') ? y[1] : null;
+    if (seit && spell(seit)) return ['ago', spell(seit), lt ? 'lt' : 'gt', n];
+  }
+  if (p[0] === 'action' && p[2] === 'execute_remains' && n !== null && spell(p[1])) {
+    return lt ? ['castdone', spell(p[1]), n] : ['castleft', spell(p[1]), n];
+  }
+  // A bleed that is (not) empowered: "dot.garrote.pmultiplier<=1".
+  if ((p[0] === 'dot' || p[0] === 'action') && p[2] === 'pmultiplier' && n !== null && spell(p[1])) {
+    if (lt && n <= 1) return ['weakdot', spell(p[1])];
+    if (!lt && n >= 1) return ['strongdot', spell(p[1])];
+  }
+  // A bleed's strength (Feral): the new one would be stronger than the running one.
+  if (at === 'persistent_multiplier' || (b.atom || '') === 'persistent_multiplier') {
+    const other2 = at === 'persistent_multiplier' ? b : a;
+    const q = (other2.atom || '').split('.');
+    if ((q[0] === 'dot' || q[0] === 'action') && q[2] === 'pmultiplier' && spell(q[1])) {
+      const neuGroesser = at === 'persistent_multiplier' ? (op === '>' || op === '>=') : (op === '<' || op === '<=');
+      return [neuGroesser ? 'stronger' : 'notstronger', spell(q[1])];
+    }
+  }
   if (at === 'active_enemies' || p[0] === 'spell_targets' || at === 'desired_targets') {
     if (n === null) return generic();
     if (op === '=') return ['tgtis', n];
@@ -446,6 +571,7 @@ function compare(e, spell) {
     if (op === '=' || big) return ['doton', spell(p[1]), big ? atLeast(n) : n];
     return generic();
   }
+  if (at === 'health.pct' && n !== null) return lt ? ['myhpunder', n] : ['myhpover', n];
   if (p[0] === 'target' && p[1] === 'health' && p[2] === 'pct' && n !== null) {
     return (op === '<' || op === '<=') ? ['hpunder', n] : ['hpover', n];
   }
@@ -458,6 +584,27 @@ const PET_SPELL = { army_ghoul: 'army_of_the_dead', apoc_ghoul: 'apocalypse', gh
 function petSpell(name, spell) {
   if (PET_SPELL[name] && spell(PET_SPELL[name])) return spell(PET_SPELL[name]);
   return spell(name) || spell('summon_' + name) || spell('raise_' + name) || null;
+}
+
+/** The yes/no atoms inside an expression (buff up, DoT ticking, ...). */
+function boolAtoms(e) {
+  if (!e) return [];
+  if (e.atom) {
+    const p = e.atom.split('.');
+    const ja = (['buff', 'debuff'].includes(p[0]) && ['up', 'down', 'react'].includes(p[2]) && p[2] !== 'react')
+      || (p[0] === 'dot' && ['ticking', 'up'].includes(p[2]))
+      || (p[0] === 'cooldown' && ['up', 'ready'].includes(p[2]));
+    return ja ? [e.atom] : [];
+  }
+  return [...boolAtoms(e.a), ...boolAtoms(e.b), ...boolAtoms(e.c)];
+}
+
+/** The expression with these atoms set to fixed values. */
+function setze(e, fest) {
+  if (!e) return e;
+  if (e.atom && fest.has(e.atom)) return { num: fest.get(e.atom) };
+  if (e.num !== undefined || e.atom) return e;
+  return { ...e, a: setze(e.a, fest), b: setze(e.b, fest), c: setze(e.c, fest) };
 }
 
 /** A value as a noun ("the cooldown of X"), or null. */
@@ -474,6 +621,16 @@ function noun(e, spell) {
     if (RESOURCES.has(p[0]) && (p.length === 1 || p[1] === 'total' || p[1] === 'active')) return ['res', p[0]];
     if (RESOURCES.has(p[0]) && p[1] === 'deficit') return ['def', p[0]];
     if (e.atom === 'gcd' || e.atom === 'gcd.max') return ['gcd'];
+    if (p[0] === 'active_dot' && spell(p[1])) return ['dots', spell(p[1])];
+    if (/_in_flight$/.test(e.atom)) return ['inflight'];
+    if (e.atom === 'rtb_buffs') return ['rtb'];
+    if (p[0] === 'stat' && /_rating$/.test(p[1] || '')) return ['stat', p[1].replace(/_rating$/, '')];
+    if (p[0] === 'cooldown' && p[2] === 'full_recharge_time' && spell(p[1])) return ['full', spell(p[1])];
+    if (e.atom === 'active_enemies' || p[0] === 'spell_targets') return ['tgt'];
+    if (p[0] === 'action' && p[2] === 'usable_in' && spell(p[1])) return ['usable', spell(p[1])];
+    if (p[0] === 'action' && (p[2] === 'execute_time' || p[2] === 'cast_time') && spell(p[1])) return ['casttime', spell(p[1])];
+    if (p[0] === 'action' && p[2] === 'in_flight_remains' && spell(p[1])) return ['flyleft', spell(p[1])];
+    if (RESOURCES.has(p[0]) && p[1] === 'regen') return ['regen', p[0]];
     return null;
   }
   if ((e.op === '*' || e.op === '+' || e.op === '-') && e.a && e.b) {
@@ -504,13 +661,23 @@ function vereinfacht(r) {
   if (r[0] === 'or' || r[0] === 'and') {
     const a = vereinfacht(r[1]);
     const b = vereinfacht(r[2]);
+    if (r[0] === 'or') {
+      if (a[0] === 'true' || b[0] === 'true') return ['true'];
+      if (a[0] === 'false') return b;
+      if (b[0] === 'false') return a;
+    } else {
+      if (a[0] === 'false' || b[0] === 'false') return ['false'];
+      if (a[0] === 'true') return b;
+      if (b[0] === 'true') return a;
+    }
     if (a[0] === 'other' || b[0] === 'other') return OTHER;
     return [r[0], a, b];
   }
   return r;
 }
 function vageEinmal(l) {
-  const c = l.c.map(vereinfacht);
+  const c = l.c.map(vereinfacht).filter((x) => x[0] !== 'true');
+  if (c.some((x) => x[0] === 'false')) l.never = true;
   let more = c.some((x) => x[0] === 'other');
   l.c = c.filter((x) => x[0] !== 'other');
   if (l.any) {
@@ -581,19 +748,51 @@ function buildTab(lists, start, ctx, resolve) {
     charges: (a) => `cooldown.${a}.charges`,
     full_recharge_time: (a) => `cooldown.${a}.full_recharge_time`,
     executing: (a) => `action.${a}.executing`,
+    pmultiplier: (a) => `dot.${a}.pmultiplier`,
+    in_flight: (a) => `action.${a}.in_flight`,
+    cast_time: (a) => `action.${a}.cast_time`,
   };
-  const own = (text, action) => text.replace(
-    /(^|[^\w.])(combo_strike|cooldown_react|refreshable|ticking|remains|charges_fractional|charges|full_recharge_time|executing)(?![\w.])/g,
+  const own = (text, action) => text
+    // SimC's other spellings of the same thing.
+    .replace(/\.remains_expected\b/g, '.remains')
+    // What Reap would consume: the soul fragments there are (SimC: the lower
+    // of the fragments and the most it takes).
+    .replace(/\baction\.[a-z0-9_]+\.souls_consumed\b/g, 'soul_fragments')
+    // More of SimC's spellings: a typo kept in the lists, the Paladin's
+    // ground effect, a talent asked as an action.
+    .replace(/\bactive_dots\./g, 'active_dot.')
+    .replace(/\baction\.([a-z0-9_]+)\.(charges_fractional|charges|full_recharge_time)\b/g, 'cooldown.$1.$2')
+    .replace(/(^|[^\w.])demonic_art\b/g, '$1buff.demonic_art.up')
+    // Firestarter: the talent, against a target above 90 % health.
+    .replace(/\bfirestarter\.active\b/g, '(talent.firestarter&target.health.pct>90)')
+    .replace(/\.base_deficit\b/g, '.deficit')
+    // "chi<chi.max": not full.
+    .replace(/\b([a-z_]+)<\1\.max\b/g, '$1.deficit>0')
+    .replace(/\bcooldown\.invoke_power_infusion_0\./g, 'cooldown.power_infusion.')
+    .replace(/(^|[^\w.])consecration\.up\b/g, '$1buff.consecration.up')
+    .replace(/\baction\.([a-z0-9_]+)\.enabled\b/g, 'talent.$1')
+    // A buff's last trigger and a spell's last cast: the same "how long ago".
+    .replace(/\btime-buff\.([a-z0-9_]+)\.last_trigger\b/g, 'time-action.$1.last_used')
+    .replace(/\bdot\.([a-z0-9_]+)\.active_dots\b/g, 'active_dot.$1')
+    .replace(/\bbuff\.([a-z0-9_]+)\.at_max_stacks\b/g, '(buff.$1.stack>=buff.$1.max_stack)')
+    .replace(
+    /(^|[^\w.])(combo_strike|cooldown_react|refreshable|ticking|remains|charges_fractional|charges|full_recharge_time|executing|pmultiplier|in_flight|cast_time)(?![\w.])/g,
     (m, pre, name) => pre + '(' + BARE[name](action) + ')');
+
+  // The resolver, and through it the states a list keeps over the fight.
+  const sp = (k) => resolve.spell(k);
+  sp.latch = (name) => (resolve.latch ? resolve.latch(name, ctx, sp) : null);
+  sp.fold = (e) => fold(e, ctx);
 
   function walk(listName, outer) {
     if (visiting.has(listName)) return false;
     visiting.add(listName);
     for (const { action, opts } of lists[listName] || []) {
       const laufen = opts.moving === '1' || opts.moving === 'true';
-      let cond = opts.if ? fold(parse(own(opts.if, action)), laufen ? { ...ctx, moving: true } : ctx) : known(1);
+      const cx = laufen ? { ...ctx, moving: true } : ctx;
+      let cond = opts.if ? fold(parse(own(opts.if, action)), cx) : known(1);
       if (isFalse(cond)) continue;
-      const conds = isTrue(cond) ? [] : conjuncts(records(cond, resolve.spell));
+      const conds = isTrue(cond) ? [] : conjuncts(records(cond, sp));
       const all = [...outer, ...conds];
       if (action === 'call_action_list' || action === 'run_action_list') {
         const name = opts.name;
@@ -668,7 +867,7 @@ function buildTab(lists, start, ctx, resolve) {
     }
     vageEinmal(l);
   }
-  return { lines: merged, moving, keep, items, miss };
+  return { lines: merged.filter((l) => !l.never), moving, keep, items, miss };
 }
 
-module.exports = { parse, parseApl, fold, records, buildTab, tokenize, NOISE, RACIALS, isOther, show, logVague };
+module.exports = { parse, parseApl, fold, records, buildTab, tokenize, NOISE, RACIALS, isOther, show, logVague, vereinfacht };

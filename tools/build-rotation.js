@@ -25,6 +25,7 @@ const zlib = require('zlib');
 const loadout = require('./loadout');
 const apl = require('./lib/apl');
 const opener = require('./lib/opener');
+const { simcBuffMap } = require('./lib/simc-buffs');
 const { buildReplacements, replacedNames: namesReplaced } = require('./lib/replace');
 const { worthRetrying, waitSeconds } = require('./lib/http-retry');
 
@@ -195,11 +196,11 @@ const bare = (s) => String(s || '').replace(/_/g, '');
   console.log('Build:', build);
   const db2 = async (table, extra) => parseCSV(await patient(`https://wago.tools/db2/${table}/csv?build=${build}${extra || ''}`));
   const [spellNames, specSpells, skillLines, chrSpecs, overrides, traitDefs, spellMisc, durations,
-    spellTexts, classOptions, chrClasses] = await Promise.all([
+    spellTexts, classOptions, chrClasses, spellCooldowns, auraOptions] = await Promise.all([
     db2('SpellName'), db2('SpecializationSpells'), db2('SkillLineAbility'), db2('ChrSpecialization'),
     db2('SpellEffect', '&filter%5BEffectAura%5D=332'),
     db2('TraitDefinition'), db2('SpellMisc'), db2('SpellDuration'),
-    db2('Spell'), db2('SpellClassOptions'), db2('ChrClasses'),
+    db2('Spell'), db2('SpellClassOptions'), db2('ChrClasses'), db2('SpellCooldowns'), db2('SpellAuraOptions'),
   ]);
   const nameEN = new Map(spellNames.map((r) => [Number(r.ID), r.Name_lang]));
 
@@ -262,6 +263,18 @@ const bare = (s) => String(s || '').replace(/_/g, '');
   const familyOfClass = new Map(chrClasses.map((r) => [Number(r.ID), Number(r.SpellClassSet)]));
   const iconOf = new Map();
   for (const r of spellMisc) if (!iconOf.has(Number(r.SpellID))) iconOf.set(Number(r.SpellID), Number(r.SpellIconFileDataID) || 0);
+  // A spell's cooldown (seconds) and a buff's most stacks, from the game data:
+  // "cooldown.X.duration" and "buff.X.max_stack" in the lists are numbers.
+  const cdSeconds = new Map();
+  for (const r of spellCooldowns) {
+    const ms = Math.max(Number(r.RecoveryTime) || 0, Number(r.CategoryRecoveryTime) || 0);
+    if (ms > 0 && !cdSeconds.has(Number(r.SpellID))) cdSeconds.set(Number(r.SpellID), ms / 1000);
+  }
+  const maxStacks = new Map();
+  for (const r of auraOptions) {
+    const n = Number(r.CumulativeAura) || 0;
+    if (n > 0 && !maxStacks.has(Number(r.SpellID))) maxStacks.set(Number(r.SpellID), n);
+  }
   const scoreOf = (id, use, own, family, cast) => {
     let p = 0;
     if (cast && cast.has(id)) p += 16;
@@ -352,6 +365,32 @@ const bare = (s) => String(s || '').replace(/_/g, '');
   const current = seasons.length ? seasons[0][0] + seasons[0][1] : null;
   console.log('Tier-Set der Saison:', current);
 
+  // SIMC'S OWN BUFF NAMES (20 October). A list asks for buffs by SimC's name
+  // ("hammer_of_light_free", "voidfall_spending"); the game knows no spell of
+  // that name. Which spell it is stands in SimC's class modules:
+  //   make_buff( this, "hammer_of_light_free", find_spell( 433732 ) )
+  //   hero_spec.voidfall_spending_buff = talent_spell_lookup( ..., 1256302 );
+  //   ... "voidfall_spending", p->hero_spec.voidfall_spending_buff )
+  // One API call lists the files; without it the night goes on without them.
+  const simcBuffs = {};
+  try {
+    const treeJson = JSON.parse(await patient('https://api.github.com/repos/simulationcraft/simc/git/trees/midnight?recursive=1'));
+    const files = (treeJson.tree || []).map((x) => x.path)
+      .filter((p) => /^engine\/class_modules\/(?!apl\/).*\.(cpp|hpp)$/.test(p));
+    const CLASSES = ['death_knight', 'demon_hunter', 'druid', 'evoker', 'hunter', 'mage', 'monk',
+      'paladin', 'priest', 'rogue', 'shaman', 'warlock', 'warrior'];
+    for (const cls of CLASSES) {
+      const mine = files.filter((p) => p.includes('/' + cls + '/') || p.endsWith('sc_' + cls + '.cpp'));
+      if (!mine.length) continue;
+      let text = '';
+      for (const p of mine) text += await patient('https://raw.githubusercontent.com/simulationcraft/simc/midnight/' + p) + '\n';
+      simcBuffs[cls] = simcBuffMap(text);
+    }
+    console.log('SimC-Buffs:', Object.entries(simcBuffs).map(([c, m]) => c + ' ' + m.size).join(', '));
+  } catch (err) {
+    console.log('SimC-Buffs nicht gelesen:', String(err.message).slice(0, 120));
+  }
+
   // One spec that fails costs that spec, not the night.
   for (const s of catSpecs.filter((x) => texts.has(x.id))) {
    try {
@@ -406,7 +445,12 @@ const bare = (s) => String(s || '').replace(/_/g, '');
       }
       return best ? best.id : null;
     };
-    const spell = (k) => pick(k, 'aura') || pick(k.replace(/_(tier|buff|debuff|proc)$/, ''), 'aura');
+    const simcKlasse = simcBuffs[s.cls.replace(/-/g, '_')] || new Map();
+    const spell = (k) => {
+      const sid = simcKlasse.get(k);
+      if (sid && nameEN.has(sid)) return sid;
+      return pick(k, 'aura') || pick(k.replace(/_(tier|buff|debuff|proc)$/, ''), 'aura');
+    };
     // SimC's own names for a form-bound or merged action.
     const ALIAS = { any_dnd: 'death_and_decay' };
     // Racials: the rows of the class lines' table that carry a race mask.
@@ -439,8 +483,69 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         if (!d.some((x) => JSON.stringify(x) === key)) d.push(opts);
       }
     }
+    // STATES A LIST KEEPS OVER THE FIGHT (20 October): a variable set to 1 or
+    // 0 under conditions, with a start value before the fight. "opener" is
+    // 1 before the pull and 0 once Celestial Alignment is up - that is "it
+    // has not yet happened this fight that Celestial Alignment is up".
+    const varDefs = new Map();
+    for (const [ln, arr] of Object.entries(lists)) {
+      for (const { action, opts } of arr) {
+        if (action !== 'variable' || !opts.name) continue;
+        if (!varDefs.has(opts.name)) varDefs.set(opts.name, []);
+        varDefs.get(opts.name).push({ list: ln, ...opts });
+      }
+    }
+    // Variables SimC keeps per target (cycling_variable): the one used is the
+    // longest time to die of the pull - in our long fight, the fight's length.
+    const cyclingTtd = new Set();
+    for (const arr of Object.values(lists)) {
+      for (const { action, opts } of arr) {
+        if (action === 'cycling_variable' && opts.name && /time_to_die/.test(opts.value || '')) cyclingTtd.add(opts.name);
+      }
+    }
+    const latchShape = (name) => {
+      const d = varDefs.get(name);
+      if (!d || d.length < 2) return null;
+      let init = 0;
+      const ons = [];
+      const offs = [];
+      for (const o of d) {
+        const op = o.op || 'set';
+        const val = op === 'reset' ? (o.default || '0') : o.value;
+        if ((op !== 'set' && op !== 'reset') || (val !== '0' && val !== '1')) return null;
+        if (o.list === 'precombat' && !o.if) { init = Number(val); continue; }
+        // Set on every pass, not on an event: no state.
+        if (!o.if) return null;
+        (val === '1' ? ons : offs).push(o.if);
+      }
+      if (!ons.length && !offs.length) return null;
+      return { init, ons, offs };
+    };
+    const latchOf = (name, c, sp) => {
+      const shape = latchShape(name);
+      if (!shape) return null;
+      const satz = (conds) => {
+        let acc = null;
+        for (const text of conds) {
+          const r = apl.fold(apl.parse(text), c);
+          if (r.lo === 0 && r.hi === 0) continue;
+          const rec = apl.vereinfacht(apl.records(r, sp));
+          if (apl.isOther(rec) || rec[0] === 'true' || rec[0] === 'false') return undefined;
+          acc = acc ? ['or', acc, rec] : rec;
+        }
+        return acc;
+      };
+      const an = satz(shape.ons);
+      const aus = satz(shape.offs);
+      if (an === undefined || aus === undefined) return null;
+      if (shape.init === 1 && !an && aus) return ['notyet', aus];
+      if (shape.init === 0 && an && !aus) return ['already', an];
+      if (an && aus) return ['since', aus, an];
+      return null;
+    };
     const resolving = new Set();
     const variableIn = (name, c) => {
+      if (cyclingTtd.has(name) && !defs.has(name)) return { num: 3600 };
       const d = defs.get(name);
       if (!d || resolving.has(name)) return null;
       resolving.add(name);
@@ -452,6 +557,9 @@ const bare = (s) => String(s || '').replace(/_/g, '');
           return !(r.lo === 0 && r.hi === 0);
         });
         if (!live.length) return { num: 0 };
+        // Only ever reset to its default: that value, always (Retribution's
+        // pre_es_wake).
+        if (live.every((o) => o.op === 'reset')) return apl.parse(String(live[live.length - 1].default || 0));
         const valueOf = (o) => {
           if (o.if) {
             const r = folds(o.if);
@@ -464,7 +572,13 @@ const bare = (s) => String(s || '').replace(/_/g, '');
           }
           return null;
         };
-        const values = live.map(valueOf);
+        // Which definitions apply HERE: one whose condition surely holds wins
+        // (Shadow's dots_up: one for under three targets, one for more);
+        // otherwise those without a condition; otherwise all that may.
+        const sicher = live.filter((o) => o.if && (() => { const r = folds(o.if); return r.lo > 0 || r.hi < 0; })());
+        const ohne = live.filter((o) => !o.if);
+        const gelten = sicher.length ? sicher : (ohne.length && ohne.length === live.length ? ohne : live);
+        const values = gelten.map((o) => valueOf({ ...o, if: undefined }));
         if (values.some((v) => v === null) || new Set(values).size !== 1) return null;
         const v = values[0];
         if (v.startsWith('?:')) {
@@ -518,29 +632,49 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         if (best) break;
       }
       if (!best) continue;
+      // ONE ROTATION PER HERO TREE (20 October), like Wowhead's switch: each
+      // with the build of the players who take that tree. The most played
+      // comes first and is the default.
+      const variants = [];
+      for (const [hid, h] of Object.entries(best.entry.hero || {})) {
+        const b = h && h.build;
+        if (!b) continue;
+        const nodes = typeof b.nodes === 'number' && rec.nodeLists ? list(rec.nodeLists[b.nodes]) : null;
+        if (!b.text && !(nodes && nodes.length)) continue;
+        variants.push({ hero: Number(hid), text: b.text, nodes, players: h.players || 0, pct: h.pct || 0 });
+      }
+      variants.sort((x, y) => y.players - x.players);
+      // A tree almost nobody plays measures nothing.
+      const tragend = variants.filter((v) => v.players >= 10 || v === variants[0]);
+      if (!tragend.length) tragend.push({ hero: null, text: best.text, nodes: best.nodes, players: best.sample, pct: 100 });
+      const ergebnisse = [];
+      for (const v of tragend) {
       let takenIds, subTree;
-      if (best.text) {
-        const dec = loadout.decode(BASE, best.text, treeId);
+      if (v.text) {
+        const dec = loadout.decode(BASE, v.text, treeId);
         if (!dec) continue;
-        subTree = dec.subTree;
+        subTree = dec.subTree || v.hero;
         // Only the chosen hero tree: the string marks the other keystone as
         // granted too.
-        takenIds = new Set(dec.nodes.filter((n) => !nodeSub.get(n.node) || nodeSub.get(n.node) === dec.subTree)
+        takenIds = new Set(dec.nodes.filter((n) => !nodeSub.get(n.node) || nodeSub.get(n.node) === subTree)
           .map((n) => n.spell));
       } else {
         // The list names what was picked, not what the spec gets for free
         // (Lava Burst for Elemental). Those come from any string of the spec.
-        takenIds = new Set([...best.nodes.map((n) => n.spell), ...grantedOf(s.id)]);
-        // The hero tree: the one most of these players take.
-        let top = null;
-        for (const [id, h] of Object.entries(best.entry.hero || {})) {
-          if (!top || (h.players || 0) > top.players) top = { id: Number(id), players: h.players || 0 };
-        }
-        subTree = top ? top.id : null;
+        takenIds = new Set([...v.nodes.map((n) => n.spell), ...grantedOf(s.id)]);
+        subTree = v.hero;
       }
       const taken = new Set([...takenIds].map((id) => bare(slug(nameEN.get(id)))));
       const heroName = subTree && map.subTrees[subTree] ? slug(map.subTrees[subTree].en) : '';
       const dec = { subTree };
+      // APEX (SimC engine/player/player.cpp): the tiers of the spec's tiered
+      // talent; apex.N is on when the build reaches tier N.
+      let apexTop = -1;
+      for (const node of tree.nodes) {
+        if (node.type !== 1 || node.subTree) continue;
+        node.entries.forEach((e, i) => { if (e.spell && takenIds.has(e.spell)) apexTop = Math.max(apexTop, i); });
+      }
+      const apex = (k) => k - 1 <= apexTop;
       if (process.env.MC_DEBUG === String(s.id)) {
         console.log(`[${s.id} ${mode}] ${best.source} n=${best.sample} hero=${dec.subTree} ${heroName}`);
         console.log('  taken:', [...taken].join(' '));
@@ -619,6 +753,7 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         // than the one Voltaic Blaze names. A replacement by a spell of the
         // same name (a spec's own version) is no replacement.
         replaced: (id) => replacedNames.has(slug(nameEN.get(id))),
+        latch: latchOf,
       };
       const ctx = (targets, trinket) => {
         const c = {
@@ -628,7 +763,16 @@ const bare = (s) => String(s || '').replace(/_/g, '');
           hero: (k) => bare(k) === bare(heroName),
           // SimC's names: a dungeon pull for M+, a boss for the raid.
           fightStyle: mode === 'mplus' ? 'dungeonslice' : 'patchwerk',
-          setBonus, targets,
+          setBonus, targets, apex,
+          cdOf: (k) => {
+            for (const id of [actionSpellFor(k, castIds), spellM(k), ...racialIds(k)]) {
+              if (id && cdSeconds.get(id)) return cdSeconds.get(id);
+            }
+            return undefined;
+          },
+          stacksOf: (k) => { const id = spellM(k); return id ? maxStacks.get(id) : undefined; },
+          durOf: (k) => { const id = spellM(k); const ms = id ? lastsMs.get(id) : 0; return ms > 0 ? ms / 1000 : undefined; },
+          isLatch: (name) => latchShape(name) !== null,
         };
         c.variable = (name) => variableIn(name, c);
         return c;
@@ -670,7 +814,7 @@ const bare = (s) => String(s || '').replace(/_/g, '');
       // Nichts uebrig: der Build passt nicht zur Liste (beim Braumeister liest
       // sich der String noch nicht sauber). Dann lieber keine Rotation.
       if (st.lines.length === 0 && aoe.lines.length === 0) {
-        report.push(`${s.id} ${file} ${mode}: empty, skipped`);
+        report.push(`${s.id} ${file} ${mode} hero ${subTree}: empty, skipped`);
         continue;
       }
       // EVERY LINE AGAINST THE LOGS: a spell hardly any measured player
@@ -702,7 +846,8 @@ const bare = (s) => String(s || '').replace(/_/g, '');
       // (potions, trinkets and racials fall out - they are not its spells),
       // then the order most players follow. Raid only: see lib/opener.js.
       let measured;
-      const seqs = mode === 'raid' ? (openersBySpec.get(s.id) || []) : [];
+      // The openers are not split by hero tree: they belong to the most played.
+      const seqs = mode === 'raid' && v === tragend[0] ? (openersBySpec.get(s.id) || []) : [];
       if (seqs.length) {
         const own = (id) => {
           const k = slug(nameEN.get(Number(id)));
@@ -720,11 +865,12 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         const preSeq = opener.typical(mapped.map((q) => q.pre), { fromEnd: true, max: opener.MAX_PRE });
         if (post.length >= 2) measured = { n: seqs.length, pre: preSeq, post };
       }
-      (out[s.id] = out[s.id] || {})[mode] = {
+      ergebnisse.push({
         opener: measured,
         hero: dec.subTree || undefined,
+        pct: v.pct || undefined,
         set: setPieces >= 4 && current && text.includes('set_bonus.' + current) ? current : undefined,
-        n: best.sample || undefined,
+        n: v.players || best.sample || undefined,
         src: best.source,
         pre: pack(preLines),
         keep: keep.length ? keep : undefined,
@@ -733,13 +879,20 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         mv: [...new Set([...st.moving, ...aoe.moving])],
         items: Object.keys(items).length ? items : undefined,
         cast: gemessen && gemessen.players >= MIN_MEASURED ? gemessen.players : undefined,
-      };
+      });
       const others = [...st.lines, ...aoe.lines].filter((l) => l.more || l.c.some(apl.isOther)).length;
-      report.push(`${s.id} ${file} ${mode}: st ${st.lines.length}, aoe ${aoe.lines.length}, pre ${preLines.length}`
+      report.push(`${s.id} ${file} ${mode} hero ${dec.subTree}: st ${st.lines.length}, aoe ${aoe.lines.length}, pre ${preLines.length}`
         + `, vague ${others}${measured ? `, opener ${measured.pre.length}|${measured.post.length} of ${measured.n}` : ''}`
         + `${miss.size ? ', unknown: ' + [...miss].join(' ') : ''}`
         + `${gemessen ? `, measured ${gemessen.players}` : ', not measured'}`
         + `${ungespielt.length ? ', not played: ' + [...new Set(ungespielt)].join(' ') : ''}`);
+      }
+      if (!ergebnisse.length) continue;
+      // The most played on top (as before), every tree in heroes.
+      (out[s.id] = out[s.id] || {})[mode] = {
+        ...ergebnisse[0],
+        heroes: ergebnisse.length > 1 ? ergebnisse.map((r) => ({ ...r, src: undefined, cast: undefined })) : undefined,
+      };
     }
    } catch (err) {
     delete out[s.id];
@@ -773,6 +926,34 @@ const bare = (s) => String(s || '').replace(/_/g, '');
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.writeFileSync(target, fragment, 'utf8');
   console.log('Geschrieben:', target, `(${Object.keys(out).length} Speccs, ${Math.round(fragment.length / 1024)} KB)`);
+  // EVERY KIND OF CONDITION the addon can put into words (Core/UI.lua, and
+  // Tests/smoke_test.lua checks each of them). A kind not in this list would
+  // read "under certain conditions" in the game - so it is left out here.
+  const KINDS = new Set(['and', 'or', 'up', 'down', 'refresh', 'ready', 'notready', 'cdsoon', 'prev', 'notprev',
+    'casting', 'notcasting', 'flying', 'notflying', 'stronger', 'notstronger', 'weakdot', 'strongdot', 'placed',
+    'notplaced', 'stealthed', 'notstealthed', 'cdunder', 'cdover', 'stackmin', 'stackunder', 'stackis', 'remunder',
+    'remover', 'chargesunder', 'chargesfull', 'doton', 'charges', 'tgtis', 'tgtmin', 'tgtmax', 'hpunder', 'hpover',
+    'timeunder', 'timeover', 'resnotcap', 'resfull', 'resenough', 'resmin', 'resunder', 'resis', 'respctmin',
+    'respctunder', 'ago', 'castleft', 'castdone', 'myhpunder', 'myhpover', 'surge', 'nosurge', 'notyet', 'already',
+    'since', 'notsince', 'cmp']);
+  const fremd = new Set();
+  const pruefe = (c) => {
+    if (!Array.isArray(c)) return;
+    if (!KINDS.has(c[0])) fremd.add(c[0]);
+    if (c[0] === 'and' || c[0] === 'or' || c[0] === 'notyet' || c[0] === 'already') c.slice(1).forEach(pruefe);
+    if (c[0] === 'since' || c[0] === 'notsince') c.slice(1).forEach(pruefe);
+  };
+  for (const modes of Object.values(out)) {
+    for (const r of Object.values(modes)) {
+      for (const v of [r, ...(r.heroes || [])]) {
+        for (const tab of ['st', 'aoe', 'pre']) {
+          for (const l of v[tab] || []) { (l.c || []).forEach(pruefe); (l.any || []).flat().forEach(pruefe); }
+        }
+      }
+    }
+  }
+  if (fremd.size) console.log('WARNUNG: Satzarten ohne Vorlage im Addon:', [...fremd].join(', '));
+
   // SELF-CHECK before it touches the game data: the fragment must read back
   // as the table it was written from. If not, nothing is appended - the
   // night ships without a rotation rather than with a broken data file.

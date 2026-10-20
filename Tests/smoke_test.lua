@@ -6733,6 +6733,36 @@ do
     check("die Ressource beim Namen", say({ "resmin", "maelstrom", 83 }) == L["ROT_C_resmin"]:format("83", L["ROT_RES_maelstrom"]))
     check("eine unbekannte Ressource ohne Unterstrich", say({ "resmin", "astral_dust", 3 }):find("astral dust", 1, true) ~= nil)
     check("Unbekanntes ehrlich", say({ "other" }) == L["ROT_C_other"])
+    -- JEDE SATZART, die der Generator schreibt, hat eine Vorlage.
+    local ARTEN = {
+        { "up", 1 }, { "down", 1 }, { "refresh", 1 }, { "ready", 1 }, { "notready", 1 }, { "cdsoon", 1 },
+        { "prev", 1 }, { "notprev", 1 }, { "casting", 1 }, { "notcasting", 1 }, { "flying", 1 }, { "notflying", 1 },
+        { "stronger", 1 }, { "notstronger", 1 }, { "weakdot", 1 }, { "strongdot", 1 }, { "placed", 1 }, { "notplaced", 1 },
+        { "stealthed" }, { "notstealthed" }, { "cdunder", 1, 2 }, { "cdover", 1, 2 }, { "stackmin", 1, 2 },
+        { "stackunder", 1, 2 }, { "stackis", 1, 2 }, { "remunder", 1, 2 }, { "remover", 1, 2 },
+        { "chargesunder", 1, 2 }, { "chargesfull", 1, 2 }, { "doton", 1, 2 }, { "charges", 1, 1.8 }, { "charges", 1, 2 },
+        { "tgtis", 3 }, { "tgtmin", 3 }, { "tgtmax", 3 }, { "hpunder", 20 }, { "hpover", 80 }, { "timeunder", 10 },
+        { "timeover", 10 }, { "resnotcap", "energy", 20 }, { "resnotcap", "energy" }, { "resfull", "energy", 20 },
+        { "resfull", "energy" }, { "resenough", "energy" }, { "resmin", "energy", 50 }, { "resunder", "energy", 50 },
+        { "resis", "energy", 50 }, { "respctmin", "mana", 50 }, { "respctunder", "mana", 50 },
+        { "ago", 1, "lt", 5 }, { "ago", 1, "gt", 5 }, { "castleft", 1, 0.5 }, { "castdone", 1, 0.5 },
+        { "myhpunder", 50 }, { "myhpover", 50 }, { "surge", 1, 2 }, { "nosurge", 1, 2 },
+        { "notyet", { "up", 1 } }, { "already", { "up", 1 } }, { "since", { "up", 1 }, { "up", 2 } },
+        { "notsince", { "up", 1 }, { "up", 2 } },
+        { "cmp", { "dots", 1 }, "ge", { "tgt" } }, { "cmp", { "full", 1 }, "le", { "gcd" } },
+        { "cmp", { "usable", 1 }, "ge", { "rem", 2 } }, { "cmp", { "casttime", 1 }, "lt", { "rem", 2 } },
+        { "cmp", { "flyleft", 1 }, "lt", { "n", 1 } }, { "cmp", { "inflight" }, "eq", { "n", 0 } },
+        { "cmp", { "rtb" }, "ge", { "n", 2 } }, { "cmp", { "stat", "haste" }, "gt", { "stat", "crit" } },
+        { "cmp", { "def", "energy" }, "ge", { "regen", "energy" } },
+    }
+    local ohne = {}
+    for _, c in ipairs(ARTEN) do
+        local text = say(c)
+        if text == L["ROT_C_other"] or text:find("ROT_", 1, true) or text:find("?", 1, true) then
+            ohne[#ohne + 1] = tostring(c[1]) .. (c[1] == "cmp" and ("/" .. tostring(c[2][1])) or "")
+        end
+    end
+    check("jede Satzart hat eine Vorlage", #ohne == 0, table.concat(ohne, ", "))
     -- Hoechstens einmal je Satz: der Merker steht am Ende, einmal.
     local einmal = ns.UI.RotationSentence({ s = 1, c = { { "up", 2 } }, more = true }, "st", false)
     check("weitere Bedingungen einmal am Ende", select(2, einmal:gsub(L["ROT_C_more"], "")) == 1
@@ -6783,6 +6813,36 @@ do
             or L["ROT_S_filler"]:match("^(.-)%%s") == L["ROT_S_cd"]:match("^(.-)%%s"))
         IsPlayerSpell = echtKennt
         MetaCodexDB.rotationTab = nil
+    end
+
+    -- Heldenbaum-Schalter: zwei Baeume, der meistgespielte vorn, die Wahl gemerkt.
+    do
+        local ZWEI = { hero = 56, n = 100, st = ROT.st, aoe = ROT.aoe,
+            heroes = {
+                { hero = 56, pct = 70, n = 70, st = ROT.st, aoe = ROT.aoe },
+                { hero = 55, pct = 30, n = 30, st = { { s = 188196 } }, aoe = {} },
+            } }
+        local echtRot = ns.Recommend.Rotation
+        ns.Recommend.Rotation = function() return ZWEI end
+        local vorher2 = MetaCodexDB.rotationHero
+        MetaCodexDB.rotationHero = nil
+        check("ohne Wahl der meistgespielte Heldenbaum", ns.UI.RotationVariant(262, ZWEI).hero == 56)
+        rowsInSection("rotation")
+        local k
+        for _, row in ipairs(wow.rows()) do
+            if row:IsShown() and rawget(row, "__rotPanel") then k = row.__rotPanel end
+        end
+        local knoepfe = 0
+        for _, b in ipairs(k and k.heroes or {}) do if b:IsShown() then knoepfe = knoepfe + 1 end end
+        check("je Heldenbaum ein Knopf", knoepfe == 2, knoepfe .. " Knoepfe")
+        local zweiter
+        for _, b in ipairs(k and k.heroes or {}) do if b.hero == 55 then zweiter = b end end
+        if zweiter then zweiter:GetScript("OnClick")(zweiter) end
+        local sp = zweiter and zweiter.spec
+        check("die Wahl gilt und wird gemerkt", sp ~= nil and ns.UI.RotationVariant(sp, ZWEI).hero == 55
+            and MetaCodexDB.rotationHero and MetaCodexDB.rotationHero[sp] == 55, tostring(sp))
+        MetaCodexDB.rotationHero = vorher2
+        ns.Recommend.Rotation = echtRot
     end
 
     -- Im Fenster: EINE Zeile, die Karte.

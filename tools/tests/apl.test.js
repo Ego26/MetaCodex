@@ -79,17 +79,72 @@ check('auch gegen den globalen Cooldown',
   [['cmp', ['cd', 10], 'gt', ['mul', ['gcd'], ['n', 2]]]]);
 // Was sich nicht benennen laesst, wird nicht geraten.
 check('Unbekanntes wird ein Merker, keine Bedingung',
-  (() => { const l = tab('actions=lightning_bolt,if=hot_streak_spells_in_flight=1', [1, 1])[0]; return [l.c, l.more]; })(),
+  (() => { const l = tab('actions=lightning_bolt,if=evoker.shifting_buffs=1', [1, 1])[0]; return [l.c, l.more]; })(),
   [[], true]);
 // Hoechstens einmal je Satz: Bekanntes bleibt, Unbekanntes wird EIN Merker,
 // und ein Oder mit unbekanntem Zweig ist als Ganzes unbekannt.
 check('Bekanntes bleibt, Unbekanntes einmal',
   (() => {
-    const l = tab('actions=lightning_bolt,if=buff.stormkeeper.up&hot_streak_spells_in_flight=1'
+    const l = tab('actions=lightning_bolt,if=buff.stormkeeper.up&evoker.shifting_buffs=1'
       + '&(foo.bar|buff.ascendance.up)&(baz.qux=2)', [1, 1])[0];
     return [l.c, l.more];
   })(),
   [[['up', 6]], true]);
+// Art 1: wie lange her, noch wirken, im Flug, Zahl der Ziele, Spitzentalent.
+check('vor weniger als N Sek. gewirkt (Abklingzeit)',
+  tab('actions=lightning_bolt,if=(cooldown.ascendance.duration-cooldown.ascendance.remains)<10', [1, 1])[0].c,
+  [['ago', 10, 'lt', 10]]);
+check('vor mehr als N Sek. gewirkt (letzte Nutzung)',
+  tab('actions=lightning_bolt,if=(time-action.ascendance.last_used)>5', [1, 1])[0].c,
+  [['ago', 10, 'gt', 5]]);
+check('wirkt noch ueber N Sek.',
+  tab('actions=lightning_bolt,if=action.lava_burst.execute_remains>0.5', [1, 1])[0].c, [['castleft', 1, 0.5]]);
+check('im Flug',
+  tab('actions=lightning_bolt,if=!action.lava_burst.in_flight', [1, 1])[0].c, [['notflying', 1]]);
+check('Zauber im Flug als Wert',
+  tab('actions=lightning_bolt,if=hot_streak_spells_in_flight+buff.stormkeeper.react=0', [1, 1])[0].c,
+  [['cmp', ['plus', ['inflight'], ['stk', 6]], 'eq', ['n', 0]]]);
+check('Spitzentalent aus dem Build',
+  apl.buildTab(apl.parseApl('actions=lightning_bolt,if=apex.2\nactions+=/chain_lightning,if=!apex.3'), 'default',
+    { ...ctx([1, 1]), apex: (k) => k <= 2 }, resolve).lines.map((l) => [l.s, l.c]), [[4, []], [8, []]]);
+// Art 2: ein Zustand ueber den Kampf ("opener"), aus seinen Definitionen.
+check('Zustand: noch nicht eingetreten',
+  apl.buildTab(apl.parseApl('actions=lightning_bolt,if=variable.opener'), 'default',
+    { ...ctx([1, 1]), isLatch: (n) => n === 'opener' },
+    { ...resolve, latch: (n) => (n === 'opener' ? ['notyet', ['up', 10]] : null) }).lines[0].c,
+  [['notyet', ['up', 10]]]);
+check('Zustand verneint: schon eingetreten',
+  apl.buildTab(apl.parseApl('actions=lightning_bolt,if=!variable.opener'), 'default',
+    { ...ctx([1, 1]), isLatch: (n) => n === 'opener' },
+    { ...resolve, latch: (n) => (n === 'opener' ? ['notyet', ['up', 10]] : null) }).lines[0].c,
+  [['already', ['up', 10]]]);
+// Art 3: Schmuck-Variablen ohne Schmuck aus.
+check('Schmuck-Variable ohne Schmuck ist aus',
+  tab('actions=lightning_bolt,if=variable.trinket_sync_slot=1|buff.stormkeeper.up', [1, 1])[0].c, [['up', 6]]);
+// Zweite Runde: Spieldaten und SimC-Kurznamen.
+check('Abklingzeit-Dauer aus den Spieldaten',
+  apl.buildTab(apl.parseApl('actions=lightning_bolt,if=cooldown.ascendance.duration>100'), 'default',
+    { ...ctx([1, 1]), cdOf: () => 180 }, resolve).lines[0].c, []);
+check('maximale Stapel aus den Spieldaten',
+  apl.buildTab(apl.parseApl('actions=lightning_bolt,if=buff.stormkeeper.at_max_stacks'), 'default',
+    { ...ctx([1, 1]), stacksOf: () => 2 }, resolve).lines[0].c, [['stackmin', 6, 2]]);
+check('nicht verstaerkte Blutung',
+  tab('actions=flame_shock,if=pmultiplier<=1', [1, 1])[0].c, [['weakdot', 9]]);
+check('Verstohlenheit',
+  tab('actions=lightning_bolt,if=!stealthed.rogue', [1, 1])[0].c, [['notstealthed']]);
+check('remains_expected ist die Restzeit',
+  tab('actions=lightning_bolt,if=cooldown.ascendance.remains_expected>5', [1, 1])[0].c, [['cdover', 10, 5]]);
+// Faelle durchrechnen: eine Schwelle, die an einem Buff haengt.
+check('Schwelle je Fall',
+  tab('actions=lightning_bolt,if=maelstrom<(buff.stormkeeper.up*50+(!buff.stormkeeper.up)*80)', [1, 1])[0].c,
+  [['or', ['and', ['down', 6], ['resunder', 'maelstrom', 80]], ['and', ['up', 6], ['resunder', 'maelstrom', 50]]]]);
+check('eine Zeile, die nie greift, faellt weg',
+  tab('actions=lightning_bolt,if=buff.stormkeeper.up&0\nactions+=/chain_lightning', [1, 1]).map((l) => l.s), [8]);
+check('Aufladungen einer Aktion sind die der Abklingzeit',
+  tab('actions=lightning_bolt,if=action.lava_burst.charges>=2', [1, 1])[0].c, [['charges', 1, 2]]);
+check('Wirkzeit als Wert',
+  tab('actions=lightning_bolt,if=buff.stormkeeper.remains<action.lava_burst.cast_time', [1, 1])[0].c,
+  [['cmp', ['rem', 6], 'lt', ['casttime', 1]]]);
 // Schmuck ist ausgenommen: die Rotation gilt ohne Benutzen-Effekt.
 check('Schmuck-Bedingungen fallen aus der Rotation',
   tab('actions=ascendance,if=trinket.1.cooldown.remains>20|buff.stormkeeper.up', [1, 1])[0].c, [['up', 6]]);
