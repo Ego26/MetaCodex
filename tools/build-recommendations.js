@@ -875,7 +875,17 @@ for (const part of compsParts) {
   compsBuilt = Math.max(compsBuilt, Number(part.builtOn) || 0);
   if (part.kind === 'comps') {
     if (part.season) compsSeason = part.season;
-    for (const [mode, c] of Object.entries(part.comps || {})) compModesIn[mode] = { source: part.source, ...c };
+    // Zwei Quellen fuer denselben Modus: raider.io geht vor - es zaehlt
+    // die hohen Keys mit 2000 Runs, und eine Aktivitaet soll nicht je
+    // Dungeon aus einer anderen Quelle stammen. Sonst die groessere
+    // Stichprobe, nicht die Datei, die im Alphabet spaeter kommt.
+    const rang = (src) => (src === 'raider.io' ? 1 : 0);
+    for (const [mode, c] of Object.entries(part.comps || {})) {
+      const have = compModesIn[mode];
+      if (have && (rang(have.source) > rang(part.source)
+        || (rang(have.source) === rang(part.source) && (have.runs || 0) >= (c.runs || 0)))) continue;
+      compModesIn[mode] = { source: part.source, ...c };
+    }
   } else if (part.kind === 'raidcomps' && part.mode && part.counts) {
     raidIn[part.mode] = part.counts;
   } else if (part.kind === 'pvpspecs') {

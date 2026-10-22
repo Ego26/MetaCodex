@@ -2402,7 +2402,11 @@ Probelauf ${mode}, ${Object.keys(specs).length} Speccs, Spec ${id}:`);
   // keine "haeufigste Gruppe" aus zwanzig - dort gehen die rohen
   // Zaehlungen hinaus, damit das Zusammenbauen alle Schwierigkeiten zu
   // "Raid (alle)" addieren kann.
-  if (FIGHT_SPECS.length) {
+  //
+  // NICHT im Lauf ohne Schluesselstufen ('mplus', die Verbrauchsgueter):
+  // die hohen Keys zaehlt raider.io mit 2000 Runs, und am 21. Oktober
+  // hat diese Datei mit 948 Runs genau diese Zahlen ueberschrieben.
+  if (FIGHT_SPECS.length && BASE_MODE !== 'mplus') {
     const compFile = path.join(dir, `wcl-comps-${BASE_MODE}.json`);
     let compPayload = null;
     if (KIND === 'mplus') {
