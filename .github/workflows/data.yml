@@ -356,6 +356,36 @@ jobs:
           merge-multiple: true
           path: .
 
+      # What tonight lacks, from the last good night.
+      #
+      # On 22 October Warcraft Logs refused all three of its jobs within a
+      # second, the tables were built without its files, and the tests
+      # rightly turned the night down - with everything else collected.
+      # "What is missing is yesterday's" (see the publish job) has to be
+      # made true: every raw file tonight did not bring comes from the
+      # last successful run. Files tonight did bring are never replaced.
+      - name: Fill what tonight lacks from the last good night
+        if: inputs.reuse == ''
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          last="$(gh run list --workflow data.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId')"
+          if [ -z "$last" ]; then echo "No earlier good night."; exit 0; fi
+          if ! gh run download "$last" --pattern 'collected-*' --dir /tmp/last; then
+            echo "::warning::The last good night ($last) kept nothing that is still there."
+            exit 0
+          fi
+          mkdir -p tools/data
+          for f in /tmp/last/*/tools/data/*.json; do
+            [ -e "$f" ] || continue
+            name="$(basename "$f")"
+            if [ ! -s "tools/data/$name" ]; then
+              cp "$f" "tools/data/$name"
+              echo "::warning::$name is from run $last - tonight did not bring it"
+            fi
+          done
+
       # Die Ernte eines frueheren Laufs statt einer neuen.
       #
       # Drei Stunden Sammeln, und dann scheitert das Packen an einem

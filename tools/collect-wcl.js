@@ -31,6 +31,8 @@ const { countsForThisFight } = require('./lib/consumable-window');
 const { share, shares } = require('./lib/share');
 // Gruppen in Top-Runs: wer mit wem im selben Kampf stand.
 const { groupFromSpecs, compsByMode, raidCounts } = require('./lib/comps');
+// Was jeder Spieler wirkte - aus den Ereignissen, nicht der Tabelle.
+const { castsBySource } = require('./lib/casts');
 
 const BASE = process.argv[2];
 if (!BASE) {
@@ -1792,29 +1794,43 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
       }
     }
 
-    if (castGemacht < castDeckel && (folioIndex % castSchritt) === 0 && specBySource.size && !castKaputt) {
+    // Was jeder wirkte: die Ereignisse des Kampfes, nicht die Tabelle - die
+    // kennt je Spieler nur die fuenf haeufigsten (tools/lib/casts.js).
+    if (castGemacht < castDeckel && (folioIndex % castSchritt) === 0 && specBySource.size && !castKaputt && thisFight) {
       castGemacht += 1;
       try {
-        const t = await gql(`
-          query ($code: String!, $fight: Int!) {
-            reportData { report(code: $code) { table(dataType: Casts, fightIDs: [$fight]) } }
-          }`, { code, fight: fightID });
-        const tab = t.reportData.report.table && t.reportData.report.table.data;
-        for (const e of (tab && tab.entries) || []) {
-          const spec = specBySource.get(Number(e.id));
-          const minutes = Number(e.activeTime || (tab && tab.totalTime) || 0) / 60000;
-          if (!spec || !(minutes > 0)) continue;
-          for (const mode of active) {
-            const x = entryFor(mode, spec);
-            const c = x.casts || (x.casts = { players: 0, minutes: 0, by: {} });
-            c.players += 1;
-            c.minutes += minutes;
-            for (const a of e.abilities || []) {
-              const g = Number(a.guid);
-              if (!g) continue;
-              const b = c.by[g] || (c.by[g] = [0, 0]);
-              b[0] += Number(a.total) || 0;
-              b[1] += 1;
+        const start = Number(thisFight.startTime);
+        const ende = Number(thisFight.endTime);
+        const evs = [];
+        let von = start;
+        // Hoechstens drei Seiten: ein langer Key hat selten mehr als eine.
+        for (let seite = 0; seite < 3 && von !== null && von !== undefined && von < ende; seite += 1) {
+          const r = await gql(`
+            query ($code: String!, $fight: Int!, $from: Float!, $to: Float!) {
+              reportData { report(code: $code) {
+                events(dataType: Casts, fightIDs: [$fight], startTime: $from, endTime: $to, limit: 10000,
+                       filterExpression: "source.type = \\"player\\"") { data nextPageTimestamp }
+              } }
+            }`, { code, fight: fightID, from: von, to: ende });
+          const page = r.reportData.report.events;
+          evs.push(...(page.data || []));
+          von = page.nextPageTimestamp;
+        }
+        // Abgeschnitten: die Minuten nur so weit, wie die Ereignisse reichen.
+        const bis = von !== null && von !== undefined && von < ende ? von : ende;
+        const minutes = (bis - start) / 60000;
+        if (minutes > 0) {
+          for (const { spec, by } of castsBySource(evs, specBySource).values()) {
+            for (const mode of active) {
+              const x = entryFor(mode, spec);
+              const c = x.casts || (x.casts = { players: 0, minutes: 0, by: {} });
+              c.players += 1;
+              c.minutes += minutes;
+              for (const [g, n] of by) {
+                const b = c.by[g] || (c.by[g] = [0, 0]);
+                b[0] += n;
+                b[1] += 1;
+              }
             }
           }
         }
@@ -2253,7 +2269,7 @@ Haeufigste nicht zugeordnete Auren (${missedAuras.size} verschiedene):`);
         out.openers = entry.openers;
       }
       // Je Zauber: wie oft insgesamt, und wie viele Spieler ihn ueberhaupt
-      // wirkten - die fuenfzig haeufigsten.
+      // wirkten - die achtzig haeufigsten.
       if (entry.casts && entry.casts.players) {
         out.casts = {
           players: entry.casts.players,
@@ -2261,7 +2277,7 @@ Haeufigste nicht zugeordnete Auren (${missedAuras.size} verschiedene):`);
           by: Object.entries(entry.casts.by)
             .map(([g, [n, wer]]) => [Number(g), n, wer])
             .sort((x, y) => y[1] - x[1])
-            .slice(0, 50),
+            .slice(0, 80),
         };
       }
 

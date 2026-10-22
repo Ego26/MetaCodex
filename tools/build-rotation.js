@@ -27,6 +27,7 @@ const apl = require('./lib/apl');
 const opener = require('./lib/opener');
 const { simcBuffMap } = require('./lib/simc-buffs');
 const { simplify, simpleConditions } = require('./lib/simplify');
+const { MIN_SPELLS } = require('./lib/casts');
 const { buildReplacements, replacedNames: namesReplaced } = require('./lib/replace');
 const { worthRetrying, waitSeconds } = require('./lib/http-retry');
 
@@ -766,7 +767,14 @@ const bare = (s) => String(s || '').replace(/_/g, '');
           proName.set(k, a);
         }
       }
-      const share = proName.size ? (name) => (proName.get(name) || { share: 0 }).share : null;
+      // A summary is no measurement: the nightly of 21 October read the
+      // casts table, five spells per player, and threw Stormkeeper and
+      // Ascendance out as "not played". Fewer than MIN_SPELLS spells that
+      // most players cast - then nothing counts (lib/casts.js).
+      const meist = [...proName.values()].filter((a) => a.share >= 0.5).length;
+      const vollstaendig = meist >= MIN_SPELLS;
+      if (proName.size && !vollstaendig) report.push(`${s.id} ${mode}: casts measured for ${meist} spells only - ignored`);
+      const share = proName.size && vollstaendig ? (name) => (proName.get(name) || { share: 0 }).share : null;
       const replacedNames = namesReplaced(replacements, {
         specID: s.id, known, nameOf: (id) => slug(nameEN.get(id)), share,
       });
@@ -978,7 +986,7 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         aoe: pack(aoe.lines),
         mv: [...new Set([...st.moving, ...aoe.moving])],
         items: Object.keys(items).length ? items : undefined,
-        cast: gemessen && gemessen.players >= MIN_MEASURED ? gemessen.players : undefined,
+        cast: share && gemessen && gemessen.players >= MIN_MEASURED ? gemessen.players : undefined,
       });
       const others = [...st.lines, ...aoe.lines].filter((l) => l.more || l.c.some(apl.isOther)).length;
       report.push(`${s.id} ${file} ${mode} hero ${dec.subTree}: st ${st.lines.length}, aoe ${aoe.lines.length}, pre ${preLines.length}`
