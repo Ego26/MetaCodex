@@ -687,7 +687,20 @@ const bare = (s) => String(s || '').replace(/_/g, '');
       // with the build of the players who take that tree. The most played
       // comes first and is the default.
       const variants = [];
-      for (const [hid, h] of Object.entries(best.entry.hero || {})) {
+      // The source with the most players may know no hero trees (Warcraft
+      // Logs for the Brewmaster, 21 October): then another source of the
+      // same mode that does.
+      let heroes = best.entry.hero;
+      if (!heroes || !Object.keys(heroes).length) {
+        for (const key of chain) {
+          for (const entry of Object.values((rec.modes && rec.modes[key]) || {})) {
+            const e = entry && entry.specs && entry.specs[s.id];
+            if (!heroes && e && e.hero && Object.keys(e.hero).length) heroes = e.hero;
+          }
+          if (heroes) break;
+        }
+      }
+      for (const [hid, h] of Object.entries(heroes || {})) {
         const b = h && h.build;
         if (!b) continue;
         const nodes = typeof b.nodes === 'number' && rec.nodeLists ? list(rec.nodeLists[b.nodes]) : null;
@@ -714,6 +727,24 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         // (Lava Burst for Elemental). Those come from any string of the spec.
         takenIds = new Set([...v.nodes.map((n) => n.spell), ...grantedOf(s.id)]);
         subTree = v.hero;
+      }
+      // No hero tree named (the Brewmaster of 21 October had a talent list,
+      // no tree): the picked hero nodes say which. Without it every line
+      // behind hero_tree.X falls away, and the list stood empty.
+      if (!subTree) {
+        const zaehl = new Map();
+        for (const node of tree.nodes) {
+          if (!node.subTree) continue;
+          if (node.entries.some((e) => e.spell && takenIds.has(e.spell))) zaehl.set(node.subTree, (zaehl.get(node.subTree) || 0) + 1);
+        }
+        const bester = [...zaehl].sort((a, b) => b[1] - a[1])[0];
+        if (bester) {
+          subTree = bester[0];
+          takenIds = new Set([...takenIds].filter((id) => {
+            const node = tree.nodes.find((n) => n.entries.some((e) => e.spell === id));
+            return !node || !node.subTree || node.subTree === subTree;
+          }));
+        }
       }
       const taken = new Set([...takenIds].map((id) => bare(slug(nameEN.get(id)))));
       const heroName = subTree && map.subTrees[subTree] ? slug(map.subTrees[subTree].en) : '';
