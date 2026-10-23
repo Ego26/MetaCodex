@@ -342,7 +342,9 @@ const bare = (s) => String(s || '').replace(/_/g, '');
   // WHAT THE TOP PLAYERS CAST, per spec and activity (tools/collect-wcl.js):
   // players, minutes, and per spell [id, casts, players who cast it]. The
   // base files only - the per-dungeon and per-boss files repeat the pulls.
-  const castFiles = { mplus: ['wcl-mplus.json'], raid: ['wcl-raid.json', 'wcl-raid-mythic.json', 'wcl-raid-normal.json'] };
+  // M+ from both runs: the high keys and the key levels measure different
+  // keys, and each picks them by what its specs still lack.
+  const castFiles = { mplus: ['wcl-mplus.json', 'wcl-mplus-keys.json'], raid: ['wcl-raid.json', 'wcl-raid-mythic.json', 'wcl-raid-normal.json'] };
   const castsBy = {};
   for (const [mode, files] of Object.entries(castFiles)) {
     castsBy[mode] = new Map();

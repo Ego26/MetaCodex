@@ -1205,11 +1205,20 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
   // Frist gelaufen. Also feste Zahlen: genug fuer die Mehrheit je Spec, und
   // die Nacht wird um Minuten laenger, nicht um Stunden.
   //   Ablauf: 100 Raid-Berichte je Lauf (drei Laeufe: 300 Pulls, je ~20 Spieler)
-  //   Zauber: 100 je Raid-Lauf, 300 je M+-Lauf (fuenf Spieler je Lauf)
+  //   Zauber: 100 je Raid-Lauf, 400 je M+-Lauf (fuenf Spieler je Lauf),
+  //   und nur, solange eine Spec des Berichts unter CAST_ZIEL Spielern ist.
   const openerDeckel = Number(process.env.MC_OPENER_REPORTS || 100);
-  const castDeckel = Number(process.env.MC_CAST_REPORTS || (KIND === 'raid' ? 100 : 300));
+  const castDeckel = Number(process.env.MC_CAST_REPORTS || (KIND === 'raid' ? 100 : 400));
   let openerGemacht = 0;
   let castGemacht = 0;
+  // NACH BEDARF JE SPEC (23. Oktober). Jeder n-te Bericht gab den
+  // beliebten Specs 200 gemessene Spieler und den meisten anderen keine 20:
+  // M+ ist schief verteilt, und in der Nacht zum 23. waren nur 9 von 34
+  // M+-Rotationen gemessen. Jetzt wird ein Bericht gemessen, solange eine
+  // seiner Specs noch unter dem Ziel ist - das Kontingent geht dorthin,
+  // wo es fehlt.
+  const CAST_ZIEL = Number(process.env.MC_CAST_PLAYERS || 40);
+  const castProSpec = new Map();
   const readReports = async (codes) => {
   // Der Foliant haengt NICHT an jedem Bericht.
   //
@@ -1251,8 +1260,9 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
   // (tools/build-rotation.js): ob ein Zauber wirklich ersetzt ist, ob eine
   // Zeile der Simulation ueberhaupt gespielt wird, und fuer die Heiler, fuer
   // die es keine Simulation gibt. Gestuft wie der Ablauf.
-  const castSchritt = codes.length > castDeckel ? Math.ceil(codes.length / castDeckel) : 1;
-  let castKaputt = false;
+  // Aufgegeben wird erst nach fuenf Fehlern in Folge: ein einzelner langer
+  // Key, der einmal haengt, nahm sonst den Rest der Nacht mit.
+  let castFehler = 0;
   for (const [code, info] of codes) {
     folioIndex += 1;
     const mitFolio = (folioIndex % folioSchritt) === 0;
@@ -1796,7 +1806,8 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
 
     // Was jeder wirkte: die Ereignisse des Kampfes, nicht die Tabelle - die
     // kennt je Spieler nur die fuenf haeufigsten (tools/lib/casts.js).
-    if (castGemacht < castDeckel && (folioIndex % castSchritt) === 0 && specBySource.size && !castKaputt && thisFight) {
+    const castNoetig = [...new Set(specBySource.values())].some((sp) => (castProSpec.get(sp) || 0) < CAST_ZIEL);
+    if (castGemacht < castDeckel && castNoetig && castFehler < 5 && thisFight) {
       castGemacht += 1;
       try {
         const start = Number(thisFight.startTime);
@@ -1821,6 +1832,7 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
         const minutes = (bis - start) / 60000;
         if (minutes > 0) {
           for (const { spec, by } of castsBySource(evs, specBySource).values()) {
+            castProSpec.set(spec, (castProSpec.get(spec) || 0) + 1);
             for (const mode of active) {
               const x = entryFor(mode, spec);
               const c = x.casts || (x.casts = { players: 0, minutes: 0, by: {} });
@@ -1834,9 +1846,10 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
             }
           }
         }
+        castFehler = 0;
       } catch (err) {
-        castKaputt = true;
-        console.log('\n  ! Zauber-Abfrage abgelehnt, sammle ohne sie weiter: '
+        castFehler += 1;
+        console.log(`\n  ! Zauber-Abfrage abgelehnt (${castFehler}/5${castFehler >= 5 ? ', sammle ohne sie weiter' : ''}): `
           + String(err.message).slice(0, 120));
       }
     }
