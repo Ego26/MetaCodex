@@ -662,9 +662,16 @@ function emitEnchants(groups) {
   }
   const sharedBy = new Map();
   for (const trees of candidates.values()) for (const t of trees) sharedBy.set(t, (sharedBy.get(t) || 0) + 1);
+  // Before that: the tree with hero trees. The monks keep loadouts of an
+  // old tree (781) beside the live one (1000); both are shared by all three
+  // specs, the lower ID won, and every monk build was read without its
+  // hero talents - the Brewmaster's rotation stood empty (23 October).
+  const withHero = new Set(Object.entries(treesOut)
+    .filter(([, t]) => t.nodes.some((n) => n.subTree)).map(([id]) => Number(id)));
   const treeBySpec = {};
   for (const [spec, trees] of candidates) {
-    treeBySpec[spec] = [...trees].sort((a, b) => (sharedBy.get(b) - sharedBy.get(a)) || (a - b))[0];
+    treeBySpec[spec] = [...trees].sort((a, b) => (withHero.has(b) - withHero.has(a))
+      || (sharedBy.get(b) - sharedBy.get(a)) || (a - b))[0];
   }
   const subTrees = {};
   const deName = new Map(subTreesDE.map((r) => [Number(r.ID), r.Name_lang]));
