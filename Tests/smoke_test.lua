@@ -6788,9 +6788,11 @@ do
         == L["ROT_H_cd_need"]:format("#5", "1", L["ROT_H_per_raid"]))
     check("Heiler: in M+ je Key", heil({ hk = "cd", s = 5, use = 30, per = 1, m = "mplus" })
         == L["ROT_H_cd_need"]:format("#5", "1", L["ROT_H_per_mplus"]))
-    local boss = heil({ hk = "boss", name = "Nekzali", dur = 284, cds = { { s = 5, t = { 71, 252 } } } })
-    check("Heiler: Zeitpunkte je Boss", boss:find("1:11", 1, true) ~= nil and boss:find("4:12", 1, true) ~= nil
-        and boss:find("4:44", 1, true) ~= nil, boss)
+    local kopf = heil({ hk = "bosshead", name = "Nekzali", dur = 284 })
+    check("Heiler: Boss als Ueberschrift mit Kampflaenge", kopf:find("Nekzali", 1, true) ~= nil
+        and kopf:find("4:44", 1, true) ~= nil, kopf)
+    local boss = heil({ hk = "bosscd", s = 5, t = { 71, 252 } })
+    check("Heiler: je Cooldown eine Zeile mit Zeitpunkten", boss == L["ROT_H_bosscd"]:format("#5", "1:11" .. L["ROT_AND"] .. "4:12"), boss)
     check("Heiler: der erste Reiter ist das Grundgeruest",
         ns.UI.RotationTab({ heal = true, core = { { s = 5, pct = 100, cpm = 20 } }, cds = {} }) == "core")
     -- Eine Aufladung, nicht "1 Aufladungen".

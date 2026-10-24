@@ -7353,15 +7353,16 @@ do
         end
         if k == "cd" then return nutzung(line, nm, "cd") end
         if k == "item" then return nutzung(line, nm, "cd") end
-        if k == "boss" then
-            local teile = {}
-            for _, c in ipairs(line.cds or {}) do
-                local zeiten = {}
-                for _, t in ipairs(c.t or {}) do zeiten[#zeiten + 1] = mmss(t) end
-                teile[#teile + 1] = L["ROT_H_boss_cd"]:format(nm(c.s), liste(zeiten))
-            end
+        -- Je Boss eine Ueberschrift, darunter je Cooldown eine Zeile: als
+        -- ein Satz je Boss war es eine Textwand (24. Oktober).
+        if k == "bosshead" then
             local name = (line.enc and ns.Compat.EncounterName and ns.Compat.EncounterName(line.enc)) or line.name or "?"
-            return L["ROT_H_boss"]:format(name, mmss(line.dur), table.concat(teile, "; "))
+            return L["ROT_H_bosshead"]:format(name, mmss(line.dur))
+        end
+        if k == "bosscd" then
+            local zeiten = {}
+            for _, t in ipairs(line.t or {}) do zeiten[#zeiten + 1] = mmss(t) end
+            return L["ROT_H_bosscd"]:format(nm(line.s), liste(zeiten))
         end
         return ""
     end
@@ -7405,7 +7406,8 @@ do
             for _, x in ipairs(r.cds or {}) do out[#out + 1] = { hk = "cd", s = x.s, pct = x.pct, per = x.per, use = x.use, m = r.m } end
         elseif tab == "bosses" then
             for _, b in ipairs(r.bosses or {}) do
-                out[#out + 1] = { hk = "boss", name = b.name, enc = b.enc, dur = b.dur, n = b.n, cds = b.cds }
+                out[#out + 1] = { hk = "bosshead", name = b.name, enc = b.enc, dur = b.dur }
+                for _, c in ipairs(b.cds or {}) do out[#out + 1] = { hk = "bosscd", s = c.s, t = c.t } end
             end
         elseif tab == "items" then
             for _, x in ipairs(r.items or {}) do out[#out + 1] = { hk = "item", s = x.s, pct = x.pct, per = x.per, use = x.use, m = r.m } end
@@ -7515,6 +7517,8 @@ do
         if not r then return "" end
         if r.heal then
             local text = L["ROT_H_HINT"]:format(r.n or 0)
+            -- Zeitpunkte gibt es nur im Raid: ein Key hat viele Pulls.
+            if r.m ~= "mplus" then text = text .. " " .. L["ROT_H_HINT_TIMES"] end
             if ns.version == "dev" then text = "|cffD29922DEV-Vorschau.|r  " .. text end
             return text
         end
@@ -7748,14 +7752,14 @@ do
             tl.endText:SetPoint("TOP", tl.icons[#alle], "BOTTOM", 0, -6)
             tl.endText:SetWidth(TL_STEP + 40)
             tl.endText:SetJustifyH("CENTER")
-            tl.endText:SetText(L["ROT_CONTINUE"])
+            tl.endText:SetText(r.heal and L["ROT_H_CONTINUE"] or L["ROT_CONTINUE"])
             tl.endText:Show()
             y = iconY + TL_ICON + 6 + (tonumber(tl.endText:GetStringHeight()) or 28)
         else
             tl.endText:SetPoint("LEFT", tl.pull, "RIGHT", 12, 0)
             tl.endText:SetWidth(150)
             tl.endText:SetJustifyH("LEFT")
-            tl.endText:SetText(L["ROT_CONTINUE"])
+            tl.endText:SetText(r.heal and L["ROT_H_CONTINUE"] or L["ROT_CONTINUE"])
             tl.endText:Show()
             y = iconY + TL_ICON
         end
@@ -7851,8 +7855,18 @@ do
             e:SetWidth(innen)
             nr = nr + 1
             -- Beim Heiler keine Rangfolge: nach Haeufigkeit, nicht Prioritaet.
-            e.nr:SetText(r.heal and "|cffffd100•|r" or ("|cffffd100" .. nr .. ".|r"))
-            e.text:SetWidth(satzW)
+            -- Eine Boss-Ueberschrift steht ohne Punkt am linken Rand, mit
+            -- Luft zum Boss davor.
+            local kopfzeile = line.hk == "bosshead"
+            if kopfzeile and i > 1 then
+                y = y + 8
+                e:ClearAllPoints()
+                e:SetPoint("TOPLEFT", PAD, -y)
+            end
+            e.nr:SetText(kopfzeile and "" or (r.heal and "|cffffd100•|r" or ("|cffffd100" .. nr .. ".|r")))
+            e.text:ClearAllPoints()
+            e.text:SetPoint("TOPLEFT", kopfzeile and 0 or TEXT_X, 0)
+            e.text:SetWidth(kopfzeile and innen or satzW)
             local letzte = i == #lines and not line.c and not line.any and not line.t
             e.text:SetText(satz(line, tab, letzte, gold))
             local h = math.ceil(tonumber(e.text:GetStringHeight()) or 16)
