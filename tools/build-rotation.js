@@ -28,6 +28,7 @@ const opener = require('./lib/opener');
 const { simcBuffMap } = require('./lib/simc-buffs');
 const { simplify, simpleConditions } = require('./lib/simplify');
 const { MIN_SPELLS } = require('./lib/casts');
+const healing = require('./lib/healing');
 const { buildReplacements, replacedNames: namesReplaced } = require('./lib/replace');
 const { worthRetrying, waitSeconds } = require('./lib/http-retry');
 
@@ -199,12 +200,12 @@ const bare = (s) => String(s || '').replace(/_/g, '');
   const db2 = async (table, extra) => parseCSV(await patient(`https://wago.tools/db2/${table}/csv?build=${build}${extra || ''}`));
   const [spellNames, specSpells, skillLines, chrSpecs, overrides, traitDefs, spellMisc, durations,
     spellTexts, classOptions, chrClasses, spellCooldowns, auraOptions, spellPower, itemRows,
-    spellCategories, spellCategory] = await Promise.all([
+    spellCategories, spellCategory, itemEffects] = await Promise.all([
     db2('SpellName'), db2('SpecializationSpells'), db2('SkillLineAbility'), db2('ChrSpecialization'),
     db2('SpellEffect', '&filter%5BEffectAura%5D=332'),
     db2('TraitDefinition'), db2('SpellMisc'), db2('SpellDuration'),
     db2('Spell'), db2('SpellClassOptions'), db2('ChrClasses'), db2('SpellCooldowns'), db2('SpellAuraOptions'),
-    db2('SpellPower'), db2('Item'), db2('SpellCategories'), db2('SpellCategory'),
+    db2('SpellPower'), db2('Item'), db2('SpellCategories'), db2('SpellCategory'), db2('ItemEffect'),
   ]);
   const nameEN = new Map(spellNames.map((r) => [Number(r.ID), r.Name_lang]));
   // A talent's spell is often its passive; the one on the bar is the trait's
@@ -1039,6 +1040,64 @@ const bare = (s) => String(s || '').replace(/_/g, '');
     delete out[s.id];
     report.push(`${s.id}: FAILED, left out - ${String(err && err.stack || err).split('\n').slice(0, 2).join(' ')}`);
    }
+  }
+  // THE HEALERS (24 October): no list to translate - a guide from what the
+  // measured top healers cast (tools/lib/healing.js). The bosses' cooldown
+  // minutes come from tools/data/heal-preview.json until the nightly
+  // collects them; where that file is the larger measurement, it stands in.
+  // An item's use - but never a spell the class learns: some item casts
+  // Chain Heal too, and the Resto Shaman lost his main heal to the items.
+  const learned = new Set([...skillLines.map((r) => Number(r.Spell)), ...specSpells.map((r) => Number(r.SpellID)),
+    ...traitDefs.map((r) => Number(r.SpellID)), ...traitDefs.map((r) => Number(r.VisibleSpellID))].filter(Boolean));
+  const itemSpells = new Set(itemEffects.map((r) => Number(r.SpellID)).filter((id) => id && !learned.has(id)));
+  const preview = (() => {
+    const f = path.join(BASE, 'tools', 'data', 'heal-preview.json');
+    try { return fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')).specs || {} : {}; } catch (e) { return {}; }
+  })();
+  const journalEnc = (() => {
+    try { return JSON.parse(fs.readFileSync(path.join(BASE, 'tools', 'data', 'journal-names.json'), 'utf8')).encounters || {}; } catch (e) { return {}; }
+  })();
+  const healGame = {
+    cd: (id) => Math.max(cdSeconds.get(id) || 0, rechargeSeconds.get(id) || 0),
+    isItem: (id) => itemSpells.has(id),
+    // English text: damage, and neither heals nor absorbs - Holy Shock does
+    // both and stays a heal; a shield that "absorbs damage" is none.
+    isDamage: (id) => { const t = (textOf.get(id) || { d: '' }).d; return /damage/i.test(t) && !/heal|absorb/i.test(t); },
+    nameOf: (id) => slug(nameEN.get(id)),
+  };
+  for (const s of catSpecs.filter((x) => x.role === 'healer')) {
+    try {
+      for (const mode of ['mplus', 'raid']) {
+        const night = castsBy[mode] && castsBy[mode].get(s.id);
+        const pv = preview[s.id] && preview[s.id][mode];
+        const nachts = night && night.players >= MIN_MEASURED
+          ? { players: night.players, minutes: night.minutes, by: [...night.by].map(([g, [n, wer]]) => [g, n, wer]) } : null;
+        // The preview is a sample of the very top: fewer than 15 say too little.
+        const pvOk = pv && pv.casts && pv.casts.players >= 15 ? pv : null;
+        const casts = nachts && (!pvOk || nachts.players >= pvOk.casts.players) ? nachts : (pvOk && pvOk.casts);
+        const openers = mode === 'raid' ? (openersBySpec.get(s.id) || (pv && pv.openers) || []) : [];
+        const g = healing.guide({ casts, openers, bosses: pvOk && pvOk.bosses }, healGame);
+        if (!g) { report.push(`${s.id} healer ${mode}: not measured`); continue; }
+        g.src = 'warcraftlogs.com';
+        g.m = mode;
+        // The game names the boss in the player's language (EJ_GetEncounterInfo);
+        // in the raid's order.
+        if (g.bosses) {
+          for (const b of g.bosses) {
+            const j = journalEnc[b.name];
+            if (j) { b.enc = j.enc; b.order = j.order; }
+          }
+          g.bosses.sort((a, b) => (a.order || 99) - (b.order || 99));
+          for (const b of g.bosses) delete b.order;
+        }
+        (out[s.id] = out[s.id] || {})[mode] = g;
+        report.push(`${s.id} healer ${mode}: ${g.n} players, core ${g.core.length}, cds ${g.cds.length}`
+          + `${g.bosses ? ', bosses ' + g.bosses.length : ''}${casts === nachts ? '' : ' (preview)'}`);
+      }
+    } catch (err) {
+      delete out[s.id];
+      report.push(`${s.id} healer: FAILED, left out - ${String(err && err.message || err)}`);
+    }
   }
   console.log(report.join('\n'));
   if (vague) {

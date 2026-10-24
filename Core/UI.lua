@@ -7329,8 +7329,46 @@ do
     -- Nur Klares: was SimulationCraft zusaetzlich rechnet, nimmt schon der
     -- Generator heraus (tools/lib/simplify.js) - kein "unter bestimmten
     -- Umstaenden", kein Zeichen dafuer (21. Oktober).
+    -- DER HEILER-GUIDE (24. Oktober): gemessen, keine Prioritaet. Was Top-
+    -- Heiler wirken, wie oft, und wie sie ihre Cooldowns nutzen
+    -- (tools/lib/healing.js).
+    local function mmss(sek)
+        sek = math.floor((tonumber(sek) or 0) + 0.5)
+        return ("%d:%02d"):format(math.floor(sek / 60), sek % 60)
+    end
+    local function nutzung(line, nm, art)
+        local name = nm(line.s)
+        -- Im Raid je Kampf, in M+ je Key: ein Key ist ein Lauf, kein Kampf.
+        local je = L["ROT_H_per_" .. (line.m == "mplus" and "mplus" or "raid")]
+        if line.use and line.use >= 85 then return L["ROT_H_" .. art .. "_on"]:format(name, line.use) end
+        if line.use and line.use >= 50 then return L["ROT_H_" .. art .. "_aim"]:format(name, zahl(line.per), je, line.use) end
+        return L["ROT_H_" .. art .. "_need"]:format(name, zahl(line.per), je)
+    end
+    local function heilSatz(line, nm)
+        local k = line.hk
+        if k == "core" or k == "dmg" then
+            local base = L["ROT_H_" .. k]:format(nm(line.s), zahl(line.cpm))
+            if (line.pct or 100) < 90 then base = base .. " " .. L["ROT_H_share"]:format(line.pct) end
+            return base .. "."
+        end
+        if k == "cd" then return nutzung(line, nm, "cd") end
+        if k == "item" then return nutzung(line, nm, "cd") end
+        if k == "boss" then
+            local teile = {}
+            for _, c in ipairs(line.cds or {}) do
+                local zeiten = {}
+                for _, t in ipairs(c.t or {}) do zeiten[#zeiten + 1] = mmss(t) end
+                teile[#teile + 1] = L["ROT_H_boss_cd"]:format(nm(c.s), liste(zeiten))
+            end
+            local name = (line.enc and ns.Compat.EncounterName and ns.Compat.EncounterName(line.enc)) or line.name or "?"
+            return L["ROT_H_boss"]:format(name, mmss(line.dur), table.concat(teile, "; "))
+        end
+        return ""
+    end
+
     local function satz(line, tab, last, nm)
         nm = nm or zauber
+        if line.hk then return heilSatz(line, nm) end
         if line.ik and line.ik ~= "racial" then return gegenstandSatz(line, nm) end
         local name = nm(line.s)
         if line.keepUp then return L["ROT_S_keep"]:format(name) end
@@ -7347,9 +7385,37 @@ do
 
     -- Die Reiter, in der Reihenfolge wie bei Wowhead.
     local TABS = { "st", "aoe", "pre", "items" }
+    local HEAL_TABS = { "core", "cds", "bosses", "items" }
+    -- Alle Knoepfe einer Karte, in Anzeigereihenfolge; gezeigt werden die
+    -- der Art (Schaden/Tank oder Heiler).
+    local ALL_TABS = { "st", "aoe", "pre", "core", "cds", "bosses", "items" }
+    local function reiterVon(r) return (r and r.heal) and HEAL_TABS or TABS end
+    local function hatReiter(r, key)
+        for _, k in ipairs(reiterVon(r)) do if k == key then return true end end
+        return false
+    end
+
+    ---Die Zeilen eines Reiters beim Heiler.
+    local function heilZeilen(r, tab)
+        local out = {}
+        if tab == "core" then
+            for _, x in ipairs(r.core or {}) do out[#out + 1] = { hk = "core", s = x.s, pct = x.pct, cpm = x.cpm } end
+            for _, x in ipairs(r.dmg or {}) do out[#out + 1] = { hk = "dmg", s = x.s, pct = x.pct, cpm = x.cpm } end
+        elseif tab == "cds" then
+            for _, x in ipairs(r.cds or {}) do out[#out + 1] = { hk = "cd", s = x.s, pct = x.pct, per = x.per, use = x.use, m = r.m } end
+        elseif tab == "bosses" then
+            for _, b in ipairs(r.bosses or {}) do
+                out[#out + 1] = { hk = "boss", name = b.name, enc = b.enc, dur = b.dur, n = b.n, cds = b.cds }
+            end
+        elseif tab == "items" then
+            for _, x in ipairs(r.items or {}) do out[#out + 1] = { hk = "item", s = x.s, pct = x.pct, per = x.per, use = x.use, m = r.m } end
+        end
+        return out
+    end
 
     ---Die Zeilen eines Reiters.
     local function zeilenVon(r, tab)
+        if r and r.heal then return heilZeilen(r, tab) end
         -- Traenke & Schmuck: der gemessene Trank, die beiden Arten Schmuck,
         -- und die Volksfaehigkeit, die dieser Charakter kennt.
         if tab == "items" then
@@ -7385,8 +7451,8 @@ do
     ---Welcher Reiter offen ist. Einer ohne Zeilen wird nicht gezeigt.
     function UI.RotationTab(r)
         local tab = MetaCodexDB and MetaCodexDB.rotationTab or "st"
-        if r and #zeilenVon(r, tab) == 0 then
-            for _, t in ipairs(TABS) do if #zeilenVon(r, t) > 0 then return t end end
+        if r and (not hatReiter(r, tab) or #zeilenVon(r, tab) == 0) then
+            for _, t in ipairs(reiterVon(r)) do if #zeilenVon(r, t) > 0 then return t end end
         end
         return tab
     end
@@ -7447,6 +7513,11 @@ do
     function UI.RotationHint(specID, mode)
         local r = UI.RotationVariant(specID, ns.Recommend.Rotation(specID, mode))
         if not r then return "" end
+        if r.heal then
+            local text = L["ROT_H_HINT"]:format(r.n or 0)
+            if ns.version == "dev" then text = "|cffD29922DEV-Vorschau.|r  " .. text end
+            return text
+        end
         local held = r.hero and ns.Catalog.SubTreeName and ns.Catalog.SubTreeName(r.hero) or "?"
         local text = L["ROT_HINT"]:format(held, r.n or 0) .. "  " .. L["ROT_NO_TRINKET"]
         if r.set then text = text .. "  " .. L["ROT_SET"] end
@@ -7567,7 +7638,7 @@ do
         S:Fill(f, "bgRaised")
         S:Border(f, "borderSubtle")
         f.tabs = {}
-        for i, key in ipairs(TABS) do
+        for i, key in ipairs(ALL_TABS) do
             local b = makeButton(f, 130, TAB_H, L["ROT_TAB_" .. key], function()
                 MetaCodexDB.rotationTab = key
                 UI.Refresh()
@@ -7718,7 +7789,7 @@ do
         local tab = UI.RotationTab(r)
         local x = PAD
         for _, b in ipairs(f.tabs) do
-            local n = #zeilenVon(r, b.key)
+            local n = hatReiter(r, b.key) and #zeilenVon(r, b.key) or 0
             b.label:SetText(L["ROT_TAB_" .. b.key])
             local bw = math.max(110, (tonumber(b.label:GetStringWidth()) or 80) + 32)
             b:SetWidth(bw)
@@ -7759,14 +7830,16 @@ do
         local y = PAD + TAB_H + 18
 
         -- Der Beispiel-Ablauf, nur beim Einzelziel - wie bei Wowhead.
-        if tab == "st" then
+        if tab == "st" or tab == "core" then
             y = zeitleiste(f, r, y, innen)
         else
             zeitleiste(f, { st = {} }, y, innen)
         end
 
         -- Die Prioritaet.
-        setzeUeberschrift(f.headPrio, (tab == "pre" or tab == "items") and L["ROT_TAB_" .. tab] or L["ROT_PRIORITY"], y, innen)
+        local kopf = r.heal and L["ROT_H_HEAD_" .. tab]
+            or ((tab == "pre" or tab == "items") and L["ROT_TAB_" .. tab] or L["ROT_PRIORITY"])
+        setzeUeberschrift(f.headPrio, kopf, y, innen)
         y = y + 24 + 16
         local lines = zeilenVon(r, tab)
         local nr = 0
@@ -7777,7 +7850,8 @@ do
             e:SetPoint("TOPLEFT", PAD, -y)
             e:SetWidth(innen)
             nr = nr + 1
-            e.nr:SetText("|cffffd100" .. nr .. ".|r")
+            -- Beim Heiler keine Rangfolge: nach Haeufigkeit, nicht Prioritaet.
+            e.nr:SetText(r.heal and "|cffffd100•|r" or ("|cffffd100" .. nr .. ".|r"))
             e.text:SetWidth(satzW)
             local letzte = i == #lines and not line.c and not line.any and not line.t
             e.text:SetText(satz(line, tab, letzte, gold))

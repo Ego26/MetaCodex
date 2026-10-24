@@ -6773,6 +6773,26 @@ do
     check("kein Zeichen fuer Simuliertes", not klar:find("|H", 1, true) or klar:find("|Hmcvage", 1, true) == nil, klar)
     local nurVage = ns.UI.RotationSentence({ s = 1, more = true }, "st", false)
     check("kein 'unter bestimmten Umstaenden'", nurVage == L["ROT_S_cd"]:format("#1"), nurVage)
+    -- Der Heiler-Guide: gemessene Saetze, keine Prioritaet.
+    local heil = function(line) return ns.UI.RotationSentence(line, "core", false) end
+    check("Heiler: Grundgeruest mit Haeufigkeit", heil({ hk = "core", s = 5, pct = 100, cpm = 20 })
+        == L["ROT_H_core"]:format("#5", "20") .. ".", heil({ hk = "core", s = 5, pct = 100, cpm = 20 }))
+    check("Heiler: nicht alle - der Anteil steht dabei",
+        heil({ hk = "core", s = 5, pct = 70, cpm = 2.3 }):find(L["ROT_H_share"]:format(70), 1, true) ~= nil,
+        heil({ hk = "core", s = 5, pct = 70, cpm = 2.3 }))
+    check("Heiler: Cooldown sobald verfuegbar", heil({ hk = "cd", s = 5, use = 94, per = 2 })
+        == L["ROT_H_cd_on"]:format("#5", 94))
+    check("Heiler: Cooldown gezielt", heil({ hk = "cd", s = 5, use = 69, per = 2 })
+        == L["ROT_H_cd_aim"]:format("#5", "2", L["ROT_H_per_raid"], 69))
+    check("Heiler: Cooldown bei Bedarf", heil({ hk = "cd", s = 5, use = 30, per = 1 })
+        == L["ROT_H_cd_need"]:format("#5", "1", L["ROT_H_per_raid"]))
+    check("Heiler: in M+ je Key", heil({ hk = "cd", s = 5, use = 30, per = 1, m = "mplus" })
+        == L["ROT_H_cd_need"]:format("#5", "1", L["ROT_H_per_mplus"]))
+    local boss = heil({ hk = "boss", name = "Nekzali", dur = 284, cds = { { s = 5, t = { 71, 252 } } } })
+    check("Heiler: Zeitpunkte je Boss", boss:find("1:11", 1, true) ~= nil and boss:find("4:12", 1, true) ~= nil
+        and boss:find("4:44", 1, true) ~= nil, boss)
+    check("Heiler: der erste Reiter ist das Grundgeruest",
+        ns.UI.RotationTab({ heal = true, core = { { s = 5, pct = 100, cpm = 20 } }, cds = {} }) == "core")
     -- Eine Aufladung, nicht "1 Aufladungen".
     check("eine Aufladung", say({ "charges", 5, 1 }) == L["ROT_C_charges1"]:format("#5"), say({ "charges", 5, 1 }))
     check("fast eine Aufladung", say({ "charges", 5, 0.8 }) == L["ROT_C_chargesnear1"]:format("#5"), say({ "charges", 5, 0.8 }))
