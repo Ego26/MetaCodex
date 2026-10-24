@@ -514,6 +514,7 @@ ns.RegisterLocale("enUS", {
     ["ROT_RES_rune"] = "Runes",
     ["ROT_RES_runes"] = "Runes",
     ["ROT_RES_pain"] = "Pain",
+    ["ROT_RES_soul_fragments"] = "Soul Fragments",
     ["RACE_HINT"] = "Left: share of the measured top players. Right: simulated DPS over the weakest race (bloodmallet.com, SimulationCraft) - below 0.2 % it is noise. Hover for the racial abilities.",
     ["RACE_HINT_NOSIM"] = "Share of the measured top players. There is no simulation for this spec. Hover for the racial abilities.",
     ["RACE_GROUP_alliance"] = "Alliance",

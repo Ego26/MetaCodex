@@ -6735,6 +6735,22 @@ do
         say({ "charges", 5, 1.8 }))
     check("die Ressource beim Namen", say({ "resmin", "maelstrom", 83 }) == L["ROT_C_resmin"]:format("83", L["ROT_RES_maelstrom"]))
     check("eine unbekannte Ressource ohne Unterstrich", say({ "resmin", "astral_dust", 3 }):find("astral dust", 1, true) ~= nil)
+    -- JEDE RESSOURCE DER DATEN hat einen Namen in der Sprache des Spielers:
+    -- "soul fragments" stand im deutschen Spiel (25. Oktober).
+    local ohneName, schonDa = {}, {}
+    local function ressourcen(x)
+        if type(x) ~= "table" then return end
+        if type(x[1]) == "string" and x[1]:find("^res") and type(x[2]) == "string"
+            and L["ROT_RES_" .. x[2]] == "ROT_RES_" .. x[2] and not schonDa[x[2]] then
+            schonDa[x[2]] = true
+            ohneName[#ohneName + 1] = x[2]
+        end
+        for _, v in pairs(x) do ressourcen(v) end
+    end
+    ns.Recommend.Rotation(62, "raid") -- laedt das Datenaddon, wenn es fehlt
+    local rec = rawget(_G, "MetaCodex_Recommendations")
+    ressourcen(rec and rec.rotation)
+    check("jede Ressource der Rotation hat einen Namen", #ohneName == 0, table.concat(ohneName, ", "))
     check("Unbekanntes ehrlich", say({ "other" }) == L["ROT_C_other"])
     -- JEDE SATZART, die der Generator schreibt, hat eine Vorlage.
     local ARTEN = {

@@ -603,6 +603,9 @@ function compare(e, spell) {
   if (p[0] === 'target' && p[1] === 'health' && p[2] === 'pct' && n !== null) {
     return (op === '<' || op === '<=') ? ['hpunder', n] : ['hpover', n];
   }
+  // "time=0" is the pull (Protection's Charge), not "0 seconds into the
+  // fight" - 25 October.
+  if (at === 'time' && n === 0 && (op === '=' || op === '==')) return ['timeunder', 1];
   if (at === 'time' && n !== null) return (op === '<' || op === '<=') ? ['timeunder', n] : ['timeover', n];
   return generic();
 }

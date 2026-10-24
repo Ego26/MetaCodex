@@ -969,6 +969,10 @@ const bare = (s) => String(s || '').replace(/_/g, '');
             const recharge = Math.max(0, ...[id, ...kandidaten(k)].map((x) => rechargeSeconds.get(x) || 0));
             return Math.max(cdOf(k) || 0, recharge) >= 20;
           },
+          // So does a spell most measured top players cast (Kill Command) -
+          // and, unmeasured, every spell SimC's list has: without casts
+          // there is nothing that says it is not played.
+          isPlayed: (id) => (share ? share(slug(nameEN.get(id))) >= 0.5 : true),
           nameOf: (id) => nameEN.get(id) || String(id),
         };
         st.lines = simplify(st.lines, einfach);

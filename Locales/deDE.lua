@@ -514,6 +514,7 @@ ns.RegisterLocale("deDE", {
     ["ROT_RES_rune"] = "Runen",
     ["ROT_RES_runes"] = "Runen",
     ["ROT_RES_pain"] = "Schmerz",
+    ["ROT_RES_soul_fragments"] = "Seelenfragmente",
     ["RACE_HINT"] = "Links: Anteil der gemessenen Top-Spieler. Rechts: simulierter DPS gegenüber der schwächsten Rasse (bloodmallet.com, SimulationCraft) – unter 0,2 % ist es Rauschen. Zeiger drauf zeigt die Rassenfähigkeiten.",
     ["RACE_HINT_NOSIM"] = "Anteil der gemessenen Top-Spieler. Für diese Spec gibt es keine Simulation. Zeiger drauf zeigt die Rassenfähigkeiten.",
     ["RACE_GROUP_alliance"] = "Allianz",

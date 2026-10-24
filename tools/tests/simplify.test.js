@@ -84,6 +84,39 @@ check('nach einer Zeile ohne Bedingung geht es weiter',
   s([{ s: 1 }, { s: 2, c: [['up', 6]] }, { s: 3 }]), [[1, [], undefined], [2, [['up', 6]], undefined], [3, [], undefined]]);
 check('ohne Bedingung schon oben: spaetere Zeilen des Zaubers fallen weg',
   s([{ s: 1 }, { s: 2, c: [['up', 6]] }, { s: 1, c: [['up', 5]] }]), [[1, [], undefined], [2, [['up', 6]], undefined]]);
+// Tierherrschaft, 25. Oktober: Toetungsbefehl hing an "Heulen bereit oder ...".
+check('ein Zauber, den die meisten Top-Spieler wirken, bleibt sobald verfuegbar',
+  simplify([{ s: 1 }, { s: 2, more: true }, { s: 4, c: [['up', 5]] }, { s: 3 }],
+    { isCooldown: () => false, isPlayed: (id) => id === 2 }).map((l) => [l.s, l.c]),
+  [[1, []], [2, []], [4, [['up', 5]]], [3, []]]);
+check('die letzte Zeile ist der Fueller, auch wenn ihre Bedingung vage ist',
+  simplify([{ s: 1, c: [['up', 5]] }, { s: 2 }, { s: 3, c: [['cmp', ['cd', 9], 'gt', ['gcd']]] }])
+    .map((l) => [l.s, l.c]), [[1, [['up', 5]]], [2, []], [3, []]]);
+// Feuer, 25. Oktober: "Einaeschern, wenn Einaeschern aktiv oder bereit ist".
+check('"wenn X bereit ist" sagt bei X selbst nichts',
+  s([{ s: 7, c: [['or', ['up', 7], ['ready', 7]]] }, { s: 2 }]), [[7, [], undefined], [2, [], undefined]]);
+check('nicht aktiv und (aktiv oder bereit) ist nicht aktiv und bereit',
+  s([{ s: 1, c: [['down', 7], ['or', ['up', 7], ['ready', 7]]] }]), [[1, [['down', 7], ['ready', 7]], undefined]]);
+check('A oder (nicht A und B) ist A oder B',
+  s([{ s: 1, any: [[['up', 5]], [['down', 5], ['up', 6]]] }]), [[1, [['or', ['up', 5], ['up', 6]]], undefined]]);
+check('ein Zweig, den die Zeile ausschliesst, faellt weg',
+  s([{ s: 1, c: [['down', 7]], any: [[['up', 7], ['up', 5]], [['up', 6], ['ready', 8]]] }]),
+  [[1, [['down', 7], ['up', 6], ['ready', 8]], undefined]]);
+check('eine gerettete Zeile behaelt ihren Ablauf und die Combopunkte',
+  simplify([{ s: 2, c: [['or', ['and', ['refresh', 2], ['cmp', 1, 'gt', 2]], ['and', ['resmin', 'combo_points', 6], ['cmp', 3, 'gt', 4]]]] }, { s: 4 }],
+    { isPlayed: () => true }).map((l) => [l.s, l.c]), [[2, [['refresh', 2], ['resmin', 'combo_points', 6]]], [4, []]]);
+check('Schattenschlag: verstohlen sagt mehr als die Energie',
+  simplify([{ s: 2, c: [['or', ['and', ['stealthed'], ['cmp', 1, 'gt', 2]], ['and', ['resmin', 'energy', 61], ['cmp', 3, 'gt', 4]]]] }, { s: 4 }],
+    { isPlayed: () => true }).map((l) => [l.s, l.c]), [[2, [['stealthed']]], [4, []]]);
+check('vier einfache Gruende: die ersten drei bleiben',
+  simplify([{ s: 2, c: [['or', ['or', ['or', ['up', 5], ['up', 6]], ['up', 7]], ['resmin', 'energy', 61]]] }, { s: 4 }],
+    { isPlayed: () => true }).map((l) => [l.s, l.c]), [[2, [['or', ['or', ['up', 5], ['up', 6]], ['up', 7]]]], [4, []]]);
+check('Verwuestung "oder in den ersten 5 Sekunden" ist kein Opener',
+  simplify([{ s: 2, c: [['or', ['cmp', 1, 'gt', 2], ['timeunder', 5]]] }, { s: 4 }], { isPlayed: () => true }).map((l) => l.s), [2, 4]);
+check('weniger als 5,2 Seelensplitter gilt immer',
+  s([{ s: 1, c: [['resunder', 'soul_shard', 5.2], ['down', 5]] }]), [[1, [['down', 5]], undefined]]);
+check('ein Zweig, der immer gilt, macht das Oder wahr',
+  s([{ s: 1, c: [['up', 6]], any: [[['charges', 1, 2]], [['resunder', 'soul_shard', 5.4]]] }]), [[1, [['up', 6]], undefined]]);
 
 // Trinkets und Traenke: dieselben Regeln.
 check('Bedingungen eines Gegenstands: einfach, nichts doppelt',

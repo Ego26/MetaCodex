@@ -12,7 +12,9 @@
 //      number of targets, the target's health, an empowered bleed.
 //   2. Nothing vague: what SimC computes besides falls away silently; a line
 //      with no understandable condition left falls away entirely - unless
-//      it is a cooldown the list would lose, which then stays "on cooldown".
+//      it is a cooldown or a spell most top players cast that the list
+//      would lose, which then stays "on cooldown", or the list's filler.
+//      A condition that can never hold beside the others goes too.
 //   3. Short: at most three conditions. Of a "one of" the plain parts stay
 //      (each of them alone is reason enough to cast), at most three, and two
 //      of one kind become one: "below 35 or below 20 percent" is "below 35".
@@ -28,9 +30,9 @@
 //      of a spell that stands further in the list too, the most conditions
 //      first. No spell leaves the list.
 //
-// No line becomes unconditional here except a rescued cooldown or a line
-// whose only conditions always held: a line whose conditions all fall away
-// goes. So the filler stays where SimulationCraft put it.
+// No line becomes unconditional here except a rescued spell, the last line
+// or a line whose only conditions always held: a line whose conditions all
+// fall away goes. So the filler stays where SimulationCraft put it.
 
 // The conditions a player checks - and in which order they matter most:
 // the number of targets first, then the spell's own state, then resources.
@@ -52,6 +54,8 @@ const BELOW = new Set(['tgtmax', 'hpunder', 'resunder', 'respctunder', 'stackund
 const GEGENTEIL = { ready: 'notready', up: 'down', stealthed: 'notstealthed', placed: 'notplaced' };
 
 const WAHR = ['true'];
+// The most a resource holds, where it never changes.
+const OBEN = { soul_shard: 5, soul_shards: 5, holy_power: 5 };
 
 // Fine tuning a guide leaves out, even when the kind is a plain one.
 function feinabstimmung(c) {
@@ -83,7 +87,7 @@ function zusammen(teile, wie) {
  * @param {Array} c
  * @param {(c:Array)=>string} [wie]  what a player reads - two buffs of one name are one
  */
-function einfach(c, wie = key) {
+function einfach(c, wie = key, selbst = null) {
   if (!Array.isArray(c)) return null;
   if (c[0] === 'or') {
     const teile = [];
@@ -92,7 +96,7 @@ function einfach(c, wie = key) {
     };
     sammle(c);
     // Each part alone is reason enough to cast: the plain ones stay.
-    const roh = teile.map((t) => einfach(t, wie));
+    const roh = teile.map((t) => einfach(t, wie, selbst));
     if (roh.some((x) => x === WAHR)) return WAHR;
     const ok = zusammen(roh.filter((x) => x && x[0] !== 'or' && x[0] !== 'and'), wie);
     // "X ready or X not ready": always.
@@ -104,6 +108,11 @@ function einfach(c, wie = key) {
     return ok.reduce((acc, x) => (acc ? ['or', acc, x] : x), null);
   }
   if (c[0] === 'and') return null;
+  // "Cast Combustion when Combustion is ready": a spell is cast when it is
+  // ready (25 October, Fire's "Combustion active or ready").
+  if (c[0] === 'ready' && selbst && wie(['', c[1]]) === selbst) return WAHR;
+  // "Fewer than 5.2 soul shards": there are never more than five.
+  if (c[0] === 'resunder' && OBEN[c[1]] !== undefined && c[2] > OBEN[c[1]]) return WAHR;
   // A dot on none or one target reads as the dot down or up.
   if (c[0] === 'doton' && c[2] === 0) return ['down', c[1]];
   if (c[0] === 'doton' && c[2] === 1) return ['up', c[1]];
@@ -127,6 +136,76 @@ function ohneDoppel(bekannt, wie) {
   // "Enough runic power and nearly full": the threshold says it.
   out = out.filter((c) => c[0] !== 'resenough' || !out.some((d) => d !== c && RES.has(d[0]) && d[1] === c[1]));
   return out;
+}
+
+/**
+ * What can never hold, out of a line (25 October). The merged lists of Fire
+ * read "Combustion not active and (Combustion active or ready)" and
+ * "Heat Shimmer active or (Heat Shimmer not active and Pyroclasm active)":
+ * a part that the line's own conditions rule out goes, and of "A or (not A
+ * and B)" stays "A or B".
+ */
+function ohneWiderspruch(bekannt, any, wie) {
+  const name = (id) => wie(['', id]);
+  const gegen = (c) => (c[0] === 'up' ? 'down' : c[0] === 'down' ? 'up' : null);
+  const fest = new Set(bekannt.filter((c) => c[0] === 'up' || c[0] === 'down').map((c) => c[0] + name(c[1])));
+  const unmoeglich = (c) => gegen(c) && fest.has(gegen(c) + name(c[1]));
+  const c = bekannt.map((x) => {
+    if (x[0] !== 'or') return x;
+    const teile = [];
+    const sammle = (y) => { if (y[0] === 'or') { sammle(y[1]); sammle(y[2]); } else teile.push(y); };
+    sammle(x);
+    const bleibt = teile.filter((t) => !unmoeglich(t));
+    if (!bleibt.length || bleibt.length === teile.length) return x;
+    return bleibt.reduce((acc, y) => (acc ? ['or', acc, y] : y), null);
+  });
+  if (!any) return { c, any };
+  let zweige = any.filter((g) => !g.some(unmoeglich));
+  if (!zweige.length) return { c, any };
+  // "A or (not A and B)": when A does not hold, not A does.
+  const allein = new Set(zweige.filter((g) => g.length === 1 && gegen(g[0])).map((g) => g[0][0] + name(g[0][1])));
+  zweige = zweige.map((g) => (g.length > 1 ? g.filter((x) => !(gegen(x) && allein.has(gegen(x) + name(x[1])))) : g));
+  if (zweige.length === 1) return { c: [...c, ...zweige[0]], any: undefined };
+  if (zweige.every((g) => g.length === 1)) {
+    const oder = zusammen(zweige.map((g) => g[0]), wie).reduce((acc, y) => (acc ? ['or', acc, y] : y), null);
+    return { c: [...c, oder], any: undefined };
+  }
+  return { c, any: zweige };
+}
+
+/**
+ * What a rescued line still says plainly, from anywhere in its conditions
+ * (25 October): its own effect running out and a resource threshold -
+ * "Garrote when Garrote is about to run out", "Dispatch at 6 or more combo
+ * points" - rather than a bare "on cooldown".
+ */
+const EIGEN = ['refresh', 'down', 'remunder'];
+function rettung(l, wie, selbst) {
+  // One "or" of plain parts, only too many of them: the first three, as
+  // SimC orders them - Shadowstrike "in Shadow Dance, Stealth or Vanish".
+  if ((l.c || []).length === 1 && l.c[0][0] === 'or' && !l.any) {
+    const teile = [];
+    const flach = (x) => { if (x[0] === 'or') { flach(x[1]); flach(x[2]); } else teile.push(x); };
+    flach(l.c[0]);
+    const klar = teile.map((t) => einfach(t, wie, selbst));
+    if (klar.length > 3 && klar.every((x) => x && x !== WAHR && x[0] !== 'or')) {
+      return [zusammen(klar, wie).slice(0, 3).reduce((acc, y) => (acc ? ['or', acc, y] : y), null)];
+    }
+  }
+  const blaetter = [];
+  const sammle = (x) => {
+    if (!Array.isArray(x)) return;
+    if (x[0] === 'or' || x[0] === 'and') { sammle(x[1]); sammle(x[2]); return; }
+    const e = einfach(x, wie, selbst);
+    if (e && e !== WAHR) blaetter.push(e);
+  };
+  (l.c || []).forEach(sammle);
+  (l.any || []).forEach((g) => g.forEach(sammle));
+  const eigen = EIGEN.map((k) => blaetter.find((e) => e[0] === k && wie(['', e[1]]) === selbst)).find(Boolean);
+  // Shadowstrike only from stealth: that says more than an energy count.
+  const verstohlen = blaetter.find((e) => e[0] === 'stealthed');
+  const res = blaetter.find((e) => e[0] === 'resmin' || e[0] === 'resfull');
+  return [eigen, verstohlen || res].filter(Boolean);
 }
 
 /** At most MAX_LINES: refinements of a spell that stands further down go first. */
@@ -170,8 +249,9 @@ function simpleConditions(cs, opts = {}) {
 /**
  * @param {Array<{s:number, c?:Array, any?:Array, t?:Array, more?:boolean}>} lines
  * @param {{maxConds?:number, maxLines?:number, isCooldown?:(id:number)=>boolean,
- *          nameOf?:(id:number)=>string}} [opts]
+ *          isPlayed?:(id:number)=>boolean, nameOf?:(id:number)=>string}} [opts]
  *   isCooldown: a spell worth keeping "on cooldown" when its conditions fall away
+ *   isPlayed: the same for a spell most measured top players cast
  *   nameOf: the name a player reads - two buffs of one name are one to him
  * @returns {Array}
  */
@@ -182,12 +262,13 @@ function simplify(lines, opts = {}) {
   const out = [];
   const ohneBedingung = new Set();
   const verloren = [];
-  for (const l of lines) {
-    if (ohneBedingung.has(l.s)) continue;
+  lines.forEach((l, nr) => {
+    if (ohneBedingung.has(l.s)) return;
+    const selbst = wie(['', l.s]);
     let bekannt = [];
     let fehlt = Boolean(l.more);
     for (const c of l.c || []) {
-      const e = einfach(c, wie);
+      const e = einfach(c, wie, selbst);
       if (e === WAHR) continue;
       if (e) bekannt.push(e); else fehlt = true;
     }
@@ -195,21 +276,37 @@ function simplify(lines, opts = {}) {
     let any;
     if (l.any) {
       if (l.any.every((g) => g.length === 1)) {
-        const e = einfach(l.any.map((g) => g[0]).reduce((acc, x) => (acc ? ['or', acc, x] : x), null), wie);
+        const e = einfach(l.any.map((g) => g[0]).reduce((acc, x) => (acc ? ['or', acc, x] : x), null), wie, selbst);
         if (e && e !== WAHR) bekannt.push(e); else if (!e) fehlt = true;
       } else {
-        const zweige = l.any.map((g) => g.map((x) => einfach(x, wie)));
-        if (zweige.length <= 3 && zweige.every((g) => g.length && g.every((x) => x && x !== WAHR) && g.length <= 2)) any = zweige;
+        // A part that always holds says nothing; a branch of nothing else
+        // makes the whole "one of" hold.
+        const zweige = l.any.map((g) => g.map((x) => einfach(x, wie, selbst)).filter((x) => x !== WAHR));
+        if (zweige.some((g) => !g.length)) any = undefined;
+        else if (zweige.length <= 3 && zweige.every((g) => g.every(Boolean) && g.length <= 2)) any = zweige;
         else fehlt = true;
       }
     }
+    ({ c: bekannt, any } = ohneWiderspruch(bekannt, any, wie));
     bekannt = ohneDoppel(bekannt, wie);
     // Nothing understandable left of a line that had conditions: it goes.
     if (!bekannt.length && !any && fehlt) {
-      // Bound to the fight's clock (Charge "at the pull"): the opener, not
-      // "on cooldown".
-      if (!/"time(under|over)"/.test(key(l.c || []))) verloren.push({ s: l.s, at: out.length, t: l.t });
-      continue;
+      // Bound to the pull (Charge "in the first half second"): the opener,
+      // not "on cooldown". "After 18 seconds" is no opener: Fire lost
+      // Combustion to it (25 October).
+      // Only when the pull is a must: Havoc "or within the first 5 seconds"
+      // is no opener either.
+      if ((l.c || []).some((c) => c[0] === 'timeunder')) return;
+      // The list's last line is its filler, whatever SimC computes for it:
+      // Beast Mastery's Cobra Shot "when Bestial Wrath's cooldown is longer
+      // than a global cooldown" fell away and Barbed Shot read as the filler
+      // (25 October).
+      if (nr === lines.length - 1 && !out.some((o) => o.s === l.s && !o.c.length && !o.any)) {
+        out.push({ s: l.s, c: [], any: undefined, t: l.t });
+        return;
+      }
+      verloren.push({ s: l.s, at: out.length, t: l.t, c: rettung(l, wie, selbst) });
+      return;
     }
     bekannt.sort((x, y) => (RANG[x[0]] || 9) - (RANG[y[0]] || 9));
     const c = bekannt.slice(0, max);
@@ -217,18 +314,22 @@ function simplify(lines, opts = {}) {
     // A line above already says it: the same spell, with only some of these
     // conditions - whenever this line holds, that one held first.
     const teil = (o) => !o.any && o.c.every((x) => c.some((y) => wie(y) === wie(x)));
-    if (out.some((o) => o.s === neu.s && key(o.t) === key(neu.t) && (teil(o) || key(o.c) === key(neu.c) && key(o.any) === key(neu.any)))) continue;
+    if (out.some((o) => o.s === neu.s && key(o.t) === key(neu.t) && (teil(o) || key(o.c) === key(neu.c) && key(o.any) === key(neu.any)))) return;
     out.push(neu);
     if (!c.length && !any) ohneBedingung.add(l.s);
-  }
-  // A cooldown the list would lose stays, where it first stood: on cooldown.
+  });
+  // A spell the list would lose stays, where it first stood, "on cooldown":
+  // a cooldown, or a spell most measured top players cast - Kill Command,
+  // Beast Mastery's main button, fell away with SimC's "Howl ready or ..."
+  // (25 October).
   const rein = [];
   for (const v of verloren) {
-    if (!opts.isCooldown || !opts.isCooldown(v.s)) continue;
+    const behalten = (opts.isCooldown && opts.isCooldown(v.s)) || (opts.isPlayed && opts.isPlayed(v.s));
+    if (!behalten) continue;
     if (out.some((o) => o.s === v.s) || rein.some((r) => r.s === v.s)) continue;
     rein.push(v);
   }
-  for (const v of rein.reverse()) out.splice(v.at, 0, { s: v.s, c: [], any: undefined, t: v.t });
+  for (const v of rein.reverse()) out.splice(v.at, 0, { s: v.s, c: v.c || [], any: undefined, t: v.t });
   // A line right before the same spell without condition says nothing more.
   const knapp = out.filter((o, i) => {
     const n = out[i + 1];

@@ -40,6 +40,9 @@ check('Buff eines fehlenden Talents ist nie aktiv',
 // Mit Bereichen: (0 oder 1) + 1 >= 1 gilt immer.
 check('Bereiche falten auch Summen',
   tab('actions=lava_burst,if=buff.stormkeeper.up+talent.earthquake>=1', [1, 1])[0].c, []);
+// "time=0" ist der Pull, nicht "der Kampf laeuft schon 0 Sekunden" (25. Oktober).
+check('time=0 ist der Pull',
+  tab('actions=ascendance,if=time=0\nactions+=/lightning_bolt', [1, 1])[0].c, [['timeunder', 1]]);
 // Zielzahl: im Einzelziel falsch, in der Flaeche offen und vorn.
 check('Flaechenzeile fehlt im Einzelziel',
   tab('actions=earthquake,if=spell_targets.chain_lightning>=5\nactions+=/lightning_bolt', [1, 1]).map((l) => l.s), [4]);
