@@ -2612,7 +2612,8 @@ do
     local lax = #ns.Remind.Check("raid")
     check("strengere Schwelle meldet nicht weniger", strict >= lax, strict .. " >= " .. lax)
     ns.Profile.SetWarnBelow(0.5)
-    check("Einkaufsknoepfe auch im Reiter", _G.MetaCodexFrame.createButton:IsShown())
+    check("keine Einkaufsknoepfe unten im Fenster", rawget(_G.MetaCodexFrame, "createButton") == nil
+        and rawget(_G.MetaCodexFrame, "searchButton") == nil)
     -- Die Verzauberungen stehen mit drin: der Test-Charakter hat
     -- unverzauberte Plaetze, also muessen offene Zeilen erscheinen.
     rowsInSection("remind")

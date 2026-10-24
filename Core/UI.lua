@@ -399,22 +399,9 @@ function UI.OpenSpecPicker(anchor)
             UI.Refresh()
         end)
 
-        -- Weitere Speccs fuer die EINKAUFSLISTE, nicht fuer die Anzeige.
-        -- Der Unterschied steht in der Ueberschrift, sonst sucht jemand
-        -- vergeblich nach zwei Spalten im Fenster.
-        local own = ns.Compat.SpecsForClass(ownClass)
-        if #own > 1 then
-            local sub = root:CreateButton(L["SPEC_ALSO_BUY"])
-            for _, spec in ipairs(own) do
-                sub:CreateCheckbox(spec.name, function()
-                    return ns.Profile.ListSpecs()[spec.id] == true
-                end, function()
-                    ns.Profile.ToggleListSpec(spec.id)
-                    UI.Refresh()
-                    return MenuResponse and MenuResponse.Refresh or nil
-                end)
-            end
-        end
+        -- KEIN "MIT EINKAUFEN FUER" MEHR (24. Oktober): es galt nur fuer die
+        -- Einkaufsknoepfe unten im Fenster, und die sind weg - eingekauft
+        -- wird am Auktionshaus, mit der Liste daneben.
         -- Klassenfarbe und Specsymbol: in WoW erkennt man eine Klasse an
         -- ihrer Farbe, lange bevor man ihren Namen gelesen hat. Ein
         -- schwarz-weisses Menue waere hier schlicht langsamer zu bedienen.
@@ -5187,16 +5174,12 @@ local function build()
     end)
     sourceHover:SetScript("OnLeave", function() GameTooltip:Hide() end)
     frame.sourceHover = sourceHover
-    sourceText:SetWidth(math.max(200, (savedW or WIDTH) - 360))
-
-    local search = makeButton(footer, 150, 28, L["BTN_SEARCH"], function() UI.Handover(true) end)
-    search:SetPoint("RIGHT", -S.space.lg, 0)
-    frame.searchButton = search
-
-    local create = makeButton(footer, 170, 28, L["BTN_CREATE_LIST"], function() UI.Handover(false) end)
-    create:SetPoint("RIGHT", search, "LEFT", -S.space.sm, 0)
-    frame.createButton = create
-    handoverHints(create, search)
+    -- KEINE EINKAUFSKNOEPFE UNTEN (24. Oktober). "Einkaufsliste anlegen"
+    -- und "Jetzt suchen" standen unter jedem Abschnitt, auch unter der
+    -- Rotation, und nuetzen nur am Auktionshaus - dort steht die Liste mit
+    -- denselben Knoepfen ohnehin daneben (UI.RefreshAuctionPanel), und das
+    -- Erinnerungsfenster hat sie auch.
+    sourceText:SetWidth(math.max(200, (savedW or WIDTH) - 60))
 
     -- Der Griff. Ein kleines Dreieck in der Ecke, wie es jedes Fenster
     -- hat, das man ziehen kann - ohne es sucht niemand danach.
@@ -6162,7 +6145,7 @@ function UI.Refresh()
     local reserved = (frame.controls:IsShown() or wrapped) and 0
         or (-S.space.xl - edge)
     hintText:SetWidth(math.max(120, width - reserved))
-    sourceText:SetWidth(math.max(200, frame:GetWidth() - 360))
+    sourceText:SetWidth(math.max(200, frame:GetWidth() - 60))
 
     -- Erst den Hinweis setzen, dann die Liste darunter.
     --
@@ -6432,12 +6415,7 @@ function UI.Refresh()
     -- WAS BLEIBT, ist der Hinweis auf mehrere Speccs: der sagt etwas,
     -- das in keiner Zeile steht - dass der Knopf unten mehr einkauft,
     -- als diese Seite zeigt.
-    local specCount = #ns.Profile.ShoppingSpecs()
-    local countText = ""
-    if specCount > 1 and MASS.SHOPPING[section.key] then
-        countText = L["COUNT_SPECS"]:format(specCount)
-    end
-    sectionCount:SetText(countText)
+    sectionCount:SetText("")
 
     -- "Nichts zu kaufen" nur dort, wo es ueberhaupt etwas zu kaufen gibt.
     --
@@ -6450,27 +6428,6 @@ function UI.Refresh()
             .. (profile.onlyMissing and ("  " .. L["SHOW_ALL_HINT"]) or ""))
     end
 
-    -- Die Knoepfe erscheinen nur, wo es etwas zu kaufen gibt.
-    frame.createButton:SetShown(shopping)
-    frame.searchButton:SetShown(shopping)
-
-    -- "Jetzt suchen" braucht ausserdem ein offenes Auktionshaus. Grau
-    -- statt eines Fehlers aus Auctionators Innerem, den der Spieler zu
-    -- Recht als unseren liest.
-    local usable = ns.Adapter.Loaded()
-    local canSearch = usable and ns.Adapter.AuctionHouseOpen()
-    -- Ohne Auctionator gar nicht erst zeigen.
-    --
-    -- Grau heisst "geht, nur gerade nicht" - das ist beim geschlossenen
-    -- Auktionshaus richtig, denn das kann man aendern. Fehlt Auctionator,
-    -- geht es ueberhaupt nicht; ein grauer Knopf sieht dann aus wie ein
-    -- kaputter. Warum er fehlt, steht unter "Info".
-    frame.createButton:SetShown(usable and true or false)
-    frame.searchButton:SetShown(usable and true or false)
-    frame.createButton:SetEnabled(usable)
-    frame.searchButton:SetEnabled(canSearch)
-    frame.createButton:SetAlpha(1)
-    frame.searchButton:SetAlpha(canSearch and 1 or 0.4)
 
     -- Die Liste am Auktionshaus zieht mit.
     --
@@ -8424,39 +8381,6 @@ function UI.HandoverMissing(searchNow)
                 ns.Print(L["LIST_STAYS"])
             end
         end
-    elseif L[message] ~= message then
-        ns.Print(L[message])
-    else
-        ns.Print(L["LIST_FAILED"], message)
-    end
-end
-
-function UI.Handover(searchNow)
-    if not ns.Adapter.Loaded() then
-        ns.Print(L["NO_AUCTIONATOR"])
-        return
-    end
-    if not ns.Profile.Complete() then
-        ns.Print(L["PICK_HINT"])
-        return
-    end
-    -- Die Liste darf mehrere Speccs abdecken, das Fenster zeigt eine.
-    -- Ohne Zusatzauswahl ist `rows` genau das, was auf dem Schirm steht -
-    -- wer nichts eingestellt hat, bekommt also nichts Ueberraschendes.
-    local specs = ns.Profile.ShoppingSpecs()
-    local rows = currentRows
-    if #specs > 1 and SHOPPING[activeSection().key] then
-        rows = ns.List.BuildMany(ns.Gear.Scan(), specs)
-    end
-
-    local ok, message, written
-    if searchNow then
-        ok, message = ns.Adapter.Search(rows)
-    else
-        ok, message, written = ns.Adapter.CreateList(rows, activeSection().key)
-    end
-    if ok then
-        if not searchNow then ns.Print(L["LIST_CREATED"], written, message) end
     elseif L[message] ~= message then
         ns.Print(L[message])
     else
