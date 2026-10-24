@@ -380,10 +380,20 @@ jobs:
           for f in /tmp/last/*/tools/data/*.json; do
             [ -e "$f" ] || continue
             name="$(basename "$f")"
-            if [ ! -s "tools/data/$name" ]; then
-              cp "$f" "tools/data/$name"
-              echo "::warning::$name is from run $last - tonight did not bring it"
+            [ -s "tools/data/$name" ] && continue
+            # Only what is still fresh. A file nobody writes any more
+            # (wcl-comps-mplus.json since the high keys come from
+            # raider.io) would otherwise be handed on from night to night.
+            built="$(jq -r '.builtOn // empty' "$f" 2>/dev/null || true)"
+            if [ -n "$built" ]; then
+              age=$(( ( $(date -u +%s) - $(date -u -d "$built" +%s) ) / 86400 ))
+              if [ "$age" -gt 3 ]; then
+                echo "::notice::$name left out - from $built, too old to stand in"
+                continue
+              fi
             fi
+            cp "$f" "tools/data/$name"
+            echo "::warning::$name is from run $last - tonight did not bring it"
           done
 
       # Die Ernte eines frueheren Laufs statt einer neuen.
