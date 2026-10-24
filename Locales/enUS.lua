@@ -347,6 +347,7 @@ ns.RegisterLocale("enUS", {
     ["ROT_H_proc0"] = "Use every proc of %s as soon as it is ready.",
     ["ROT_H_proc"] = "Use every proc of %s – it replaces %s while the buff is active.",
     ["ROT_H_dmg"] = "In between, %s for damage.",
+    ["ROT_H_sit"] = "%s has no fixed place – top healers use it as the situation calls for.",
     ["ROT_H_cd_on"] = "Use %s on cooldown – top healers hardly skip a use.",
     ["ROT_H_cd_aim"] = "Use %s with intent rather than on cooldown – about %s× %s.",
     ["ROT_H_per_raid"] = "per fight",

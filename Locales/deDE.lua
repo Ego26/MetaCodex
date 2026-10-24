@@ -347,6 +347,7 @@ ns.RegisterLocale("deDE", {
     ["ROT_H_proc0"] = "Nutze jeden Proc von %s, sobald er bereit ist.",
     ["ROT_H_proc"] = "Nutze jeden Proc von %s – er ersetzt %s, solange der Buff aktiv ist.",
     ["ROT_H_dmg"] = "Zwischendurch %s für Schaden.",
+    ["ROT_H_sit"] = "%s gehört in keine feste Reihenfolge – Top-Heiler nutzen es je nach Lage.",
     ["ROT_H_cd_on"] = "Nutze %s auf Abklingzeit – Top-Heiler lassen kaum einen Einsatz aus.",
     ["ROT_H_cd_aim"] = "Nutze %s gezielt statt auf Abklingzeit – etwa %s× %s.",
     ["ROT_H_per_raid"] = "pro Kampf",

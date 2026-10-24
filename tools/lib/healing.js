@@ -18,6 +18,8 @@
 //             fill   no cooldown: what fills the time - with what it is
 //                    (several targets or one, dearer or cheaper)
 //             dmg    damage, apart
+//             sit    neither heal nor damage (Totemic Projection moves the
+//                    totems): last, as a tool for the moment
 //           Raid against M+: a filler cast 1.6 times as often or more (or
 //           that much less) than in the other activity says so.
 //   cds     a cooldown of a minute or more, cast by 40 %. How much of what
@@ -65,7 +67,8 @@ const median = (a) => { const b = [...a].sort((x, y) => x - y); return b[Math.fl
  * @param {{cd:(id:number)=>number, isItem:(id:number)=>boolean,
  *          isDamage:(id:number)=>boolean, nameOf:(id:number)=>string,
  *          procFrom?:(id:number)=>number|null, lasts?:(id:number)=>number,
- *          isMulti?:(id:number)=>boolean, manaPct?:(id:number)=>number}} game
+ *          isMulti?:(id:number)=>boolean, manaPct?:(id:number)=>number,
+ *          isUtility?:(id:number)=>boolean}} game
  *   procFrom: the spell a visible buff replaces with this one, -1 when the
  *   game names none; lasts: seconds
  * @returns {object|null} the guide, or null without a measurement
@@ -111,7 +114,11 @@ function guide(input, game) {
   const procs = spells.filter((r) => r.cd < CD_FROM && r.share >= CORE_SHARE && r.cpm >= PROC_CPM && echterProc(r)
     && !game.isDamage(r.s)).map((r) => ({ k: 'proc', s: r.s, from: procFrom(r.s) > 0 ? procFrom(r.s) : undefined, pct: pct(r), cpm: round1(r.cpm) }));
   const istProc = new Set(procs.map((p) => p.s));
-  const kern = spells.filter((r) => r.cd < CD_FROM && r.share >= CORE_SHARE && r.cpm >= CORE_CPM && !istProc.has(r.s));
+  const alleKern = spells.filter((r) => r.cd < CD_FROM && r.share >= CORE_SHARE && r.cpm >= CORE_CPM && !istProc.has(r.s));
+  const werkzeug = (r) => Boolean(game.isUtility && game.isUtility(r.s));
+  const kern = alleKern.filter((r) => !werkzeug(r));
+  const sit = alleKern.filter(werkzeug).sort((a, b) => b.cpm - a.cpm)
+    .map((r) => ({ k: 'sit', s: r.s, pct: pct(r), cpm: round1(r.cpm) }));
   const heilt = kern.filter((r) => !game.isDamage(r.s));
   const mitCd = heilt.filter((r) => r.cd >= 4).sort((a, b) => (b.use || 0) - (a.use || 0)).map((r) => {
     // Kept up: it lasts about as long as its cooldown (Surging Totem 24 of 25
@@ -153,8 +160,8 @@ function guide(input, game) {
   });
   const dmg = kern.filter((r) => game.isDamage(r.s)).sort((a, b) => b.cpm - a.cpm).slice(0, MAX_DMG)
     .map((r) => ({ k: 'dmg', s: r.s, pct: pct(r), cpm: round1(r.cpm) }));
-  const prio = [...procs, ...mitCd.filter((x) => x.k !== 'reg'), ...mitCd.filter((x) => x.k === 'reg'), ...fill, ...dmg]
-    .slice(0, MAX_CORE + MAX_DMG);
+  const prio = [...procs, ...mitCd.filter((x) => x.k !== 'reg'), ...mitCd.filter((x) => x.k === 'reg'), ...fill, ...dmg, ...sit]
+    .slice(0, MAX_CORE + MAX_DMG + 2);
   const cdRows = spells.filter((r) => r.cd >= CD_FROM && r.share >= CD_SHARE)
     .sort((a, b) => (b.use || 0) - (a.use || 0));
   const cds = cdRows.map((r) => ({ s: r.s, pct: pct(r), per: round1(r.per), use: r.use }));

@@ -7392,6 +7392,7 @@ do
             return text .. messung(line)
         end
         if k == "dmg" then return L["ROT_H_dmg"]:format(nm(line.s)) .. messung(line) end
+        if k == "sit" then return L["ROT_H_sit"]:format(nm(line.s)) .. messung(line) end
         if k == "cd" or k == "item" then return nutzung(line, nm) end
         -- Je Boss eine Ueberschrift, darunter je Cooldown eine Zeile: als
         -- ein Satz je Boss war es eine Textwand (24. Oktober).

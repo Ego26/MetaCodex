@@ -13,12 +13,12 @@ function check(what, got, want) {
 // Ein kleiner Restoschamane: 10 Spieler, je 5 Minuten.
 const NAMES = { 1: 'chain_heal', 2: 'riptide', 3: 'ascendance', 4: 'spirit_link_totem', 5: 'flame_shock', 6: 'flame_shock',
   7: 'astral_shift', 8: 'trinket', 9: 'ghost_wolf', 10: 'lava_burst', 11: 'healing_wave', 12: 'surging_totem',
-  13: 'stormstream_totem', 14: 'healing_stream_totem' };
-const CD = { 2: 6, 3: 180, 4: 180, 7: 120, 8: 120, 5: 6, 6: 6, 10: 8, 12: 25, 13: 30, 14: 30 };
+  13: 'stormstream_totem', 14: 'healing_stream_totem', 15: 'totemic_projection' };
+const CD = { 2: 6, 3: 180, 4: 180, 7: 120, 8: 120, 5: 6, 6: 6, 10: 8, 12: 25, 13: 30, 14: 30, 15: 10 };
 const game = {
   cd: (id) => CD[id] || 0, isItem: (id) => id === 8, isDamage: (id) => [5, 6, 10].includes(id), nameOf: (id) => NAMES[id],
   procFrom: (id) => (id === 13 ? 14 : null), lasts: (id) => ({ 2: 18, 12: 24, 14: 15 })[id] || 0,
-  isMulti: (id) => id === 1, manaPct: (id) => ({ 1: 4.28, 11: 2.38 })[id] || 0,
+  isMulti: (id) => id === 1, manaPct: (id) => ({ 1: 4.28, 11: 2.38 })[id] || 0, isUtility: (id) => id === 15,
 };
 const casts = {
   players: 10, minutes: 50,
@@ -36,11 +36,12 @@ const casts = {
     [12, 110, 10],   // Wogendes Totem: 24 von 25 Sek. - aufrecht halten
     [13, 40, 9],     // Totem der Sturmflut: nur aus dem Proc
     [14, 90, 10],    // Totem des heilenden Flusses: 90 von 100 moeglichen
+    [15, 65, 10],    // Totemische Projektion: weder Heilung noch Schaden
   ],
 };
 const g = guide({ casts }, game);
 check('Prioritaet: Proc, Abklingzeit, aufrecht, Fueller, Schaden', g.prio.map((r) => [r.k, r.s]),
-  [['proc', 13], ['oncd', 2], ['keep', 12], ['oncd', 14], ['fill', 1], ['fill', 11], ['dmg', 5]]);
+  [['proc', 13], ['oncd', 2], ['keep', 12], ['oncd', 14], ['fill', 1], ['fill', 11], ['dmg', 5], ['sit', 15]]);
 check('der Proc nennt, was er ersetzt', g.prio[0].from, 14);
 check('Springflut haelt drei Abklingzeiten: auf Abklingzeit, nicht aufrecht', g.prio[1].k, 'oncd');
 check('Fueller: mehrere Ziele und teurer gegen ein Ziel und guenstiger',

@@ -1078,12 +1078,23 @@ const bare = (s) => String(s || '').replace(/_/g, '');
     const id = Number(r.SpellID);
     if (!manaPct.has(id) || p < manaPct.get(id)) manaPct.set(id, p);
   }
+  // A spell's text; one that only points to another ("$@spelldesc176746")
+  // is followed - Healing Wave's own text is such a pointer.
+  const beschreibung = (id) => {
+    let t = (textOf.get(id) || { d: '' }).d;
+    for (let i = 0; i < 3; i += 1) {
+      const m = t.match(/^\$@spelldesc(\d+)/);
+      if (!m) break;
+      t = (textOf.get(Number(m[1])) || { d: '' }).d;
+    }
+    return t;
+  };
   const healGame = {
     cd: (id) => Math.max(cdSeconds.get(id) || 0, rechargeSeconds.get(id) || 0),
     isItem: (id) => itemSpells.has(id),
     // English text: damage, and neither heals nor absorbs - Holy Shock does
     // both and stays a heal; a shield that "absorbs damage" is none.
-    isDamage: (id) => { const t = (textOf.get(id) || { d: '' }).d; return /damage/i.test(t) && !/heal|absorb/i.test(t); },
+    isDamage: (id) => { const t = beschreibung(id); return /damage/i.test(t) && !/heal|absorb/i.test(t); },
     nameOf: (id) => slug(nameEN.get(id)),
     // A proc: a visible buff that puts this spell on the bar in place of
     // another (lib/replace.js marks those). By name - the log's ID of
@@ -1091,8 +1102,14 @@ const bare = (s) => String(s || '').replace(/_/g, '');
     procFrom: (id) => procVon.get(slug(nameEN.get(id))) || null,
     lasts: (id) => Math.max(0, lastsMs.get(id) || 0) / 1000,
     // Several targets: the spell's own words ("jumps", "allies").
-    isMulti: (id) => /jump|bounc|allies|injured (party|raid)|nearby|all party|up to S+ (targets|allies)/i
-      .test((textOf.get(id) || { d: '' }).d),
+    isMulti: (id) => /jump|bounc|allies|injured (party|raid)|nearby|all party|up to \S+ (targets|allies)/i
+      .test(beschreibung(id)),
+    // Neither heals, shields, restores nor hurts: a tool for the moment
+    // (Totemic Projection moves the totems). No place in a priority.
+    isUtility: (id) => {
+      const t = beschreibung(id);
+      return t !== '' && !/heal|damage|absorb|restor|shield|mana|atonement|renew|mend|protect/i.test(t);
+    },
     manaPct: (id) => manaPct.get(id) || 0,
   };
   for (const s of catSpecs.filter((x) => x.role === 'healer')) {
