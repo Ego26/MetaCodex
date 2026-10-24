@@ -7520,6 +7520,9 @@ do
         if not r then return "" end
         if r.heal then
             local text = L["ROT_H_HINT"]:format(r.n or 0)
+            -- Fuer welchen Heldenbaum: die Messung ist nur seine (24. Oktober).
+            local held = r.hero and ns.Catalog.SubTreeName and ns.Catalog.SubTreeName(r.hero)
+            if held then text = L["ROT_H_HINT_HERO"]:format(held) .. "  " .. text end
             -- Zeitpunkte gibt es nur im Raid: ein Key hat viele Pulls.
             if r.m ~= "mplus" then text = text .. " " .. L["ROT_H_HINT_TIMES"] end
             if ns.version == "dev" then text = "|cffD29922DEV-Vorschau.|r  " .. text end

@@ -6814,6 +6814,7 @@ do
         and kopf:find("4:44", 1, true) ~= nil, kopf)
     local boss = heil({ hk = "bosscd", s = 5, t = { 71, 252 } })
     check("Heiler: je Cooldown eine Zeile mit Zeitpunkten", boss == L["ROT_H_bosscd"]:format("#5", "1:11" .. L["ROT_AND"] .. "4:12"), boss)
+    check("Heiler: der Hinweis nennt den Heldenbaum", L["ROT_H_HINT_HERO"]:find("%s", 1, true) ~= nil)
     check("Heiler: der erste Reiter ist die Prioritaet",
         ns.UI.RotationTab({ heal = true, prio = { { k = "fill", s = 5, pct = 100, cpm = 20 } }, cds = {} }) == "core")
     -- Eine Aufladung, nicht "1 Aufladungen".

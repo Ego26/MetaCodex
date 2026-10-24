@@ -1193,23 +1193,54 @@ const bare = (s) => String(s || '').replace(/_/g, '');
           }
           return null;
         };
-        const g = healing.guide({ casts, openers, bosses: pvOk && pvOk.bosses, other }, { ...healGame, spends });
-        if (!g) { report.push(`${s.id} healer ${mode}: not measured`); continue; }
-        g.src = 'warcraftlogs.com';
-        g.m = mode;
-        // The game names the boss in the player's language (EJ_GetEncounterInfo);
-        // in the raid's order.
-        if (g.bosses) {
-          for (const b of g.bosses) {
-            const j = journalEnc[b.name];
-            if (j) { b.enc = j.enc; b.order = j.order; }
+        const baue = (cX, oX, bX, otherX) => {
+          const g = healing.guide({ casts: cX, openers: oX, bosses: bX, other: otherX }, { ...healGame, spends });
+          if (!g) return null;
+          g.src = 'warcraftlogs.com';
+          g.m = mode;
+          // The game names the boss in the player's language (EJ_GetEncounterInfo);
+          // in the raid's order.
+          if (g.bosses) {
+            for (const b of g.bosses) {
+              const j = journalEnc[b.name];
+              if (j) { b.enc = j.enc; b.order = j.order; }
+            }
+            g.bosses.sort((a, b) => (a.order || 99) - (b.order || 99));
+            for (const b of g.bosses) delete b.order;
           }
-          g.bosses.sort((a, b) => (a.order || 99) - (b.order || 99));
-          for (const b of g.bosses) delete b.order;
+          return g;
+        };
+        // ONE GUIDE PER HERO TREE (24 October), like the rotation's switch:
+        // Stormstream Totem is the Totemic's, no Farseer casts it. The trees
+        // come from each player's talents at the pull; a tree with fewer
+        // than ten measured players says too little.
+        const varianten = Object.entries((pvOk && pvOk.heroes) || {})
+          .filter(([, v]) => v.casts && v.casts.players >= 10)
+          .sort((a, b) => b[1].casts.players - a[1].casts.players);
+        const ergebnisse = [];
+        for (const [h, v] of varianten) {
+          const hAnders = pvAnders && pvAnders.heroes && pvAnders.heroes[h];
+          const g = baue(v.casts, mode === 'raid' ? v.openers || [] : [], v.bosses,
+            hAnders && hAnders.casts && hAnders.casts.players >= 10 ? hAnders.casts : other);
+          if (!g) continue;
+          g.hero = Number(h);
+          g.pct = v.pct;
+          ergebnisse.push(g);
         }
-        (out[s.id] = out[s.id] || {})[mode] = g;
-        report.push(`${s.id} healer ${mode}: ${g.n} players, prio ${g.prio.map((x) => x.k).join('/')}, cds ${g.cds.length}`
-          + `${g.bosses ? ', bosses ' + g.bosses.length : ''}${casts === nachts ? '' : ' (preview)'}`);
+        if (!ergebnisse.length) {
+          const g = baue(casts, openers, pvOk && pvOk.bosses, other);
+          if (g) ergebnisse.push(g);
+        }
+        if (!ergebnisse.length) { report.push(`${s.id} healer ${mode}: not measured`); continue; }
+        const erster = ergebnisse[0];
+        (out[s.id] = out[s.id] || {})[mode] = {
+          ...erster,
+          heroes: ergebnisse.length > 1 ? ergebnisse.map((r) => ({ ...r, src: undefined })) : undefined,
+        };
+        for (const g of ergebnisse) {
+          report.push(`${s.id} healer ${mode} hero ${g.hero || '-'}: ${g.n} players, prio ${g.prio.map((x) => x.k).join('/')}, cds ${g.cds.length}`
+            + `${g.bosses ? ', bosses ' + g.bosses.length : ''}${varianten.length || casts !== nachts ? ' (preview)' : ''}`);
+        }
       }
     } catch (err) {
       delete out[s.id];

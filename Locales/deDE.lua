@@ -361,6 +361,7 @@ ns.RegisterLocale("deDE", {
     ["ROT_H_CONTINUE"] = "Danach nach Bedarf",
     ["ROT_H_HINT"] = "Gemessen an %d Kämpfen von Top-Heilern auf Warcraft Logs – was sie wirken, kein Simulator.",
     ["ROT_H_HINT_TIMES"] = "Zeitpunkte ab dem Pull, als Median.",
+    ["ROT_H_HINT_HERO"] = "Heldenbaum %s.",
     ["ROT_I_POTION"] = "deinen Trank",
     ["ROT_I_potion_if"] = "Trinke %s, wenn %s.",
     ["ROT_I_potion"] = "Trinke %s im Kampf.",
