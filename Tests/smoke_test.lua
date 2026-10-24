@@ -6775,26 +6775,38 @@ do
     check("kein 'unter bestimmten Umstaenden'", nurVage == L["ROT_S_cd"]:format("#1"), nurVage)
     -- Der Heiler-Guide: gemessene Saetze, keine Prioritaet.
     local heil = function(line) return ns.UI.RotationSentence(line, "core", false) end
-    check("Heiler: Grundgeruest mit Haeufigkeit", heil({ hk = "core", s = 5, pct = 100, cpm = 20 })
-        == L["ROT_H_core"]:format("#5", "20") .. ".", heil({ hk = "core", s = 5, pct = 100, cpm = 20 }))
-    check("Heiler: nicht alle - der Anteil steht dabei",
-        heil({ hk = "core", s = 5, pct = 70, cpm = 2.3 }):find(L["ROT_H_share"]:format(70), 1, true) ~= nil,
-        heil({ hk = "core", s = 5, pct = 70, cpm = 2.3 }))
-    check("Heiler: Cooldown sobald verfuegbar", heil({ hk = "cd", s = 5, use = 94, per = 2 })
-        == L["ROT_H_cd_on"]:format("#5", 94))
-    check("Heiler: Cooldown gezielt", heil({ hk = "cd", s = 5, use = 69, per = 2 })
-        == L["ROT_H_cd_aim"]:format("#5", "2", L["ROT_H_per_raid"], 69))
+    local fuell = heil({ hk = "fill", s = 5, pct = 100, cpm = 19.1, first = true, multi = true, cost = "high", vs = "more", m = "raid" })
+    check("Heiler: der erste Fueller mit Ziel, Mana und Vergleich",
+        fuell:find(L["ROT_H_fill_first"]:format("#5", L["ROT_H_multi"]) .. L["ROT_H_cost_high"] .. ".", 1, true) == 1
+        and fuell:find(L["ROT_H_vs_more_raid"], 1, true) ~= nil, fuell)
+    check("Heiler: die Zahl klein dahinter", fuell:find(L["ROT_H_m_cpm"]:format("19,1"), 1, true) ~= nil
+        and fuell:find("|cff9aa4b2", 1, true) ~= nil, fuell)
+    check("Heiler: der zweite Fueller mit Oder", heil({ hk = "fill", s = 6, pct = 93, cpm = 3.1, multi = false })
+        :find(L["ROT_H_fill"]:format("#6", L["ROT_H_single"]), 1, true) == 1)
+    check("Heiler: Proc mit dem, was er ersetzt", heil({ hk = "proc", s = 5, from = 6, cpm = 1.7 })
+        :find(L["ROT_H_proc"]:format("#5", "#6"), 1, true) == 1)
+    check("Heiler: Proc ohne bekannte Vorlage", heil({ hk = "proc", s = 5, cpm = 1.7 })
+        :find(L["ROT_H_proc0"]:format("#5"), 1, true) == 1)
+    check("Heiler: auf Abklingzeit, aufrecht, regelmaessig",
+        heil({ hk = "oncd", s = 5, use = 100, cpm = 11 }):find(L["ROT_H_oncd"]:format("#5"), 1, true) == 1
+        and heil({ hk = "keep", s = 5, use = 91, cpm = 2 }):find(L["ROT_H_keep"]:format("#5"), 1, true) == 1
+        and heil({ hk = "reg", s = 5, use = 22, cpm = 1 }):find(L["ROT_H_reg"]:format("#5"), 1, true) == 1)
+    check("Heiler: Cooldown auf Abklingzeit", heil({ hk = "cd", s = 5, use = 94, per = 2 })
+        :find(L["ROT_H_cd_on"]:format("#5"), 1, true) == 1)
+    local gezielt = heil({ hk = "cd", s = 5, use = 69, per = 2 })
+    check("Heiler: Cooldown gezielt, im Raid mit Verweis auf die Bosse",
+        gezielt:find(L["ROT_H_cd_aim"]:format("#5", "2", L["ROT_H_per_raid"]) .. " " .. L["ROT_H_cd_when"], 1, true) == 1, gezielt)
     check("Heiler: Cooldown bei Bedarf", heil({ hk = "cd", s = 5, use = 30, per = 1 })
-        == L["ROT_H_cd_need"]:format("#5", "1", L["ROT_H_per_raid"]))
-    check("Heiler: in M+ je Key", heil({ hk = "cd", s = 5, use = 30, per = 1, m = "mplus" })
-        == L["ROT_H_cd_need"]:format("#5", "1", L["ROT_H_per_mplus"]))
+        :find(L["ROT_H_cd_need"]:format("#5", "1", L["ROT_H_per_raid"]), 1, true) == 1)
+    check("Heiler: in M+ je Key, ohne Verweis auf Bosse", heil({ hk = "cd", s = 5, use = 69, per = 1, m = "mplus" })
+        :find(L["ROT_H_cd_when"], 1, true) == nil)
     local kopf = heil({ hk = "bosshead", name = "Nekzali", dur = 284 })
     check("Heiler: Boss als Ueberschrift mit Kampflaenge", kopf:find("Nekzali", 1, true) ~= nil
         and kopf:find("4:44", 1, true) ~= nil, kopf)
     local boss = heil({ hk = "bosscd", s = 5, t = { 71, 252 } })
     check("Heiler: je Cooldown eine Zeile mit Zeitpunkten", boss == L["ROT_H_bosscd"]:format("#5", "1:11" .. L["ROT_AND"] .. "4:12"), boss)
-    check("Heiler: der erste Reiter ist das Grundgeruest",
-        ns.UI.RotationTab({ heal = true, core = { { s = 5, pct = 100, cpm = 20 } }, cds = {} }) == "core")
+    check("Heiler: der erste Reiter ist die Prioritaet",
+        ns.UI.RotationTab({ heal = true, prio = { { k = "fill", s = 5, pct = 100, cpm = 20 } }, cds = {} }) == "core")
     -- Eine Aufladung, nicht "1 Aufladungen".
     check("eine Aufladung", say({ "charges", 5, 1 }) == L["ROT_C_charges1"]:format("#5"), say({ "charges", 5, 1 }))
     check("fast eine Aufladung", say({ "charges", 5, 0.8 }) == L["ROT_C_chargesnear1"]:format("#5"), say({ "charges", 5, 0.8 }))

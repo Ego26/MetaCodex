@@ -12,10 +12,13 @@ function check(what, got, want) {
 
 // Ein kleiner Restoschamane: 10 Spieler, je 5 Minuten.
 const NAMES = { 1: 'chain_heal', 2: 'riptide', 3: 'ascendance', 4: 'spirit_link_totem', 5: 'flame_shock', 6: 'flame_shock',
-  7: 'astral_shift', 8: 'trinket', 9: 'ghost_wolf', 10: 'lava_burst' };
-const CD = { 2: 6, 3: 180, 4: 180, 7: 120, 8: 120, 5: 6, 6: 6, 10: 8 };
+  7: 'astral_shift', 8: 'trinket', 9: 'ghost_wolf', 10: 'lava_burst', 11: 'healing_wave', 12: 'surging_totem',
+  13: 'stormstream_totem', 14: 'healing_stream_totem' };
+const CD = { 2: 6, 3: 180, 4: 180, 7: 120, 8: 120, 5: 6, 6: 6, 10: 8, 12: 25, 13: 30, 14: 30 };
 const game = {
   cd: (id) => CD[id] || 0, isItem: (id) => id === 8, isDamage: (id) => [5, 6, 10].includes(id), nameOf: (id) => NAMES[id],
+  procFrom: (id) => (id === 13 ? 14 : null), lasts: (id) => ({ 2: 18, 12: 24, 14: 15 })[id] || 0,
+  isMulti: (id) => id === 1, manaPct: (id) => ({ 1: 4.28, 11: 2.38 })[id] || 0,
 };
 const casts = {
   players: 10, minutes: 50,
@@ -29,15 +32,27 @@ const casts = {
     [5, 60, 8], [6, 60, 8],   // zwei IDs, ein Zauber, doppelt geloggt: 1,2/min
     [9, 25, 9],      // Geisterwolf: unter einmal je Minute, kein Cooldown
     [10, 30, 3],     // nur 30 % - kein Grundgeruest
+    [11, 150, 10],   // Welle der Heilung: zweiter Fueller, 3/min
+    [12, 110, 10],   // Wogendes Totem: 24 von 25 Sek. - aufrecht halten
+    [13, 40, 9],     // Totem der Sturmflut: nur aus dem Proc
+    [14, 90, 10],    // Totem des heilenden Flusses: 90 von 100 moeglichen
   ],
 };
 const g = guide({ casts }, game);
-check('Grundgeruest: haeufig und von den meisten, nach Haeufigkeit', g.core.map((r) => r.s), [1, 2]);
-check('je Minute und Anteil', [g.core[0].cpm, g.core[0].pct], [20, 100]);
-check('Schaden getrennt, zwei IDs als ein Zauber', g.dmg.map((r) => [r.s, r.cpm]), [[5, 1.2]]);
+check('Prioritaet: Proc, Abklingzeit, aufrecht, Fueller, Schaden', g.prio.map((r) => [r.k, r.s]),
+  [['proc', 13], ['oncd', 2], ['keep', 12], ['oncd', 14], ['fill', 1], ['fill', 11], ['dmg', 5]]);
+check('der Proc nennt, was er ersetzt', g.prio[0].from, 14);
+check('Springflut haelt drei Abklingzeiten: auf Abklingzeit, nicht aufrecht', g.prio[1].k, 'oncd');
+check('Fueller: mehrere Ziele und teurer gegen ein Ziel und guenstiger',
+  g.prio.filter((r) => r.k === 'fill').map((r) => [r.s, r.multi, r.cost]), [[1, true, 'high'], [11, false, 'low']]);
+check('je Minute und Anteil', [g.prio[4].cpm, g.prio[4].pct], [20, 100]);
+check('Schaden getrennt, zwei IDs als ein Zauber', g.prio.filter((r) => r.k === 'dmg').map((r) => [r.s, r.cpm]), [[5, 1.2]]);
+// Raid gegen M+: Welle der Heilung im anderen Modus viel seltener.
+const mitVergleich = guide({ casts, other: { players: 10, minutes: 50, by: [[1, 1000, 10], [11, 50, 10]] } }, game);
+check('M+ gegen Raid: deutlich oefter', mitVergleich.prio.filter((r) => r.k === 'fill').map((r) => r.vs), [undefined, 'more']);
 check('Cooldowns nach Auslastung', g.cds.map((r) => [r.s, r.use]), [[3, 100], [4, 60], [7, 13]]);
 check('Gegenstaende fuer sich', g.items.map((r) => [r.s, r.use]), [[8, 93]]);
-check('Geisterwolf ist weder Kern noch Cooldown', [...g.core, ...g.cds].some((r) => r.s === 9), false);
+check('Geisterwolf ist weder Prioritaet noch Cooldown', [...g.prio, ...g.cds].some((r) => r.s === 9), false);
 
 // Zeitpunkte je Boss: der n-te Einsatz im Median, wo die meisten so oft zogen.
 const boss = { name: 'Nekzali', dur: 284000, casts: [

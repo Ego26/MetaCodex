@@ -7336,23 +7336,63 @@ do
         sek = math.floor((tonumber(sek) or 0) + 0.5)
         return ("%d:%02d"):format(math.floor(sek / 60), sek % 60)
     end
-    local function nutzung(line, nm, art)
+    -- TEXT VORN, ZAHLEN HINTEN (24. Oktober): "etwa 19× pro Minute" in
+    -- jeder Zeile las sich wie eine Tabelle. Der Satz sagt, was zu tun ist;
+    -- die Messung steht klein und grau dahinter.
+    local function grau(text) return "  |cff9aa4b2" .. text .. "|r" end
+    local function messung(line)
+        local teile = {}
+        if line.cpm then teile[#teile + 1] = L["ROT_H_m_cpm"]:format(zahl(line.cpm)) end
+        if line.use and (line.hk == "oncd" or line.hk == "keep" or line.hk == "cd" or line.hk == "item") then
+            teile[#teile + 1] = L["ROT_H_m_use"]:format(line.use)
+        end
+        if line.pct and line.pct < 90 then teile[#teile + 1] = L["ROT_H_m_pct"]:format(line.pct) end
+        if #teile == 0 then return "" end
+        return grau("(" .. table.concat(teile, " · ") .. ")")
+    end
+    local function nutzung(line, nm)
         local name = nm(line.s)
         -- Im Raid je Kampf, in M+ je Key: ein Key ist ein Lauf, kein Kampf.
-        local je = L["ROT_H_per_" .. (line.m == "mplus" and "mplus" or "raid")]
-        if line.use and line.use >= 85 then return L["ROT_H_" .. art .. "_on"]:format(name, line.use) end
-        if line.use and line.use >= 50 then return L["ROT_H_" .. art .. "_aim"]:format(name, zahl(line.per), je, line.use) end
-        return L["ROT_H_" .. art .. "_need"]:format(name, zahl(line.per), je)
+        local mplus = line.m == "mplus"
+        local je = L["ROT_H_per_" .. (mplus and "mplus" or "raid")]
+        local text
+        if line.use and line.use >= 85 then
+            text = L["ROT_H_cd_on"]:format(name)
+        elseif line.use and line.use >= 50 then
+            text = L["ROT_H_cd_aim"]:format(name, zahl(line.per), je)
+            if not mplus and line.hk == "cd" then text = text .. " " .. L["ROT_H_cd_when"] end
+        else
+            text = L["ROT_H_cd_need"]:format(name, zahl(line.per), je)
+        end
+        return text .. messung(line)
     end
     local function heilSatz(line, nm)
         local k = line.hk
-        if k == "core" or k == "dmg" then
-            local base = L["ROT_H_" .. k]:format(nm(line.s), zahl(line.cpm))
-            if (line.pct or 100) < 90 then base = base .. " " .. L["ROT_H_share"]:format(line.pct) end
-            return base .. "."
+        if k == "proc" then
+            local text = line.from and L["ROT_H_proc"]:format(nm(line.s), nm(line.from)) or L["ROT_H_proc0"]:format(nm(line.s))
+            return text .. messung(line)
         end
-        if k == "cd" then return nutzung(line, nm, "cd") end
-        if k == "item" then return nutzung(line, nm, "cd") end
+        if k == "oncd" then
+            return L[(line.use or 0) >= 85 and "ROT_H_oncd" or "ROT_H_oncd_most"]:format(nm(line.s)) .. messung(line)
+        end
+        if k == "keep" then return L["ROT_H_keep"]:format(nm(line.s)) .. messung(line) end
+        if k == "reg" then return L["ROT_H_reg"]:format(nm(line.s)) .. messung(line) end
+        if k == "fill" then
+            -- Der erste Fueller fuehrt ein, die anderen kommen mit "Oder".
+            local was = line.multi == true and L["ROT_H_multi"] or (line.multi == false and L["ROT_H_single"] or nil)
+            local text
+            if line.first then
+                text = was and L["ROT_H_fill_first"]:format(nm(line.s), was) or L["ROT_H_fill_first0"]:format(nm(line.s))
+            else
+                text = was and L["ROT_H_fill"]:format(nm(line.s), was) or L["ROT_H_fill0"]:format(nm(line.s))
+            end
+            if line.cost then text = text .. L["ROT_H_cost_" .. line.cost] end
+            text = text .. "."
+            if line.vs then text = text .. " " .. L["ROT_H_vs_" .. line.vs .. "_" .. (line.m == "mplus" and "mplus" or "raid")] end
+            return text .. messung(line)
+        end
+        if k == "dmg" then return L["ROT_H_dmg"]:format(nm(line.s)) .. messung(line) end
+        if k == "cd" or k == "item" then return nutzung(line, nm) end
         -- Je Boss eine Ueberschrift, darunter je Cooldown eine Zeile: als
         -- ein Satz je Boss war es eine Textwand (24. Oktober).
         if k == "bosshead" then
@@ -7400,8 +7440,10 @@ do
     local function heilZeilen(r, tab)
         local out = {}
         if tab == "core" then
-            for _, x in ipairs(r.core or {}) do out[#out + 1] = { hk = "core", s = x.s, pct = x.pct, cpm = x.cpm } end
-            for _, x in ipairs(r.dmg or {}) do out[#out + 1] = { hk = "dmg", s = x.s, pct = x.pct, cpm = x.cpm } end
+            for _, x in ipairs(r.prio or {}) do
+                out[#out + 1] = { hk = x.k, s = x.s, pct = x.pct, cpm = x.cpm, use = x.use, from = x.from,
+                    first = x.first, multi = x.multi, cost = x.cost, vs = x.vs, m = r.m }
+            end
         elseif tab == "cds" then
             for _, x in ipairs(r.cds or {}) do out[#out + 1] = { hk = "cd", s = x.s, pct = x.pct, per = x.per, use = x.use, m = r.m } end
         elseif tab == "bosses" then
@@ -7863,7 +7905,10 @@ do
                 e:ClearAllPoints()
                 e:SetPoint("TOPLEFT", PAD, -y)
             end
-            e.nr:SetText(kopfzeile and "" or (r.heal and "|cffffd100•|r" or ("|cffffd100" .. nr .. ".|r")))
+            -- Die Prioritaet des Heilers ist eine Rangfolge: Nummern. Die
+            -- anderen Reiter sind Listen: Punkte.
+            local nummer = not r.heal or tab == "core"
+            e.nr:SetText(kopfzeile and "" or (nummer and ("|cffffd100" .. nr .. ".|r") or "|cffffd100•|r"))
             e.text:ClearAllPoints()
             e.text:SetPoint("TOPLEFT", kopfzeile and 0 or TEXT_X, 0)
             e.text:SetWidth(kopfzeile and innen or satzW)

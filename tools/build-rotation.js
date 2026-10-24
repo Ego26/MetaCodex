@@ -1057,6 +1057,27 @@ const bare = (s) => String(s || '').replace(/_/g, '');
   const journalEnc = (() => {
     try { return JSON.parse(fs.readFileSync(path.join(BASE, 'tools', 'data', 'journal-names.json'), 'utf8')).encounters || {}; } catch (e) { return {}; }
   })();
+  // Every aura the player sees (a buff text) that puts a spell on the bar in
+  // place of another, however long it lasts - Stormstream Totem's buff holds
+  // a minute, so the replacement table (endless carriers only) lacks it.
+  const procVon = new Map();
+  for (const r of overrides) {
+    const neu = Math.round(Number(r.EffectBasePointsF) || 0);
+    const old = Number(r.EffectMiscValue_0) || 0;
+    if (!neu || !auraTextOf.get(Number(r.SpellID)) || !nameEN.get(neu)) continue;
+    if (old && slug(nameEN.get(neu)) === slug(nameEN.get(old))) continue;
+    // Without an old spell (a class mask instead of an ID): a proc all the same.
+    if (!procVon.get(slug(nameEN.get(neu)))) procVon.set(slug(nameEN.get(neu)), old && nameEN.get(old) ? old : -1);
+  }
+
+  // Mana in percent of the base pool; the lowest row is the spec's own.
+  const manaPct = new Map();
+  for (const r of spellPower) {
+    const p = Number(r.PowerCostPct) || 0;
+    if (Number(r.PowerType) !== 0 || !(p > 0)) continue;
+    const id = Number(r.SpellID);
+    if (!manaPct.has(id) || p < manaPct.get(id)) manaPct.set(id, p);
+  }
   const healGame = {
     cd: (id) => Math.max(cdSeconds.get(id) || 0, rechargeSeconds.get(id) || 0),
     isItem: (id) => itemSpells.has(id),
@@ -1064,6 +1085,15 @@ const bare = (s) => String(s || '').replace(/_/g, '');
     // both and stays a heal; a shield that "absorbs damage" is none.
     isDamage: (id) => { const t = (textOf.get(id) || { d: '' }).d; return /damage/i.test(t) && !/heal|absorb/i.test(t); },
     nameOf: (id) => slug(nameEN.get(id)),
+    // A proc: a visible buff that puts this spell on the bar in place of
+    // another (lib/replace.js marks those). By name - the log's ID of
+    // Stormstream Totem need not be the table's.
+    procFrom: (id) => procVon.get(slug(nameEN.get(id))) || null,
+    lasts: (id) => Math.max(0, lastsMs.get(id) || 0) / 1000,
+    // Several targets: the spell's own words ("jumps", "allies").
+    isMulti: (id) => /jump|bounc|allies|injured (party|raid)|nearby|all party|up to S+ (targets|allies)/i
+      .test((textOf.get(id) || { d: '' }).d),
+    manaPct: (id) => manaPct.get(id) || 0,
   };
   for (const s of catSpecs.filter((x) => x.role === 'healer')) {
     try {
@@ -1076,7 +1106,14 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         const pvOk = pv && pv.casts && pv.casts.players >= 15 ? pv : null;
         const casts = nachts && (!pvOk || nachts.players >= pvOk.casts.players) ? nachts : (pvOk && pvOk.casts);
         const openers = mode === 'raid' ? (openersBySpec.get(s.id) || (pv && pv.openers) || []) : [];
-        const g = healing.guide({ casts, openers, bosses: pvOk && pvOk.bosses }, healGame);
+        // The other activity, to compare the fillers (M+ against raid).
+        const anders = mode === 'raid' ? 'mplus' : 'raid';
+        const nachtAnders = castsBy[anders] && castsBy[anders].get(s.id);
+        const pvAnders = preview[s.id] && preview[s.id][anders];
+        const other = nachtAnders && nachtAnders.players >= MIN_MEASURED
+          ? { players: nachtAnders.players, minutes: nachtAnders.minutes, by: [...nachtAnders.by].map(([g, [n, wer]]) => [g, n, wer]) }
+          : (pvAnders && pvAnders.casts && pvAnders.casts.players >= 15 ? pvAnders.casts : undefined);
+        const g = healing.guide({ casts, openers, bosses: pvOk && pvOk.bosses, other }, healGame);
         if (!g) { report.push(`${s.id} healer ${mode}: not measured`); continue; }
         g.src = 'warcraftlogs.com';
         g.m = mode;
@@ -1091,7 +1128,7 @@ const bare = (s) => String(s || '').replace(/_/g, '');
           for (const b of g.bosses) delete b.order;
         }
         (out[s.id] = out[s.id] || {})[mode] = g;
-        report.push(`${s.id} healer ${mode}: ${g.n} players, core ${g.core.length}, cds ${g.cds.length}`
+        report.push(`${s.id} healer ${mode}: ${g.n} players, prio ${g.prio.map((x) => x.k).join('/')}, cds ${g.cds.length}`
           + `${g.bosses ? ', bosses ' + g.bosses.length : ''}${casts === nachts ? '' : ' (preview)'}`);
       }
     } catch (err) {
