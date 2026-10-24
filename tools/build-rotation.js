@@ -1064,7 +1064,9 @@ const bare = (s) => String(s || '').replace(/_/g, '');
   for (const r of overrides) {
     const neu = Math.round(Number(r.EffectBasePointsF) || 0);
     const old = Number(r.EffectMiscValue_0) || 0;
-    if (!neu || !auraTextOf.get(Number(r.SpellID)) || !nameEN.get(neu)) continue;
+    // A proc runs out (Stormstream Totem's buff after a minute); a talent's
+    // endless replacement (Rushing Wind Kick for Rising Sun Kick) is none.
+    if (!neu || !auraTextOf.get(Number(r.SpellID)) || !nameEN.get(neu) || !((lastsMs.get(Number(r.SpellID)) || 0) > 0)) continue;
     if (old && slug(nameEN.get(neu)) === slug(nameEN.get(old))) continue;
     // Without an old spell (a class mask instead of an ID): a proc all the same.
     if (!procVon.get(slug(nameEN.get(neu)))) procVon.set(slug(nameEN.get(neu)), old && nameEN.get(old) ? old : -1);
@@ -1089,13 +1091,66 @@ const bare = (s) => String(s || '').replace(/_/g, '');
     }
     return t;
   };
+  // What a player presses: learned spells, talents, the spec's own. A cast
+  // in the log of a name whose every learned spell is passive is a talent's
+  // effect (Reclamation, Twin Flame), no button.
+  const passiv = new Set(spellMisc.filter((r) => Number(r.Attributes_0) & 0x40).map((r) => Number(r.SpellID)));
+  const gelerntNachName = new Map();
+  for (const id of learned) {
+    const k = slug(nameEN.get(id));
+    if (!k) continue;
+    if (!gelerntNachName.has(k)) gelerntNachName.set(k, []);
+    gelerntNachName.get(k).push(id);
+  }
+  // The secondary resources of the healers, by the game's power type.
+  const SEKUNDAER = { 9: 'holy_power', 12: 'chi', 19: 'essence' };
+  // Per spell its cost rows, each bound to a spec's aura or to none: Rising
+  // Sun Kick costs Chi with the Windwalker's aura (137025), mana with the
+  // Mistweaver's (137024).
+  const zweitKosten = new Map();
+  for (const r of spellPower) {
+    const res = SEKUNDAER[Number(r.PowerType)];
+    if (!res || !((Number(r.ManaCost) || 0) > 0)) continue;
+    const id = Number(r.SpellID);
+    if (!zweitKosten.has(id)) zweitKosten.set(id, []);
+    zweitKosten.get(id).push({ res, aura: Number(r.RequiredAuraSpellID) || 0 });
+  }
+  const specAuren = new Map();
+  for (const r of specSpells) {
+    const sp = Number(r.SpecID);
+    if (!specAuren.has(sp)) specAuren.set(sp, new Set());
+    specAuren.get(sp).add(Number(r.SpellID));
+  }
+  const gleichnamige = (id) => [id, ...(gelerntNachName.get(slug(nameEN.get(id))) || [])];
   const healGame = {
-    cd: (id) => Math.max(cdSeconds.get(id) || 0, rechargeSeconds.get(id) || 0),
+    // The longest cooldown of the name: the log's Divine Hymn is the channel's
+    // tick, the cooldown sits on the button.
+    cd: (id) => Math.max(0, ...gleichnamige(id).map((x) => Math.max(cdSeconds.get(x) || 0, rechargeSeconds.get(x) || 0))),
+    isEffect: (id) => {
+      if (learned.has(id) || procVon.get(slug(nameEN.get(id)))) return false;
+      const gleich = gelerntNachName.get(slug(nameEN.get(id))) || [];
+      return gleich.length > 0 && gleich.every((x) => passiv.has(x));
+    },
+    isMana: (id) => { const t = beschreibung(id); return /restor\w*[^.]*\bmana\b/i.test(t) && !/heal/i.test(t); },
+    // Empowers the next spell itself (Thunder Focus Tea) - not a HoT whose
+    // text mentions a next spell somewhere further on.
+    isEmpower: (id) => /\bempower\w* your next\b/i.test(beschreibung(id)),
+    isSummon: (id) => /\bsummons?\b|\bmaintains?\b/i.test(beschreibung(id)),
+    // Only healing over time - no heal on the cast first (Regrowth heals
+    // "for X and another Y over Z": cast to heal, not kept up).
+    isHot: (id) => { const t = beschreibung(id); return /\bover \$d\b/i.test(t) && !/for \$\S+ and (another|an additional)/i.test(t); },
+    spends: () => null,
     isItem: (id) => itemSpells.has(id),
     // English text: damage, and neither heals nor absorbs - Holy Shock does
     // both and stays a heal; a shield that "absorbs damage" is none.
-    isDamage: (id) => { const t = beschreibung(id); return /damage/i.test(t) && !/heal|absorb/i.test(t); },
-    nameOf: (id) => slug(nameEN.get(id)),
+    // Damage, and no healing. "Absorbing damage" is a shield - unless it is
+    // the enemy's damage it absorbs (Smite).
+    isDamage: (id) => {
+      const t = beschreibung(id);
+      return /damage/i.test(t) && !/heal/i.test(t) && (!/absorb/i.test(t) || /\benem(y|ies)\b/i.test(t));
+    },
+    // "Rejuvenation (Germination)" is a Rejuvenation to a player.
+    nameOf: (id) => slug(String(nameEN.get(id) || '').replace(/\s*\([^)]*\)\s*$/, '')),
     // A proc: a visible buff that puts this spell on the bar in place of
     // another (lib/replace.js marks those). By name - the log's ID of
     // Stormstream Totem need not be the table's.
@@ -1130,7 +1185,15 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         const other = nachtAnders && nachtAnders.players >= MIN_MEASURED
           ? { players: nachtAnders.players, minutes: nachtAnders.minutes, by: [...nachtAnders.by].map(([g, [n, wer]]) => [g, n, wer]) }
           : (pvAnders && pvAnders.casts && pvAnders.casts.players >= 15 ? pvAnders.casts : undefined);
-        const g = healing.guide({ casts, openers, bosses: pvOk && pvOk.bosses, other }, healGame);
+        // The resource this spec spends: cost rows without an aura or with its own.
+        const eigene = specAuren.get(s.id) || new Set();
+        const spends = (id) => {
+          for (const x of gleichnamige(id)) {
+            for (const k of zweitKosten.get(x) || []) if (!k.aura || eigene.has(k.aura)) return k.res;
+          }
+          return null;
+        };
+        const g = healing.guide({ casts, openers, bosses: pvOk && pvOk.bosses, other }, { ...healGame, spends });
         if (!g) { report.push(`${s.id} healer ${mode}: not measured`); continue; }
         g.src = 'warcraftlogs.com';
         g.m = mode;

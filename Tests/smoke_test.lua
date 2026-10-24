@@ -6791,6 +6791,12 @@ do
         heil({ hk = "oncd", s = 5, use = 100, cpm = 11 }):find(L["ROT_H_oncd"]:format("#5"), 1, true) == 1
         and heil({ hk = "keep", s = 5, use = 91, cpm = 2 }):find(L["ROT_H_keep"]:format("#5"), 1, true) == 1
         and heil({ hk = "reg", s = 5, use = 22, cpm = 1 }):find(L["ROT_H_reg"]:format("#5"), 1, true) == 1)
+    check("Heiler: verstaerkt den naechsten Zauber", heil({ hk = "emp", s = 5, use = 100, cpm = 2 })
+        :find(L["ROT_H_emp"]:format("#5"), 1, true) == 1)
+    check("Heiler: Verbraucher nennt die Ressource", heil({ hk = "spend", s = 5, res = "holy_power", cpm = 6 })
+        :find(L["ROT_H_spend"]:format(L["ROT_RES_holy_power"], "#5"), 1, true) == 1)
+    check("Heiler: Mana statt Heilung", heil({ hk = "mana", s = 5, cpm = 1 })
+        :find(L["ROT_H_mana"]:format("#5"), 1, true) == 1)
     check("Heiler: ein Werkzeug ohne feste Reihenfolge", heil({ hk = "sit", s = 5, cpm = 1.3 })
         :find(L["ROT_H_sit"]:format("#5"), 1, true) == 1)
     check("Heiler: Cooldown auf Abklingzeit", heil({ hk = "cd", s = 5, use = 94, per = 2 })

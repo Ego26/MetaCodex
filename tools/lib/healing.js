@@ -13,13 +13,21 @@
 //             proc   a spell a visible buff puts on the bar in place of
 //                    another (Stormstream Totem for Healing Stream Totem)
 //             oncd   used on 70 % of the possible casts or more
-//             keep   the same, lasting about its cooldown: kept up
+//             emp    the same, but it empowers your next spell
+//                    (Thunder Focus Tea) - it is used, not kept up
+//             keep   the same, a totem or summon lasting about its
+//                    cooldown: kept up (Surging Totem)
+//             spend  costs a secondary resource (Holy Power, Essence, Chi)
+//             mana   restores mana (Mana Tea) - no heal at all
 //             reg    a cooldown used less often: regularly
 //             fill   no cooldown: what fills the time - with what it is
 //                    (several targets or one, dearer or cheaper)
 //             dmg    damage, apart
 //             sit    neither heal nor damage (Totemic Projection moves the
 //                    totems): last, as a tool for the moment
+//           WHAT THE SPELL DOES decides, from the game's own text (24
+//           October). A cast in the log that no player presses - the effect
+//           of a passive talent (Reclamation, Twin Flame) - has no line.
 //           Raid against M+: a filler cast 1.6 times as often or more (or
 //           that much less) than in the other activity says so.
 //   cds     a cooldown of a minute or more, cast by 40 %. How much of what
@@ -68,7 +76,11 @@ const median = (a) => { const b = [...a].sort((x, y) => x - y); return b[Math.fl
  *          isDamage:(id:number)=>boolean, nameOf:(id:number)=>string,
  *          procFrom?:(id:number)=>number|null, lasts?:(id:number)=>number,
  *          isMulti?:(id:number)=>boolean, manaPct?:(id:number)=>number,
- *          isUtility?:(id:number)=>boolean}} game
+ *          isUtility?:(id:number)=>boolean, isEffect?:(id:number)=>boolean,
+ *          isMana?:(id:number)=>boolean, isEmpower?:(id:number)=>boolean,
+ *          isSummon?:(id:number)=>boolean, spends?:(id:number)=>string|null}} game
+ *   isEffect: a cast no player presses (a passive talent's effect);
+ *   spends: the secondary resource it costs ("holy_power"), or null
  *   procFrom: the spell a visible buff replaces with this one, -1 when the
  *   game names none; lasts: seconds
  * @returns {object|null} the guide, or null without a measurement
@@ -114,18 +126,33 @@ function guide(input, game) {
   const procs = spells.filter((r) => r.cd < CD_FROM && r.share >= CORE_SHARE && r.cpm >= PROC_CPM && echterProc(r)
     && !game.isDamage(r.s)).map((r) => ({ k: 'proc', s: r.s, from: procFrom(r.s) > 0 ? procFrom(r.s) : undefined, pct: pct(r), cpm: round1(r.cpm) }));
   const istProc = new Set(procs.map((p) => p.s));
-  const alleKern = spells.filter((r) => r.cd < CD_FROM && r.share >= CORE_SHARE && r.cpm >= CORE_CPM && !istProc.has(r.s));
+  const ist = (f, id) => Boolean(game[f] && game[f](id));
+  const alleKern = spells.filter((r) => r.cd < CD_FROM && r.share >= CORE_SHARE && r.cpm >= CORE_CPM && !istProc.has(r.s)
+    && !ist('isEffect', r.s));
   const werkzeug = (r) => Boolean(game.isUtility && game.isUtility(r.s));
   const kern = alleKern.filter((r) => !werkzeug(r));
   const sit = alleKern.filter(werkzeug).sort((a, b) => b.cpm - a.cpm)
     .map((r) => ({ k: 'sit', s: r.s, pct: pct(r), cpm: round1(r.cpm) }));
-  const heilt = kern.filter((r) => !game.isDamage(r.s));
+  const manaRows = kern.filter((r) => ist('isMana', r.s)).map((r) => ({ k: 'mana', s: r.s, pct: pct(r), cpm: round1(r.cpm) }));
+  // A secondary resource is the spec's own when two or more of its measured
+  // spells spend it: Holy Power, Essence. Rising Sun Kick costing Chi for the
+  // Windwalker makes no Mistweaver a Chi spender.
+  const resZahl = new Map();
+  for (const r of spells) { const x = game.spends && game.spends(r.s); if (x) resZahl.set(x, (resZahl.get(x) || 0) + 1); }
+  const eigeneRes = (id) => { const x = game.spends && game.spends(id); return x && resZahl.get(x) >= 2 ? x : null; };
+  const spendRows = kern.filter((r) => !ist('isMana', r.s) && !game.isDamage(r.s) && eigeneRes(r.s))
+    .sort((a, b) => b.cpm - a.cpm)
+    .map((r) => ({ k: 'spend', s: r.s, res: eigeneRes(r.s), pct: pct(r), cpm: round1(r.cpm) }));
+  const istSonder = new Set([...manaRows, ...spendRows].map((x) => x.s));
+  const heilt = kern.filter((r) => !game.isDamage(r.s) && !istSonder.has(r.s));
   const mitCd = heilt.filter((r) => r.cd >= 4).sort((a, b) => (b.use || 0) - (a.use || 0)).map((r) => {
-    // Kept up: it lasts about as long as its cooldown (Surging Totem 24 of 25
-    // seconds). A HoT lasting three cooldowns (Riptide) is one to use on cooldown.
+    // Kept up: a totem or summon that lasts about as long as its cooldown
+    // (Surging Totem 24 of 25 seconds). A HoT lasting three cooldowns
+    // (Riptide) or a beacon of a few seconds is one to use on cooldown.
     const quote = r.cd > 0 ? lasts(r.s) / r.cd : 0;
-    const keep = (r.use || 0) >= ON_CD_USE && quote >= KEEP_RATIO && quote <= 1.5;
-    const k = keep ? 'keep' : (r.use || 0) >= ON_CD_USE ? 'oncd' : 'reg';
+    const oft = (r.use || 0) >= ON_CD_USE;
+    const keep = oft && ist('isSummon', r.s) && quote >= KEEP_RATIO && quote <= 1.5;
+    const k = keep ? 'keep' : oft && ist('isEmpower', r.s) ? 'emp' : oft ? 'oncd' : 'reg';
     return { k, s: r.s, pct: pct(r), cpm: round1(r.cpm), use: r.use };
   });
   // Raid against M+, by name.
@@ -144,7 +171,16 @@ function guide(input, game) {
     if (r.cpm * VS_RATIO <= x) return 'less';
     return undefined;
   };
-  const fueller = heilt.filter((r) => r.cd < 4).sort((a, b) => b.cpm - a.cpm).slice(0, MAX_FILL);
+  // Without a cooldown, cast about once per its own duration: kept up on
+  // one target (Lifebloom, 15 seconds, every 15 seconds) - no filler.
+  const einmalJeDauer = (r) => {
+    const q = (r.cpm * lasts(r.s)) / 60;
+    return lasts(r.s) > 0 && q >= 0.6 && q <= 1.5 && (!game.isHot || game.isHot(r.s));
+  };
+  const halten = heilt.filter((r) => r.cd < 4 && einmalJeDauer(r))
+    .map((r) => ({ k: 'keep', s: r.s, pct: pct(r), cpm: round1(r.cpm) }));
+  const istHalten = new Set(halten.map((x) => x.s));
+  const fueller = heilt.filter((r) => r.cd < 4 && !istHalten.has(r.s)).sort((a, b) => b.cpm - a.cpm).slice(0, MAX_FILL);
   const mana = (id) => (game.manaPct ? game.manaPct(id) : 0) || 0;
   const fill = fueller.map((r, i) => {
     // Dearer or cheaper than the other fillers - only where it is clear.
@@ -160,8 +196,8 @@ function guide(input, game) {
   });
   const dmg = kern.filter((r) => game.isDamage(r.s)).sort((a, b) => b.cpm - a.cpm).slice(0, MAX_DMG)
     .map((r) => ({ k: 'dmg', s: r.s, pct: pct(r), cpm: round1(r.cpm) }));
-  const prio = [...procs, ...mitCd.filter((x) => x.k !== 'reg'), ...mitCd.filter((x) => x.k === 'reg'), ...fill, ...dmg, ...sit]
-    .slice(0, MAX_CORE + MAX_DMG + 2);
+  const prio = [...procs, ...mitCd.filter((x) => x.k !== 'reg'), ...halten, ...spendRows, ...mitCd.filter((x) => x.k === 'reg'),
+    ...fill, ...manaRows, ...dmg, ...sit].slice(0, MAX_CORE + MAX_DMG + 2);
   const cdRows = spells.filter((r) => r.cd >= CD_FROM && r.share >= CD_SHARE)
     .sort((a, b) => (b.use || 0) - (a.use || 0));
   const cds = cdRows.map((r) => ({ s: r.s, pct: pct(r), per: round1(r.per), use: r.use }));

@@ -7343,7 +7343,7 @@ do
     local function messung(line)
         local teile = {}
         if line.cpm then teile[#teile + 1] = L["ROT_H_m_cpm"]:format(zahl(line.cpm)) end
-        if line.use and (line.hk == "oncd" or line.hk == "keep" or line.hk == "cd" or line.hk == "item") then
+        if line.use and (line.hk == "oncd" or line.hk == "keep" or line.hk == "emp" or line.hk == "cd" or line.hk == "item") then
             teile[#teile + 1] = L["ROT_H_m_use"]:format(line.use)
         end
         if line.pct and line.pct < 90 then teile[#teile + 1] = L["ROT_H_m_pct"]:format(line.pct) end
@@ -7376,6 +7376,9 @@ do
             return L[(line.use or 0) >= 85 and "ROT_H_oncd" or "ROT_H_oncd_most"]:format(nm(line.s)) .. messung(line)
         end
         if k == "keep" then return L["ROT_H_keep"]:format(nm(line.s)) .. messung(line) end
+        if k == "emp" then return L["ROT_H_emp"]:format(nm(line.s)) .. messung(line) end
+        if k == "spend" then return L["ROT_H_spend"]:format(resource(line.res), nm(line.s)) .. messung(line) end
+        if k == "mana" then return L["ROT_H_mana"]:format(nm(line.s)) .. messung(line) end
         if k == "reg" then return L["ROT_H_reg"]:format(nm(line.s)) .. messung(line) end
         if k == "fill" then
             -- Der erste Fueller fuehrt ein, die anderen kommen mit "Oder".
@@ -7442,7 +7445,7 @@ do
         local out = {}
         if tab == "core" then
             for _, x in ipairs(r.prio or {}) do
-                out[#out + 1] = { hk = x.k, s = x.s, pct = x.pct, cpm = x.cpm, use = x.use, from = x.from,
+                out[#out + 1] = { hk = x.k, s = x.s, pct = x.pct, cpm = x.cpm, use = x.use, from = x.from, res = x.res,
                     first = x.first, multi = x.multi, cost = x.cost, vs = x.vs, m = r.m }
             end
         elseif tab == "cds" then

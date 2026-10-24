@@ -13,12 +13,16 @@ function check(what, got, want) {
 // Ein kleiner Restoschamane: 10 Spieler, je 5 Minuten.
 const NAMES = { 1: 'chain_heal', 2: 'riptide', 3: 'ascendance', 4: 'spirit_link_totem', 5: 'flame_shock', 6: 'flame_shock',
   7: 'astral_shift', 8: 'trinket', 9: 'ghost_wolf', 10: 'lava_burst', 11: 'healing_wave', 12: 'surging_totem',
-  13: 'stormstream_totem', 14: 'healing_stream_totem', 15: 'totemic_projection' };
-const CD = { 2: 6, 3: 180, 4: 180, 7: 120, 8: 120, 5: 6, 6: 6, 10: 8, 12: 25, 13: 30, 14: 30, 15: 10 };
+  13: 'stormstream_totem', 14: 'healing_stream_totem', 15: 'totemic_projection',
+  16: 'reclamation', 17: 'mana_tea', 18: 'thunder_focus_tea', 19: 'word_of_glory', 20: 'light_of_dawn',
+  21: 'rising_sun_kick', 22: 'lifebloom' };
+const CD = { 2: 6, 3: 180, 4: 180, 7: 120, 8: 120, 5: 6, 6: 6, 10: 8, 12: 25, 13: 30, 14: 30, 15: 10, 18: 30 };
 const game = {
-  cd: (id) => CD[id] || 0, isItem: (id) => id === 8, isDamage: (id) => [5, 6, 10].includes(id), nameOf: (id) => NAMES[id],
-  procFrom: (id) => (id === 13 ? 14 : null), lasts: (id) => ({ 2: 18, 12: 24, 14: 15 })[id] || 0,
+  cd: (id) => CD[id] || 0, isItem: (id) => id === 8, isDamage: (id) => [5, 6, 10, 21].includes(id), nameOf: (id) => NAMES[id],
+  procFrom: (id) => (id === 13 ? 14 : null), lasts: (id) => ({ 2: 18, 12: 24, 14: 15, 22: 15 })[id] || 0,
   isMulti: (id) => id === 1, manaPct: (id) => ({ 1: 4.28, 11: 2.38 })[id] || 0, isUtility: (id) => id === 15,
+  isSummon: (id) => [12, 14].includes(id), isEffect: (id) => id === 16, isMana: (id) => id === 17,
+  isEmpower: (id) => id === 18, spends: (id) => ([19, 20].includes(id) ? 'holy_power' : id === 21 ? 'chi' : null),
 };
 const casts = {
   players: 10, minutes: 50,
@@ -37,17 +41,26 @@ const casts = {
     [13, 40, 9],     // Totem der Sturmflut: nur aus dem Proc
     [14, 90, 10],    // Totem des heilenden Flusses: 90 von 100 moeglichen
     [15, 65, 10],    // Totemische Projektion: weder Heilung noch Schaden
+    [16, 300, 10],   // Rueckgewinnung: die Wirkung eines passiven Talents, kein Knopf
+    [17, 60, 10],    // Manatee: stellt Mana her, heilt nicht
+    [18, 105, 10],   // Donnerfokustee: verstaerkt den naechsten Zauber
+    [19, 150, 10],   // Wort der Herrlichkeit: gibt Heilige Kraft aus
+    [20, 5, 3],      // Licht der Morgendaemmerung: die zweite Ausgabe - Heilige Kraft ist eigen
+    [21, 50, 10],    // Tritt der aufgehenden Sonne kostet Chi - aber nur er: kein Verbraucher
+    [22, 200, 10],   // Bluehendes Leben: 4/min bei 15 Sek. - auf einem Ziel aufrecht
   ],
 };
 const g = guide({ casts }, game);
 check('Prioritaet: Proc, Abklingzeit, aufrecht, Fueller, Schaden', g.prio.map((r) => [r.k, r.s]),
-  [['proc', 13], ['oncd', 2], ['keep', 12], ['oncd', 14], ['fill', 1], ['fill', 11], ['dmg', 5], ['sit', 15]]);
+  [['proc', 13], ['oncd', 2], ['emp', 18], ['keep', 12], ['oncd', 14], ['keep', 22], ['spend', 19], ['fill', 1], ['fill', 11], ['mana', 17], ['dmg', 5], ['dmg', 21], ['sit', 15]]);
+check('ein passives Talent hat keine Zeile', g.prio.some((r) => r.s === 16), false);
+check('der Verbraucher nennt die Ressource', g.prio.find((r) => r.k === 'spend').res, 'holy_power');
 check('der Proc nennt, was er ersetzt', g.prio[0].from, 14);
 check('Springflut haelt drei Abklingzeiten: auf Abklingzeit, nicht aufrecht', g.prio[1].k, 'oncd');
 check('Fueller: mehrere Ziele und teurer gegen ein Ziel und guenstiger',
   g.prio.filter((r) => r.k === 'fill').map((r) => [r.s, r.multi, r.cost]), [[1, true, 'high'], [11, false, 'low']]);
-check('je Minute und Anteil', [g.prio[4].cpm, g.prio[4].pct], [20, 100]);
-check('Schaden getrennt, zwei IDs als ein Zauber', g.prio.filter((r) => r.k === 'dmg').map((r) => [r.s, r.cpm]), [[5, 1.2]]);
+check('je Minute und Anteil', [g.prio.find((r) => r.s === 1).cpm, g.prio.find((r) => r.s === 1).pct], [20, 100]);
+check('Schaden getrennt, zwei IDs als ein Zauber', g.prio.filter((r) => r.k === 'dmg').map((r) => [r.s, r.cpm]), [[5, 1.2], [21, 1]]);
 // Raid gegen M+: Welle der Heilung im anderen Modus viel seltener.
 const mitVergleich = guide({ casts, other: { players: 10, minutes: 50, by: [[1, 1000, 10], [11, 50, 10]] } }, game);
 check('M+ gegen Raid: deutlich oefter', mitVergleich.prio.filter((r) => r.k === 'fill').map((r) => r.vs), [undefined, 'more']);
