@@ -862,9 +862,13 @@ function buildTab(lists, start, ctx, resolve) {
   sp.latch = (name) => (resolve.latch ? resolve.latch(name, ctx, sp) : null);
   sp.fold = (e) => fold(e, ctx);
 
+  // The lists this target count runs through: from which count SimC turns
+  // to its AoE list (see build-rotation's aoeAb).
+  const listen = new Set();
   function walk(listName, outer) {
     if (visiting.has(listName)) return false;
     visiting.add(listName);
+    listen.add(listName);
     for (const { action, opts } of lists[listName] || []) {
       const laufen = opts.moving === '1' || opts.moving === 'true';
       const cx = laufen ? { ...ctx, moving: true } : ctx;
@@ -969,7 +973,7 @@ function buildTab(lists, start, ctx, resolve) {
     }
     vageEinmal(l);
   }
-  return { lines: merged.filter((l) => !l.never), moving, keep, items, miss, nebenbei };
+  return { lines: merged.filter((l) => !l.never), moving, keep, items, miss, nebenbei, listen: [...listen] };
 }
 
 module.exports = { parse, parseApl, fold, records, buildTab, tokenize, NOISE, RACIALS, isOther, show, logVague, vereinfacht, simcNames };

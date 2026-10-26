@@ -6886,8 +6886,16 @@ do
     local boss = heil({ hk = "bosscd", s = 5, t = { 71, 252 } })
     check("Heiler: je Cooldown eine Zeile mit Zeitpunkten", boss == L["ROT_H_bosscd"]:format("#5", "1:11" .. L["ROT_AND"] .. "4:12"), boss)
     check("Heiler: der Hinweis nennt den Heldenbaum", L["ROT_H_HINT_HERO"]:find("%s", 1, true) ~= nil)
-    check("Heiler: der erste Reiter ist die Prioritaet",
-        ns.UI.RotationTab({ heal = true, prio = { { k = "fill", s = 5, pct = 100, cpm = 20 } }, cds = {} }) == "core")
+    check("Heiler: der erste Reiter ist die Einzelheilung",
+        ns.UI.RotationTab({ heal = true, prio = { { k = "fill", s = 5, pct = 100, cpm = 20 } }, cds = {} }) == "single")
+    -- Einzel- und Gruppenheilung: jede Liste ihre Heilungen, Gemeinsames in beiden.
+    local teilR = { heal = true, m = "raid", cds = {}, prio = { { k = "emp", s = 4 }, { k = "fill", s = 5, multi = true, first = true },
+        { k = "fill", s = 6, multi = false }, { k = "dmg", s = 8 } } }
+    local ein, grp = ns.UI.RotationLines(teilR, "single"), ns.UI.RotationLines(teilR, "group")
+    check("Heiler: Einzelheilung ohne Gruppenzauber, mit Gemeinsamem", #ein == 3 and ein[2].s == 6 and ein[2].first == true, tostring(#ein))
+    check("Heiler: Gruppenheilung ohne Einzelzauber", #grp == 3 and grp[2].s == 5, tostring(#grp))
+    check("Heiler: der erste Fueller je Liste heisst nach ihr",
+        heil(ein[2]):find(L["ROT_H_fill_first_single"]:format("#6"), 1, true) == 1, heil(ein[2]))
     -- Eine Aufladung, nicht "1 Aufladungen".
     check("eine Aufladung", say({ "charges", 5, 1 }) == L["ROT_C_charges1"]:format("#5"), say({ "charges", 5, 1 }))
     check("fast eine Aufladung", say({ "charges", 5, 0.8 }) == L["ROT_C_chargesnear1"]:format("#5"), say({ "charges", 5, 0.8 }))

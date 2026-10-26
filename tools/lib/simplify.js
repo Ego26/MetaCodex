@@ -193,6 +193,21 @@ function ohneDoppel(bekannt, wie) {
   let out = [];
   for (const c of bekannt) if (!out.some((d) => wie(d) === wie(c))) out.push(c);
   const name = (id) => wie(['', id]);
+  // "At least 3 and at least 6 targets": at least 6 (two bounds of one kind
+  // and subject in one line, the stricter).
+  for (let i = 0; i < out.length; i += 1) {
+    const c = out[i];
+    const art = AT_LEAST.has(c[0]) ? 'min' : BELOW.has(c[0]) ? 'max' : null;
+    const n = c[c.length - 1];
+    if (!art || typeof n !== 'number') continue;
+    const j = out.findIndex((d, k) => k > i && d[0] === c[0] && typeof d[d.length - 1] === 'number'
+      && wie(d.slice(0, -1)) === wie(c.slice(0, -1)));
+    if (j < 0) continue;
+    const m = out[j][out[j].length - 1];
+    out[i] = [...c.slice(0, -1), art === 'min' ? Math.max(n, m) : Math.min(n, m)];
+    out.splice(j, 1);
+    i -= 1;
+  }
   // Up and down of one name in one line: a player cannot tell them apart.
   const an = new Set(out.filter((c) => c[0] === 'up').map((c) => name(c[1])));
   out = out.filter((c) => c[0] !== 'down' || !an.has(name(c[1])));

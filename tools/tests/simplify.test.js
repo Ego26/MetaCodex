@@ -140,6 +140,8 @@ check('nicht aktiv und laeuft in 3 Sek. aus: nicht aktiv',
   s([{ s: 1, c: [['down', 5], ['remunder', 5, 3]] }]), [[1, [['down', 5]], undefined]]);
 check('eine Abklingzeit jenseits jedes Kampfes ist keine Pruefung',
   s([{ s: 1, c: [['up', 4], ['or', ['up', 5], ['cdover', 5, 3590]]] }]), [[1, [['up', 4]], undefined]]);
+check('mindestens 3 und mindestens 6 Ziele: mindestens 6',
+  s([{ s: 1, c: [['tgtmin', 3], ['tgtmin', 6]] }]), [[1, [['tgtmin', 6]], undefined]]);
 check('nichts Verstaendliches: keine Bedingung',
   simpleConditions([['cmp', 1, 'gt', 2]]), undefined);
 

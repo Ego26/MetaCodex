@@ -243,6 +243,15 @@ function guide(input, game) {
     .sort((a, b) => (a.k === 'dmgheal' ? 0 : 1) - (b.k === 'dmgheal' ? 0 : 1));
   const prio = [...procs, ...mitCd.filter((x) => x.k !== 'reg'), ...dmgCd, ...halten, ...spendRows, ...mitCd.filter((x) => x.k === 'reg'),
     ...fill, ...manaRows, ...dmg, ...sit].slice(0, MAX_CORE + MAX_DMG + 2);
+  // ONE TARGET OR SEVERAL (26 October), from the spell's own words: the
+  // guide splits the heals into a single-target and a group list. Which
+  // spell heals whom is the game's text; when it is cast, the logs do not
+  // say - each list keeps the measured order.
+  // An empowerment (Thunder Focus Tea) heals nobody itself: both lists.
+  const HEILT = new Set(['proc', 'oncd', 'keep', 'spend', 'reg', 'fill']);
+  for (const x of prio) {
+    if (x.multi === undefined && HEILT.has(x.k) && !game.isDamage(x.s) && game.isMulti) x.multi = Boolean(game.isMulti(x.s));
+  }
   // A cooldown that neither heals nor protects - Dash, Ursol's Vortex,
   // Shadowmeld, Mass Dispel, Heroism - is a tool, no healing cooldown: it
   // goes last, in one line, and has no minute in the boss plan (26 October).

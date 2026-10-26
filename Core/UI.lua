@@ -7597,7 +7597,16 @@ do
             -- Der erste Fueller fuehrt ein, die anderen kommen mit "Oder".
             local was = line.multi == true and L["ROT_H_multi"] or (line.multi == false and L["ROT_H_single"] or nil)
             local text
-            if line.hot then
+            if line.teil then
+                -- Je Liste: "deine haeufigste Einzelheilung", nicht die
+                -- haeufigste ueberhaupt; ein Ziel oder mehrere sagt die Liste.
+                if line.first then
+                    text = line.hot and L["ROT_H_fill_first_hot_" .. line.teil]:format(nm(line.s), L["ROT_H_hot"])
+                        or L["ROT_H_fill_first_" .. line.teil]:format(nm(line.s))
+                else
+                    text = line.hot and L["ROT_H_fill_hot"]:format(nm(line.s), L["ROT_H_hot"]) or L["ROT_H_fill0"]:format(nm(line.s))
+                end
+            elseif line.hot then
                 -- Ein HoT wird verteilt (Verjuengung), nicht "gefuellt".
                 text = L[line.first and "ROT_H_fill_first_hot" or "ROT_H_fill_hot"]:format(nm(line.s), L["ROT_H_hot"])
             elseif line.first then
@@ -7605,7 +7614,13 @@ do
             else
                 text = was and L["ROT_H_fill"]:format(nm(line.s), was) or L["ROT_H_fill0"]:format(nm(line.s))
             end
-            if line.cost then text = text .. L["ROT_H_cost_" .. line.cost] end
+            if line.cost and line.teil then
+                -- Ohne "auf ein Ziel" davor: "..., guenstig im Mana" und
+                -- "Oder mit X – teuer im Mana".
+                text = text .. ((line.first or line.hot) and ", " or " – ") .. L["ROT_H_costw_" .. line.cost]
+            elseif line.cost then
+                text = text .. L["ROT_H_cost_" .. line.cost]
+            end
             text = text .. "."
             if line.vs then text = text .. " " .. L["ROT_H_vs_" .. line.vs .. "_" .. (line.m == "mplus" and "mplus" or "raid")] end
             return text
@@ -7690,10 +7705,13 @@ do
 
     -- Die Reiter, in der Reihenfolge wie bei Wowhead.
     local TABS = { "st", "aoe", "pre", "items" }
-    local HEAL_TABS = { "core", "cds", "bosses", "items" }
+    -- EINZEL- UND GRUPPENHEILUNG (26. Oktober): wen ein Zauber heilt, sagt
+    -- sein Text; wann Top-Heiler ihn druecken, messen die Logs nicht - jede
+    -- Liste behaelt die gemessene Reihenfolge.
+    local HEAL_TABS = { "single", "group", "cds", "bosses", "items" }
     -- Alle Knoepfe einer Karte, in Anzeigereihenfolge; gezeigt werden die
     -- der Art (Schaden/Tank oder Heiler).
-    local ALL_TABS = { "st", "aoe", "pre", "core", "cds", "bosses", "items" }
+    local ALL_TABS = { "st", "aoe", "pre", "single", "group", "cds", "bosses", "items" }
     local function reiterVon(r) return (r and r.heal) and HEAL_TABS or TABS end
     local function hatReiter(r, key)
         for _, k in ipairs(reiterVon(r)) do if k == key then return true end end
@@ -7718,10 +7736,18 @@ do
     end
     local function heilZeilen(r, tab)
         local out = {}
-        if tab == "core" then
+        if tab == "core" or tab == "single" or tab == "group" then
+            -- Was niemanden selbst heilt (Donnerfokustee, Schaden, Mana,
+            -- Werkzeuge), steht in beiden Listen.
+            local teil = tab ~= "core" and tab or nil
+            local erster = true
             for _, x in ipairs(r.prio or {}) do
-                sammeln(out, { hk = x.k, s = x.s, via = x.via, pct = x.pct, cpm = x.cpm, use = x.use, from = x.from, res = x.res,
-                    first = x.first, multi = x.multi, hot = x.hot, cost = x.cost, vs = x.vs, m = r.m })
+                if not teil or x.multi == nil or (x.multi == true) == (teil == "group") then
+                    local first = x.first
+                    if teil and x.k == "fill" then first = erster or nil; erster = false end
+                    sammeln(out, { hk = x.k, s = x.s, via = x.via, pct = x.pct, cpm = x.cpm, use = x.use, from = x.from, res = x.res,
+                        first = first, multi = x.multi, hot = x.hot, cost = x.cost, vs = x.vs, m = r.m, teil = teil })
+                end
             end
         elseif tab == "cds" then
             -- Werkzeuge (Spurt, Massenbannung) sind keine Heil-Cooldowns:
@@ -8148,7 +8174,12 @@ do
         local x = PAD
         for _, b in ipairs(f.tabs) do
             local n = hatReiter(r, b.key) and #zeilenVon(r, b.key) or 0
-            b.label:SetText(L["ROT_TAB_" .. b.key])
+            -- Ab wie vielen Zielen die AoE-Liste gilt: aus SimCs eigener Liste.
+            if b.key == "aoe" and tonumber(r.aoeAb) then
+                b.label:SetText(L["ROT_TAB_aoe_n"]:format(tonumber(r.aoeAb)))
+            else
+                b.label:SetText(L["ROT_TAB_" .. b.key])
+            end
             local bw = math.max(110, (tonumber(b.label:GetStringWidth()) or 80) + 32)
             b:SetWidth(bw)
             b:ClearAllPoints()
@@ -8188,7 +8219,7 @@ do
         local y = PAD + TAB_H + 18
 
         -- Der Beispiel-Ablauf, nur beim Einzelziel - wie bei Wowhead.
-        if tab == "st" or tab == "core" then
+        if tab == "st" or tab == "core" or tab == "single" then
             y = zeitleiste(f, r, y, innen)
         else
             zeitleiste(f, { st = {} }, y, innen)
@@ -8219,7 +8250,7 @@ do
             end
             -- Die Prioritaet des Heilers ist eine Rangfolge: Nummern. Die
             -- anderen Reiter sind Listen: Punkte.
-            local nummer = not r.heal or tab == "core"
+            local nummer = not r.heal or tab == "core" or tab == "single" or tab == "group"
             e.nr:SetText(kopfzeile and "" or (nummer and ("|cffffd100" .. nr .. ".|r") or "|cffffd100•|r"))
             e.text:ClearAllPoints()
             e.text:SetPoint("TOPLEFT", kopfzeile and 0 or TEXT_X, 0)

@@ -1057,7 +1057,22 @@ const bare = (s) => String(s || '').replace(/_/g, '');
       };
       const start = lists.default ? 'default' : Object.keys(lists)[0];
       const st = apl.buildTab(lists, start, ctx([1, 1]), resolve);
-      const aoe = apl.buildTab(lists, start, ctx([3, 8]), resolve);
+      // FROM HOW MANY TARGETS (26 October): the AoE tab is the action list
+      // SimC runs against many targets (eight), from the first target count
+      // that runs it - a cleave list for two targets before it belongs to
+      // neither tab. With one list for all: the first count at which it
+      // casts something else. Up to six; none found, the tab names no number.
+      const zeile = (t) => JSON.stringify(t.lines.map((l) => [l.s, l.c]));
+      const listenBei = (n) => [...apl.buildTab(lists, start, ctx([n, n]), resolve).listen].sort().join('|');
+      const viele = listenBei(8);
+      let aoeAb;
+      if (viele !== [...st.listen].sort().join('|')) {
+        for (let n = 2; n <= 6 && !aoeAb; n += 1) if (listenBei(n) === viele) aoeAb = n;
+      }
+      for (let n = 2; n <= 6 && !aoeAb; n += 1) {
+        if (zeile(apl.buildTab(lists, start, ctx([n, n]), resolve)) !== zeile(st)) aoeAb = n;
+      }
+      const aoe = apl.buildTab(lists, start, ctx([aoeAb || 3, 8]), resolve);
       const pre = apl.buildTab(lists, 'precombat', ctx([1, 1]), resolve);
       // TRAENKE & SCHMUCK. Der Trank: welcher gemessen wird und wann die Liste
       // ihn trinkt. Der Schmuck: zweimal gerechnet, mit einem gedachten
@@ -1258,6 +1273,7 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         keep: keep.length ? keep.map(knopf).filter(Boolean) : undefined,
         st: bisFueller(pack(st.lines.filter(imKampf)), ohneBedingung.st),
         aoe: bisFueller(pack(aoe.lines.filter(imKampf)), ohneBedingung.aoe),
+        aoeAb,
         mv: [...new Set([...st.moving, ...aoe.moving].map(knopf).filter(Boolean))],
         items: Object.keys(items).length ? items : undefined,
         cast: share && gemessen && gemessen.players >= MIN_MEASURED ? gemessen.players : undefined,
@@ -1436,8 +1452,16 @@ const bare = (s) => String(s || '').replace(/_/g, '');
     procFrom: (id) => procVon.get(slug(nameEN.get(id))) || null,
     lasts: (id) => Math.max(0, lastsMs.get(id) || 0) / 1000,
     // Several targets: the spell's own words ("jumps", "allies").
-    isMulti: (id) => /jump|bounc|allies|injured (party|raid)|nearby|all party|up to \S+ (targets|allies)/i
-      .test(beschreibung(id)),
+    // A totem that "maintains Healing Rain" heals as Healing Rain does
+    // (Surging Totem, 26 October).
+    isMulti: (id) => {
+      const viele = (t) => /jump|bounc|allies|injured (party|raid)|nearby|all party|up to \S+ (targets|allies)/i.test(t);
+      const t = beschreibung(id);
+      if (viele(t)) return true;
+      const m = /\b(?:maintains|Replaces) ([A-Z][\w']*(?: [A-Z][\w']*)*)/.exec(t);
+      const andere = m && (gelerntNachName.get(slug(m[1])) || []);
+      return Boolean(andere && andere.some((x) => x !== id && viele(beschreibung(x))));
+    },
     // Neither heals, shields, restores nor hurts: a tool for the moment
     // (Totemic Projection moves the totems). No place in a priority.
     isUtility: (id) => {
