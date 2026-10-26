@@ -1,3 +1,40 @@
+## v1.1.22 — rotation and groups
+
+### Added
+
+- **Rotation (beta)**, under Overview: what to press, in plain
+  sentences. For damage dealers and tanks it is SimulationCraft's
+  priority, cut to the build the top players of your spec actually run
+  — per hero tree and per difficulty. Single target and AoE, and the
+  AoE tab says from how many targets it applies; where SimulationCraft
+  plays a spec the same against one and many, there is one list.
+  Before the pull, potions & trinkets, and the opener measured on
+  raid pulls.
+- **For healers, measured instead of simulated**: what top healers
+  cast on Warcraft Logs — single-target and group healing, which
+  damage heals through your talents, the major cooldowns (yours, for
+  one ally, for the group), and in the raid when they go out per boss.
+- **Groups & specs**, under Overview: who plays with whom at the top.
+  M+: the most common groups of five and the specs per role, also per
+  dungeon. Raid: per difficulty, how many kills a spec is in. PvP: the
+  specs among the top players of each bracket.
+
+### Changed
+
+- **"Guides & Rotation" is now "Guides"** — the rotation has its own
+  section.
+- **No shopping buttons at the bottom of the window** — they were of
+  use only at the auction house, where the shopping list beside it has
+  them. "Also buy for" in the spec menu went with them.
+
+### Fixed
+
+- **Monks and Fury**: talent builds are read against the live talent
+  tree again, with hero talents.
+- **Omnium Folio**: a row with too few measured players at one
+  activity comes from the nearest one that has it, and says so — row 5
+  is back for every spec. No empty fifth spec in the druid's menu.
+
 ## v1.1.21 — open in Mythic+ again
 
 ### Fixed

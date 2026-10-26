@@ -6709,7 +6709,10 @@ do
     ns.Profile.SetMode("mplus")
 
     ns.version = "v9.9.9"
-    check("im Paket keine Rotation", not ns.Recommend.HasSection(262, "mplus", ns.Recommend.ALL, "rotation"))
+    -- Seit dem 26. Oktober fuer alle, als Beta.
+    check("im Paket die Rotation", ns.Recommend.HasSection(262, "mplus", ns.Recommend.ALL, "rotation"))
+    check("und dort als Beta gekennzeichnet", ns.UI.RotationHint(262, "mplus"):find(L["ROT_BETA"], 1, true) ~= nil,
+        ns.UI.RotationHint(262, "mplus"))
     ns.version = "dev"
     check("in der Dev-Version die Rotation", ns.Recommend.HasSection(262, "mplus", ns.Recommend.ALL, "rotation"))
     check("im PvP keine", not ns.Recommend.HasSection(262, "3v3", ns.Recommend.ALL, "rotation"))

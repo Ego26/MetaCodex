@@ -910,8 +910,8 @@ function Recommend.HasSection(specID, mode, source, section)
         return Recommend.Races(specID, mode) ~= nil or Recommend.RaceSims(specID) ~= nil
             or ns.version == "dev"
     elseif section == "rotation" then
-        -- Vorerst nur in der Dev-Version (20. Oktober).
-        return ns.version == "dev" and Recommend.Rotation(specID, mode) ~= nil
+        -- Fuer alle, als Beta (26. Oktober; bis dahin nur in der Dev-Version).
+        return Recommend.Rotation(specID, mode) ~= nil
     elseif section == "comps" then
         -- Je Aktivitaet zaehlt genau EINE Quelle; eine andere Plattform hat
         -- hier nichts.

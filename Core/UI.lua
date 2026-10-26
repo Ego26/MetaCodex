@@ -7906,7 +7906,8 @@ do
             if r.m ~= "mplus" then text = text .. " " .. L["ROT_H_HINT_TIMES"] end
             -- Zu wenige Spieler in dieser Stufe: alle Stufen zusammen, und das steht da.
             if r.alle or alle.alle then text = text .. " " .. L["ROT_ALL_LEVELS"] end
-            if ns.version == "dev" then text = "|cffD29922DEV-Vorschau.|r  " .. text end
+            if ns.version == "dev" then text = "|cffD29922DEV-Vorschau.|r  " .. text
+            else text = "|cffD29922" .. L["ROT_BETA"] .. "|r  " .. text end
             return text
         end
         local held = r.hero and ns.Catalog.SubTreeName and ns.Catalog.SubTreeName(r.hero) or "?"
@@ -7914,7 +7915,9 @@ do
         if r.set then text = text .. "  " .. L["ROT_SET"] end
         if r.alleZiele then text = text .. "  " .. L["ROT_ALL_TARGETS"] end
         if alle.alle then text = text .. "  " .. L["ROT_ALL_LEVELS"] end
-        if ns.version == "dev" then text = "|cffD29922DEV-Vorschau.|r  " .. text end
+        -- Neu und noch nicht in jeder Zeile geprueft: das steht da.
+        if ns.version == "dev" then text = "|cffD29922DEV-Vorschau.|r  " .. text
+        else text = "|cffD29922" .. L["ROT_BETA"] .. "|r  " .. text end
         return text
     end
 
