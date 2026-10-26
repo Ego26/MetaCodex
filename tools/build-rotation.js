@@ -1338,6 +1338,12 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         const preSeq = opener.typical(mapped.map((q) => q.pre), { fromEnd: true, max: opener.MAX_PRE });
         if (post.length >= 2) measured = { n: seqs.length, pre: preSeq, post };
       }
+      // ONE LIST FOR ALL (26 October): SimC plays the Brewmaster the same
+      // against one target and many - no line asks for the count. Then
+      // there is no AoE tab of the same lines, and the guide says so.
+      const stZeilen = bisFueller(pack(st.lines.filter(imKampf)), ohneBedingung.st);
+      const aoeZeilen = bisFueller(pack(aoe.lines.filter(imKampf)), ohneBedingung.aoe);
+      const eineListe = !aoeAb && JSON.stringify(stZeilen) === JSON.stringify(aoeZeilen);
       ergebnisse.push({
         opener: measured,
         hero: dec.subTree || undefined,
@@ -1347,9 +1353,10 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         src: best.source,
         pre: pack(preLines),
         keep: keep.length ? keep.map(knopf).filter(Boolean) : undefined,
-        st: bisFueller(pack(st.lines.filter(imKampf)), ohneBedingung.st),
-        aoe: bisFueller(pack(aoe.lines.filter(imKampf)), ohneBedingung.aoe),
+        st: stZeilen,
+        aoe: eineListe ? undefined : aoeZeilen,
         aoeAb,
+        alleZiele: eineListe || undefined,
         mv: [...new Set([...st.moving, ...aoe.moving].map(knopf).filter(Boolean))],
         items: Object.keys(items).length ? items : undefined,
         cast: share && gemessen && gemessen.players >= MIN_MEASURED ? gemessen.players : undefined,

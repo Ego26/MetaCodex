@@ -7912,6 +7912,7 @@ do
         local held = r.hero and ns.Catalog.SubTreeName and ns.Catalog.SubTreeName(r.hero) or "?"
         local text = L["ROT_HINT"]:format(held, r.n or 0) .. "  " .. L["ROT_NO_TRINKET"]
         if r.set then text = text .. "  " .. L["ROT_SET"] end
+        if r.alleZiele then text = text .. "  " .. L["ROT_ALL_TARGETS"] end
         if alle.alle then text = text .. "  " .. L["ROT_ALL_LEVELS"] end
         if ns.version == "dev" then text = "|cffD29922DEV-Vorschau.|r  " .. text end
         return text
@@ -8194,6 +8195,9 @@ do
             -- Ab wie vielen Zielen die AoE-Liste gilt: aus SimCs eigener Liste.
             if b.key == "aoe" and tonumber(r.aoeAb) then
                 b.label:SetText(L["ROT_TAB_aoe_n"]:format(tonumber(r.aoeAb)))
+            elseif b.key == "st" and r.alleZiele then
+                -- Eine Liste fuer ein und viele Ziele (Braumeister).
+                b.label:SetText(L["ROT_TAB_st_all"])
             else
                 b.label:SetText(L["ROT_TAB_" .. b.key])
             end

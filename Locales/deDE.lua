@@ -438,6 +438,8 @@ ns.RegisterLocale("deDE", {
     ["ROT_TAB_st"] = "Einzelziel",
     ["ROT_TAB_aoe"] = "Flächenschaden",
     ["ROT_TAB_aoe_n"] = "Flächenschaden (ab %d Zielen)",
+    ["ROT_TAB_st_all"] = "Ein- und Mehrziel",
+    ["ROT_ALL_TARGETS"] = "SimulationCraft spielt diese Spec gegen ein und viele Ziele gleich – darum gibt es nur eine Liste.",
     ["ROT_TAB_mv"] = "In Bewegung",
     ["ROT_HINT"] = "Simuliert, nicht gemessen: die Priorität aus SimulationCraft, zugeschnitten auf den gemessenen Build (%s, %d Spieler). Von oben nach unten: der erste Zauber, dessen Bedingung passt.",
     ["ROT_SET"] = "Mit 4er-Set, wie es die Gemessenen tragen.",

@@ -440,6 +440,8 @@ ns.RegisterLocale("enUS", {
     ["ROT_TAB_st"] = "Single target",
     ["ROT_TAB_aoe"] = "AoE",
     ["ROT_TAB_aoe_n"] = "AoE (%d+ targets)",
+    ["ROT_TAB_st_all"] = "Single & multi target",
+    ["ROT_ALL_TARGETS"] = "SimulationCraft plays this spec the same against one target and many - so there is one list.",
     ["ROT_TAB_mv"] = "While moving",
     ["ROT_HINT"] = "Simulated, not measured: the priority of SimulationCraft, cut to the measured build (%s, %d players). Top to bottom: cast the first spell whose condition holds.",
     ["ROT_SET"] = "With the 4-piece tier set, as the measured players wear it.",
