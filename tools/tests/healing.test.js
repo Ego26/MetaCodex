@@ -87,5 +87,17 @@ const openers = [];
 for (let i = 0; i < 6; i += 1) openers.push({ pre: [], pull: [], post: [1, 9, 2, 2, 3] });
 check('Pull: ohne Geisterwolf', guide({ casts, openers }, game).opener.post, [1, 2, 3]);
 
+// WERKZEUGE UND FREMDES (26. Oktober): Spurt ist kein Heil-Cooldown, Seele
+// der Macht auf Abklingzeit schon, Schattenmimik ist die Rasse.
+const NAMES2 = { ...NAMES, 30: 'dash', 31: 'shadowmeld', 32: 'power_infusion' };
+const game2 = { ...game, nameOf: (id) => NAMES2[id], cd: (id) => ({ 30: 120, 31: 120, 32: 120 })[id] || game.cd(id),
+  isUtility: (id) => [15, 30, 32].includes(id), isForeign: (id) => id === 31 };
+const casts2 = { ...casts, by: [...casts.by, [30, 6, 6], [31, 6, 6], [32, 30, 10]] };
+const g2 = guide({ casts: casts2, bosses: [boss] }, game2);
+check('ein Werkzeug steht als solches am Ende der Cooldowns', g2.cds.slice(-1).map((r) => [r.s, r.k]), [[30, 'tool']]);
+check('auf Abklingzeit gedrueckt ist kein Werkzeug', g2.cds.find((r) => r.s === 32).k, undefined);
+check('die Rasse hat keine Zeile', [...g2.prio, ...g2.cds].some((r) => r.s === 31), false);
+check('ein Werkzeug hat keine Minute im Boss-Plan', g2.bosses[0].cds.some((x) => x.s === 30), false);
+
 console.log(failed === 0 ? '\nalles gruen' : `\n${failed} Fehler`);
 process.exit(failed === 0 ? 0 : 1);

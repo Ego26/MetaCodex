@@ -1239,7 +1239,10 @@ const bare = (s) => String(s || '').replace(/_/g, '');
     // (Totemic Projection moves the totems). No place in a priority.
     isUtility: (id) => {
       const t = beschreibung(id);
-      return t !== '' && !/heal|damage|absorb|restor|shield|mana|atonement|renew|mend|protect/i.test(t);
+      // "helpful spells" and "your next empowered spell" make healing too:
+      // Stasis and Tip the Scales are no tools - Hover, which lets you
+      // "empower spells while moving", stays one (26 October).
+      return t !== '' && !/heal|damage|absorb|restor|shield|mana|atonement|renew|mend|protect|helpful spell|next empowered/i.test(t);
     },
     manaPct: (id) => manaPct.get(id) || 0,
   };
@@ -1269,8 +1272,12 @@ const bare = (s) => String(s || '').replace(/_/g, '');
           }
           return null;
         };
+        // Not the class's: a racial (Shadowmeld), another class's spell on
+        // this player. The guide is about the healer's own buttons.
+        const fam = familyOfClass.get(classOf.get(s.id) || 0) || 0;
+        const isForeign = (id) => fam > 0 && !gleichnamige(id).some((x) => familyOfSpell.get(x) === fam);
         const baue = (cX, oX, bX, otherX) => {
-          const g = healing.guide({ casts: cX, openers: oX, bosses: bX, other: otherX }, { ...healGame, spends });
+          const g = healing.guide({ casts: cX, openers: oX, bosses: bX, other: otherX }, { ...healGame, spends, isForeign });
           if (!g) return null;
           g.src = 'warcraftlogs.com';
           g.m = mode;

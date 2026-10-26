@@ -32,7 +32,8 @@
 //           that much less) than in the other activity says so.
 //   cds     a cooldown of a minute or more, cast by 40 %. How much of what
 //           was possible got used says how: 85 % and more "as soon as
-//           ready", 50 % "aimed", below "when needed"
+//           ready", 50 % "aimed", below "when needed". A tool (no heal, no
+//           protection) is marked k = "tool" and stands last
 //   items   item uses (trinkets, potions, healthstone), the same way
 //   opener  the raid pull, as for the damage specs (lib/opener.js)
 //   bosses  the raid: per boss, the n-th use of each AIMED cooldown at the
@@ -78,8 +79,10 @@ const median = (a) => { const b = [...a].sort((x, y) => x - y); return b[Math.fl
  *          isMulti?:(id:number)=>boolean, manaPct?:(id:number)=>number,
  *          isUtility?:(id:number)=>boolean, isEffect?:(id:number)=>boolean,
  *          isMana?:(id:number)=>boolean, isEmpower?:(id:number)=>boolean,
- *          isSummon?:(id:number)=>boolean, spends?:(id:number)=>string|null}} game
+ *          isSummon?:(id:number)=>boolean, spends?:(id:number)=>string|null,
+ *          isForeign?:(id:number)=>boolean}} game
  *   isEffect: a cast no player presses (a passive talent's effect);
+ *   isForeign: not the class's own (a racial like Shadowmeld) - no line;
  *   spends: the secondary resource it costs ("holy_power"), or null
  *   procFrom: the spell a visible buff replaces with this one, -1 when the
  *   game names none; lasts: seconds
@@ -111,7 +114,7 @@ function guide(input, game) {
   const items = rows.filter((r) => game.isItem(r.s) && r.share >= ITEM_SHARE)
     .sort((a, b) => b.share - a.share)
     .map((r) => ({ s: r.s, pct: pct(r), per: round1(r.per), use: r.use }));
-  const spells = rows.filter((r) => !game.isItem(r.s));
+  const spells = rows.filter((r) => !game.isItem(r.s) && !(game.isForeign && game.isForeign(r.s)));
   // THE PRIORITY.
   const procFrom = game.procFrom || (() => null);
   const lasts = game.lasts || (() => 0);
@@ -198,9 +201,16 @@ function guide(input, game) {
     .map((r) => ({ k: 'dmg', s: r.s, pct: pct(r), cpm: round1(r.cpm) }));
   const prio = [...procs, ...mitCd.filter((x) => x.k !== 'reg'), ...halten, ...spendRows, ...mitCd.filter((x) => x.k === 'reg'),
     ...fill, ...manaRows, ...dmg, ...sit].slice(0, MAX_CORE + MAX_DMG + 2);
+  // A cooldown that neither heals nor protects - Dash, Ursol's Vortex,
+  // Shadowmeld, Mass Dispel, Heroism - is a tool, no healing cooldown: it
+  // goes last, in one line, and has no minute in the boss plan (26 October).
+  // What top healers press on cooldown is part of the play, whatever its
+  // text says (Power Infusion, Holy Bulwark).
   const cdRows = spells.filter((r) => r.cd >= CD_FROM && r.share >= CD_SHARE)
     .sort((a, b) => (b.use || 0) - (a.use || 0));
-  const cds = cdRows.map((r) => ({ s: r.s, pct: pct(r), per: round1(r.per), use: r.use }));
+  const toolCd = (r) => werkzeug(r) && (r.use || 0) < ON_COOLDOWN;
+  const cds = [...cdRows.filter((r) => !toolCd(r)), ...cdRows.filter(toolCd)]
+    .map((r) => ({ s: r.s, pct: pct(r), per: round1(r.per), use: r.use, k: toolCd(r) ? 'tool' : undefined }));
 
   // The pull: only the spells of this guide, in the order most follow.
   let open;
@@ -224,7 +234,7 @@ function guide(input, game) {
     const players = b.casts.length;
     if (players < 3) continue;
     const plan = [];
-    for (const r of cdRows.filter((x) => (x.use || 0) < ON_COOLDOWN)) {
+    for (const r of cdRows.filter((x) => (x.use || 0) < ON_COOLDOWN && !toolCd(x))) {
       if (plan.length >= MAX_BOSS_CDS) break;
       const k = game.nameOf(r.s);
       // Each player's uses: casts of this name, one within 1.5 seconds.

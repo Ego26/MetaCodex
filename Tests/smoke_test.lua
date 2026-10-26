@@ -6858,12 +6858,26 @@ do
     check("Heiler: Cooldown auf Abklingzeit", heil({ hk = "cd", s = 5, use = 94, per = 2 })
         :find(L["ROT_H_cd_on"]:format("#5"), 1, true) == 1)
     local gezielt = heil({ hk = "cd", s = 5, use = 69, per = 2 })
-    check("Heiler: Cooldown gezielt, im Raid mit Verweis auf die Bosse",
-        gezielt:find(L["ROT_H_cd_aim"]:format("#5", "2", L["ROT_H_per_raid"]) .. " " .. L["ROT_H_cd_when"], 1, true) == 1, gezielt)
+    check("Heiler: Cooldown gezielt",
+        gezielt:find(L["ROT_H_cd_aim"]:format("#5", "2", L["ROT_H_per_raid"]), 1, true) == 1, gezielt)
     check("Heiler: Cooldown bei Bedarf", heil({ hk = "cd", s = 5, use = 30, per = 1 })
         :find(L["ROT_H_cd_need"]:format("#5", "1", L["ROT_H_per_raid"]), 1, true) == 1)
-    check("Heiler: in M+ je Key, ohne Verweis auf Bosse", heil({ hk = "cd", s = 5, use = 69, per = 1, m = "mplus" })
-        :find(L["ROT_H_cd_when"], 1, true) == nil)
+    check("Heiler: in M+ je Key", heil({ hk = "cd", s = 5, use = 69, per = 1, m = "mplus" })
+        :find(L["ROT_H_per_mplus"], 1, true) ~= nil)
+    -- EINE ZEILE FUER VIELE (26. Oktober).
+    local heilZ = ns.UI.RotationLines({ heal = true, m = "raid",
+        prio = { { k = "fill", s = 5, cpm = 9 }, { k = "dmg", s = 6, cpm = 4.2 }, { k = "dmg", s = 7, cpm = 3.2 },
+            { k = "sit", s = 8, cpm = 1.1 }, { k = "sit", s = 9, cpm = 1 } },
+        cds = { { s = 10, use = 100, per = 2 }, { s = 11, use = 9, per = 1, k = "tool" }, { s = 12, use = 8, per = 1, k = "tool" } } }, "core")
+    check("Heiler: Schaden und Lage je eine Zeile", #heilZ == 3, tostring(#heilZ))
+    local schaden = heil(heilZ[2])
+    check("Heiler: Zwischendurch fuer Schaden: A und B",
+        schaden:find(L["ROT_H_dmg"]:format("#6" .. L["ROT_AND"] .. "#7"), 1, true) == 1, schaden)
+    local cdZ = ns.UI.RotationLines({ heal = true, m = "raid", prio = {},
+        cds = { { s = 10, use = 100, per = 2 }, { s = 11, use = 9, per = 1, k = "tool" }, { s = 12, use = 8, per = 1, k = "tool" } } }, "cds")
+    check("Heiler: Werkzeuge in einer Zeile am Ende der Cooldowns", #cdZ == 2
+        and ns.UI.RotationSentence(cdZ[2], "cds", true) == L["ROT_H_sit"]:format("#11" .. L["ROT_AND"] .. "#12"),
+        #cdZ == 2 and ns.UI.RotationSentence(cdZ[2], "cds", true) or tostring(#cdZ))
     local kopf = heil({ hk = "bosshead", name = "Nekzali", dur = 284 })
     check("Heiler: Boss als Ueberschrift mit Kampflaenge", kopf:find("Nekzali", 1, true) ~= nil
         and kopf:find("4:44", 1, true) ~= nil, kopf)
