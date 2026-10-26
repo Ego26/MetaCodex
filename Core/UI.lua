@@ -7597,7 +7597,10 @@ do
             -- Der erste Fueller fuehrt ein, die anderen kommen mit "Oder".
             local was = line.multi == true and L["ROT_H_multi"] or (line.multi == false and L["ROT_H_single"] or nil)
             local text
-            if line.first then
+            if line.hot then
+                -- Ein HoT wird verteilt (Verjuengung), nicht "gefuellt".
+                text = L[line.first and "ROT_H_fill_first_hot" or "ROT_H_fill_hot"]:format(nm(line.s), L["ROT_H_hot"])
+            elseif line.first then
                 text = was and L["ROT_H_fill_first"]:format(nm(line.s), was) or L["ROT_H_fill_first0"]:format(nm(line.s))
             else
                 text = was and L["ROT_H_fill"]:format(nm(line.s), was) or L["ROT_H_fill0"]:format(nm(line.s))
@@ -7715,7 +7718,7 @@ do
         if tab == "core" then
             for _, x in ipairs(r.prio or {}) do
                 sammeln(out, { hk = x.k, s = x.s, via = x.via, pct = x.pct, cpm = x.cpm, use = x.use, from = x.from, res = x.res,
-                    first = x.first, multi = x.multi, cost = x.cost, vs = x.vs, m = r.m })
+                    first = x.first, multi = x.multi, hot = x.hot, cost = x.cost, vs = x.vs, m = r.m })
             end
         elseif tab == "cds" then
             -- Werkzeuge (Spurt, Massenbannung) sind keine Heil-Cooldowns:

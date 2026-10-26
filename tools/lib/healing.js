@@ -203,9 +203,12 @@ function guide(input, game) {
   };
   // Without a cooldown, cast about once per its own duration: kept up on
   // one target (Lifebloom, 15 seconds, every 15 seconds) - no filler.
+  // Only a HoT that may run on ONE target at a time (Lifebloom) is kept up:
+  // Enveloping Mist goes on whoever needs it (26 October).
   const einmalJeDauer = (r) => {
     const q = (r.cpm * lasts(r.s)) / 60;
-    return lasts(r.s) > 0 && q >= 0.6 && q <= 1.5 && (!game.isHot || game.isHot(r.s));
+    return lasts(r.s) > 0 && q >= 0.6 && q <= 1.5 && (!game.isHot || game.isHot(r.s))
+      && (!game.isOneAtATime || game.isOneAtATime(r.s));
   };
   const halten = heilt.filter((r) => r.cd < 4 && einmalJeDauer(r))
     .map((r) => ({ k: 'keep', s: r.s, pct: pct(r), cpm: round1(r.cpm) }));
@@ -221,8 +224,11 @@ function guide(input, game) {
       if (anderer.every((a) => m >= 1.5 * a)) cost = 'high';
       else if (anderer.every((a) => m * 1.5 <= a)) cost = 'low';
     }
+    // A HoT is spread, not "filled with" (Rejuvenation).
+    const multi = game.isMulti ? Boolean(game.isMulti(r.s)) : undefined;
+    const hot = !multi && game.isHot && game.isHot(r.s) ? true : undefined;
     return { k: 'fill', s: r.s, pct: pct(r), cpm: round1(r.cpm), first: i === 0 || undefined,
-      multi: game.isMulti ? Boolean(game.isMulti(r.s)) : undefined, cost, vs: vergleich(r) };
+      multi, hot, cost, vs: vergleich(r) };
   });
   // Damage pressed on cooldown is part of the play (the Mistweaver's Rising
   // Sun Kick): "on cooldown", with the heals. The rest is damage in between.

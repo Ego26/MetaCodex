@@ -1293,6 +1293,8 @@ const bare = (s) => String(s || '').replace(/_/g, '');
   // in the log of a name whose every learned spell is passive is a talent's
   // effect (Reclamation, Twin Flame), no button.
   const passiv = passiveIds;
+  // Channeled: SpellMisc's attribute word 1, bits 0x4 and 0x40.
+  const kanal = new Set(spellMisc.filter((r) => Number(r.Attributes_1) & 0x44).map((r) => Number(r.SpellID)));
   const gelerntNachName = new Map();
   for (const id of learned) {
     const k = slug(nameEN.get(id));
@@ -1353,7 +1355,14 @@ const bare = (s) => String(s || '').replace(/_/g, '');
     isSummon: (id) => /\bsummons?\b|\bmaintains?\b/i.test(beschreibung(id)),
     // Only healing over time - no heal on the cast first (Regrowth heals
     // "for X and another Y over Z": cast to heal, not kept up).
-    isHot: (id) => { const t = beschreibung(id); return /\bover \$d\b/i.test(t) && !/for \$\S+ and (another|an additional)/i.test(t); },
+    // A channel (Soothing Mist) heals over its cast, it is no HoT to spread.
+    isHot: (id) => {
+      const t = beschreibung(id);
+      return /\bover \$d\b/i.test(t) && !/for \$\S+ and (another|an additional)/i.test(t)
+        && !kanal.has(id) && !/\bchannel/i.test(t);
+    },
+    // "May be active on one target at a time" (Lifebloom).
+    isOneAtATime: (id) => /\bone target at a time\b/i.test(beschreibung(id)),
     spends: () => null,
     isItem: (id) => itemSpells.has(id),
     // English text: damage, and neither heals nor absorbs - Holy Shock does
