@@ -120,6 +120,15 @@ const g5 = guide({ casts: { ...casts, by: [...casts.by, [40, 60, 10], [41, 60, 1
 check('eigener Schutz, Einzelner und Bewegung, in dieser Reihenfolge',
   g5.cds.filter((r) => [40, 41, 42].includes(r.s)).map((r) => [r.s, r.k]), [[41, 'ext'], [40, 'self'], [42, 'tool']]);
 check('was der Build nicht nimmt, hat keine Zeile', g5.cds.some((r) => r.s === 43), false);
+// Segenswort: Epiphanie: eine Minute Abklingzeit, achtmal pro Minute
+// gewirkt - Kern, kein grosser Cooldown. Die Ticks einer Kanalisierung
+// (Gotteshymne) zaehlen nicht als Druecken.
+const NAMES6 = { ...NAMES5, 44: 'holy_word_serenity', 45: 'divine_hymn', 46: 'divine_hymn' };
+const game6 = { ...game5, nameOf: (id) => NAMES6[id], cd: (id) => ({ 44: 60, 45: 180, 46: 180 })[id] || game5.cd(id),
+  ownCd: (id) => ({ 44: 60, 45: 180 })[id] || 0 };
+const g6 = guide({ casts: { ...casts, by: [...casts.by, [44, 400, 10], [45, 20, 10], [46, 300, 10]] } }, game6);
+check('schneller als die Abklingzeit: Kern', [g6.prio.some((r) => r.s === 44), g6.cds.some((r) => r.s === 44)], [true, false]);
+check('die Ticks einer Kanalisierung machen keinen Kern', g6.cds.some((r) => r.s === 46 || r.s === 45), true);
 check('der eigene Schutz hat keine Minute im Boss-Plan', (g5.bosses || [{ cds: [] }])[0].cds.some((x) => x.s === 40), false);
 
 console.log(failed === 0 ? '\nalles gruen' : `\n${failed} Fehler`);

@@ -103,21 +103,28 @@ function guide(input, game) {
   const c = input && input.casts;
   if (!c || !(c.players > 0) || !(c.minutes > 0)) return null;
   // One spell, one entry: two IDs of Flame Shock are one spell to a player.
+  // The presses of a cooldown are those of the ID that carries it: the log
+  // writes Divine Hymn's and Tranquility's every tick under another ID of
+  // the same name (26 October).
   const byName = new Map();
   for (const [id, n, wer] of c.by) {
     const k = game.nameOf(id) || String(id);
-    const e = byName.get(k) || { id, n: 0, wer: 0 };
+    const e = byName.get(k) || { id, n: 0, wer: 0, nCd: 0 };
     e.wer = Math.max(e.wer, wer);
     if (n > e.n) { e.n = n; e.id = id; }
+    if (game.ownCd && game.ownCd(id) > 0) e.nCd = Math.max(e.nCd, n);
     byName.set(k, e);
   }
   const avgSec = (c.minutes * 60) / c.players;
   const rows = [...byName.values()].map((e) => {
     const cd = game.cd(e.id) || 0;
     const possible = cd > 0 ? c.players * (Math.floor(avgSec / cd) + 1) : 0;
+    const presses = e.nCd || e.n;
     return {
-      s: e.id, cd, share: e.wer / c.players, cpm: e.n / c.minutes, per: e.n / c.players,
-      use: possible ? Math.min(100, Math.round((100 * e.n) / possible)) : undefined,
+      s: e.id, cd, share: e.wer / c.players, cpm: e.n / c.minutes, per: presses / c.players,
+      use: possible ? Math.min(100, Math.round((100 * presses) / possible)) : undefined,
+      // Pressed how many times more often than the cooldown allows.
+      ueber: possible ? presses / possible : 0,
     };
   });
   const pct = (r) => Math.round(r.share * 100);
@@ -141,11 +148,16 @@ function guide(input, game) {
     if (pf < 0) return true;
     return game.nameOf(pf) !== game.nameOf(r.s) && byName.has(game.nameOf(pf));
   };
-  const procs = spells.filter((r) => r.cd < CD_FROM && r.share >= CORE_SHARE && r.cpm >= PROC_CPM && echterProc(r)
+  // FASTER THAN ITS COOLDOWN (26 October): Holy Word: Serenity has a minute
+  // and goes out eight times a minute - other spells cut it down. Pressed
+  // two and a half times as often as its cooldown allows, it is part of the
+  // play, no big cooldown.
+  const kurz = (r) => r.cd < CD_FROM || r.ueber >= 2.5;
+  const procs = spells.filter((r) => kurz(r) && r.share >= CORE_SHARE && r.cpm >= PROC_CPM && echterProc(r)
     && !game.isDamage(r.s)).map((r) => ({ k: 'proc', s: r.s, from: procFrom(r.s) > 0 ? procFrom(r.s) : undefined, pct: pct(r), cpm: round1(r.cpm) }));
   const istProc = new Set(procs.map((p) => p.s));
   const ist = (f, id) => Boolean(game[f] && game[f](id));
-  const alleKern = spells.filter((r) => r.cd < CD_FROM && r.share >= CORE_SHARE && r.cpm >= CORE_CPM && !istProc.has(r.s)
+  const alleKern = spells.filter((r) => kurz(r) && r.share >= CORE_SHARE && r.cpm >= CORE_CPM && !istProc.has(r.s)
     && !ist('isEffect', r.s));
   const werkzeug = (r) => Boolean(game.isUtility && game.isUtility(r.s));
   const kern = alleKern.filter((r) => !werkzeug(r));
@@ -230,7 +242,7 @@ function guide(input, game) {
   // goes last, in one line, and has no minute in the boss plan (26 October).
   // What top healers press on cooldown is part of the play, whatever its
   // text says (Power Infusion, Holy Bulwark).
-  const cdRows = spells.filter((r) => r.cd >= CD_FROM && r.share >= CD_SHARE)
+  const cdRows = spells.filter((r) => !kurz(r) && r.share >= CD_SHARE)
     .sort((a, b) => (b.use || 0) - (a.use || 0));
   // Moving while casting and removing a debuff are tools, however often
   // they are pressed (Spiritwalker's Grace, Cauterizing Flame).

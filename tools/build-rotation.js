@@ -1333,6 +1333,8 @@ const bare = (s) => String(s || '').replace(/_/g, '');
     // The longest cooldown of the name: the log's Divine Hymn is the channel's
     // tick, the cooldown sits on the button.
     cd: (id) => Math.max(0, ...gleichnamige(id).map((x) => Math.max(cdSeconds.get(x) || 0, rechargeSeconds.get(x) || 0))),
+    // The ID's own cooldown, not its name's: a channel's tick has none.
+    ownCd: (id) => Math.max(cdSeconds.get(id) || 0, rechargeSeconds.get(id) || 0),
     isEffect: (id) => {
       if (learned.has(id) || procVon.get(slug(nameEN.get(id)))) return false;
       const gleich = gelerntNachName.get(slug(nameEN.get(id))) || [];
