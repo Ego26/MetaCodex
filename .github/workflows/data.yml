@@ -72,6 +72,14 @@ on:
         required: false
         type: boolean
         default: false
+      curseforge:
+        description: "Also upload to CurseForge (with the code of the
+          newest tag). Switch off before a release: the run then renews only
+          the nightly on GitHub, which the release packs from, and only the
+          new version reaches CurseForge."
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -596,7 +604,7 @@ jobs:
           fi
 
       - name: Take the released code, keep tonight's data
-        if: ${{ !inputs.sample && steps.released.outputs.tag != '' }}
+        if: ${{ !inputs.sample && (github.event_name != 'workflow_dispatch' || inputs.curseforge) && steps.released.outputs.tag != '' }}
         run: |
           # The data files are untracked, so the checkout leaves them where
           # they are. Staging them afterwards is what makes the packager
@@ -610,7 +618,7 @@ jobs:
           mv /tmp/notes.md RELEASE-NOTES.md
 
       - name: Upload to CurseForge
-        if: ${{ !inputs.sample && steps.released.outputs.tag != '' }}
+        if: ${{ !inputs.sample && (github.event_name != 'workflow_dispatch' || inputs.curseforge) && steps.released.outputs.tag != '' }}
         uses: BigWigsMods/packager@v2
         env:
           # From the CurseForge account under "API Tokens". No token, no
