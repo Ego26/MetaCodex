@@ -7577,7 +7577,7 @@ do
         if line.use and line.use >= 50 then return L["ROT_H_cd_aim"]:format(name) end
         return L[line.hk == "item" and "ROT_H_item_need" or "ROT_H_cd_need"]:format(name)
     end
-    local function heilSatz(line, roh)
+    local function heilSatzKern(line, roh)
         -- "Nutze Yu'lon die Jadeschlange", nicht "... beschwoeren auf Abklingzeit".
         local function nm(id)
             local _, label = beschwoerung(id)
@@ -7651,6 +7651,16 @@ do
             return L["ROT_H_bosscd"]:format(nm(line.s), liste(zeiten))
         end
         return ""
+    end
+    -- WAS ER ERSETZT (26. Oktober): "Halte Wogendes Totem durchgehend
+    -- aufrecht – anstelle von Heilender Regen". Wer Heilender Regen sucht,
+    -- sieht, warum er nicht dasteht.
+    local function heilSatz(line, roh)
+        local text = heilSatzKern(line, roh)
+        if line.statt and text ~= "" then
+            text = (text:gsub("%.$", "")) .. L["ROT_H_statt"]:format(roh(line.statt)) .. "."
+        end
+        return text
     end
 
     -- DAS VERB (26. Oktober): "Beschwoere Xuen den Weissen Tiger", nicht
@@ -7757,7 +7767,7 @@ do
                     local first = x.first
                     if teil and x.k == "fill" then first = erster or nil; erster = false end
                     sammeln(out, { hk = x.k, s = x.s, via = x.via, pct = x.pct, cpm = x.cpm, use = x.use, from = x.from, res = x.res,
-                        first = first, multi = x.multi, hot = x.hot, cost = x.cost, m = r.m, teil = teil })
+                        first = first, multi = x.multi, hot = x.hot, cost = x.cost, m = r.m, teil = teil, statt = x.statt })
                 end
             end
         elseif tab == "cds" then
@@ -7913,7 +7923,9 @@ do
             local held = r.hero and ns.Catalog.SubTreeName and ns.Catalog.SubTreeName(r.hero)
             if held then text = L["ROT_H_HINT_HERO"]:format(held) .. "  " .. text end
             -- Zeitpunkte gibt es nur im Raid: ein Key hat viele Pulls.
-            if r.m ~= "mplus" then text = text .. " " .. L["ROT_H_HINT_TIMES"] end
+            -- Nur, wo es Bosszeiten gibt: ohne sie stand der Satz im Raid
+            -- ueber einer Karte ohne einen einzigen Zeitpunkt (26. Oktober).
+            if r.bosses and #r.bosses > 0 then text = text .. " " .. L["ROT_H_HINT_TIMES"] end
             -- Zu wenige Spieler in dieser Stufe: alle Stufen zusammen, und das steht da.
             if r.alle or alle.alle then text = text .. " " .. L["ROT_ALL_LEVELS"] end
             if ns.version == "dev" then text = "|cffD29922DEV-Vorschau.|r  " .. text

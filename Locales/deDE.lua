@@ -347,6 +347,7 @@ ns.RegisterLocale("deDE", {
     ["ROT_H_fill_hot"] = "Oder verteile %s – %s",
     ["ROT_H_reg"] = "Wirke %s regelmäßig, aber nicht auf Abklingzeit.",
     ["ROT_H_keep"] = "Halte %s durchgehend aufrecht.",
+    ["ROT_H_statt"] = " – anstelle von %s",
     ["ROT_H_mana"] = "Bei Manamangel: %s.",
     ["ROT_H_spend"] = "Gib deine %s für %s aus.",
     ["ROT_H_emp"] = "Nutze %s auf Abklingzeit – verstärkt deinen nächsten Zauber.",

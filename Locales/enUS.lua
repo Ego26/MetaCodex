@@ -347,6 +347,7 @@ ns.RegisterLocale("enUS", {
     ["ROT_H_fill_hot"] = "Or spread %s – %s",
     ["ROT_H_reg"] = "Cast %s regularly, but not on cooldown.",
     ["ROT_H_keep"] = "Keep %s up at all times.",
+    ["ROT_H_statt"] = " – in place of %s",
     ["ROT_H_mana"] = "When mana runs low: %s.",
     ["ROT_H_spend"] = "Spend your %s on %s.",
     ["ROT_H_emp"] = "Use %s on cooldown – it empowers your next spell.",

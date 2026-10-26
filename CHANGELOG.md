@@ -35,10 +35,9 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
   - **Single-target and group healing** as two lists. Whom a spell heals
     is the game's own text; the order is how often they press it.
   - **Damage that heals** names the talent it heals through - Atonement,
-    Ancient Teachings, Life-Giver's Flame.
+    Way of the Crane, Life-Giver's Flame.
   - **Major cooldowns** by whom they protect: for the group, held for an
     ally in trouble, your own protection, and tools for the moment.
-  - **In the raid, per boss**: at which minute the big cooldowns go out.
   - Potions and trinkets with their own icon and name.
 - **Groups & specs.** A new section under Overview: who plays with whom
   at the top.

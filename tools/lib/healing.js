@@ -231,6 +231,9 @@ function guide(input, game) {
   const HEILT = new Set(['proc', 'oncd', 'keep', 'spend', 'reg', 'fill']);
   for (const x of prio) {
     if (x.multi === undefined && HEILT.has(x.k) && !game.isDamage(x.s) && game.isMulti) x.multi = Boolean(game.isMulti(x.s));
+    // What it stands in for: "Replaces Healing Rain" (Surging Totem) - where
+    // a player looks for Healing Rain, the guide says why it is not there.
+    if (HEILT.has(x.k) && game.replacesOf) x.statt = game.replacesOf(x.s) || undefined;
   }
   // A cooldown that neither heals nor protects - Dash, Ursol's Vortex,
   // Shadowmeld, Mass Dispel, Heroism - is a tool, no healing cooldown: it

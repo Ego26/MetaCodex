@@ -12,8 +12,8 @@
   raid pulls.
 - **For healers, measured instead of simulated**: what top healers
   cast on Warcraft Logs — single-target and group healing, which
-  damage heals through your talents, the major cooldowns (yours, for
-  one ally, for the group), and in the raid when they go out per boss.
+  damage heals through your talents, and the major cooldowns (yours,
+  for one ally, for the group).
 - **Groups & specs**, under Overview: who plays with whom at the top.
   M+: the most common groups of five and the specs per role, also per
   dungeon. Raid: per difficulty, how many kills a spec is in. PvP: the

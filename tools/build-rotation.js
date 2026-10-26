@@ -1506,6 +1506,14 @@ const bare = (s) => String(s || '').replace(/_/g, '');
       return /\bover \$d\b/i.test(t) && !/for \$\S+ and (another|an additional)/i.test(t)
         && !kanal.has(id) && !/\bchannel/i.test(t);
     },
+    // The spell a talent's text says it replaces ("Replaces Healing Rain.").
+    replacesOf: (id) => {
+      // After a color code ("|cFFFFFFFFReplaces Healing Rain.|r"): no word
+      // boundary before it.
+      const m = /(?:^|[^a-z])Replaces ([A-Z][\w'-]*(?: [A-Z][\w'-]*)*)\./.exec(beschreibung(id));
+      const ids = m && gelerntNachName.get(slug(m[1]));
+      return ids && ids.length ? ids[0] : null;
+    },
     // "May be active on one target at a time" (Lifebloom).
     isOneAtATime: (id) => /\bone target at a time\b/i.test(beschreibung(id)),
     spends: () => null,

@@ -37,11 +37,10 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
     heilt, sagt sein Spieltext; die Reihenfolge ist, wie oft sie ihn
     drücken.
   - **Schaden, der heilt**, nennt das Talent, über das er heilt - Sühne,
-    Uralte Lehren, Flamme des Lebensspenders.
+    Weg des Kranichs, Flamme des Lebensspenders.
   - **Große Cooldowns** danach, wen sie schützen: für die Gruppe, für
     einen Verbündeten in Not, zu deinem eigenen Schutz, und Werkzeuge
     für die Lage.
-  - **Im Raid je Boss**: zu welcher Minute die großen Cooldowns kommen.
   - Tränke und Schmuck mit ihrem eigenen Symbol und Namen.
 - **Gruppen & Specs.** Ein neuer Abschnitt unter Überblick: wer an der
   Spitze mit wem spielt.
