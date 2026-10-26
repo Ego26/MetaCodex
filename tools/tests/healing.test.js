@@ -98,6 +98,12 @@ check('ein Werkzeug steht als solches am Ende der Cooldowns', g2.cds.slice(-1).m
 check('auf Abklingzeit gedrueckt ist kein Werkzeug', g2.cds.find((r) => r.s === 32).k, undefined);
 check('die Rasse hat keine Zeile', [...g2.prio, ...g2.cds].some((r) => r.s === 31), false);
 check('ein Werkzeug hat keine Minute im Boss-Plan', g2.bosses[0].cds.some((x) => x.s === 30), false);
+// Berührung des Todes ist Schaden, Anregen ist Mana.
+const game3 = { ...game2, nameOf: (id) => ({ ...NAMES2, 33: 'touch_of_death', 34: 'innervate' })[id],
+  cd: (id) => ({ 33: 90, 34: 180 })[id] || game2.cd(id), isDamage: (id) => id === 33 || game.isDamage(id),
+  isMana: (id) => id === 34 || game.isMana(id) };
+const g3 = guide({ casts: { ...casts, by: [...casts.by, [33, 8, 8], [34, 8, 8]] } }, game3);
+check('Cooldowns mit Art: Schaden und Mana', [g3.cds.find((r) => r.s === 33).k, g3.cds.find((r) => r.s === 34).k], ['dmg', 'mana']);
 
 console.log(failed === 0 ? '\nalles gruen' : `\n${failed} Fehler`);
 process.exit(failed === 0 ? 0 : 1);

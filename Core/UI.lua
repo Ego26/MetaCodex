@@ -7533,34 +7533,18 @@ do
         sek = math.floor((tonumber(sek) or 0) + 0.5)
         return ("%d:%02d"):format(math.floor(sek / 60), sek % 60)
     end
-    -- TEXT VORN, ZAHLEN HINTEN (24. Oktober): "etwa 19× pro Minute" in
-    -- jeder Zeile las sich wie eine Tabelle. Der Satz sagt, was zu tun ist;
-    -- die Messung steht klein und grau dahinter.
-    local function grau(text) return "  |cff9aa4b2" .. text .. "|r" end
-    local function messung(line)
-        local teile = {}
-        if line.cpm then teile[#teile + 1] = L["ROT_H_m_cpm"]:format(zahl(line.cpm)) end
-        if line.use and (line.hk == "oncd" or line.hk == "keep" or line.hk == "emp" or line.hk == "cd" or line.hk == "item") then
-            teile[#teile + 1] = L["ROT_H_m_use"]:format(line.use)
-        end
-        if line.pct and line.pct < 90 then teile[#teile + 1] = L["ROT_H_m_pct"]:format(line.pct) end
-        if #teile == 0 then return "" end
-        return grau("(" .. table.concat(teile, " · ") .. ")")
-    end
+    -- KEINE HAEUFIGKEITEN (26. Oktober): "etwa 2,3× pro Kampf" und
+    -- "19× pro Minute" las niemand - ein Guide sagt, was man tut. Die
+    -- Messung entscheidet, welcher Satz kommt; sie steht nicht im Text.
     local function nutzung(line, nm)
         local name = nm(line.s)
-        -- Im Raid je Kampf, in M+ je Key: ein Key ist ein Lauf, kein Kampf.
-        local mplus = line.m == "mplus"
-        local je = L["ROT_H_per_" .. (mplus and "mplus" or "raid")]
-        local text
-        if line.use and line.use >= 85 then
-            text = L["ROT_H_cd_on"]:format(name)
-        elseif line.use and line.use >= 50 then
-            text = L["ROT_H_cd_aim"]:format(name, zahl(line.per), je)
-        else
-            text = L["ROT_H_cd_need"]:format(name, zahl(line.per), je)
-        end
-        return text .. messung(line)
+        -- Mana gibt man, wenn es fehlt; Schaden macht ein Heiler, wenn
+        -- gerade wenig zu heilen ist.
+        if line.ck == "mana" then return L["ROT_H_cd_mana"]:format(name) end
+        if line.use and line.use >= 85 then return L["ROT_H_cd_on"]:format(name) end
+        if line.ck == "dmg" then return L["ROT_H_cd_dmg"]:format(name) end
+        if line.use and line.use >= 50 then return L["ROT_H_cd_aim"]:format(name) end
+        return L[line.hk == "item" and "ROT_H_item_need" or "ROT_H_cd_need"]:format(name)
     end
     local function heilSatz(line, roh)
         -- "Nutze Yu'lon die Jadeschlange", nicht "... beschwoeren auf Abklingzeit".
@@ -7569,31 +7553,23 @@ do
             return roh(id, label)
         end
         local k = line.hk
-        -- Mehrere in einer Zeile: die Namen als Liste, die Messung je Name.
+        -- Mehrere in einer Zeile: die Namen als Liste.
         if (k == "dmg" or k == "sit") and line.list then
-            local namen, zahlen = {}, {}
-            for i, id in ipairs(line.list) do
-                namen[#namen + 1] = nm(id)
-                if line.cpms[i] then zahlen[#zahlen + 1] = zahl(line.cpms[i]) end
-            end
-            local text = L["ROT_H_" .. k]:format(liste(namen))
-            if #zahlen == #namen and #zahlen > 0 then
-                text = text .. grau("(" .. L["ROT_H_m_cpm"]:format(table.concat(zahlen, " · ")) .. ")")
-            end
-            return text
+            local namen = {}
+            for _, id in ipairs(line.list) do namen[#namen + 1] = nm(id) end
+            return L["ROT_H_" .. k]:format(liste(namen))
         end
         if k == "proc" then
-            local text = line.from and L["ROT_H_proc"]:format(nm(line.s), nm(line.from)) or L["ROT_H_proc0"]:format(nm(line.s))
-            return text .. messung(line)
+            return line.from and L["ROT_H_proc"]:format(nm(line.s), nm(line.from)) or L["ROT_H_proc0"]:format(nm(line.s))
         end
         if k == "oncd" then
-            return L[(line.use or 0) >= 85 and "ROT_H_oncd" or "ROT_H_oncd_most"]:format(nm(line.s)) .. messung(line)
+            return L[(line.use or 0) >= 85 and "ROT_H_oncd" or "ROT_H_oncd_most"]:format(nm(line.s))
         end
-        if k == "keep" then return L["ROT_H_keep"]:format(nm(line.s)) .. messung(line) end
-        if k == "emp" then return L["ROT_H_emp"]:format(nm(line.s)) .. messung(line) end
-        if k == "spend" then return L["ROT_H_spend"]:format(resource(line.res), nm(line.s)) .. messung(line) end
-        if k == "mana" then return L["ROT_H_mana"]:format(nm(line.s)) .. messung(line) end
-        if k == "reg" then return L["ROT_H_reg"]:format(nm(line.s)) .. messung(line) end
+        if k == "keep" then return L["ROT_H_keep"]:format(nm(line.s)) end
+        if k == "emp" then return L["ROT_H_emp"]:format(nm(line.s)) end
+        if k == "spend" then return L["ROT_H_spend"]:format(resource(line.res), nm(line.s)) end
+        if k == "mana" then return L["ROT_H_mana"]:format(nm(line.s)) end
+        if k == "reg" then return L["ROT_H_reg"]:format(nm(line.s)) end
         if k == "fill" then
             -- Der erste Fueller fuehrt ein, die anderen kommen mit "Oder".
             local was = line.multi == true and L["ROT_H_multi"] or (line.multi == false and L["ROT_H_single"] or nil)
@@ -7606,10 +7582,10 @@ do
             if line.cost then text = text .. L["ROT_H_cost_" .. line.cost] end
             text = text .. "."
             if line.vs then text = text .. " " .. L["ROT_H_vs_" .. line.vs .. "_" .. (line.m == "mplus" and "mplus" or "raid")] end
-            return text .. messung(line)
+            return text
         end
-        if k == "dmg" then return L["ROT_H_dmg"]:format(nm(line.s)) .. messung(line) end
-        if k == "sit" then return L["ROT_H_sit"]:format(nm(line.s)) .. messung(line) end
+        if k == "dmg" then return L["ROT_H_dmg"]:format(nm(line.s)) end
+        if k == "sit" then return L["ROT_H_sit"]:format(nm(line.s)) end
         if k == "cd" or k == "item" then return nutzung(line, nm) end
         -- Je Boss eine Ueberschrift, darunter je Cooldown eine Zeile: als
         -- ein Satz je Boss war es eine Textwand (24. Oktober).
@@ -7703,11 +7679,10 @@ do
         local vorige = out[#out]
         if vorige and vorige.hk == zeile.hk and (zeile.hk == "dmg" or zeile.hk == "sit") then
             vorige.list[#vorige.list + 1] = zeile.s
-            vorige.cpms[#vorige.cpms + 1] = zeile.cpm
             return
         end
         if zeile.hk == "dmg" or zeile.hk == "sit" then
-            zeile.list, zeile.cpms = { zeile.s }, { zeile.cpm }
+            zeile.list = { zeile.s }
         end
         out[#out + 1] = zeile
     end
@@ -7725,7 +7700,7 @@ do
                 if x.k == "tool" then
                     sammeln(out, { hk = "sit", s = x.s, m = r.m })
                 else
-                    out[#out + 1] = { hk = "cd", s = x.s, pct = x.pct, per = x.per, use = x.use, m = r.m }
+                    out[#out + 1] = { hk = "cd", s = x.s, pct = x.pct, per = x.per, use = x.use, m = r.m, ck = x.k }
                 end
             end
         elseif tab == "bosses" then

@@ -1125,7 +1125,9 @@ const bare = (s) => String(s || '').replace(/_/g, '');
   // Chain Heal too, and the Resto Shaman lost his main heal to the items.
   const learned = new Set([...skillLines.map((r) => Number(r.Spell)), ...specSpells.map((r) => Number(r.SpellID)),
     ...traitDefs.map((r) => Number(r.SpellID)), ...traitDefs.map((r) => Number(r.VisibleSpellID))].filter(Boolean));
-  const itemSpells = new Set(itemEffects.map((r) => Number(r.SpellID)).filter((id) => id && !learned.has(id)));
+  // Food and drink ("must remain seated") are no item of the fight.
+  const itemSpells = new Set(itemEffects.map((r) => Number(r.SpellID))
+    .filter((id) => id && !learned.has(id) && !/remain seated/i.test((textOf.get(id) || { d: '' }).d)));
   const preview = (() => {
     const f = path.join(BASE, 'tools', 'data', 'heal-preview.json');
     try { return fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')).specs || {} : {}; } catch (e) { return {}; }
@@ -1198,6 +1200,15 @@ const bare = (s) => String(s || '').replace(/_/g, '');
     specAuren.get(sp).add(Number(r.SpellID));
   }
   const gleichnamige = (id) => [id, ...(gelerntNachName.get(slug(nameEN.get(id))) || [])];
+  // The text every player of the spell reads: without the parts that depend
+  // on a talent or a spec ("$?a137029[...][...]"). Shadow Word: Death heals
+  // only with a talent - read whole, its text said "heal" and it stood as a
+  // healing spell (26 October).
+  const festerText = (t) => {
+    let x = String(t || '');
+    for (let i = 0; i < 5; i += 1) x = x.replace(/\$\?[^\[\s]*\[[^\[\]]*\](\[[^\[\]]*\])?/g, ' ');
+    return x;
+  };
   const healGame = {
     // The longest cooldown of the name: the log's Divine Hymn is the channel's
     // tick, the cooldown sits on the button.
@@ -1207,7 +1218,13 @@ const bare = (s) => String(s || '').replace(/_/g, '');
       const gleich = gelerntNachName.get(slug(nameEN.get(id))) || [];
       return gleich.length > 0 && gleich.every((x) => passiv.has(x));
     },
-    isMana: (id) => { const t = beschreibung(id); return /restor\w*[^.]*\bmana\b/i.test(t) && !/heal/i.test(t); },
+    // Innervate "regenerates" mana, Mana Tea "restores" it.
+    // "a friendly healer" is no heal; Rebirth brings the dead back "with 60 %
+    // mana" and gives none.
+    isMana: (id) => {
+      const t = beschreibung(id);
+      return /(restor|regenerat)\w*[^.]*\bmana\b/i.test(t) && !/\bheal(s|ed|ing)?\b/i.test(t) && !/\bdead\b|to life/i.test(t);
+    },
     // Empowers the next spell itself (Thunder Focus Tea) - not a HoT whose
     // text mentions a next spell somewhere further on.
     isEmpower: (id) => /\bempower\w* your next\b/i.test(beschreibung(id)),
@@ -1221,9 +1238,19 @@ const bare = (s) => String(s || '').replace(/_/g, '');
     // both and stays a heal; a shield that "absorbs damage" is none.
     // Damage, and no healing. "Absorbing damage" is a shield - unless it is
     // the enemy's damage it absorbs (Smite).
+    // DEALT, not taken: "reduces all damage you take" (Barkskin) is a
+    // defensive, "dealing 500 Fire damage" or "for 500 Holy damage" is
+    // damage (26 October).
     isDamage: (id) => {
-      const t = beschreibung(id);
-      return /damage/i.test(t) && !/heal/i.test(t) && (!/absorb/i.test(t) || /\benem(y|ies)\b/i.test(t));
+      // A sentence about the damage someone takes says nothing about dealing
+      // it (Time Dilation: "damage they would take ... dealt over 8 sec").
+      const t = festerText(beschreibung(id))
+        .replace(/[^.]*\b(damage (they|you|it|allies) (would )?(take|receive)|damage taken|less damage)[^.]*\.?/gi, ' ');
+      const verursacht = /\b(deal|deals|dealing|inflicts?|inflicting|caus(e|es|ing)|burns?|burning|strikes?)\b[^.]{0,80}\bdamage\b/i.test(t)
+        || /\bfor \$\S+ (\w+ )?damage\b/i.test(t) || /\bdamage to (an? |the |all |up to \S+ )?(enem|target)/i.test(t);
+      // "heal", not "health": Touch of Death deals damage "equal to 35 % of
+      // your maximum health".
+      return verursacht && !/\bheal(s|ed|ing)?\b/i.test(t) && (!/absorb/i.test(t) || /\benem(y|ies)\b/i.test(t));
     },
     // "Rejuvenation (Germination)" is a Rejuvenation to a player.
     nameOf: (id) => slug(String(nameEN.get(id) || '').replace(/\s*\([^)]*\)\s*$/, '')),
@@ -1239,10 +1266,17 @@ const bare = (s) => String(s || '').replace(/_/g, '');
     // (Totemic Projection moves the totems). No place in a priority.
     isUtility: (id) => {
       const t = beschreibung(id);
+      // Crowd control is a tool, unless it heals (Leg Sweep, Blinding Light -
+      // whose "damage may cancel the effect" made it a cooldown). What the
+      // spell does to enemies, not "usable while stunned" (Barkskin) or
+      // "immunity to knockbacks" (Divine Shield).
+      const kontrolle = /stunning|stuns (all|them|the|enem)|wander disoriented|disorients|incapacitates (all|them|the|enem)|incapacitating|knocks? (down|back|away)|knocking enemies|blinding enemies|interrupts? (the|spell)|silences? (the|enem)|fears? (the|enem)/i;
+      if (!/heal/i.test(festerText(t)) && kontrolle.test(festerText(t))) return true;
       // "helpful spells" and "your next empowered spell" make healing too:
       // Stasis and Tip the Scales are no tools - Hover, which lets you
       // "empower spells while moving", stays one (26 October).
-      return t !== '' && !/heal|damage|absorb|restor|shield|mana|atonement|renew|mend|protect|helpful spell|next empowered/i.test(t);
+      // Apotheosis speeds the Holy Words up ("cooldown reductions").
+      return t !== '' && !/heal|damage|absorb|restor|shield|mana|atonement|renew|mend|protect|helpful spell|next empowered|cooldown reduc|reduces? the cooldown|reset the cooldown/i.test(t);
     },
     manaPct: (id) => manaPct.get(id) || 0,
   };

@@ -33,7 +33,9 @@
 //   cds     a cooldown of a minute or more, cast by 40 %. How much of what
 //           was possible got used says how: 85 % and more "as soon as
 //           ready", 50 % "aimed", below "when needed". A tool (no heal, no
-//           protection) is marked k = "tool" and stands last
+//           protection) is marked k = "tool" and stands last; one for
+//           damage k = "dmg" (used when there is little to heal), one for
+//           mana k = "mana"
 //   items   item uses (trinkets, potions, healthstone), the same way
 //   opener  the raid pull, as for the damage specs (lib/opener.js)
 //   bosses  the raid: per boss, the n-th use of each AIMED cooldown at the
@@ -197,9 +199,14 @@ function guide(input, game) {
     return { k: 'fill', s: r.s, pct: pct(r), cpm: round1(r.cpm), first: i === 0 || undefined,
       multi: game.isMulti ? Boolean(game.isMulti(r.s)) : undefined, cost, vs: vergleich(r) };
   });
-  const dmg = kern.filter((r) => game.isDamage(r.s)).sort((a, b) => b.cpm - a.cpm).slice(0, MAX_DMG)
+  // Damage pressed on cooldown is part of the play (the Mistweaver's Rising
+  // Sun Kick): "on cooldown", with the heals. The rest is damage in between.
+  const schadenAufCd = (r) => r.cd >= 4 && (r.use || 0) >= ON_COOLDOWN;
+  const dmgCd = kern.filter((r) => game.isDamage(r.s) && schadenAufCd(r))
+    .map((r) => ({ k: 'oncd', s: r.s, pct: pct(r), cpm: round1(r.cpm), use: r.use }));
+  const dmg = kern.filter((r) => game.isDamage(r.s) && !schadenAufCd(r)).sort((a, b) => b.cpm - a.cpm).slice(0, MAX_DMG)
     .map((r) => ({ k: 'dmg', s: r.s, pct: pct(r), cpm: round1(r.cpm) }));
-  const prio = [...procs, ...mitCd.filter((x) => x.k !== 'reg'), ...halten, ...spendRows, ...mitCd.filter((x) => x.k === 'reg'),
+  const prio = [...procs, ...mitCd.filter((x) => x.k !== 'reg'), ...dmgCd, ...halten, ...spendRows, ...mitCd.filter((x) => x.k === 'reg'),
     ...fill, ...manaRows, ...dmg, ...sit].slice(0, MAX_CORE + MAX_DMG + 2);
   // A cooldown that neither heals nor protects - Dash, Ursol's Vortex,
   // Shadowmeld, Mass Dispel, Heroism - is a tool, no healing cooldown: it
@@ -210,7 +217,8 @@ function guide(input, game) {
     .sort((a, b) => (b.use || 0) - (a.use || 0));
   const toolCd = (r) => werkzeug(r) && (r.use || 0) < ON_COOLDOWN;
   const cds = [...cdRows.filter((r) => !toolCd(r)), ...cdRows.filter(toolCd)]
-    .map((r) => ({ s: r.s, pct: pct(r), per: round1(r.per), use: r.use, k: toolCd(r) ? 'tool' : undefined }));
+    .map((r) => ({ s: r.s, pct: pct(r), per: round1(r.per), use: r.use,
+      k: toolCd(r) ? 'tool' : game.isDamage(r.s) ? 'dmg' : ist('isMana', r.s) ? 'mana' : undefined }));
 
   // The pull: only the spells of this guide, in the order most follow.
   let open;

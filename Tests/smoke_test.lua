@@ -6835,8 +6835,8 @@ do
     check("Heiler: der erste Fueller mit Ziel, Mana und Vergleich",
         fuell:find(L["ROT_H_fill_first"]:format("#5", L["ROT_H_multi"]) .. L["ROT_H_cost_high"] .. ".", 1, true) == 1
         and fuell:find(L["ROT_H_vs_more_raid"], 1, true) ~= nil, fuell)
-    check("Heiler: die Zahl klein dahinter", fuell:find(L["ROT_H_m_cpm"]:format("19,1"), 1, true) ~= nil
-        and fuell:find("|cff9aa4b2", 1, true) ~= nil, fuell)
+    -- KEINE HAEUFIGKEITEN (26. Oktober): kein "19,1×", keine graue Zahl.
+    check("Heiler: keine Zahl im Satz", not fuell:find("19", 1, true) and not fuell:find("|cff9aa4b2", 1, true), fuell)
     check("Heiler: der zweite Fueller mit Oder", heil({ hk = "fill", s = 6, pct = 93, cpm = 3.1, multi = false })
         :find(L["ROT_H_fill"]:format("#6", L["ROT_H_single"]), 1, true) == 1)
     check("Heiler: Proc mit dem, was er ersetzt", heil({ hk = "proc", s = 5, from = 6, cpm = 1.7 })
@@ -6858,12 +6858,9 @@ do
     check("Heiler: Cooldown auf Abklingzeit", heil({ hk = "cd", s = 5, use = 94, per = 2 })
         :find(L["ROT_H_cd_on"]:format("#5"), 1, true) == 1)
     local gezielt = heil({ hk = "cd", s = 5, use = 69, per = 2 })
-    check("Heiler: Cooldown gezielt",
-        gezielt:find(L["ROT_H_cd_aim"]:format("#5", "2", L["ROT_H_per_raid"]), 1, true) == 1, gezielt)
-    check("Heiler: Cooldown bei Bedarf", heil({ hk = "cd", s = 5, use = 30, per = 1 })
-        :find(L["ROT_H_cd_need"]:format("#5", "1", L["ROT_H_per_raid"]), 1, true) == 1)
-    check("Heiler: in M+ je Key", heil({ hk = "cd", s = 5, use = 69, per = 1, m = "mplus" })
-        :find(L["ROT_H_per_mplus"], 1, true) ~= nil)
+    check("Heiler: Cooldown gezielt: fuer die schweren Phasen", gezielt == L["ROT_H_cd_aim"]:format("#5"), gezielt)
+    check("Heiler: Cooldown selten: fuer den Notfall", heil({ hk = "cd", s = 5, use = 30, per = 1 }) == L["ROT_H_cd_need"]:format("#5"))
+    check("Heiler: Gegenstand selten: nur bei Bedarf", heil({ hk = "item", s = 5, use = 30, per = 1 }) == L["ROT_H_item_need"]:format("#5"))
     -- EINE ZEILE FUER VIELE (26. Oktober).
     local heilZ = ns.UI.RotationLines({ heal = true, m = "raid",
         prio = { { k = "fill", s = 5, cpm = 9 }, { k = "dmg", s = 6, cpm = 4.2 }, { k = "dmg", s = 7, cpm = 3.2 },
