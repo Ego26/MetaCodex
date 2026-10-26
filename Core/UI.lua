@@ -7940,7 +7940,14 @@ do
         return h
     end
 
+    -- IN DER FARBE DER KLASSE (26. Oktober): die Ueberschriften der Karte
+    -- tragen die Farbe der gezeigten Spec, nicht die eigene - Elementar ist
+    -- blau, auch wenn ein Druide nachschlaegt.
+    local klassenFarbe
     local function setzeUeberschrift(h, text, y, innen)
+        if klassenFarbe then
+            h.text:SetTextColor(klassenFarbe.r, klassenFarbe.g, klassenFarbe.b)
+        end
         h.text:ClearAllPoints()
         h.text:SetPoint("TOP", h.text:GetParent(), "TOP", 0, -y)
         h.text:SetText(upperText(text))
@@ -8170,6 +8177,8 @@ do
         local alle = data.rot
         local r = UI.RotationVariant(data.spec, alle)
         local f = bauen(row)
+        local _, klasse = ns.Compat.ClassOfSpec(data.spec)
+        klassenFarbe = klasse and RAID_CLASS_COLORS and RAID_CLASS_COLORS[klasse] or nil
         local fs = S.fontScale or 1
         local w = math.max(240, contentWidth() - S.space.sm * 2)
         local innen = w - PAD * 2
