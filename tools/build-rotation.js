@@ -1671,13 +1671,6 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         const pvOk = pv && pv.casts && pv.casts.players >= 15 ? pv : null;
         const casts = nachts && (!pvOk || nachts.players >= pvOk.casts.players) ? nachts : (pvOk && pvOk.casts);
         const openers = mode === 'raid' ? ((alleStufen ? openersBySpec.get(s.id) : openerFuer(key, s.id)) || (pv && pv.openers) || []) : [];
-        // The other activity, to compare the fillers (M+ against raid).
-        const anders = mode === 'raid' ? 'mplus' : 'raid';
-        const nachtAnders = castsBy[anders] && castsBy[anders].get(s.id);
-        const pvAnders = preview[s.id] && preview[s.id][anders];
-        const other = nachtAnders && nachtAnders.players >= MIN_MEASURED
-          ? { players: nachtAnders.players, minutes: nachtAnders.minutes, by: [...nachtAnders.by].map(([g, [n, wer]]) => [g, n, wer]) }
-          : (pvAnders && pvAnders.casts && pvAnders.casts.players >= 15 ? pvAnders.casts : undefined);
         // The resource this spec spends: cost rows without an aura or with its own.
         const eigene = specAuren.get(s.id) || new Set();
         const spends = (id) => {
@@ -1690,7 +1683,7 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         // this player. The guide is about the healer's own buttons.
         const fam = familyOfClass.get(classOf.get(s.id) || 0) || 0;
         const isForeign = (id) => fam > 0 && !gleichnamige(id).some((x) => familyOfSpell.get(x) === fam);
-        const baue = (cX, oX, bX, otherX, hero) => {
+        const baue = (cX, oX, bX, hero) => {
           const talente = talenteVon(s.id, mode, hero);
           const healsVia = heiltDurchSchaden(talente);
           // A talent of the tree the build does not take (by name).
@@ -1702,7 +1695,7 @@ const bare = (s) => String(s || '').replace(/_/g, '');
           }
           const genommen = new Set([...talente].map((id) => healGame.nameOf(id)));
           const notInBuild = (id) => talente.size > 0 && baumNamen.has(healGame.nameOf(id)) && !genommen.has(healGame.nameOf(id));
-          const g = healing.guide({ casts: cX, openers: oX, bosses: bX, other: otherX }, { ...healGame, spends, isForeign, healsVia, notInBuild });
+          const g = healing.guide({ casts: cX, openers: oX, bosses: bX }, { ...healGame, spends, isForeign, healsVia, notInBuild });
           if (!g) return null;
           g.src = 'warcraftlogs.com';
           g.m = mode;
@@ -1728,9 +1721,7 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         const ergebnisse = [];
         for (const [h, v] of varianten) {
           dossier(s.id, mode, Number(h), talenteVon(s.id, mode, Number(h)));
-          const hAnders = pvAnders && pvAnders.heroes && pvAnders.heroes[h];
-          const g = baue(v.casts, mode === 'raid' ? v.openers || [] : [], v.bosses,
-            hAnders && hAnders.casts && hAnders.casts.players >= 10 ? hAnders.casts : other, Number(h));
+          const g = baue(v.casts, mode === 'raid' ? v.openers || [] : [], v.bosses, Number(h));
           if (!g) continue;
           g.hero = Number(h);
           g.pct = v.pct;
@@ -1738,7 +1729,7 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         }
         if (!ergebnisse.length) {
           dossier(s.id, mode, 0, talenteVon(s.id, mode, null));
-          const g = baue(casts, openers, pvOk && pvOk.bosses, other, null);
+          const g = baue(casts, openers, pvOk && pvOk.bosses, null);
           if (g) ergebnisse.push(g);
         }
         if (!ergebnisse.length) { report.push(`${s.id} healer ${mode}: not measured`); continue; }

@@ -6831,10 +6831,10 @@ do
     check("kein 'unter bestimmten Umstaenden'", nurVage == L["ROT_S_cd"]:format(L["ROT_V_cast"]:format("#1")), nurVage)
     -- Der Heiler-Guide: gemessene Saetze, keine Prioritaet.
     local heil = function(line) return ns.UI.RotationSentence(line, "core", false) end
-    local fuell = heil({ hk = "fill", s = 5, pct = 100, cpm = 19.1, first = true, multi = true, cost = "high", vs = "more", m = "raid" })
-    check("Heiler: der erste Fueller mit Ziel, Mana und Vergleich",
-        fuell:find(L["ROT_H_fill_first"]:format("#5", L["ROT_H_multi"]) .. L["ROT_H_cost_high"] .. ".", 1, true) == 1
-        and fuell:find(L["ROT_H_vs_more_raid"], 1, true) ~= nil, fuell)
+    local fuell = heil({ hk = "fill", s = 5, pct = 100, cpm = 19.1, first = true, multi = true, cost = "high", m = "raid" })
+    -- KEIN RAID GEGEN M+ (26. Oktober): ein Satz endet mit dem Zauber.
+    check("Heiler: der erste Fueller mit Ziel und Mana, ohne Vergleich",
+        fuell == L["ROT_H_fill_first"]:format("#5", L["ROT_H_multi"]) .. L["ROT_H_cost_high"] .. ".", fuell)
     -- KEINE HAEUFIGKEITEN (26. Oktober): kein "19,1×", keine graue Zahl.
     check("Heiler: keine Zahl im Satz", not fuell:find("19", 1, true) and not fuell:find("|cff9aa4b2", 1, true), fuell)
     check("Heiler: der zweite Fueller mit Oder", heil({ hk = "fill", s = 6, pct = 93, cpm = 3.1, multi = false })

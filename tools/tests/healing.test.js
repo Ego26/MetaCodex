@@ -61,9 +61,8 @@ check('Fueller: mehrere Ziele und teurer gegen ein Ziel und guenstiger',
   g.prio.filter((r) => r.k === 'fill').map((r) => [r.s, r.multi, r.cost]), [[1, true, 'high'], [11, false, 'low']]);
 check('je Minute und Anteil', [g.prio.find((r) => r.s === 1).cpm, g.prio.find((r) => r.s === 1).pct], [20, 100]);
 check('Schaden getrennt, zwei IDs als ein Zauber', g.prio.filter((r) => r.k === 'dmg').map((r) => [r.s, r.cpm]), [[5, 1.2], [21, 1]]);
-// Raid gegen M+: Welle der Heilung im anderen Modus viel seltener.
-const mitVergleich = guide({ casts, other: { players: 10, minutes: 50, by: [[1, 1000, 10], [11, 50, 10]] } }, game);
-check('M+ gegen Raid: deutlich oefter', mitVergleich.prio.filter((r) => r.k === 'fill').map((r) => r.vs), [undefined, 'more']);
+// Kein Raid gegen M+ (26. Oktober): ein Fueller traegt keinen Vergleich.
+check('kein Vergleich mit der anderen Aktivitaet', g.prio.some((r) => 'vs' in r), false);
 check('Cooldowns nach Auslastung', g.cds.map((r) => [r.s, r.use]), [[3, 100], [4, 60], [7, 13]]);
 check('Gegenstaende fuer sich', g.items.map((r) => [r.s, r.use]), [[8, 93]]);
 check('Geisterwolf ist weder Prioritaet noch Cooldown', [...g.prio, ...g.cds].some((r) => r.s === 9), false);

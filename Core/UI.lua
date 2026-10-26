@@ -7624,7 +7624,6 @@ do
                 text = text .. L["ROT_H_cost_" .. line.cost]
             end
             text = text .. "."
-            if line.vs then text = text .. " " .. L["ROT_H_vs_" .. line.vs .. "_" .. (line.m == "mplus" and "mplus" or "raid")] end
             return text
         end
         if k == "dmg" then return L["ROT_H_dmg"]:format(nm(line.s)) end
@@ -7748,7 +7747,7 @@ do
                     local first = x.first
                     if teil and x.k == "fill" then first = erster or nil; erster = false end
                     sammeln(out, { hk = x.k, s = x.s, via = x.via, pct = x.pct, cpm = x.cpm, use = x.use, from = x.from, res = x.res,
-                        first = first, multi = x.multi, hot = x.hot, cost = x.cost, vs = x.vs, m = r.m, teil = teil })
+                        first = first, multi = x.multi, hot = x.hot, cost = x.cost, m = r.m, teil = teil })
                 end
             end
         elseif tab == "cds" then

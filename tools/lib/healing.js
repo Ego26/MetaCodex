@@ -30,8 +30,6 @@
 //           WHAT THE SPELL DOES decides, from the game's own text (24
 //           October). A cast in the log that no player presses - the effect
 //           of a passive talent (Reclamation, Twin Flame) - has no line.
-//           Raid against M+: a filler cast 1.6 times as often or more (or
-//           that much less) than in the other activity says so.
 //   cds     a cooldown of a minute or more, cast by 40 %. How much of what
 //           was possible got used says how: 85 % and more "as soon as
 //           ready", 50 % "aimed", below "when needed". A tool (no heal, no
@@ -58,7 +56,6 @@ const PROC_CPM = 0.3;
 const ON_CD_USE = 70;
 const KEEP_RATIO = 0.6;
 const MAX_FILL = 3;
-const VS_RATIO = 1.6;
 const CD_FROM = 60;
 const CD_SHARE = 0.4;
 const ITEM_SHARE = 0.3;
@@ -77,7 +74,6 @@ const median = (a) => { const b = [...a].sort((x, y) => x - y); return b[Math.fl
  *          openers?:Array<{pre:number[], pull?:number[], post:number[]}>,
  *          bosses?:Array<{name:string, dur:number, casts:Array<Array<[number,number]>>}>}} input
  *   bosses: per boss the fight length (ms) and per player his casts [spell, ms after the pull]
- *   other: the casts of the other activity, to compare the fillers
  * @param {{cd:(id:number)=>number, isItem:(id:number)=>boolean,
  *          isDamage:(id:number)=>boolean, nameOf:(id:number)=>string,
  *          procFrom?:(id:number)=>number|null, lasts?:(id:number)=>number,
@@ -185,22 +181,6 @@ function guide(input, game) {
     const k = keep ? 'keep' : oft && ist('isEmpower', r.s) ? 'emp' : oft ? 'oncd' : 'reg';
     return { k, s: r.s, pct: pct(r), cpm: round1(r.cpm), use: r.use };
   });
-  // Raid against M+, by name.
-  const andere = new Map();
-  const o = input.other;
-  if (o && o.players > 0 && o.minutes > 0) {
-    for (const [id, n] of o.by) {
-      const k = game.nameOf(id);
-      andere.set(k, Math.max(andere.get(k) || 0, n / o.minutes));
-    }
-  }
-  const vergleich = (r) => {
-    const x = andere.get(game.nameOf(r.s));
-    if (!x) return undefined;
-    if (r.cpm >= VS_RATIO * x) return 'more';
-    if (r.cpm * VS_RATIO <= x) return 'less';
-    return undefined;
-  };
   // Without a cooldown, cast about once per its own duration: kept up on
   // one target (Lifebloom, 15 seconds, every 15 seconds) - no filler.
   // Only a HoT that may run on ONE target at a time (Lifebloom) is kept up:
@@ -228,7 +208,7 @@ function guide(input, game) {
     const multi = game.isMulti ? Boolean(game.isMulti(r.s)) : undefined;
     const hot = !multi && game.isHot && game.isHot(r.s) ? true : undefined;
     return { k: 'fill', s: r.s, pct: pct(r), cpm: round1(r.cpm), first: i === 0 || undefined,
-      multi, hot, cost, vs: vergleich(r) };
+      multi, hot, cost };
   });
   // Damage pressed on cooldown is part of the play (the Mistweaver's Rising
   // Sun Kick): "on cooldown", with the heals. The rest is damage in between.
