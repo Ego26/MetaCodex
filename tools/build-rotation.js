@@ -1399,6 +1399,35 @@ const bare = (s) => String(s || '').replace(/_/g, '');
       return t !== '' && !/heal|damage|absorb|restor|shield|mana|atonement|renew|mend|protect|helpful spell|next empowered|cooldown reduc|reduces? the cooldown|reset the cooldown/i.test(t);
     },
     manaPct: (id) => manaPct.get(id) || 0,
+    // Moving while casting (Spiritwalker's Grace) or taking a debuff off
+    // (Cauterizing Flame): a tool, however often it is pressed.
+    isTool: (id) => {
+      const t = festerText(beschreibung(id));
+      const erster = t.split(/\.\s/)[0];
+      return /\b(while moving|movement while casting|cast while moving)\b/i.test(t)
+        || /\b(remov\w*|dispel\w*|cleans\w*)\b[^.]*\b(magic|curse|poison|disease|bleed)/i.test(erster)
+        // A battle resurrection (Rebirth) brings back the dead, no heal.
+        || /\b(dead target|to life|resurrect)/i.test(erster);
+    },
+    // Protects the healer alone: "all damage you take", "heals you",
+    // "shields you" - and names no one else (26 October).
+    // The talent parts count here: Fortifying Brew's whole effect sits in
+    // them. Immune to all damage (Divine Shield), not to crowd control (Deep
+    // Breath).
+    isPersonal: (id) => {
+      const t = beschreibung(id);
+      return /(damage you take|you take \S+ less|taking \S+ less damage|reduc\w* (all )?damage taken|heals you|shields you|immun\w* to all (damage|attacks)|increas\w* (your )?(current and )?maximum health)/i.test(t)
+        && !/\b(target|ally|allies|friendly|party|raid|group|members?)\b/i.test(festerText(t));
+    },
+    // Protects or saves ONE ally (Life Cocoon, Pain Suppression, Ironbark,
+    // Lay on Hands, Time Dilation) - not a group.
+    isExternal: (id) => {
+      const t = festerText(beschreibung(id));
+      const einer = /\b(a|the) (friendly |injured )?(target|ally|party or raid member)\b|\bfriendly target\b|\ban ally\b/i.test(t);
+      const viele = /\ball (party|raid|allies|nearby)|\ballies (within|in)\b|nearby allies|up to \S+ allies|party and raid members|injured allies/i.test(t);
+      const schutz = /damage taken|damage they (would )?take|absorb|immun|would die|maximum health|healing received|prevent/i.test(t);
+      return einer && !viele && schutz;
+    },
   };
   // THE HEALER'S BUILD (26 October): the talents of the measured top
   // healers - the hero tree's, where given. Healers have no SimC list to
@@ -1432,12 +1461,30 @@ const bare = (s) => String(s || '').replace(/_/g, '');
   // damage heals". A chance (Xuen's claw) is no rule to play by.
   const heiltDurchSchaden = (talente) => {
     const regeln = [];
+    // Only names before the heal: "Your Tiger Palm, Blackout Kick, Rising Sun
+    // Kick and Crackling Jade Lightning heal" (Ancient Teachings) - a split at
+    // the comma kept only the last name (26 October).
+    const nurNamen = (x) => x.replace(/\$\S*/g, ' ').replace(/[^A-Za-z' ]/g, ' ').split(/\s+/)
+      .filter((w) => w && !/^(and|or|your|Your)$/.test(w)).every((w) => /^[A-Z]/.test(w));
     for (const t of talente) {
-      const text = (textOf.get(t) || { d: '' }).d;
+      const text = beschreibung(t);
+      // "Judgment heals you", "Shield of the Righteous heals you and 4 allies",
+      // "Rising Sun Kick now kicks up a Gust of Mist to heal": the spell
+      // itself heals (Truth Prevails, Lightforged Blessing, Crane Style).
+      for (const x of text.split(/\.\s/)) {
+        if (/\bchance\b/i.test(x)) continue;
+        const m = /^\s*"?(?:Your\s+)?((?:\$\?\w+\[[^\]]*\]\[[^\]]*\])|[A-Z][\w'-]*(?:[ :]+[A-Z][\w'-]*)*)\s+(?:now\s[^.]*?\bto heal\b|heals?\s+(?:you|up to|an? |nearby|\$s\d|allies|injured))/.exec(x);
+        if (!m) continue;
+        const namen = m[1].startsWith('$') ? [...m[1].matchAll(/\[([^\]]*)\]/g)].map((y) => y[1]) : [m[1]];
+        regeln.push({ via: t, namen });
+      }
       const satz = text.split(/\.\s/).find((x) => /\bheal(s|ing|ed)?\b[^.]{0,120}\bof (the )?damage (done|dealt|amount)|your (spell )?damage heals/i.test(x));
       if (!satz || /\bchance\b/i.test(satz)) continue;
       if (/your (spell )?damage heals/i.test(satz)) { regeln.push({ via: t, alle: true }); continue; }
-      const teil = satz.split(/,|;/).find((x) => /\bheal(s|ing|ed)?\b/i.test(x)) || satz;
+      const teile = satz.split(/,|;/);
+      const i = Math.max(0, teile.findIndex((x) => /\bheal(s|ing|ed)?\b/i.test(x)));
+      let teil = teile[i];
+      for (let j = i - 1; j >= 0 && nurNamen(teile[j]); j -= 1) teil = teile[j] + ',' + teil;
       regeln.push({ via: t, text: teil, ganz: text });
     }
     return (id) => {
@@ -1445,11 +1492,11 @@ const bare = (s) => String(s || '').replace(/_/g, '');
       if (!n) return null;
       for (const r of regeln) {
         if (r.alle) return r.via;
-        if (r.text.includes(n)) return r.via;
+        if (r.namen ? r.namen.includes(n) : r.text.includes(n)) return r.via;
       }
       // The heal's clause names no spell (Divine Guidance: "allies are healed
       // for 20 % of the damage amount"): the talent's other sentences do.
-      for (const r of regeln) if (!/[A-Z][a-z]+ [A-Z]/.test(r.text) && r.ganz.includes(n)) return r.via;
+      for (const r of regeln) if (r.text && !/[A-Z][a-z]+ [A-Z]/.test(r.text) && r.ganz.includes(n)) return r.via;
       return null;
     };
   };
@@ -1484,8 +1531,18 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         const fam = familyOfClass.get(classOf.get(s.id) || 0) || 0;
         const isForeign = (id) => fam > 0 && !gleichnamige(id).some((x) => familyOfSpell.get(x) === fam);
         const baue = (cX, oX, bX, otherX, hero) => {
-          const healsVia = heiltDurchSchaden(talenteVon(s.id, mode, hero));
-          const g = healing.guide({ casts: cX, openers: oX, bosses: bX, other: otherX }, { ...healGame, spends, isForeign, healsVia });
+          const talente = talenteVon(s.id, mode, hero);
+          const healsVia = heiltDurchSchaden(talente);
+          // A talent of the tree the build does not take (by name).
+          const tree = map.trees[map.treeBySpec[s.id]];
+          const baumNamen = new Set();
+          for (const n of (tree && tree.nodes) || []) {
+            if (n.subTree && hero && n.subTree !== hero) continue;
+            for (const e of n.entries) if (e.spell) baumNamen.add(healGame.nameOf(e.spell));
+          }
+          const genommen = new Set([...talente].map((id) => healGame.nameOf(id)));
+          const notInBuild = (id) => talente.size > 0 && baumNamen.has(healGame.nameOf(id)) && !genommen.has(healGame.nameOf(id));
+          const g = healing.guide({ casts: cX, openers: oX, bosses: bX, other: otherX }, { ...healGame, spends, isForeign, healsVia, notInBuild });
           if (!g) return null;
           g.src = 'warcraftlogs.com';
           g.m = mode;

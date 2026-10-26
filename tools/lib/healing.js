@@ -37,7 +37,8 @@
 //           ready", 50 % "aimed", below "when needed". A tool (no heal, no
 //           protection) is marked k = "tool" and stands last; one for
 //           damage k = "dmg" (used when there is little to heal), one for
-//           mana k = "mana"
+//           mana k = "mana", the healer's own defensive k = "self", one
+//           for a single ally k = "ext"
 //   items   item uses (trinkets, potions, healthstone), the same way
 //   opener  the raid pull, as for the damage specs (lib/opener.js)
 //   bosses  the raid: per boss, the n-th use of each AIMED cooldown at the
@@ -84,7 +85,12 @@ const median = (a) => { const b = [...a].sort((x, y) => x - y); return b[Math.fl
  *          isUtility?:(id:number)=>boolean, isEffect?:(id:number)=>boolean,
  *          isMana?:(id:number)=>boolean, isEmpower?:(id:number)=>boolean,
  *          isSummon?:(id:number)=>boolean, spends?:(id:number)=>string|null,
- *          isForeign?:(id:number)=>boolean, healsVia?:(id:number)=>number|null}} game
+ *          isForeign?:(id:number)=>boolean, healsVia?:(id:number)=>number|null,
+ *          notInBuild?:(id:number)=>boolean, isTool?:(id:number)=>boolean,
+ *          isPersonal?:(id:number)=>boolean, isExternal?:(id:number)=>boolean}} game
+ *   notInBuild: a talent the measured build does not take;
+ *   isTool: movement or a dispel; isPersonal: protects only the healer;
+ *   isExternal: protects or saves one ally;
  *   healsVia: the talent through which this damage spell heals, or null;
  *   isEffect: a cast no player presses (a passive talent's effect);
  *   isForeign: not the class's own (a racial like Shadowmeld) - no line;
@@ -119,7 +125,11 @@ function guide(input, game) {
   const items = rows.filter((r) => game.isItem(r.s) && r.share >= ITEM_SHARE)
     .sort((a, b) => b.share - a.share)
     .map((r) => ({ s: r.s, pct: pct(r), per: round1(r.per), use: r.use }));
-  const spells = rows.filter((r) => !game.isItem(r.s) && !(game.isForeign && game.isForeign(r.s)));
+  // A talent the build does not take - the other half of a choice node
+  // (Revival against Restoral) - is no button of this guide, unless nearly
+  // every top healer casts it all the same (26 October).
+  const fremd = (r) => (game.isForeign && game.isForeign(r.s)) || (game.notInBuild && game.notInBuild(r.s) && r.share < 0.75);
+  const spells = rows.filter((r) => !game.isItem(r.s) && !fremd(r));
   // THE PRIORITY.
   const procFrom = game.procFrom || (() => null);
   const lasts = game.lasts || (() => 0);
@@ -205,11 +215,11 @@ function guide(input, game) {
   // Damage pressed on cooldown is part of the play (the Mistweaver's Rising
   // Sun Kick): "on cooldown", with the heals. The rest is damage in between.
   const schadenAufCd = (r) => r.cd >= 4 && (r.use || 0) >= ON_COOLDOWN;
-  const dmgCd = kern.filter((r) => game.isDamage(r.s) && schadenAufCd(r))
-    .map((r) => ({ k: 'oncd', s: r.s, pct: pct(r), cpm: round1(r.cpm), use: r.use }));
   // Damage that heals through a talent (Atonement, Way of the Crane) says
   // so, with the talent: "Through Atonement your damage heals as well".
   const heiltMit = (id) => (game.healsVia ? game.healsVia(id) : null) || undefined;
+  const dmgCd = kern.filter((r) => game.isDamage(r.s) && schadenAufCd(r))
+    .map((r) => ({ k: 'oncd', s: r.s, via: heiltMit(r.s), pct: pct(r), cpm: round1(r.cpm), use: r.use }));
   const dmg = kern.filter((r) => game.isDamage(r.s) && !schadenAufCd(r)).sort((a, b) => b.cpm - a.cpm).slice(0, MAX_DMG)
     .map((r) => ({ k: heiltMit(r.s) ? 'dmgheal' : 'dmg', via: heiltMit(r.s), s: r.s, pct: pct(r), cpm: round1(r.cpm) }))
     .sort((a, b) => (a.k === 'dmgheal' ? 0 : 1) - (b.k === 'dmgheal' ? 0 : 1));
@@ -222,10 +232,22 @@ function guide(input, game) {
   // text says (Power Infusion, Holy Bulwark).
   const cdRows = spells.filter((r) => r.cd >= CD_FROM && r.share >= CD_SHARE)
     .sort((a, b) => (b.use || 0) - (a.use || 0));
-  const toolCd = (r) => werkzeug(r) && (r.use || 0) < ON_COOLDOWN;
-  const cds = [...cdRows.filter((r) => !toolCd(r)), ...cdRows.filter(toolCd)]
-    .map((r) => ({ s: r.s, pct: pct(r), per: round1(r.per), use: r.use,
-      k: toolCd(r) ? 'tool' : game.isDamage(r.s) && !heiltMit(r.s) ? 'dmg' : ist('isMana', r.s) ? 'mana' : undefined }));
+  // Moving while casting and removing a debuff are tools, however often
+  // they are pressed (Spiritwalker's Grace, Cauterizing Flame).
+  const toolCd = (r) => ist('isTool', r.s) || (werkzeug(r) && (r.use || 0) < ON_COOLDOWN);
+  // WHOM IT PROTECTS (26 October): the healer's own defensives (Barkskin,
+  // Divine Protection, Fortifying Brew) are no healing cooldowns - one line
+  // "to protect yourself"; one for a single ally (Life Cocoon, Pain
+  // Suppression, Lay on Hands) is held for an ally in trouble, however
+  // often the top healers find one.
+  const art = (r) => (toolCd(r) ? 'tool' : ist('isPersonal', r.s) ? 'self' : ist('isExternal', r.s) ? 'ext'
+    : game.isDamage(r.s) && !heiltMit(r.s) ? 'dmg' : ist('isMana', r.s) ? 'mana' : undefined);
+  const RANG_CD = { ext: 1, self: 2, tool: 3 };
+  const cds = cdRows.map((r) => ({ r, k: art(r) }))
+    .sort((a, b) => (RANG_CD[a.k] || 0) - (RANG_CD[b.k] || 0))
+    .map(({ r, k }) => ({ s: r.s, pct: pct(r), per: round1(r.per), use: r.use, k,
+      via: game.isDamage(r.s) ? heiltMit(r.s) : undefined }));
+  const ohnePlan = new Set(cds.filter((x) => x.k === 'tool' || x.k === 'self').map((x) => x.s));
 
   // The pull: only the spells of this guide, in the order most follow.
   let open;
@@ -249,7 +271,7 @@ function guide(input, game) {
     const players = b.casts.length;
     if (players < 3) continue;
     const plan = [];
-    for (const r of cdRows.filter((x) => (x.use || 0) < ON_COOLDOWN && !toolCd(x))) {
+    for (const r of cdRows.filter((x) => (x.use || 0) < ON_COOLDOWN && !ohnePlan.has(x.s))) {
       if (plan.length >= MAX_BOSS_CDS) break;
       const k = game.nameOf(r.s);
       // Each player's uses: casts of this name, one within 1.5 seconds.

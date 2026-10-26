@@ -7553,6 +7553,13 @@ do
         -- Mana gibt man, wenn es fehlt; Schaden macht ein Heiler, wenn
         -- gerade wenig zu heilen ist.
         if line.ck == "mana" then return L["ROT_H_cd_mana"]:format(name) end
+        -- Fuer einen Einzelnen in Not, wie oft auch immer gebraucht.
+        if line.ck == "ext" then return L["ROT_H_cd_ext"]:format(name) end
+        -- Schaden, der ueber ein Talent heilt (Tiefer Atem): wenn Heilung gefragt ist.
+        if line.via then
+            if line.use and line.use >= 85 then return L["ROT_H_oncd_via"]:format(name, nm(line.via)) end
+            return L["ROT_H_cd_via"]:format(name, nm(line.via))
+        end
         if line.use and line.use >= 85 then return L["ROT_H_cd_on"]:format(name) end
         if line.ck == "dmg" then return L["ROT_H_cd_dmg"]:format(name) end
         if line.use and line.use >= 50 then return L["ROT_H_cd_aim"]:format(name) end
@@ -7566,7 +7573,7 @@ do
         end
         local k = line.hk
         -- Mehrere in einer Zeile: die Namen als Liste.
-        if (k == "dmg" or k == "dmgheal" or k == "sit") and line.list then
+        if (k == "dmg" or k == "dmgheal" or k == "sit" or k == "self") and line.list then
             local namen = {}
             for _, id in ipairs(line.list) do namen[#namen + 1] = nm(id) end
             -- Schaden, der ueber ein Talent heilt: das Talent nennt den Grund.
@@ -7577,6 +7584,8 @@ do
             return line.from and L["ROT_H_proc"]:format(nm(line.s), nm(line.from)) or L["ROT_H_proc0"]:format(nm(line.s))
         end
         if k == "oncd" then
+            -- Schaden auf Abklingzeit, der ueber ein Talent heilt (Feueratem).
+            if line.via and (line.use or 0) >= 85 then return L["ROT_H_oncd_via"]:format(nm(line.s), nm(line.via)) end
             return L[(line.use or 0) >= 85 and "ROT_H_oncd" or "ROT_H_oncd_most"]:format(nm(line.s))
         end
         if k == "keep" then return L["ROT_H_keep"]:format(nm(line.s)) end
@@ -7689,7 +7698,7 @@ do
     -- EINE ZEILE FUER VIELE (26. Oktober): "Zwischendurch fuer Schaden:
     -- Leerenschlag, Gedankenschlag und Heilige Pein" statt dreimal
     -- "Zwischendurch X fuer Schaden"; ebenso, was je nach Lage kommt.
-    local SAMMELN = { dmg = true, dmgheal = true, sit = true }
+    local SAMMELN = { dmg = true, dmgheal = true, sit = true, self = true }
     local function sammeln(out, zeile)
         local vorige = out[#out]
         if vorige and vorige.hk == zeile.hk and SAMMELN[zeile.hk] and vorige.via == zeile.via then
@@ -7714,8 +7723,11 @@ do
             for _, x in ipairs(r.cds or {}) do
                 if x.k == "tool" then
                     sammeln(out, { hk = "sit", s = x.s, m = r.m })
+                elseif x.k == "self" then
+                    -- Der eigene Schutz: eine Zeile (Baumrinde, Goettlicher Schutz).
+                    sammeln(out, { hk = "self", s = x.s, m = r.m })
                 else
-                    out[#out + 1] = { hk = "cd", s = x.s, pct = x.pct, per = x.per, use = x.use, m = r.m, ck = x.k }
+                    out[#out + 1] = { hk = "cd", s = x.s, pct = x.pct, per = x.per, use = x.use, m = r.m, ck = x.k, via = x.via }
                 end
             end
         elseif tab == "bosses" then

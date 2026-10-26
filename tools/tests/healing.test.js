@@ -108,6 +108,19 @@ check('Cooldowns mit Art: Schaden und Mana', [g3.cds.find((r) => r.s === 33).k, 
 const g4 = guide({ casts: { ...casts, by: [...casts.by, [33, 8, 8]] } }, { ...game3, healsVia: (id) => ([5, 6, 33].includes(id) ? 81749 : null) });
 check('Schaden, der heilt, nennt sein Talent', g4.prio.filter((r) => r.k === 'dmgheal').map((r) => [r.s, r.via]), [[5, 81749]]);
 check('ein Schadens-Cooldown, der heilt, ist kein "wenig zu heilen"', g4.cds.find((r) => r.s === 33).k, undefined);
+check('ein Schadens-Cooldown, der heilt, nennt sein Talent', g4.cds.find((r) => r.s === 33).via, 81749);
+
+// WEN ES SCHUETZT (26. Oktober): der eigene Schutz und der fuer einen
+// Einzelnen, wie oft auch gedrueckt; Bewegung ist ein Werkzeug; die andere
+// Haelfte eines Wahlknotens hat keine Zeile.
+const NAMES5 = { ...NAMES2, 40: 'barkskin', 41: 'ironbark', 42: 'spiritwalkers_grace', 43: 'restoral' };
+const game5 = { ...game2, nameOf: (id) => NAMES5[id], cd: (id) => ({ 40: 60, 41: 90, 42: 120, 43: 180 })[id] || game2.cd(id),
+  isPersonal: (id) => id === 40, isExternal: (id) => id === 41, isTool: (id) => id === 42, notInBuild: (id) => id === 43 };
+const g5 = guide({ casts: { ...casts, by: [...casts.by, [40, 60, 10], [41, 60, 10], [42, 60, 10], [43, 6, 6]] }, bosses: [boss] }, game5);
+check('eigener Schutz, Einzelner und Bewegung, in dieser Reihenfolge',
+  g5.cds.filter((r) => [40, 41, 42].includes(r.s)).map((r) => [r.s, r.k]), [[41, 'ext'], [40, 'self'], [42, 'tool']]);
+check('was der Build nicht nimmt, hat keine Zeile', g5.cds.some((r) => r.s === 43), false);
+check('der eigene Schutz hat keine Minute im Boss-Plan', (g5.bosses || [{ cds: [] }])[0].cds.some((x) => x.s === 40), false);
 
 console.log(failed === 0 ? '\nalles gruen' : `\n${failed} Fehler`);
 process.exit(failed === 0 ? 0 : 1);
