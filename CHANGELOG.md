@@ -4,6 +4,72 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ## [Unreleased]
 
+## [1.1.22] - 2026-10-26
+
+### Added
+
+- **Rotation (beta).** A new section under Overview: what to press, in
+  plain sentences - "Use Ascendance on cooldown", "Cast Lava Burst when
+  Master of the Elements is not active", "before its charges cap",
+  "when you have enough Fury", and the filler at the end.
+  - **Damage dealers and tanks**: the priority SimulationCraft plays,
+    cut to the build the measured top players of your spec run.
+    Talents they do not take and spells of a hero tree they do not play
+    drop out. One rotation per hero tree (with a switch where enough top
+    players play each), per activity and per difficulty - Normal, Heroic
+    and Mythic, the high keys and +7 to +21. Where one level has too few
+    measured players, the activity's together stand in, and the card
+    says so.
+  - **Single target and AoE**: the AoE tab says from how many targets it
+    applies - the count at which SimulationCraft turns to its AoE list.
+    Where it plays a spec the same against one target and many, there
+    is one list, "Single & multi target".
+  - **Before the pull** (what to keep up, what to precast), **potions &
+    trinkets**, what to use **on the move**, and an **example opener**
+    measured on raid pulls.
+  - Marked as a beta: it is new, and not every line has been checked by
+    hand yet.
+- **For healers, measured instead of simulated.** SimulationCraft does
+  not simulate healing, so the healer card shows what top healers cast
+  on Warcraft Logs:
+  - **Single-target and group healing** as two lists. Whom a spell heals
+    is the game's own text; the order is how often they press it.
+  - **Damage that heals** names the talent it heals through - Atonement,
+    Ancient Teachings, Life-Giver's Flame.
+  - **Major cooldowns** by whom they protect: for the group, held for an
+    ally in trouble, your own protection, and tools for the moment.
+  - **In the raid, per boss**: at which minute the big cooldowns go out.
+  - Potions and trinkets with their own icon and name.
+- **Groups & specs.** A new section under Overview: who plays with whom
+  at the top.
+  - **M+**: the most common groups of five and the specs per role, from
+    the high keys (raider.io) and +7 to +21 (Warcraft Logs), also per
+    dungeon - falling back to all dungeons, never to the other bracket.
+  - **Raid**: per difficulty, how many kills a spec is in and how many
+    of it on average.
+  - **PvP**: which specs stand among the top players of each bracket.
+
+### Changed
+
+- **"Guides & Rotation" is now "Guides".** The rotation has its own
+  section.
+- **The platform button shows only where it changes something.** The
+  rotation and the races depend on no platform; there it is gone.
+- **No shopping buttons at the bottom of the window.** "Create shopping
+  list" and "Search now" stood under every section and are of use only
+  at the auction house, where the list beside it has them, as does the
+  reminder. "Also buy for" in the spec menu went with them.
+
+### Fixed
+
+- **Monks and Fury warriors**: talent builds are read against the live
+  talent tree again, with their hero talents. Windwalker had no hero
+  tree, Fury builds were read against a test tree.
+- **Omnium Folio**: row 5 was missing for specs with fewer than ten
+  measured players at one activity (Marksmanship, Frost). It now comes
+  from the nearest activity that has it, and its heading says from
+  where. The druid's spec menu no longer shows an empty fifth entry.
+
 ## [1.1.21] - 2026-10-19
 
 ### Fixed

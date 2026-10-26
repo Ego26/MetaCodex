@@ -4,6 +4,78 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ## [Unveröffentlicht]
 
+## [1.1.22] - 2026-10-26
+
+### Neu
+
+- **Rotation (Beta).** Ein neuer Abschnitt unter Überblick: was du
+  drückst, in ganzen Sätzen - „Nutze Aszendenz auf Abklingzeit", „Wirke
+  Lavaeruption, wenn Meister der Elemente nicht aktiv ist", „bevor die
+  Aufladungen voll sind", „sobald du genug Wut hast", und am Ende der
+  Füller.
+  - **Schaden und Tanks**: die Priorität, die SimulationCraft spielt,
+    zugeschnitten auf den Build, den die gemessenen Top-Spieler deiner
+    Spec spielen. Talente, die sie nicht nehmen, und Zauber eines
+    Heldenbaums, den sie nicht spielen, fallen weg. Eine Rotation je
+    Heldenbaum (mit Umschalter, wo genug Top-Spieler jeden spielen), je
+    Aktivität und je Schwierigkeit - Normal, Heroisch und Mythisch, die
+    hohen Keys und +7 bis +21. Wo eine Stufe zu wenige Gemessene hat,
+    springt die Aktivität als Ganzes ein, und die Karte sagt es.
+  - **Einzelziel und Flächenschaden**: der AoE-Reiter sagt, ab wie
+    vielen Zielen er gilt - ab der Zahl, bei der SimulationCraft in seine
+    AoE-Liste wechselt. Wo es eine Spec gegen ein und viele Ziele gleich
+    spielt, gibt es eine Liste, „Ein- und Mehrziel".
+  - **Vor dem Pull** (was aufrecht bleibt, was vorab gewirkt wird),
+    **Tränke & Schmuck**, was **in Bewegung** geht, und ein
+    **Beispiel-Ablauf**, gemessen an Raid-Pulls.
+  - Als Beta gekennzeichnet: sie ist neu, und noch nicht jede Zeile ist
+    von Hand geprüft.
+- **Für Heiler gemessen statt simuliert.** SimulationCraft simuliert
+  keine Heilung, also zeigt die Heiler-Karte, was Top-Heiler auf
+  Warcraft Logs wirken:
+  - **Einzel- und Gruppenheilung** als zwei Listen. Wen ein Zauber
+    heilt, sagt sein Spieltext; die Reihenfolge ist, wie oft sie ihn
+    drücken.
+  - **Schaden, der heilt**, nennt das Talent, über das er heilt - Sühne,
+    Uralte Lehren, Flamme des Lebensspenders.
+  - **Große Cooldowns** danach, wen sie schützen: für die Gruppe, für
+    einen Verbündeten in Not, zu deinem eigenen Schutz, und Werkzeuge
+    für die Lage.
+  - **Im Raid je Boss**: zu welcher Minute die großen Cooldowns kommen.
+  - Tränke und Schmuck mit ihrem eigenen Symbol und Namen.
+- **Gruppen & Specs.** Ein neuer Abschnitt unter Überblick: wer an der
+  Spitze mit wem spielt.
+  - **M+**: die häufigsten Fünfergruppen und die Specs je Rolle, aus den
+    hohen Keys (raider.io) und +7 bis +21 (Warcraft Logs), auch je
+    Dungeon - mit allen Dungeons als Rückfall, nie mit der anderen
+    Klammer.
+  - **Raid**: je Schwierigkeit, in wie vielen Kills eine Spec steht und
+    wie oft im Schnitt.
+  - **PvP**: welche Specs unter den Top-Spielern jeder Klammer stehen.
+
+### Geändert
+
+- **„Guides & Rotation" heißt jetzt „Guides".** Die Rotation hat einen
+  eigenen Abschnitt.
+- **Der Plattform-Knopf steht nur noch, wo er etwas ändert.** Rotation
+  und Rassen hängen an keiner Plattform; dort ist er weg.
+- **Keine Einkaufsknöpfe mehr unten im Fenster.** „Einkaufsliste
+  anlegen" und „Jetzt suchen" standen unter jedem Abschnitt und nützen
+  nur am Auktionshaus, wo die Liste daneben sie hat, wie auch die
+  Erinnerung. „Auch kaufen für" im Spec-Menü ist mit ihnen gegangen.
+
+### Behoben
+
+- **Mönche und Furor-Krieger**: die Talent-Builds werden wieder gegen
+  den aktuellen Talentbaum gelesen, mit Heldentalenten. Der Windläufer
+  hatte keinen Heldenbaum, Furor-Builds wurden gegen einen Testbaum
+  gelesen.
+- **Omnium-Foliant**: Reihe 5 fehlte bei Specs mit weniger als zehn
+  Gemessenen in einer Aktivität (Treffsicherheit, Frost). Sie kommt
+  jetzt aus der nächstliegenden Aktivität, die sie hat, und ihre
+  Überschrift sagt, woher. Im Spec-Menü des Druiden steht kein leerer
+  fünfter Eintrag mehr.
+
 ## [1.1.21] - 2026-10-19
 
 ### Behoben
