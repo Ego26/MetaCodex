@@ -480,7 +480,8 @@ const bare = (s) => String(s || '').replace(/_/g, '');
       if (!byName.has(k)) byName.set(k, []);
       if (!byName.get(k).includes(id)) byName.get(k).push(id);
     };
-    for (const r of specSpells) if (Number(r.SpecID) === s.id) add(Number(r.SpellID));
+    const specOwn = new Set();
+    for (const r of specSpells) if (Number(r.SpecID) === s.id) { add(Number(r.SpellID)); specOwn.add(Number(r.SpellID)); }
     const treeSpells = new Set();
     const nodeSub = new Map();
     for (const n of tree.nodes) {
@@ -501,7 +502,10 @@ const bare = (s) => String(s || '').replace(/_/g, '');
       const cands = idsByBare.get(String(k || '').replace(/_/g, '')) || [];
       let best = null;
       for (const id of cands) {
-        const p = scoreOf(id, use, own, family, cast);
+        // The spec's own version before the class's (Fury's Whirlwind 190411
+        // makes Rage, the class's 1680 costs it). Not its passive: Prot's
+        // Consecration aura 327980 is no button.
+        const p = scoreOf(id, use, own, family, cast) + (specOwn.has(id) && !passiveIds.has(id) ? 3 : 0);
         // A tie among the class's own spells goes to the lower ID (the base
         // spell); among the rest to the newer one - old IDs stay in the game
         // data long after their spell is gone (Devour 272793 of an earlier
@@ -1074,8 +1078,16 @@ const bare = (s) => String(s || '').replace(/_/g, '');
       // available" twelve times.
       // Only the game data: SimC's cdOf also answers for spells without a
       // cooldown (Living Flame read "on cooldown", 26 October).
+      // THE LINE'S OWN SPELL first (26 October): same-name IDs brought an NPC's
+      // 8-second Arcane Blast and Arms' Rage-costing Whirlwind into the
+      // sentence. Only a spell without any value of its own borrows - from
+      // the spec's spells and the build, never from another spec.
+      const specEigen = new Set([...takenIds, ...specSpells.filter((r) => Number(r.SpecID) === s.id).map((r) => Number(r.SpellID))]);
+      const hatWerte = (x) => cdSeconds.has(x) || rechargeSeconds.has(x) || costKey.has(x) || maxCharges.has(x);
       const art = (id) => {
-        const ids = eigeneIds(id);
+        const selbst = [id, visibleOf.get(id)].filter(Boolean);
+        const ids = selbst.some(hatWerte) ? selbst
+          : [id, ...kandidaten(slug(nameEN.get(id))).filter((x) => x !== id && specEigen.has(x))];
         const cd = Math.max(0, ...ids.map((x) => Math.max(cdSeconds.get(x) || 0, rechargeSeconds.get(x) || 0)));
         const ladungen = Math.max(0, ...ids.map((x) => maxCharges.get(x) || 0));
         const kosten = ids.map((x) => costKey.get(x)).find(Boolean);

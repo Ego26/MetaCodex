@@ -882,6 +882,9 @@ function buildTab(lists, start, ctx, resolve) {
         continue;
       }
       if (NOISE.has(action)) continue;
+      // Once a fight ("line_cd=9999": Frost's opener Flurry -> Frozen Orb ->
+      // Ray of Frost) is no line of the priority (26 October).
+      if (Number(opts.line_cd) >= 60) continue;
       // SimC's name for what the build presses instead: "berserk" is the
       // taken Incarnation (26 October).
       const act = resolve.alias ? resolve.alias(action) : action;

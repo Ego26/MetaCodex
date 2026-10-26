@@ -441,6 +441,7 @@ ns.RegisterLocale("enUS", {
     ["ROT_A_down"] = "not active",
     ["ROT_A_ready"] = "ready",
     ["ROT_A_notready"] = "not ready",
+    ["ROT_A_cdsoon"] = "ready in a moment",
     ["ROT_J_sg"] = "%s is %s",
     ["ROT_J_pl"] = "%s are %s",
     ["ROT_BUT"] = ", but ",

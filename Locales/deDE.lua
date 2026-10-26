@@ -439,6 +439,7 @@ ns.RegisterLocale("deDE", {
     ["ROT_A_down"] = "nicht aktiv",
     ["ROT_A_ready"] = "bereit",
     ["ROT_A_notready"] = "nicht bereit",
+    ["ROT_A_cdsoon"] = "gleich bereit",
     ["ROT_J_sg"] = "%s %s ist",
     ["ROT_J_pl"] = "%s %s sind",
     ["ROT_BUT"] = ", aber ",

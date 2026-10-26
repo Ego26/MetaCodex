@@ -7230,7 +7230,7 @@ do
     -- Die festen Tabellen des Satzbaus, in EINER: Lua 5.1 erlaubt einer
     -- Funktion 200 lokale Namen, und dieser Block steht im Hauptteil.
     local K = {
-        ADJ = { up = 1, down = 2, ready = 1, notready = 2 },
+        ADJ = { up = 1, down = 2, ready = 1, cdsoon = 1, notready = 2 },
         NAMENSVERBEN = { "summon", "invoke", "call", "form", "stance" },
         -- Was sich hinter einem Namen sammeln laesst: Aussagen der Form "X ...".
         GRUPPE = { up = true, down = true, refresh = true, ready = true, notready = true, cdsoon = true,
@@ -7473,12 +7473,24 @@ do
         end
         local parts = verbinde(conds, true, nm, selbst)
         if line.any then
-            local opts = {}
-            for _, g in ipairs(line.any) do
-                opts[#opts + 1] = liste(verbinde(g, true, nm, selbst))
+            -- Ein Oder neben dem Oder der Gruppen: beide in Klammern, sonst
+            -- liest sich "A oder B und (C oder D)" falsch.
+            if #conds == 1 and type(conds[1]) == "table" and conds[1][1] == "or" then
+                parts = { say(conds[1], false, nm, selbst) }
             end
-            local gruppen = false
-            for _, g in ipairs(line.any) do if #g > 1 then gruppen = true end end
+            -- Die Einzelnen zusammen ("du gerade A oder B gewirkt hast"),
+            -- danach die Gruppen.
+            local einzeln, opts, gruppen = {}, {}, false
+            local function glied(x)
+                if type(x) == "table" and x[1] == "or" then glied(x[2]); glied(x[3]) else einzeln[#einzeln + 1] = x end
+            end
+            for _, g in ipairs(line.any) do
+                if #g == 1 then glied(g[1]) else gruppen = true end
+            end
+            for _, t in ipairs(verbinde(einzeln, false, nm, selbst)) do opts[#opts + 1] = t end
+            for _, g in ipairs(line.any) do
+                if #g > 1 then opts[#opts + 1] = liste(verbinde(g, true, nm, selbst)) end
+            end
             local oder = table.concat(opts, gruppen and L["ROT_OR_SEP"] or L["ROT_OR"])
             parts[#parts + 1] = #parts > 0 and ("(" .. oder .. ")") or oder
         end

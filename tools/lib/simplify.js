@@ -40,6 +40,10 @@ const RANG = {
   tgtis: 1, tgtmin: 1, tgtmax: 1,
   up: 2, down: 2, refresh: 2, stealthed: 2, notstealthed: 2,
   ready: 3, notready: 3, stackmin: 3, stackunder: 3, stackis: 3, charges: 3, chargesunder: 3,
+  // A cooldown a player sees on the bar (26 October: "Metamorphosis when Eye
+  // Beam has more than 8 sec left", "Dark Transformation unless Army is
+  // ready within 30 sec" fell away as fine tuning).
+  cdsoon: 3, cdunder: 3, cdover: 3, chargesfull: 3,
   resmin: 4, resunder: 4, resfull: 4, resenough: 4, respctmin: 4, respctunder: 4, resis: 4,
   hpunder: 5, hpover: 5, doton: 5, weakdot: 5, strongdot: 5, stronger: 5, notstronger: 5,
   remunder: 6, remover: 6, placed: 6, notplaced: 6, surge: 6, nosurge: 6, prev: 6,
@@ -57,13 +61,42 @@ const WAHR = ['true'];
 // The most a resource holds, where it never changes.
 const OBEN = { soul_shard: 5, soul_shards: 5, holy_power: 5 };
 
-// Fine tuning a guide leaves out, even when the kind is a plain one.
+// Fine tuning a guide leaves out, even when the kind is a plain one. "Under
+// 2 sec left" is no fine tuning but "about to expire" (Enrage before
+// Rampage) - see einfach.
 function feinabstimmung(c) {
   const [k, , n] = c;
-  return (k === 'remunder' || k === 'remover') && typeof n === 'number' && n < 3;
+  return k === 'remover' && typeof n === 'number' && n < 3;
 }
 
 const key = (x) => JSON.stringify(x);
+/** The parts of an "or", flat. */
+function sammleOder(c) {
+  return Array.isArray(c) && c[0] === 'or' ? [...sammleOder(c[1]), ...sammleOder(c[2])] : [c];
+}
+
+/** Whether condition a holds whenever b does ("ready" is "ready within 3 sec"). */
+function folgt(b, a, wie) {
+  if (wie(a) === wie(b)) return true;
+  if (wie(['', a[1]]) !== wie(['', b[1]])) return false;
+  if (b[0] === 'ready' && (a[0] === 'cdsoon' || a[0] === 'cdunder')) return true;
+  const n = a[a.length - 1], m = b[b.length - 1];
+  if (a[0] !== b[0] || typeof n !== 'number' || typeof m !== 'number' || wie(a.slice(0, -1)) !== wie(b.slice(0, -1))) return false;
+  return AT_LEAST.has(a[0]) ? m >= n : BELOW.has(a[0]) ? m <= n : false;
+}
+
+/**
+ * The parts of one "or", each a group of conditions that hold together,
+ * without what another part already says (26 October): "about to expire and
+ * stronger, or about to expire" is "about to expire"; "ready soon, active or
+ * ready" is "active or ready soon".
+ */
+function bereinige(gruppen, wie) {
+  const g = gruppen.map((x) => ohneDoppel(x, wie));
+  // A part that holds only when another holds as well adds nothing.
+  const enthalten = (gross, klein) => klein.every((k) => gross.some((x) => folgt(x, k, wie)));
+  return g.filter((x, i) => !g.some((y, j) => j !== i && enthalten(x, y) && (!enthalten(y, x) || j < i)));
+}
 
 /** "One of", merged: duplicates and two bounds of one subject become one. */
 function zusammen(teile, wie) {
@@ -95,19 +128,52 @@ function einfach(c, wie = key, selbst = null) {
       if (Array.isArray(x) && x[0] === 'or') { sammle(x[1]); sammle(x[2]); } else teile.push(x);
     };
     sammle(c);
-    // Each part alone is reason enough to cast: the plain ones stay.
-    const roh = teile.map((t) => einfach(t, wie, selbst));
-    if (roh.some((x) => x === WAHR)) return WAHR;
-    const ok = zusammen(roh.filter((x) => x && x[0] !== 'or' && x[0] !== 'and'), wie);
-    // "X ready or X not ready": always.
-    for (const x of ok) {
-      const gegen = GEGENTEIL[x[0]];
-      if (gegen && ok.some((y) => y[0] === gegen && wie(['', y[1]]) === wie(['', x[1]]))) return WAHR;
+    // NO "OR" GETS STRICTER THAN SIMC (26 October). Keeping only the plain
+    // parts left Envenom for Deathmark, Hand of Gul'dan for 5 shards and
+    // Rip for Tiger's Fury. Now: a part nobody can check makes the whole
+    // "or" unknown - the line gets looser, not stricter; a part of several
+    // conditions ("A and B") keeps the ones a player checks, as a group.
+    let gruppen = [];
+    for (const t of teile) {
+      if (Array.isArray(t) && t[0] === 'and') {
+        const blaetter = [];
+        const und = (x) => { if (Array.isArray(x) && x[0] === 'and') { und(x[1]); und(x[2]); } else blaetter.push(x); };
+        und(t);
+        const e = blaetter.map((x) => einfach(x, wie, selbst));
+        if (e.every((x) => x === WAHR)) return WAHR;
+        const klar = ohneDoppel(e.filter((x) => x && x !== WAHR && x[0] !== 'or' && !x.any), wie);
+        if (!klar.length) return null;
+        gruppen.push(klar.sort((x, y) => (RANG[x[0]] || 9) - (RANG[y[0]] || 9)).slice(0, 2));
+        continue;
+      }
+      const e = einfach(t, wie, selbst);
+      if (e === WAHR) return WAHR;
+      if (!e || e.any) return null;
+      if (e[0] === 'or') { sammleOder(e).forEach((x) => gruppen.push([x])); continue; }
+      gruppen.push([e]);
     }
-    if (!ok.length || ok.length > 3) return null;
-    return ok.reduce((acc, x) => (acc ? ['or', acc, x] : x), null);
+    gruppen = bereinige(gruppen, wie);
+    if (gruppen.every((g) => g.length === 1)) {
+      const ok = zusammen(gruppen.map((g) => g[0]), wie);
+      // "X ready or X not ready": always.
+      for (const x of ok) {
+        const gegen = GEGENTEIL[x[0]];
+        if (gegen && ok.some((y) => y[0] === gegen && wie(['', y[1]]) === wie(['', x[1]]))) return WAHR;
+      }
+      if (!ok.length || ok.length > 3) return null;
+      return ok.reduce((acc, x) => (acc ? ['or', acc, x] : x), null);
+    }
+    if (gruppen.length > 3) return null;
+    if (gruppen.length === 1) return gruppen[0].length === 1 ? gruppen[0][0] : { any: gruppen };
+    return { any: gruppen };
   }
   if (c[0] === 'and') return null;
+  // "Death Mark active or more than 3590 sec left": a bound beyond any fight
+  // is no check (the fight's length stood for it).
+  if ((c[0] === 'cdover') && c[2] > 300) return null;
+  if ((c[0] === 'cdsoon' || c[0] === 'cdunder') && c[2] > 300) return WAHR;
+  // "Under 2 sec left": about to expire (Enrage before Rampage).
+  if (c[0] === 'remunder' && typeof c[2] === 'number' && c[2] < 3) return ['refresh', c[1]];
   // "Cast Combustion when Combustion is ready": a spell is cast when it is
   // ready (25 October, Fire's "Combustion active or ready").
   if (c[0] === 'ready' && selbst && wie(['', c[1]]) === selbst) return WAHR;
@@ -130,6 +196,14 @@ function ohneDoppel(bekannt, wie) {
   // Up and down of one name in one line: a player cannot tell them apart.
   const an = new Set(out.filter((c) => c[0] === 'up').map((c) => name(c[1])));
   out = out.filter((c) => c[0] !== 'down' || !an.has(name(c[1])));
+  // "Up and about to expire": about to expire says it.
+  const laeuftAus = new Set(out.filter((c) => c[0] === 'refresh').map((c) => name(c[1])));
+  out = out.filter((c) => c[0] !== 'up' || !laeuftAus.has(name(c[1])));
+  // "Up and expiring within 12 sec" reads "expiring within 12 sec"; "down
+  // and expiring within 3 sec" is down (26 October, Festering Scythe).
+  const restzeit = new Set(out.filter((c) => c[0] === 'remunder').map((c) => name(c[1])));
+  const aus = new Set(out.filter((c) => c[0] === 'down').map((c) => name(c[1])));
+  out = out.filter((c) => !(c[0] === 'up' && restzeit.has(name(c[1]))) && !(c[0] === 'remunder' && aus.has(name(c[1]))));
   // "Up and at 3 stacks": the stacks say it.
   const gestapelt = new Set(out.filter((c) => (c[0] === 'stackmin' || c[0] === 'stackis') && c[2] >= 1).map((c) => name(c[1])));
   out = out.filter((c) => c[0] !== 'up' || !gestapelt.has(name(c[1])));
@@ -162,9 +236,10 @@ function ohneWiderspruch(bekannt, any, wie) {
   if (!any) return { c, any };
   let zweige = any.filter((g) => !g.some(unmoeglich));
   if (!zweige.length) return { c, any };
+  zweige = bereinige(zweige, wie);
   // "A or (not A and B)": when A does not hold, not A does.
   const allein = new Set(zweige.filter((g) => g.length === 1 && gegen(g[0])).map((g) => g[0][0] + name(g[0][1])));
-  zweige = zweige.map((g) => (g.length > 1 ? g.filter((x) => !(gegen(x) && allein.has(gegen(x) + name(x[1])))) : g));
+  zweige = bereinige(zweige.map((g) => (g.length > 1 ? g.filter((x) => !(gegen(x) && allein.has(gegen(x) + name(x[1])))) : g)), wie);
   if (zweige.length === 1) return { c: [...c, ...zweige[0]], any: undefined };
   if (zweige.every((g) => g.length === 1)) {
     const oder = zusammen(zweige.map((g) => g[0]), wie).reduce((acc, y) => (acc ? ['or', acc, y] : y), null);
@@ -188,7 +263,7 @@ function rettung(l, wie, selbst) {
     const flach = (x) => { if (x[0] === 'or') { flach(x[1]); flach(x[2]); } else teile.push(x); };
     flach(l.c[0]);
     const klar = teile.map((t) => einfach(t, wie, selbst));
-    if (klar.length > 3 && klar.every((x) => x && x !== WAHR && x[0] !== 'or')) {
+    if (klar.length > 3 && klar.every((x) => x && x !== WAHR && !x.any && x[0] !== 'or')) {
       return [zusammen(klar, wie).slice(0, 3).reduce((acc, y) => (acc ? ['or', acc, y] : y), null)];
     }
   }
@@ -197,7 +272,7 @@ function rettung(l, wie, selbst) {
     if (!Array.isArray(x)) return;
     if (x[0] === 'or' || x[0] === 'and') { sammle(x[1]); sammle(x[2]); return; }
     const e = einfach(x, wie, selbst);
-    if (e && e !== WAHR) blaetter.push(e);
+    if (e && e !== WAHR && !e.any) blaetter.push(e);
   };
   (l.c || []).forEach(sammle);
   (l.any || []).forEach((g) => g.forEach(sammle));
@@ -240,7 +315,7 @@ function simpleConditions(cs, opts = {}) {
   const bekannt = [];
   for (const c of cs || []) {
     const e = einfach(c, wie);
-    if (e && e !== WAHR) bekannt.push(e);
+    if (e && e !== WAHR && !e.any) bekannt.push(e);
   }
   const c = ohneDoppel(bekannt, wie).sort((x, y) => (RANG[x[0]] || 9) - (RANG[y[0]] || 9)).slice(0, opts.maxConds || 3);
   return c.length ? c : undefined;
@@ -264,24 +339,35 @@ function simplify(lines, opts = {}) {
   const verloren = [];
   lines.forEach((l, nr) => {
     if (ohneBedingung.has(l.s)) return;
+    // THE PULL IS NO PRIORITY (26 October): a line bound to the first
+    // seconds of the fight ("time<2", the opener list) stood as line 2 of
+    // Windwalker's priority ("Tiger Palm at less than 4 Chi").
+    if ((l.c || []).some((c) => c[0] === 'timeunder')) return;
     const selbst = wie(['', l.s]);
     let bekannt = [];
     let fehlt = Boolean(l.more);
+    // An "or" of whole groups ("A and B, or C") is a "one of".
+    let orGruppen;
     for (const c of l.c || []) {
       const e = einfach(c, wie, selbst);
       if (e === WAHR) continue;
+      if (e && e.any) {
+        if (orGruppen || l.any) fehlt = true; else orGruppen = e.any;
+        continue;
+      }
       if (e) bekannt.push(e); else fehlt = true;
     }
     // "One of" from merged lines: single conditions become one "or".
-    let any;
+    let any = orGruppen;
     if (l.any) {
       if (l.any.every((g) => g.length === 1)) {
         const e = einfach(l.any.map((g) => g[0]).reduce((acc, x) => (acc ? ['or', acc, x] : x), null), wie, selbst);
-        if (e && e !== WAHR) bekannt.push(e); else if (!e) fehlt = true;
+        if (e && e !== WAHR && !e.any) bekannt.push(e); else if (!e || e.any) fehlt = true;
       } else {
         // A part that always holds says nothing; a branch of nothing else
         // makes the whole "one of" hold.
-        const zweige = l.any.map((g) => g.map((x) => einfach(x, wie, selbst)).filter((x) => x !== WAHR));
+        const zweige = l.any.map((g) => g.map((x) => { const e = einfach(x, wie, selbst); return e && e.any ? null : e; })
+          .filter((x) => x !== WAHR));
         if (zweige.some((g) => !g.length)) any = undefined;
         else if (zweige.length <= 3 && zweige.every((g) => g.every(Boolean) && g.length <= 2)) any = zweige;
         else fehlt = true;

@@ -11,10 +11,11 @@ function check(what, got, want) {
 }
 const s = (lines) => simplify(lines).map((l) => [l.s, l.c, l.any]);
 
-check('Feinabstimmung faellt aus der Bedingung',
-  s([{ s: 1, c: [['down', 5], ['resnotcap', 'maelstrom', 15], ['cdsoon', 7]] }]), [[1, [['down', 5]], undefined]]);
-check('kurze Restzeiten sind Feinabstimmung',
-  s([{ s: 1, c: [['up', 5], ['remunder', 5, 2]] }]), [[1, [['up', 5]], undefined]]);
+check('Feinabstimmung faellt aus der Bedingung, eine Abklingzeit bleibt',
+  s([{ s: 1, c: [['down', 5], ['resnotcap', 'maelstrom', 15], ['cdsoon', 7]] }]), [[1, [['down', 5], ['cdsoon', 7]], undefined]]);
+// Wut vor Toben, 26. Oktober: "unter 2 Sek. uebrig" ist "laeuft bald aus".
+check('kurze Restzeit heisst laeuft bald aus, das Aktiv sagt dann nichts mehr',
+  s([{ s: 1, c: [['up', 5], ['remunder', 5, 2]] }]), [[1, [['refresh', 5]], undefined]]);
 check('eine Zeile ohne verstaendliche Bedingung faellt weg',
   s([{ s: 1, c: [['cmp', ['rem', 1], 'gt', ['cd', 2]]] }, { s: 2 }]), [[2, [], undefined]]);
 check('nur vage faellt weg',
@@ -25,8 +26,14 @@ check('hoechstens drei Bedingungen, die Zielzahl zuerst',
 check('ein einfaches Oder bleibt',
   s([{ s: 1, c: [['or', ['up', 5], ['ready', 6]]] }]), [[1, [['or', ['up', 5], ['ready', 6]]], undefined]]);
 // Jeder Teil eines Oders reicht allein: die einfachen bleiben.
-check('vom Oder bleiben die einfachen Teile',
-  s([{ s: 1, c: [['up', 4], ['or', ['up', 5], ['and', ['up', 6], ['ready', 7]]]] }]), [[1, [['up', 4], ['up', 5]], undefined]]);
+// Kein Oder wird strenger als bei SimC (26. Oktober): ein Und-Zweig bleibt als Gruppe.
+check('ein Oder mit Und-Zweig wird zu einem von mehreren',
+  s([{ s: 1, c: [['up', 4], ['or', ['up', 5], ['and', ['up', 6], ['ready', 7]]]] }]),
+  [[1, [['up', 4]], [[['up', 5]], [['up', 6], ['ready', 7]]]]]);
+check('ein Zweig, den niemand pruefen kann, nimmt das ganze Oder mit',
+  s([{ s: 1, c: [['up', 4], ['or', ['up', 5], ['cmp', 1, 'gt', 2]]] }]), [[1, [['up', 4]], undefined]]);
+check('vom Und-Zweig bleibt, was ein Spieler prueft',
+  s([{ s: 1, c: [['or', ['up', 5], ['and', ['up', 6], ['cmp', 1, 'gt', 2]]]] }]), [[1, [['or', ['up', 5], ['up', 6]]], undefined]]);
 check('ein Oder nur aus Kompliziertem faellt aus der Bedingung',
   s([{ s: 1, c: [['up', 4], ['or', ['cmp', 1, 'gt', 2], ['and', ['up', 6], ['ready', 7]]]] }]), [[1, [['up', 4]], undefined]]);
 check('unter 35 oder unter 20 Prozent ist unter 35',
@@ -103,10 +110,10 @@ check('ein Zweig, den die Zeile ausschliesst, faellt weg',
   s([{ s: 1, c: [['down', 7]], any: [[['up', 7], ['up', 5]], [['up', 6], ['ready', 8]]] }]),
   [[1, [['down', 7], ['up', 6], ['ready', 8]], undefined]]);
 check('eine gerettete Zeile behaelt ihren Ablauf und die Combopunkte',
-  simplify([{ s: 2, c: [['or', ['and', ['refresh', 2], ['cmp', 1, 'gt', 2]], ['and', ['resmin', 'combo_points', 6], ['cmp', 3, 'gt', 4]]]] }, { s: 4 }],
+  simplify([{ s: 2, c: [['or', ['and', ['refresh', 2], ['resmin', 'combo_points', 6], ['cmp', 1, 'gt', 2]], ['cmp', 3, 'gt', 4]]] }, { s: 4 }],
     { isPlayed: () => true }).map((l) => [l.s, l.c]), [[2, [['refresh', 2], ['resmin', 'combo_points', 6]]], [4, []]]);
 check('Schattenschlag: verstohlen sagt mehr als die Energie',
-  simplify([{ s: 2, c: [['or', ['and', ['stealthed'], ['cmp', 1, 'gt', 2]], ['and', ['resmin', 'energy', 61], ['cmp', 3, 'gt', 4]]]] }, { s: 4 }],
+  simplify([{ s: 2, c: [['or', ['and', ['stealthed'], ['resmin', 'energy', 61], ['cmp', 1, 'gt', 2]], ['cmp', 3, 'gt', 4]]] }, { s: 4 }],
     { isPlayed: () => true }).map((l) => [l.s, l.c]), [[2, [['stealthed']]], [4, []]]);
 check('vier einfache Gruende: die ersten drei bleiben',
   simplify([{ s: 2, c: [['or', ['or', ['or', ['up', 5], ['up', 6]], ['up', 7]], ['resmin', 'energy', 61]]] }, { s: 4 }],
@@ -122,6 +129,17 @@ check('ein Zweig, der immer gilt, macht das Oder wahr',
 check('Bedingungen eines Gegenstands: einfach, nichts doppelt',
   simpleConditions([['down', 5], ['down', 5], ['resunder', 'rage', 80], ['cmp', 1, 'gt', 2], ['up', 6], ['ready', 7]]),
   [['down', 5], ['up', 6], ['ready', 7]]);
+// Was ein anderer Zweig schon sagt, faellt weg (26. Oktober).
+check('"laeuft aus und staerker, oder laeuft aus" ist "laeuft aus"',
+  s([{ s: 1, c: [['or', ['and', ['refresh', 5], ['stronger', 5]], ['refresh', 5]]] }]), [[1, [['refresh', 5]], undefined]]);
+check('"gleich bereit, aktiv oder bereit" ist "aktiv oder gleich bereit"',
+  s([{ s: 1, c: [['or', ['or', ['cdsoon', 7], ['up', 7]], ['ready', 7]]] }]), [[1, [['or', ['cdsoon', 7], ['up', 7]]], undefined]]);
+check('aktiv und laeuft in 12 Sek. aus: das Auslaufen sagt es',
+  s([{ s: 1, c: [['up', 5], ['remunder', 5, 12]] }]), [[1, [['remunder', 5, 12]], undefined]]);
+check('nicht aktiv und laeuft in 3 Sek. aus: nicht aktiv',
+  s([{ s: 1, c: [['down', 5], ['remunder', 5, 3]] }]), [[1, [['down', 5]], undefined]]);
+check('eine Abklingzeit jenseits jedes Kampfes ist keine Pruefung',
+  s([{ s: 1, c: [['up', 4], ['or', ['up', 5], ['cdover', 5, 3590]]] }]), [[1, [['up', 4]], undefined]]);
 check('nichts Verstaendliches: keine Bedingung',
   simpleConditions([['cmp', 1, 'gt', 2]]), undefined);
 
