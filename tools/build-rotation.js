@@ -238,6 +238,18 @@ const bare = (s) => String(s || '').replace(/_/g, '');
     buffText: (id) => auraTextOf.get(id) || '',
   });
 
+  // Cast or channeled, not instant: SpellMisc's cast time index 1 is none;
+  // channels carry attribute word 1, bits 0x4 and 0x40.
+  const mitZauberzeit = new Set(spellMisc.filter((r) => Number(r.CastingTimeIndex) > 1 || (Number(r.Attributes_1) & 0x44))
+    .map((r) => Number(r.SpellID)));
+  // Learned at all: a skill line's or a spec's spell.
+  const gelernt = new Set([...skillLines.map((r) => Number(r.Spell)), ...specSpells.map((r) => Number(r.SpellID))]);
+  // Names a proc puts on the bar for a while (Comet Storm!, Prismatic Bolt).
+  const procNamen = new Set();
+  for (const list of replacements.values()) {
+    for (const r of list) if (r.proc) procNamen.add(bare(slug(nameEN.get(r.neu))));
+  }
+
   const rec = readLuaTable(fs.readFileSync(REC, 'utf8'));
   const specs = Object.entries(chrSpecs).length ? chrSpecs : [];
   const catalog = fs.readFileSync(path.join(BASE, 'MetaCodex_Data', 'Catalog.lua'), 'utf8');
@@ -1101,6 +1113,10 @@ const bare = (s) => String(s || '').replace(/_/g, '');
       // AS A GUIDE WRITES IT (tools/lib/simplify.js): only what a player checks,
       // nothing vague, at most three conditions, nothing pointless.
       // MC_RAW=1 keeps the full translation, to compare.
+      // What SimC itself casts without a condition, before anything is
+      // simplified away: only such a line can end the list as its filler.
+      const ohneBedingungIn = (lines) => new Set(lines.filter((l) => !(l.c && l.c.length) && !l.any).map((l) => l.s));
+      const ohneBedingung = { st: ohneBedingungIn(st.lines), aoe: ohneBedingungIn(aoe.lines) };
       if (!process.env.MC_RAW) {
         // Trinkets, potion, racials: the same plain words.
         const klar = (x) => { if (x && x.c) x.c = simpleConditions(x.c, { nameOf: (id) => nameEN.get(id) || String(id) }); };
@@ -1182,6 +1198,29 @@ const bare = (s) => String(s || '').replace(/_/g, '');
       // of the fight: "Cast Stealth whenever it comes off cooldown" stood at
       // the top of every rogue's priority (26 October).
       const imKampf = (l) => !(slug(nameEN.get(l.s)) === 'stealth' && !(l.c && l.c.length) && !l.any);
+      // THE FILLER ENDS THE LIST (26 October): after "Frostbolt whenever you
+      // can" nothing comes but what goes beside it (Fire Blast while casting
+      // Fireball) - Ice Lance and Arcane Barrage behind it are for moving.
+      // Always castable: a spell the build has - the spec's, every player's
+      // (Frostbolt: a class line, no spec row) or a taken talent's (Frostfire
+      // Bolt) - cast or channeled, so no instant a proc puts on the bar
+      // (Bloodbath, Comet Storm!), without a condition in SimC's list, a
+      // cooldown, charges or cost, and nothing it "requires to cast" (Glacial
+      // Spike's five Icicles).
+      const nebenbei = new Set([...(st.nebenbei || []), ...(aoe.nebenbei || [])]);
+      const immer = (l, frei) => !l.c && !l.any && !l.t && !l.a && frei.has(l.s) && mitZauberzeit.has(l.s)
+        && (grundIds.has(l.s) || grundNamen.has(bare(slug(nameEN.get(l.s)))) || takenIds.has(l.s)
+          || (gelernt.has(l.s) && !treeIds.has(l.s) && !treeSpells.has(bare(slug(nameEN.get(l.s))))))
+        && !procNamen.has(bare(slug(nameEN.get(l.s)))) && !/!$/.test(nameEN.get(l.s) || '')
+        && !/\bRequires \S+[^.]* to cast\b/i.test((textOf.get(l.s) || { d: '' }).d);
+      // The LAST such line: what stands between two of them still runs.
+      const bisFueller = (lines, frei) => {
+        let i = -1;
+        lines.forEach((l, j) => { if (immer(l, frei)) i = j; });
+        if (i < 0 || i === lines.length - 1) return lines;
+        const dahinter = lines.slice(i + 1).filter((l) => nebenbei.has(l.s));
+        return [...lines.slice(0, i), ...dahinter, lines[i]];
+      };
       const pack = (lines) => lines.map((l) => ({ ...l, s: knopf(l.s) })).filter((l) => l.s).map((l) => ({
         s: l.s, c: l.c.length ? l.c : undefined, any: l.any,
         t: l.t || undefined, m: messung(l.s), more: l.more || undefined, ...art(l.s) }));
@@ -1217,8 +1256,8 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         src: best.source,
         pre: pack(preLines),
         keep: keep.length ? keep.map(knopf).filter(Boolean) : undefined,
-        st: pack(st.lines.filter(imKampf)),
-        aoe: pack(aoe.lines.filter(imKampf)),
+        st: bisFueller(pack(st.lines.filter(imKampf)), ohneBedingung.st),
+        aoe: bisFueller(pack(aoe.lines.filter(imKampf)), ohneBedingung.aoe),
         mv: [...new Set([...st.moving, ...aoe.moving].map(knopf).filter(Boolean))],
         items: Object.keys(items).length ? items : undefined,
         cast: share && gemessen && gemessen.players >= MIN_MEASURED ? gemessen.players : undefined,

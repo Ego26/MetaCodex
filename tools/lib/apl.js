@@ -818,6 +818,9 @@ function simcNames(text) {
 function buildTab(lists, start, ctx, resolve) {
   const lines = [];
   const moving = [];
+  // Cast beside the others - off the global cooldown or while casting (Fire
+  // Blast during Fireball): no filler stands in their way.
+  const nebenbei = [];
   const keep = [];
   const items = [];
   const miss = new Set();
@@ -904,6 +907,7 @@ function buildTab(lists, start, ctx, resolve) {
       // Templar).
       if (resolve.unreachable && resolve.unreachable(id)) continue;
       if (opts.moving === '1' || opts.moving === 'true') { if (!moving.includes(id)) moving.push(id); continue; }
+      if ((opts.use_off_gcd === '1' || opts.use_while_casting === '1') && !nebenbei.includes(id)) nebenbei.push(id);
       // Keeping a buff of its own up ("lightning_shield if it is down")
       // belongs before the fight, as "keep it up".
       // Only in the main list: Stormkeeper "when its buff is down" in the
@@ -956,7 +960,7 @@ function buildTab(lists, start, ctx, resolve) {
     }
     vageEinmal(l);
   }
-  return { lines: merged.filter((l) => !l.never), moving, keep, items, miss };
+  return { lines: merged.filter((l) => !l.never), moving, keep, items, miss, nebenbei };
 }
 
 module.exports = { parse, parseApl, fold, records, buildTab, tokenize, NOISE, RACIALS, isOther, show, logVague, vereinfacht, simcNames };
