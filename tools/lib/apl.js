@@ -425,6 +425,14 @@ function recordsOf(e, spell) {
   if (e.op === '!' && e.a && e.a.atom === 'scorch_execute.active') return ['hpover', 30];
   const other = ['other'];
   const sp = (slug) => spell(slug);
+  // "Just cast": the spell pressed, not the buff of its name ("Prismatic
+  // Bolt!" read as cast, 26 October) - and only the last one: prev_gcd.2 is
+  // no "just".
+  const gedrueckt = (p) => {
+    if (p[0] === 'prev_gcd' && p.length > 2 && p[1] !== '1') return null;
+    const k = p[p.length - 1];
+    return (spell.action && spell.action(k)) || sp(k);
+  };
   if (e.op === '&') return ['and', records(e.a, spell), records(e.b, spell)];
   if (e.op === '|') return ['or', records(e.a, spell), records(e.b, spell)];
   if (e.op === '!') {
@@ -458,7 +466,7 @@ function recordsOf(e, spell) {
       if ((p[0] === 'buff' || p[0] === 'debuff') && (p[2] === 'up' || p[2] === 'react') && sp(p[1])) return ['down', sp(p[1])];
       if ((p[0] === 'buff' || p[0] === 'debuff' || p[0] === 'dot') && p[2] === 'ticking' && sp(p[1])) return ['down', sp(p[1])];
       if (p[0] === 'cooldown' && (p[2] === 'ready' || p[2] === 'up') && sp(p[1])) return ['notready', sp(p[1])];
-      if ((p[0] === 'prev_gcd' || p[0] === 'prev') && sp(p[p.length - 1])) return ['notprev', sp(p[p.length - 1])];
+      if ((p[0] === 'prev_gcd' || p[0] === 'prev') && gedrueckt(p)) return ['notprev', gedrueckt(p)];
     }
     return other;
   }
@@ -473,7 +481,7 @@ function recordsOf(e, spell) {
     if ((p[0] === 'dot' || p[0] === 'debuff') && p[2] === 'ticking' && sp(p[1])) return ['up', sp(p[1])];
     if ((p[0] === 'dot' || p[0] === 'debuff' || p[0] === 'buff') && p[2] === 'refreshable' && sp(p[1])) return ['refresh', sp(p[1])];
     if (p[0] === 'cooldown' && (p[2] === 'ready' || p[2] === 'up') && sp(p[1])) return ['ready', sp(p[1])];
-    if ((p[0] === 'prev_gcd' || p[0] === 'prev') && sp(p[p.length - 1])) return ['prev', sp(p[p.length - 1])];
+    if ((p[0] === 'prev_gcd' || p[0] === 'prev') && gedrueckt(p)) return ['prev', gedrueckt(p)];
     if (p[0] === 'pet' && (p[2] === 'active' || p[2] === 'remains') && petSpell(p[1], spell)) return ['up', petSpell(p[1], spell)];
     // "cooldown.X.remains" allein: X hat noch Abklingzeit; "buff.X.remains": X laeuft.
     if (p[0] === 'cooldown' && p[2] === 'remains' && sp(p[1])) return ['notready', sp(p[1])];
@@ -850,6 +858,7 @@ function buildTab(lists, start, ctx, resolve) {
 
   // The resolver, and through it the states a list keeps over the fight.
   const sp = (k) => resolve.spell(k);
+  sp.action = (k) => resolve.actionSpell(k);
   sp.latch = (name) => (resolve.latch ? resolve.latch(name, ctx, sp) : null);
   sp.fold = (e) => fold(e, ctx);
 
