@@ -1046,8 +1046,11 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         if (specVersion.has(plain)) return specVersion.get(plain);
         return spell(k) || spell(plain) || spell(plain.replace(/_(cat|bear)$/, '')) || spell(plain.replace(/s$/, ''));
       };
-      // The IDs the measured players actually cast win for actions.
-      const castIds = new Set(gemessen ? [...gemessen.by.keys()] : []);
+      // The IDs the measured players actually cast win for actions - and so
+      // do the build's own talents: the shaman tree holds Elemental's
+      // Ascendance (114050) beside Enhancement's (114051), and without a
+      // measurement the other spec's won on a better tooltip (26 October).
+      const castIds = new Set([...(gemessen ? gemessen.by.keys() : []), ...takenIds, ...[...takenIds].map((id) => visibleOf.get(id)).filter(Boolean)]);
       const resolve = {
         spell: spellM, actionSpell: (k) => actionSpellFor(k, castIds),
         isTalentSpell: (k) => treeSpells.has(bare(k)),
@@ -1298,7 +1301,18 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         const dahinter = lines.slice(i + 1).filter((l) => nebenbei.has(l.s));
         return [...lines.slice(0, i), ...dahinter, lines[i]];
       };
-      const pack = (lines) => lines.map((l) => ({ ...l, s: knopf(l.s) })).filter((l) => l.s).map((l) => ({
+      // A talent's ID the build does not take while it takes another of the
+      // same name (Enhancement's Ascendance in Elemental's list): said out
+      // loud on every build, never left to a screenshot (26 October).
+      // A taken passive of the name with its own button (Ancestral Swiftness
+      // 448861 and 443454) is no conflict.
+      const fremdesTalent = (id) => treeIds.has(id) && !takenIds.has(id)
+        && [...takenIds].some((x) => x !== id && treeIds.has(x) && nameEN.get(x) === nameEN.get(id)
+          && !passiveIds.has(x) && visibleOf.get(x) !== id);
+      const pack = (lines) => lines.map((l) => {
+        if (fremdesTalent(l.s)) report.push(`WARNUNG ${s.id} ${key}: ${nameEN.get(l.s)} ${l.s} is not the build's talent of that name`);
+        return { ...l, s: knopf(l.s) };
+      }).filter((l) => l.s).map((l) => ({
         s: l.s, c: l.c.length ? l.c : undefined, any: l.any,
         t: l.t || undefined, m: messung(l.s), more: l.more || undefined, ...art(l.s) }));
       // The typical opener: the logs' spells mapped onto this class's own
