@@ -200,6 +200,13 @@ local SECTIONS = {
     { key = "info",        group = "GROUP_ABOUT" },
 }
 
+-- Abschnitte, deren Zahlen an keiner Plattform haengen (26. Oktober): die
+-- Rotation kommt aus SimulationCraft und den Logs, die Rassen aus
+-- raider.io und bloodmallet zugleich. Dort bringt die Plattformwahl nichts.
+local OHNE_QUELLE = { rotation = true, races = true }
+---Ob die Plattformwahl in diesem Abschnitt etwas aendert.
+function UI.SourceMatters(key) return not OHNE_QUELLE[key] end
+
 local GROUPS = { "GROUP_OVERVIEW", "GROUP_TALENTS", "GROUP_GEAR",
     "GROUP_PREP", "GROUP_ABOUT" }
 
@@ -5571,8 +5578,11 @@ function UI.Refresh()
     for _, name in ipairs(available) do
         if ns.Recommend.HasSection(specID, mode, name, section.key) then choices = choices + 1 end
     end
+    -- NUR, WO SIE ETWAS AENDERT (26. Oktober): Rotation und Rassen haengen
+    -- an keiner Plattform; "Gruppen & Specs" zaehlt je Aktivitaet eine
+    -- (choices bleibt dort 1). Die Aktivitaet waehlt man trotzdem.
     frame.activityButton:SetShown(dataSection)
-    frame.sourceButton:SetShown(dataSection and choices >= 2)
+    frame.sourceButton:SetShown(dataSection and UI.SourceMatters(section.key) and choices >= 2)
 
     -- Die Katalogangabe stand hier klein und grau und wurde nicht
     -- gelesen. Sie steht jetzt unter "Info", vollstaendig.

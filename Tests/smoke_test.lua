@@ -2582,6 +2582,23 @@ check("Abschnitt springt bei 2v2 weg von Verbrauchsguetern",
 rowsInSection("guides")
 check("Guides ohne Aktivitaetswahl", not _G.MetaCodexFrame.activityButton:IsShown())
 check("Guides ohne Plattformwahl", not _G.MetaCodexFrame.sourceButton:IsShown())
+-- DIE PLATTFORMWAHL NUR, WO SIE ETWAS AENDERT (26. Oktober): die Rotation
+-- haengt an keiner Plattform - keine Wahl, aber die Aktivitaet.
+do
+    local vorher = ns.Profile.SelectedSpec()
+    local echt = ns.Recommend.Rotation
+    ns.Recommend.Rotation = function() return { hero = 56, n = 10, st = { { s = 114050 } } } end
+    ns.Profile.SetMode("mplus")
+    ns.Profile.Select(7, 262)
+    rowsInSection("rotation")
+    check("die Rotation ist offen", MetaCodexDB.section == "rotation", tostring(MetaCodexDB.section))
+    check("Rotation ohne Plattformwahl", not _G.MetaCodexFrame.sourceButton:IsShown())
+    check("Rotation mit Aktivitaetswahl", _G.MetaCodexFrame.activityButton:IsShown())
+    ns.Recommend.Rotation = echt
+    ns.Profile.Select((ns.Compat.ClassOfSpec(vorher)), vorher)
+end
+check("die Plattformwahl haengt am Abschnitt", ns.UI.SourceMatters("gear") and ns.UI.SourceMatters("talents")
+    and not ns.UI.SourceMatters("rotation") and not ns.UI.SourceMatters("races"))
 rowsInSection("gear")
 check("Ausruestung mit Aktivitaetswahl", _G.MetaCodexFrame.activityButton:IsShown())
 ns.Profile.SetMode("mplus")

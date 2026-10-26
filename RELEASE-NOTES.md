@@ -23,6 +23,8 @@
 
 - **"Guides & Rotation" is now "Guides"** — the rotation has its own
   section.
+- **The platform button shows only where it changes something** — not
+  for the rotation or the races, whose numbers depend on no platform.
 - **No shopping buttons at the bottom of the window** — they were of
   use only at the auction house, where the shopping list beside it has
   them. "Also buy for" in the spec menu went with them.
