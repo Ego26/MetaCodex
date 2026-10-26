@@ -283,17 +283,33 @@ function rettung(l, wie, selbst) {
   return [eigen, verstohlen || res].filter(Boolean);
 }
 
-/** At most MAX_LINES: refinements of a spell that stands further down go first. */
-function kuerzen(out, max) {
+/**
+ * At most MAX_LINES: refinements of a spell that stands further down go
+ * first. A resource threshold is what a player watches ("Death Strike before
+ * runic power caps" outlived a hero tree's proc line, 26 October); so is a
+ * proc - a buff no line casts (Chi-Ji's Dance). A health threshold is the
+ * first to go.
+ */
+const HP = new Set(['hpunder', 'hpover', 'myhpunder', 'myhpover']);
+function kuerzen(out, max, wie = key) {
   const lines = out.slice();
+  const name = (id) => wie(['', id]);
+  const gewirkt = new Set(lines.map((l) => name(l.s)));
+  const gewichtVon = (l) => {
+    const alle = [...l.c, ...(l.any || []).flat()];
+    let g = l.c.length + (l.any ? l.any.length : 0);
+    // "Enough energy" says nothing: Tiger Palm with Blackout Combo stays.
+    if (alle.some((c) => RES.has(c[0]) && c[0] !== 'resenough')) g -= 1;
+    if (alle.some((c) => c[0] === 'up' && !gewirkt.has(name(c[1])))) g -= 1;
+    if (alle.some((c) => HP.has(c[0]))) g += 2;
+    return g;
+  };
   while (lines.length > max) {
     let weg = -1;
     for (let i = 0; i < lines.length; i += 1) {
       const l = lines[i];
       if (!lines.some((o, j) => j !== i && o.s === l.s)) continue;
-      const gewicht = l.c.length + (l.any ? l.any.length : 0);
-      const best = weg < 0 ? -1 : lines[weg].c.length + (lines[weg].any ? lines[weg].any.length : 0);
-      if (gewicht >= best) weg = i;
+      if (weg < 0 || gewichtVon(l) >= gewichtVon(lines[weg])) weg = i;
     }
     if (weg < 0) break;
     lines.splice(weg, 1);
@@ -421,7 +437,7 @@ function simplify(lines, opts = {}) {
     const n = out[i + 1];
     return !(n && n.s === o.s && !n.c.length && !n.any && (o.c.length || o.any));
   });
-  return kuerzen(knapp, opts.maxLines || MAX_LINES);
+  return kuerzen(knapp, opts.maxLines || MAX_LINES, wie);
 }
 
 module.exports = { simplify, simpleConditions, einfach, RANG, MAX_LINES };

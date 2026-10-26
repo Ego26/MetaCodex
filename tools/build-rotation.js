@@ -990,6 +990,12 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         // Holy Power spender.
         replacement: (id) => ersatzVon.get(slug(nameEN.get(id))) || null,
         alias: (k) => (AKTION_ALIAS[k] || []).find((x) => taken.has(bare(x))) || k,
+        // Kept up: lasting about as long as its cooldown, or without one.
+        keepable: (id) => {
+          const cd = Math.max(cdSeconds.get(id) || 0, rechargeSeconds.get(id) || 0);
+          const dauer = (lastsMs.get(id) || 0) / 1000;
+          return cd < 20 || dauer <= 0 || dauer >= 0.6 * cd;
+        },
         unreachable: (id) => {
           const weg = unerreichbar(id);
           if (weg && process.env.MC_DEBUG === String(s.id)) console.log('  unerreichbar:', id, nameEN.get(id));

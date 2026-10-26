@@ -908,7 +908,10 @@ function buildTab(lists, start, ctx, resolve) {
       // belongs before the fight, as "keep it up".
       // Only in the main list: Stormkeeper "when its buff is down" in the
       // single-target list is a cooldown, not a buff to keep up.
+      // A buff far shorter than its cooldown cannot be kept up (Vampiric
+      // Blood, 10 of 90 seconds): "use it on cooldown" (26 October).
       if (listName === start && conds.length === 1 && outer.length === 0 && conds[0][0] === 'down' && conds[0][1] === id) {
+        if (resolve.keepable && !resolve.keepable(id)) { lines.push({ s: id, c: [], t: null }); continue; }
         if (!keep.includes(id)) keep.push(id);
         continue;
       }

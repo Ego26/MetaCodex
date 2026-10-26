@@ -7671,7 +7671,10 @@ do
         end
         -- Ein Fueller hat keine Abklingzeit: Feuerbrandaura am Ende der Liste
         -- ist "bevor die Aufladungen voll sind", keine Luecke (26. Oktober).
-        if last and not ziel and when == "" and (tab == "st" or tab == "aoe") and not K.OHNE[line.a] then
+        -- Ein Verbraucher am Ende (Todesstoss) fuellt keine Luecken: er
+        -- kommt, sobald die Ressource reicht.
+        if last and not ziel and when == "" and (tab == "st" or tab == "aoe") and not K.OHNE[line.a]
+            and not (line.a == "r" and line.r) then
             return L["ROT_S_filler"]:format(nm(line.s))
         end
         local v = verb(line, nm)
