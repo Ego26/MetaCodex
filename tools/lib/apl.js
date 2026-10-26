@@ -927,7 +927,14 @@ function buildTab(lists, start, ctx, resolve) {
       // single-target list is a cooldown, not a buff to keep up.
       // A buff far shorter than its cooldown cannot be kept up (Vampiric
       // Blood, 10 of 90 seconds): "use it on cooldown" (26 October).
-      if (listName === start && conds.length === 1 && outer.length === 0 && conds[0][0] === 'down' && conds[0][1] === id) {
+      // A buff of minutes is kept up from any list (Lightning Shield in
+      // Elemental's sub-list stood first in its priority, 26 October).
+      // The buff may carry another ID than the spell (Lightning Shield):
+      // one name is one buff.
+      const eigenerBuff = conds.length === 1 && conds[0][0] === 'down'
+        && (conds[0][1] === id || (resolve.sameName && resolve.sameName(conds[0][1], id)));
+      const langer = eigenerBuff && resolve.longBuff && (resolve.longBuff(id) || resolve.longBuff(conds[0][1]));
+      if ((listName === start && outer.length === 0 && conds.length === 1 && conds[0][0] === 'down' && conds[0][1] === id) || langer) {
         if (resolve.keepable && !resolve.keepable(id)) { lines.push({ s: id, c: [], t: null }); continue; }
         if (!keep.includes(id)) keep.push(id);
         continue;

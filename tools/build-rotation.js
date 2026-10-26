@@ -1002,6 +1002,9 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         // Holy Power spender.
         replacement: (id) => ersatzVon.get(slug(nameEN.get(id))) || null,
         alias: (k) => (AKTION_ALIAS[k] || []).find((x) => taken.has(bare(x))) || k,
+        // A buff of five minutes or more (Lightning Shield, an hour).
+        longBuff: (id) => (lastsMs.get(id) || 0) >= 300000,
+        sameName: (a, b) => Boolean(nameEN.get(a)) && slug(nameEN.get(a)) === slug(nameEN.get(b)),
         // Kept up: lasting about as long as its cooldown, or without one.
         keepable: (id) => {
           const cd = Math.max(cdSeconds.get(id) || 0, rechargeSeconds.get(id) || 0);
