@@ -1825,7 +1825,7 @@ do
         ns.L["SECTION_enchants"])
     -- Und kein Abschnitt steht ohne Namen da.
     local ohne = {}
-    for _, key in ipairs({ "guides", "stats", "races", "talents", "folio", "players",
+    for _, key in ipairs({ "guides", "stats", "races", "comps", "talents", "folio", "players",
         "gear", "drops", "tier", "crafted", "embellish", "enchants",
         "consumables", "remind", "settings", "info" }) do
         local text = ns.L["SECTION_" .. key]
@@ -7143,6 +7143,183 @@ do
     ns.Recommend.Races, ns.Recommend.RaceSims = echtRaces, echtSims
     UnitFactionGroup = echtSeite
     MetaCodexDB.raceTargets = echtWahl
+    MetaCodexDB.section = "gear"
+end
+
+-- ------------------------------------------------ Gruppen in Top-Runs
+--
+-- Eigene Zahlen statt der Nacht: die Nacht kennt die Gruppen erst, wenn
+-- der Sammler sie mitzaehlt, und der Test soll auch ohne sie etwas sagen.
+do
+    local echt = MetaCodex_Recommendations.comps
+    local vorherModus = ns.Profile.Mode()
+    MetaCodex_Recommendations.comps = { builtOn = 20261020, season = "season-mn-2", modes = {
+        ["mplus"] = { source = "raider.io", runs = 100, minKey = 20, maxKey = 24, distinct = 12,
+            tank = { { 250, 70, 24 }, { 73, 30, 23 } },
+            healer = { { 264, 80, 24 }, { 105, 20, 23 } },
+            dps = { { 71, 83, 24 }, { 262, 80, 24 }, { 103, 53, 24 } },
+            groups = {
+                -- Todesritter und Schamane: Wiederbelebung und Kampfrausch.
+                { specs = { 250, 264, 71, 103, 262 }, n = 30, pct = 30, maxKey = 24 },
+                -- Kein Schamane, kein Magier, kein Jaeger, kein Rufer: kein Kampfrausch.
+                { specs = { 73, 105, 71, 103, 251 }, n = 5, pct = 5, maxKey = 23 },
+            } },
+        ["mplus/kings-rest"] = { source = "raider.io", runs = 40, minKey = 20, maxKey = 22, distinct = 3,
+            tank = { { 250, 100, 22 } }, healer = { { 264, 100, 22 } }, dps = { { 71, 100, 22 } },
+            groups = { { specs = { 250, 264, 71, 103, 262 }, n = 10, pct = 25, maxKey = 22 } } },
+    } }
+    ns.Profile.SetMode("mplus")
+
+    local ALL = ns.Recommend.ALL
+    check("Gruppen: M+ hat den Abschnitt", ns.Recommend.HasSection(250, "mplus", ALL, "comps") == true)
+    check("Gruppen: ohne Raid-Zaehlung kein Raid", ns.Recommend.HasSection(250, "raid", ALL, "comps") == false)
+    check("Gruppen: murlok zaehlt keine", ns.Recommend.HasSection(250, "mplus", "murlok.io", "comps") == false)
+    -- Die andere Klammer springt NICHT ein: unter "+7 - +21" stuenden
+    -- sonst die Zahlen der hohen Keys.
+    check("Gruppen: +7 bis +21 leiht nicht bei den hohen Keys", ns.Recommend.Comps("mplus-keys") == nil)
+    check("Gruppen: der Eintrag steht auch unter Raid", (function()
+        ns.Profile.SetMode("raid")
+        local da = ns.UI.SectionHasData("comps")
+        ns.Profile.SetMode("mplus")
+        return da
+    end)())
+
+    -- Zwei Gruppen, zwei Tanks, zwei Heiler, drei Schaden - und vier Ueberschriften.
+    local n = rowsInSection("comps")
+    check("Gruppen: alle Zeilen stehen da", n == 13, n .. " Zeilen")
+    local gruppe, ohneLust, spec
+    for _, row in ipairs(wow.rows()) do
+        local tip = row:IsShown() and rawget(row, "compTip")
+        if tip and tip.kind == "compgroup" and tip.n == 30 then gruppe = row end
+        if tip and tip.kind == "compgroup" and tip.n == 5 then ohneLust = row end
+        if tip and tip.kind == "compspec" and not spec then spec = row end
+    end
+    check("Gruppen: die haeufigste Gruppe steht da", gruppe ~= nil)
+    if gruppe then
+        local sichtbar = 0
+        for _, tex in ipairs(rawget(gruppe, "compIcons") or {}) do
+            if tex:IsShown() then sichtbar = sichtbar + 1 end
+        end
+        check("Gruppen: fuenf Spec-Symbole in der Zeile", sichtbar == 5, sichtbar .. " Symbole")
+        local text = gruppe.detail:GetText() or ""
+        check("Gruppen: die Unterzeile nennt die Specs", text:find("Blood", 1, true) ~= nil
+            and text:find("Elemental", 1, true) ~= nil, text)
+        check("Gruppen: was dabei ist, wird nicht eigens genannt",
+            text:find(ns.L["COMP_LUST"], 1, true) == nil and text:find(ns.L["COMP_BREZ"], 1, true) == nil, text)
+        check("Gruppen: die meistgespielte leuchtet", rawget(gruppe.share, "__token") == "accent",
+            tostring(rawget(gruppe.share, "__token")))
+        local zeilen = {}
+        local echtAdd, echtDouble = GameTooltip.AddLine, GameTooltip.AddDoubleLine
+        GameTooltip.AddLine = function(_, t) zeilen[#zeilen + 1] = tostring(t) end
+        GameTooltip.AddDoubleLine = function(_, l, r) zeilen[#zeilen + 1] = tostring(l) .. " = " .. tostring(r) end
+        gruppe:GetScript("OnEnter")(gruppe)
+        GameTooltip.AddLine, GameTooltip.AddDoubleLine = echtAdd, echtDouble
+        local alles = table.concat(zeilen, " | ")
+        check("Gruppen: der Zeiger nennt die fuenf Specs", alles:find("Blood", 1, true) ~= nil
+            and alles:find("Elemental", 1, true) ~= nil and select(2, alles:gsub(" = ", "")) == 5, alles:sub(1, 160))
+        check("Gruppen: und die Quelle", alles:find("raider.io", 1, true) ~= nil)
+    end
+    check("Gruppen: ohne Schamane fehlt der Kampfrausch", ohneLust ~= nil
+        and (ohneLust.detail:GetText() or ""):find(ns.L["COMP_NO_LUST"], 1, true) ~= nil,
+        ohneLust and ohneLust.detail:GetText())
+    check("Gruppen: eine Spec-Zeile traegt ihr Symbol", spec ~= nil and spec.icon:GetTexture() ~= nil)
+
+    -- Die Rolle als Filter.
+    ns.Profile.SetCategory("comps", "healer")
+    rowsInSection("comps")
+    local heiler, andere = 0, 0
+    for _, row in ipairs(wow.rows()) do
+        local tip = row:IsShown() and rawget(row, "compTip")
+        if tip then
+            if tip.role == "healer" then heiler = heiler + 1 else andere = andere + 1 end
+        end
+    end
+    check("Gruppen: der Filter laesst nur die Heiler stehen", heiler == 2 and andere == 0,
+        heiler .. " Heiler, " .. andere .. " andere")
+    ns.Profile.SetCategory("comps", nil)
+
+    -- Ein Dungeon mit eigener Zaehlung, und einer ohne.
+    ns.Profile.SetDungeon("mplus/kings-rest", "comps")
+    local dort = select(2, ns.UI.CompRows(ns.Profile.LookupMode("comps")))
+    check("Gruppen: der Dungeon hat seine eigenen Zahlen", dort and dort.runs == 40)
+    ns.Profile.SetDungeon(nil, "comps")
+    local alle, key = select(2, ns.UI.CompRows("mplus/murder-row"))
+    check("Gruppen: ohne eigene Zahlen alle Dungeons, und es steht dabei",
+        ns.UI.CompHint(alle, key, "mplus/murder-row"):find(ns.L["COMP_FALLBACK"], 1, true) ~= nil)
+
+    -- Die Symbole gehoeren nur zur Gruppe: im naechsten Abschnitt stehen sie nicht.
+    rowsInSection("gear")
+    local uebrig = 0
+    for _, row in ipairs(wow.rows()) do
+        for _, tex in ipairs(rawget(row, "compIcons") or {}) do
+            if tex:IsShown() then uebrig = uebrig + 1 end
+        end
+    end
+    check("Gruppen: die Symbole bleiben nicht stehen", uebrig == 0, uebrig .. " Symbole")
+
+    -- Raid (alle): die Aufstellung vorweg, dann je Spec Anteil und Anzahl.
+    MetaCodex_Recommendations.comps.raid = { ["@raid"] = { kills = 600, size = 21.4,
+        setup = { tank = 2.2, healer = 4.3, dps = 14.9 },
+        tank = { { 250, 90, 1.2 } }, healer = { { 264, 95, 1.8 } }, dps = { { 262, 80, 2.1 } } },
+        ["raid-mythic"] = { kills = 240, size = 20.3, setup = { tank = 2.1, healer = 4.1, dps = 14.1 },
+            tank = { { 250, 84, 1.4 } }, healer = { { 105, 40, 1.1 } }, dps = { { 71, 94, 1.3 } } } }
+    do
+        local mythisch, wo = ns.Recommend.Comps("raid-mythic")
+        check("Gruppen: Mythisch hat seine eigenen Zahlen", wo == "raid-mythic" and mythisch.kills == 240, tostring(wo))
+        local hc, woHc = ns.Recommend.Comps("raid")
+        check("Gruppen: ohne eigene Zaehlung springen alle Schwierigkeiten ein", woHc == "@raid")
+        check("Gruppen: und das steht dabei", ns.UI.CompHint(hc, woHc, "raid", "raid")
+            :find(ns.L["COMP_FALLBACK_RAID"], 1, true) ~= nil)
+        check("Gruppen: sonst nennt der Satz die Schwierigkeit", ns.UI.CompHint(mythisch, wo, "raid-mythic", "raid")
+            :find(ns.ModeLabel("raid-mythic"), 1, true) ~= nil)
+    end
+    MetaCodex_Recommendations.comps.pvp = { ["3v3"] = { players = 580,
+        tank = {}, healer = { { 264, 30 } }, dps = { { 71, 25 }, { 262, 12 } } } }
+    ns.Profile.SetMode("raid")
+    check("Gruppen: der Raid hat den Abschnitt, von Warcraft Logs",
+        ns.Recommend.HasSection(250, "raid-mythic", "warcraftlogs.com", "comps") == true)
+    local raidZeilen = 0
+    rowsInSection("comps")
+    local aufstellung, raidSpec
+    for _, row in ipairs(wow.rows()) do
+        local tip = row:IsShown() and rawget(row, "compTip")
+        if tip then raidZeilen = raidZeilen + 1 end
+        if tip and tip.spec == 264 then raidSpec = row end
+        local t = row:IsShown() and row.title:GetText() or ""
+        if t:find("4,3", 1, true) or t:find("4.3", 1, true) then aufstellung = row end
+    end
+    check("Gruppen: im Raid je Rolle eine Spec", raidZeilen == 3, raidZeilen .. " Zeilen")
+    check("Gruppen: die Aufstellung steht vorweg", aufstellung ~= nil)
+    check("Gruppen: die Raid-Zeile nennt die Anzahl je Kill", raidSpec ~= nil
+        and ((raidSpec.detail:GetText() or ""):find("1,8", 1, true) or (raidSpec.detail:GetText() or ""):find("1.8", 1, true)) ~= nil,
+        raidSpec and raidSpec.detail:GetText())
+    check("Gruppen: keine Dungeon-Auswahl im Raid", not ns.UI.Frame().dungeonButton:IsShown())
+    check("Gruppen: Titel je Aktivitaet", ns.UI.CompTitle("raid") == ns.L["COMP_TITLE_raid"]
+        and ns.UI.CompTitle("3v3") == ns.L["COMP_TITLE_pvp"] and ns.UI.CompTitle("mplus-keys") == ns.L["COMP_TITLE_mplus"])
+
+    -- PvP: nur die Specs, ohne Kampfrausch und ohne Key.
+    ns.Profile.SetMode("3v3")
+    rowsInSection("comps")
+    local pvpZeilen, pvpText = 0, ""
+    for _, row in ipairs(wow.rows()) do
+        local tip = row:IsShown() and rawget(row, "compTip")
+        if tip then
+            pvpZeilen = pvpZeilen + 1
+            pvpText = pvpText .. (row.detail:GetText() or "") .. "|"
+        end
+    end
+    check("Gruppen: PvP zeigt die Specs der Klammer", pvpZeilen == 3, pvpZeilen .. " Zeilen")
+    check("Gruppen: in PvP kein Kampfrausch und kein Key", not pvpText:find(ns.L["COMP_LUST"], 1, true)
+        and not pvpText:find("+", 1, true), pvpText)
+    local _, _, art = ns.Recommend.Comps("solo")
+    check("Gruppen: eine Klammer ohne Zaehlung hat keine", art == nil)
+    ns.Profile.SetMode("mplus")
+
+    MetaCodex_Recommendations.comps = nil
+    check("Gruppen: ohne Daten kein Abschnitt", ns.Recommend.HasSection(250, "mplus", ALL, "comps") == false)
+    check("Gruppen: und kein Eintrag", ns.UI.SectionHasData("comps") == false)
+    MetaCodex_Recommendations.comps = echt
+    ns.Profile.SetMode(vorherModus)
     MetaCodexDB.section = "gear"
 end
 

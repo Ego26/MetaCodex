@@ -121,7 +121,9 @@ local SHOPPING = { enchants = true, consumables = true, remind = true }
 local DUNGEON_SECTIONS = { talents = true, consumables = true, enchants = true,
     -- Der Foliant gehoert dazu: er wird in denselben Kaempfen gemessen
     -- und je Dungeon mitgezaehlt, ohne eine einzige Abfrage mehr.
-    folio = true }
+    folio = true,
+    -- Die Gruppen auch: im Altar spielt man anders als in der Arena.
+    comps = true }
 
 -- Wessen Profil gerade offen ist, statt eines Abschnitts. Gesetzt vom
 -- Klick auf eine Zeile der Rangliste, geloescht vom Zurueck-Knopf oder
@@ -166,6 +168,9 @@ local SECTIONS = {
     -- Welche Rasse gespielt wird und was sie in der Simulation bringt.
     { key = "races",       group = "GROUP_OVERVIEW" },
     { key = "players",     group = "GROUP_OVERVIEW" },
+    -- Mit wem: die Gruppen der Top-Runs. Gehoert zu keiner Spec, darum
+    -- am Ende der Uebersicht und nicht bei den Spec-Abschnitten.
+    { key = "comps",       group = "GROUP_OVERVIEW" },
 
     { key = "talents",     group = "GROUP_TALENTS" },
     -- Der Foliant haengt unter den Talenten, weil er einer ist: fuenf
@@ -1033,6 +1038,10 @@ local function categoriesIn(section, rows)
         if section.key == "consumables" then
             key = row.ckind
             label = key and L["CONSUM_" .. key]
+        elseif section.key == "comps" then
+            -- Ganze Gruppen, oder eine Rolle.
+            key = row.part
+            label = key and L["COMP_PART_" .. key]
         elseif section.key == "races" then
             -- Nach Fraktion: wer Horde spielt, waehlt unter der Horde.
             -- "Beide Fraktionen" ist keine Wahl - das waere dasselbe wie
@@ -1313,6 +1322,9 @@ local function categoryWords(section)
     end
     if section and section.key == "races" then
         return L["RACE_FACTION"], L["RACE_FACTION_ALL"]
+    end
+    if section and section.key == "comps" then
+        return L["COMP_SHOW"], L["COMP_SHOW_ALL"]
     end
     return L["LBL_CATEGORY"], L["CATEGORY_ALL"]
 end
@@ -3220,6 +3232,11 @@ local function acquireRow(index)
             UI.RaceTooltip(self, rawget(self, "raceTip"))
             return
         end
+        -- Eine Gruppe oder Spec der Top-Runs: wer, wie oft, was sie mitbringt.
+        if rawget(self, "compTip") then
+            UI.CompTooltip(self, rawget(self, "compTip"))
+            return
+        end
         -- Die Zeile des Fundort-Rasters traegt keinen Gegenstand,
         -- sondern einen Namen, der abgeschnitten sein kann.
         if type(self.dropName) == "string" then
@@ -3459,6 +3476,10 @@ local function resetRow(row)
     row.dropNote = nil
     row.raceTip = nil
     if UI.RotationPanelHide then UI.RotationPanelHide(row) end
+    -- Die fuenf Spec-Symbole einer Gruppe: sonst standen sie quer ueber
+    -- der naechsten Zeile, die diese Zeile wiederverwendet.
+    row.compTip = nil
+    for _, tex in ipairs(rawget(row, "compIcons") or {}) do tex:Hide() end
     -- Auch der Tausch: eine wiederverwendete Zeile zeigte sonst den
     -- Zeiger ihres Vorgaengers.
     row.swapAdded = nil
@@ -4143,6 +4164,11 @@ local function setItemRow(row, data)
         row.detail:SetText("")
         row.share:SetText("")
         UI.RotationPanelFill(row, data)
+        return
+    end
+
+    if data.kind == "compgroup" or data.kind == "compspec" then
+        UI.SetCompRow(row, data)
         return
     end
 
@@ -5251,6 +5277,10 @@ end
 function UI.SectionHasData(key, mode)
     if key == "guides" or key == "info" or key == "settings" then return true end
     if not ns.Recommend.Ready() then return true end
+    -- Die Gruppen stehen immer da, sobald es fuer IRGENDEINE Aktivitaet
+    -- welche gibt: gesucht wurden sie auch, waehrend Raid gewaehlt war
+    -- (20. Oktober). Fehlt der gewaehlten etwas, sagt es die Seite.
+    if key == "comps" then return ns.Recommend.HasComps() end
     return ns.Recommend.HasSection(ns.Profile.SelectedSpec(),
         mode or ns.Profile.Mode(), ns.Recommend.ALL, key)
 end
@@ -5486,6 +5516,9 @@ function UI.Refresh()
     -- jedem Dungeon dieselbe, und "Alle Dungeons" ueber der Steinliste
     -- beantwortet eine Frage, die dort niemand stellt.
     local dungeonMatters = MASS.DUNGEON_SECTIONS[section.key] == true
+    -- Die Gruppen gibt es je Dungeon, nicht je Boss: im Raid zaehlen alle
+    -- Kills zusammen.
+    if section.key == "comps" and not tostring(base):find("^mplus") then dungeonMatters = false end
     frame.dungeonButton:SetShown(#dungeons > 0 and dungeonMatters)
     local chosen = ns.Profile.Dungeon(section.key)
     local dungeonLabel = L[(unitLabels(base))]
@@ -5548,7 +5581,8 @@ function UI.Refresh()
     -- Ueber S:SetText: dieselbe Zeile traegt im Spielerprofil einen
     -- Namen, der aus Korea kommen kann. Direkt gesetzt, erbte sie dessen
     -- Schrift.
-    S:SetText(sectionTitle, L["SECTION_" .. section.key])
+    S:SetText(sectionTitle, section.key == "comps" and UI.CompTitle(base)
+        or L["SECTION_" .. section.key])
 
     -- Die Schluesselstufe gilt fuer alles, was Ausruestung zeigt - auch
     -- fuer Tier-Set und Handwerk. Vergleichen kann nur, wer beide auf
@@ -5784,6 +5818,11 @@ function UI.Refresh()
         currentRows, vorschau = UI.RaceRows(specID, mode)
         hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted)
             or UI.RaceHint(specID, vorschau))
+    elseif section.key == "comps" then
+        local zaehlung, unter, art
+        currentRows, zaehlung, unter, art = UI.CompRows(mode)
+        hintText:SetText(#currentRows == 0 and L["COMP_NONE"]
+            or UI.CompHint(zaehlung, unter, mode, art))
     elseif section.key == "stats" then
         currentRows, fromSource = withFallback(function(source)
             return BAU.statRows(specID, mode, source)
@@ -5922,6 +5961,7 @@ function UI.Refresh()
             local key = (section.key == "consumables") and row.ckind
                 or (section.key == "drops") and row.place
                 or (section.key == "races") and row.side
+                or (section.key == "comps") and row.part
                 or row.slot
             -- Eine Rasse beider Seiten passt zu jeder Fraktion.
             if section.key == "races" and row.side == "both" then key = picked end
@@ -7915,6 +7955,280 @@ do
         row.__rotPanel = f
         data.panelH = (y - GAP + PAD) / fs
         return f
+    end
+end
+
+-- DER ABSCHNITT "GRUPPEN & SPECS" (20. und 23. Oktober).
+--
+-- Wer mit wem spielt, je Aktivitaet so weit, wie die Quelle es weiss:
+-- in M+ die haeufigsten ganzen Gruppen der Top-Runs und darunter je Rolle
+-- die Specs (hohe Keys von raider.io, +7 bis +21 von Warcraft Logs); im
+-- Raid die Aufstellung der Top-Kills; in PvP nur, welche Specs oben
+-- stehen - Ranglisten fuehren keine Teams. Beliebt heisst nicht bewiesen
+-- stark - der Satz ueber der Liste sagt das, damit niemand eine
+-- Rangliste der Klassen daraus liest.
+--
+-- Aus den Daten kommen nur Spec-Nummern. Name, Symbol und Klasse fragt
+-- das Fenster beim Client: dann stimmen sie in jeder Sprache, und eine
+-- Nummer kann nicht unter dem falschen Namen stehen.
+do
+    -- Wer Kampfrausch bzw. Heldentum mitbringt, und wer im Kampf
+    -- wiederbeleben kann. Beides haengt an der Klasse, nicht an der Spec.
+    local LUST = { SHAMAN = true, MAGE = true, HUNTER = true, EVOKER = true }
+    local BREZ = { DRUID = true, DEATHKNIGHT = true, WARLOCK = true, PALADIN = true }
+    local ROLES = { "tank", "healer", "dps" }
+    -- Die Symbole einer Gruppe: Groesse und Abstand.
+    local ICON, GAP = 26, 3
+
+    local cache = {}
+    local function specInfo(specID)
+        if cache[specID] then return cache[specID] end
+        local classID, classFile = ns.Compat.ClassOfSpec(specID)
+        local name, icon
+        for _, s in ipairs(classID and ns.Compat.SpecsForClass(classID) or {}) do
+            if s.id == specID then name, icon = s.name, s.icon end
+        end
+        name = name or ns.Compat.SpecName(specID)
+        local info = {
+            name = name or ("#" .. tostring(specID)),
+            icon = icon or "Interface\\Icons\\INV_Misc_QuestionMark",
+            classFile = classFile,
+            className = ns.Compat.ClassName(classID) or "",
+        }
+        -- Nur merken, was der Client schon kannte - sonst bliebe "#250"
+        -- fuer die ganze Sitzung stehen.
+        if name then cache[specID] = info end
+        return info
+    end
+
+    ---"Blut Todesritter" in der Farbe der Klasse.
+    local function coloredName(info)
+        local text = info.className ~= "" and (info.name .. " " .. info.className) or info.name
+        return ("|cff%s%s|r"):format(ns.Compat.ClassColor(info.classFile), text)
+    end
+
+    ---Was eine Gruppe mitbringt: Kampfrausch, Kampf-Wiederbelebung.
+    local function brings(specs)
+        local lust, brez = false, false
+        for _, spec in ipairs(specs) do
+            local file = specInfo(spec).classFile
+            if file and LUST[file] then lust = true end
+            if file and BREZ[file] then brez = true end
+        end
+        return lust, brez
+    end
+
+    ---Die Unterzeile: was dabei ist, und in Warnfarbe, was fehlt.
+    local function bringsText(specs, onlyPresent)
+        local lust, brez = brings(specs)
+        local teile = {}
+        if lust then
+            teile[#teile + 1] = L["COMP_LUST"]
+        elseif not onlyPresent then
+            teile[#teile + 1] = "|cff" .. S:Hex("warning") .. L["COMP_NO_LUST"] .. "|r"
+        end
+        if brez then
+            teile[#teile + 1] = L["COMP_BREZ"]
+        elseif not onlyPresent then
+            teile[#teile + 1] = "|cff" .. S:Hex("warning") .. L["COMP_NO_BREZ"] .. "|r"
+        end
+        return table.concat(teile, "  \194\183  ")
+    end
+
+    ---Eine Zahl mit einer Stelle, im deutschen Client mit Komma.
+    local function zahl(x)
+        local text = (math.floor((tonumber(x) or 0) * 10 + 0.5) % 10 == 0)
+            and ("%d"):format(math.floor((tonumber(x) or 0) + 0.5)) or ("%.1f"):format(tonumber(x) or 0)
+        if GetLocale and GetLocale() == "deDE" then text = text:gsub("%.", ",") end
+        return text
+    end
+
+    ---Ueberschrift je Aktivitaet: was die Seite dort zeigt.
+    ---@param base string  die gewaehlte Aktivitaet
+    function UI.CompTitle(base)
+        local b = tostring(base or "")
+        if b:find("^mplus") then return L["COMP_TITLE_mplus"] end
+        if b:find("^raid") then return L["COMP_TITLE_raid"] end
+        return L["COMP_TITLE_pvp"]
+    end
+
+    ---Die Zeilen des Abschnitts.
+    ---
+    ---Je Aktivitaet etwas anderes: in M+ ganze Gruppen und darunter die
+    ---Specs je Rolle; im Raid die Aufstellung und je Spec Anteil und Anzahl;
+    ---in PvP nur die Specs - eine Rangliste fuehrt keine Teams.
+    ---@param mode string  Aktivitaet oder Dungeon ("mplus/kings-rest")
+    ---@return table[] rows
+    ---@return table|nil entry  die Zaehlung, fuer den Satz darueber
+    ---@return string|nil key   unter welchem Modus sie stand
+    ---@return string|nil art   "mplus", "raid" oder "pvp"
+    function UI.CompRows(mode)
+        local c, key, art = ns.Recommend.Comps(mode)
+        if not c then return {}, nil, nil, nil end
+        local rows = {}
+        if art == "mplus" then
+            for _, g in ipairs(c.groups or {}) do
+                rows[#rows + 1] = {
+                    kind = "compgroup", art = art, part = "groups", group = L["COMP_PART_groups"],
+                    specs = g.specs, n = g.n, pct = g.pct, maxKey = g.maxKey, runs = c.runs, source = c.source,
+                }
+            end
+        elseif art == "raid" and c.setup then
+            -- Eine Zeile vorweg: wie ein Kill im Schnitt aufgestellt ist.
+            rows[#rows + 1] = {
+                kind = "info", part = "setup", group = L["COMP_PART_setup"],
+                label = L["COMP_SETUP"]:format(zahl(c.setup.tank), zahl(c.setup.healer), zahl(c.setup.dps)),
+                note = L["COMP_SETUP_NOTE"]:format(zahl(c.size), c.kills or 0),
+            }
+        end
+        for _, role in ipairs(ROLES) do
+            for _, r in ipairs(c[role] or {}) do
+                local row = {
+                    kind = "compspec", art = art, part = role, group = L["COMP_PART_" .. role], role = role,
+                    spec = r[1], pct = r[2], source = c.source,
+                    runs = c.runs, kills = c.kills, players = c.players,
+                }
+                -- Das dritte Feld: in M+ der hoechste Key, im Raid die
+                -- Anzahl je Kill. PvP hat keines.
+                if art == "mplus" then row.maxKey = r[3] elseif art == "raid" then row.avg = r[3] end
+                rows[#rows + 1] = row
+            end
+        end
+        return rows, c, key, art
+    end
+
+    ---Der Satz ueber der Liste.
+    function UI.CompHint(entry, key, mode, art)
+        if not entry then return "" end
+        if art == "raid" then
+            -- Je Schwierigkeit; sprang "alle zusammen" ein, steht es dabei.
+            if key == "@raid" then return L["COMP_FALLBACK_RAID"] .. "  " .. L["COMP_HINT_RAID_ALL"]:format(entry.kills or 0) end
+            return L["COMP_HINT_RAID"]:format(entry.kills or 0, ns.ModeLabel(key) or tostring(key))
+        end
+        if art == "pvp" then return L["COMP_HINT_PVP"]:format(entry.players or 0) end
+        local text = (entry.source == "raider.io" and L["COMP_HINT"] or L["COMP_HINT_WCL"]):format(
+            entry.runs or 0, entry.minKey or 0, entry.maxKey or 0, entry.distinct or 0)
+        -- Ein Dungeon war gewaehlt, aber zu klein fuer eine eigene Zaehlung.
+        if mode and tostring(mode):find("/") and key and not tostring(key):find("/") then
+            text = L["COMP_FALLBACK"] .. "  " .. text
+        end
+        return text
+    end
+
+    ---Eine Zeile: eine ganze Gruppe oder eine Spec ihrer Rolle.
+    function UI.SetCompRow(row, data)
+        row.link = nil
+        row.icon:SetTexture(nil)
+        if data.kind == "compspec" then
+            local info = specInfo(data.spec)
+            row.icon:SetTexture(info.icon)
+            row.title:SetText(coloredName(info))
+            local teile = {}
+            if data.art == "mplus" then
+                teile[#teile + 1] = L["COMP_UP_TO"]:format(data.maxKey or 0)
+            elseif data.art == "raid" then
+                teile[#teile + 1] = L["COMP_AVG"]:format(zahl(data.avg))
+            end
+            -- Kampfrausch und Wiederbelebung zaehlen in M+ und im Raid; in
+            -- der Arena hat beides niemand im Sinn.
+            if data.art ~= "pvp" then
+                local mit = bringsText({ data.spec }, true)
+                if mit ~= "" then teile[#teile + 1] = mit end
+            end
+            if data.spec == ns.Profile.SelectedSpec() then
+                teile[#teile + 1] = "|cff" .. S:Hex("accent") .. L["COMP_YOURS"] .. "|r"
+            end
+            row.detail:SetText(table.concat(teile, "  \194\183  "))
+        else
+            -- Fuenf Symbole statt eines, und der Text rueckt dahinter.
+            local icons = rawget(row, "compIcons")
+            if not icons then
+                icons = {}
+                for i = 1, 5 do
+                    local tex = row:CreateTexture(nil, "ARTWORK")
+                    tex:SetSize(ICON, ICON)
+                    tex:SetPoint("LEFT", S.space.sm + (i - 1) * (ICON + GAP), 0)
+                    tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+                    icons[i] = tex
+                end
+                row.compIcons = icons
+            end
+            for i, tex in ipairs(icons) do
+                local spec = data.specs[i]
+                if spec then
+                    tex:SetTexture(specInfo(spec).icon)
+                    tex:Show()
+                else
+                    tex:Hide()
+                end
+            end
+            local links = S.space.sm + 5 * (ICON + GAP) + 6
+            row.title:ClearAllPoints()
+            row.title:SetPoint("TOPLEFT", links, -S.space.sm)
+            row.__textW = math.max(80, contentWidth() - links - 110)
+            row.title:SetText(L["COMP_GROUP_RUNS"]:format(data.n or 0, data.maxKey or 0))
+            -- Darunter, WER es ist: die Specs in Klassenfarbe. Kampfrausch
+            -- und Wiederbelebung nur, wenn sie FEHLEN - fast jede Top-Gruppe
+            -- hat beides, und zehnmal derselbe Satz sagt nichts (20. Oktober).
+            local namen = {}
+            for _, spec in ipairs(data.specs) do
+                local info = specInfo(spec)
+                namen[#namen + 1] = ("|cff%s%s|r"):format(ns.Compat.ClassColor(info.classFile), info.name)
+            end
+            local lust, brez = brings(data.specs)
+            if not lust then namen[#namen + 1] = "|cff" .. S:Hex("warning") .. L["COMP_NO_LUST"] .. "|r" end
+            if not brez then namen[#namen + 1] = "|cff" .. S:Hex("warning") .. L["COMP_NO_BREZ"] .. "|r" end
+            row.detail:SetText(table.concat(namen, "  \194\183  "))
+        end
+        row.share:SetText((data.pct or 0) .. " %")
+        S:Recolor(row.share, data.top and "accent" or "textSecondary")
+        row.compTip = data
+        row.onClick = nil
+    end
+
+    ---Der Tooltip: wer genau, wie oft, und was die Gruppe mitbringt.
+    function UI.CompTooltip(owner, data)
+        tipOutside(owner)
+        local mr, mg, mb = S:Color("textMuted")
+        if data.kind == "compgroup" then
+            GameTooltip:SetText(L["COMP_TIP_GROUP"], 1, 1, 1)
+            for i, spec in ipairs(data.specs) do
+                local info = specInfo(spec)
+                local role = i == 1 and "tank" or (i == 2 and "healer" or "dps")
+                GameTooltip:AddDoubleLine(("|T%s:16:16|t %s"):format(tostring(info.icon), coloredName(info)),
+                    L["COMP_ROLE_" .. role], 1, 1, 1, mr, mg, mb)
+            end
+            GameTooltip:AddLine(" ")
+            GameTooltip:AddLine(L["COMP_TIP_RUNS"]:format(data.n or 0, data.runs or 0, data.pct or 0),
+                0.9, 0.9, 0.9, true)
+        else
+            local info = specInfo(data.spec)
+            GameTooltip:SetText(coloredName(info), 1, 1, 1)
+            if data.art == "raid" then
+                GameTooltip:AddLine(L["COMP_TIP_RAID"]:format(data.pct or 0, data.kills or 0, zahl(data.avg)),
+                    0.9, 0.9, 0.9, true)
+            elseif data.art == "pvp" then
+                GameTooltip:AddLine(L["COMP_TIP_PVP"]:format(data.pct or 0, data.players or 0), 0.9, 0.9, 0.9, true)
+            else
+                GameTooltip:AddLine(L["COMP_TIP_SPEC"]:format(data.pct or 0, data.runs or 0), 0.9, 0.9, 0.9, true)
+                if data.role == "dps" then GameTooltip:AddLine(L["COMP_TIP_DPS"], mr, mg, mb, true) end
+            end
+        end
+        if data.maxKey then GameTooltip:AddLine(L["COMP_TIP_KEY"]:format(data.maxKey), 0.9, 0.9, 0.9) end
+        if data.art ~= "pvp" then
+            local mit = bringsText(data.kind == "compgroup" and data.specs or { data.spec }, data.kind ~= "compgroup")
+            if mit ~= "" then
+                GameTooltip:AddLine(" ")
+                GameTooltip:AddLine(L["COMP_TIP_BRINGS"] .. ": " .. mit, 0.9, 0.9, 0.9, true)
+            end
+        end
+        local stamp = ns.Recommend.CompsStamp()
+        if stamp > 0 then
+            GameTooltip:AddLine(" ")
+            GameTooltip:AddLine(L["COMP_TIP_SOURCE"]:format(tostring(data.source or "?"), ("%d-%02d-%02d"):format(
+                math.floor(stamp / 10000), math.floor(stamp / 100) % 100, stamp % 100)), mr, mg, mb, true)
+        end
+        GameTooltip:Show()
     end
 end
 

@@ -768,6 +768,80 @@ function Recommend.Rotation(specID, mode)
     return nil
 end
 
+---Wer mit wem spielt - je nach Aktivitaet etwas anderes (tools/lib/comps.js).
+---
+---  "mplus"  M+: ganze Fuenfergruppen und Specs je Rolle. Die hohen Keys
+---           zaehlt raider.io, +7 bis +21 Warcraft Logs, beides auch je
+---           Dungeon. Vom Dungeon geht es zurueck zur ganzen Klammer, aber
+---           NIE in die andere Klammer: unter "+7 - +21" stuenden sonst
+---           die Zahlen der hohen Keys.
+---  "raid"   Je Spec Anteil der Kills und Anzahl im Schnitt, fuer die
+---           gewaehlte Schwierigkeit; alle zusammen ("@raid") nur, wo sie
+---           selbst keine Zaehlung hat.
+---  "pvp"    Je Klammer, welche Specs unter den Top-Spielern stehen. Teams
+---           fuehrt keine Rangliste.
+---
+---Unabhaengig von der Spec: eine Gruppe ist fuenf Spieler.
+---@param mode string
+---@return table|nil entry
+---@return string|nil key   unter welchem Modus es stand
+---@return string|nil kind  "mplus", "raid" oder "pvp"
+function Recommend.Comps(mode)
+    local d = data()
+    local c = d and d.comps
+    if not c or type(mode) ~= "string" then return nil end
+    if mode:find("^mplus") then
+        local plain = mode:match("^([^/]+)") or mode
+        for _, which in ipairs({ mode, plain }) do
+            local hit = c.modes and c.modes[which]
+            if hit then return hit, which, "mplus" end
+        end
+        return nil
+    end
+    if mode:find("^raid") then
+        -- Die gewaehlte Schwierigkeit: im Mythischen wird anders aufgestellt
+        -- als in Normal (Blut-Todesritter 84 gegen 49 % der Kills, 23.
+        -- Oktober). Alle zusammen nur, wo sie selbst keine Zaehlung hat.
+        local plain = mode:match("^([^/]+)") or mode
+        for _, which in ipairs({ plain, "@raid" }) do
+            local hit = c.raid and c.raid[which]
+            if hit then
+                hit.source = hit.source or "warcraftlogs.com"
+                return hit, which, "raid"
+            end
+        end
+        return nil
+    end
+    local plain = mode:match("^([^/]+)") or mode
+    local hit = c.pvp and c.pvp[plain]
+    if hit then
+        hit.source = hit.source or "Battle.net"
+        return hit, plain, "pvp"
+    end
+    return nil
+end
+
+---Gibt es ueberhaupt Gruppen-Daten, fuer irgendeine Aktivitaet?
+---
+---Der Eintrag steht immer im Menue, sobald es welche gibt - auch wenn die
+---gewaehlte Aktivitaet gerade keine hat. Gesucht wurde er sonst unter
+---"Raid (HC)" vergeblich (20. Oktober).
+---@return boolean
+function Recommend.HasComps()
+    local d = data()
+    local c = d and d.comps
+    return c ~= nil and (next(c.modes or {}) ~= nil or next(c.raid or {}) ~= nil
+        or next(c.pvp or {}) ~= nil)
+end
+
+---Wann die Gruppen gezaehlt wurden, und in welcher Saison.
+---@return number builtOn, string season
+function Recommend.CompsStamp()
+    local d = data()
+    local c = d and d.comps
+    return c and c.builtOn or 0, c and c.season or ""
+end
+
 ---Hat diese Quelle etwas fuer diesen Abschnitt?
 ---
 ---Gebraucht, um es VOR dem Klick zu sagen. Ein Waehler, der alle Quellen
@@ -834,6 +908,12 @@ function Recommend.HasSection(specID, mode, source, section)
     elseif section == "rotation" then
         -- Vorerst nur in der Dev-Version (20. Oktober).
         return ns.version == "dev" and Recommend.Rotation(specID, mode) ~= nil
+    elseif section == "comps" then
+        -- Je Aktivitaet zaehlt genau EINE Quelle; eine andere Plattform hat
+        -- hier nichts.
+        local entry = Recommend.Comps(mode)
+        if not entry then return false end
+        return source == Recommend.ALL or source == entry.source
     elseif section == "enchants" then
         local entry = Recommend.For(specID, mode, source)
         return entry ~= nil and (entry.enchants ~= nil or entry.gems ~= nil)
