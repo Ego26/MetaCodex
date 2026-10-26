@@ -6716,10 +6716,49 @@ do
 
     -- Die Saetze.
     local satz = ns.UI.RotationSentence
-    check("ohne Bedingung: sobald verfuegbar", satz({ s = 114050 }, "st", false) == L["ROT_S_cd"]:format("#114050"),
+    local wirke = function(name) return L["ROT_V_cast"]:format(name) end
+    check("ohne Bedingung und ohne Art: wann immer es geht", satz({ s = 114050 }, "st", false) == L["ROT_S_cd"]:format(wirke("#114050")),
         satz({ s = 114050 }, "st", false))
     check("die letzte ohne Bedingung ist der Fueller", satz({ s = 188196 }, "st", true) == L["ROT_S_filler"]:format("#188196"))
-    check("vor dem Pull", satz({ s = 191634 }, "pre", false) == L["ROT_S_pre"]:format("#191634"))
+    check("vor dem Pull", satz({ s = 191634 }, "pre", false) == L["ROT_S_pre"]:format(wirke("#191634")))
+    -- OHNE BEDINGUNG JE NACH ZAUBER (26. Oktober): nicht zwoelfmal derselbe Satz.
+    check("grosser Cooldown: Nutze ... auf Abklingzeit",
+        satz({ s = 7, a = "cd" }, "st", false) == L["ROT_S_oncd"]:format(L["ROT_V_use"]:format("#7")))
+    check("Aufladungen: bevor sie voll sind", satz({ s = 7, a = "ch" }, "st", false) == L["ROT_S_charges"]:format(wirke("#7")))
+    check("kurze Abklingzeit: sobald sie um ist", satz({ s = 7, a = "w" }, "st", false) == L["ROT_S_ready"]:format(wirke("#7")))
+    check("Verbraucher: sobald du genug Zorn hast",
+        satz({ s = 7, a = "r", r = "fury" }, "st", false) == L["ROT_S_res"]:format(wirke("#7"), L["ROT_RES_fury"]))
+    check("ein Cooldown am Ende ist kein Fueller",
+        satz({ s = 7, a = "ch" }, "st", true) == L["ROT_S_charges"]:format(wirke("#7")))
+    -- Mit Namen: Verb, Selbstbezug, Zusammenziehen.
+    local echteNamen = C_Spell.GetSpellName
+    local NAMEN = { [10] = "Mondfeuer", [11] = "Mondfeuer", [12] = "Xuen den Weißen Tiger beschwören",
+        [13] = "Katzengestalt", [20] = "Einäschern", [21] = "Einäschern", [30] = "Aa", [31] = "Bb",
+        [40] = "Zerfetzen", [41] = "Wilder Biss", [50] = "Niuzao den Schwarzen Ochsen beschwören" }
+    C_Spell.GetSpellName = function(id) return NAMEN[id] end
+    check("Beschwoerung: Beschwoere Xuen den Weissen Tiger",
+        satz({ s = 12, a = "cd" }, "st", false) == L["ROT_S_oncd"]:format(L["ROT_V_summon"]:format("Xuen den Weißen Tiger")),
+        satz({ s = 12, a = "cd" }, "st", false))
+    check("Gestalt: Wechsle in, ohne 'wenn sie fehlt'",
+        satz({ s = 13, c = { { "down", 13 } } }, "st", false) == L["ROT_S_cd"]:format(L["ROT_V_form"]:format("Katzengestalt")),
+        satz({ s = 13, c = { { "down", 13 } } }, "st", false))
+    check("am eigenen Dot: Erneuere ..., wenn noch unter 12 Sek. uebrig sind",
+        satz({ s = 10, c = { { "remunder", 11, 12 } } }, "st", false)
+            == L["ROT_S_if"]:format(L["ROT_V_renew"]:format("Mondfeuer"), L["ROT_CS_remunder"]:format("12")),
+        satz({ s = 10, c = { { "remunder", 11, 12 } } }, "st", false))
+    local zusammen = satz({ s = 7, c = { { "or", { "up", 20 }, { "ready", 21 } } } }, "st", false)
+    check("derselbe Zauber einmal: aktiv oder bereit",
+        zusammen:find("Einäschern " .. L["ROT_A_up"] .. L["ROT_OR"] .. L["ROT_A_ready"], 1, true) ~= nil, zusammen)
+    local beide = satz({ s = 7, c = { { "up", 30 }, { "up", 31 } } }, "st", false)
+    check("dieselbe Eigenschaft: A und B aktiv sind",
+        beide:find(L["ROT_J_pl"]:format("Aa" .. L["ROT_AND"] .. "Bb", L["ROT_A_up"]), 1, true) ~= nil, beide)
+    local gerade = satz({ s = 7, c = { { "or", { "prev", 40 }, { "prev", 41 } } } }, "st", false)
+    check("gerade gewirkt: du gerade A oder B gewirkt hast",
+        gerade:find(L["ROT_C_prev"]:format("Zerfetzen" .. L["ROT_OR"] .. "Wilder Biss"), 1, true) ~= nil, gerade)
+    local niuzao = satz({ s = 7, c = { { "up", 50 } } }, "st", false)
+    check("eine Beschwoerung als Bedingung",
+        niuzao:find(L["ROT_CN_summon_up"]:format("Niuzao den Schwarzen Ochsen"), 1, true) ~= nil, niuzao)
+    C_Spell.GetSpellName = echteNamen
     check("aktiv halten", satz({ s = 192106, keepUp = true }, "pre", false) == L["ROT_S_keep"]:format("#192106"))
     local mit = satz(ROT.st[1], "st", false)
     check("mit Bedingung ein ganzer Satz", mit:find(L["ROT_S_if"]:match("^(.-)%%s"), 1, true) == 1
@@ -6789,7 +6828,7 @@ do
     local klar = ns.UI.RotationSentence({ s = 1, c = { { "up", 2 } }, more = true }, "st", false)
     check("kein Zeichen fuer Simuliertes", not klar:find("|H", 1, true) or klar:find("|Hmcvage", 1, true) == nil, klar)
     local nurVage = ns.UI.RotationSentence({ s = 1, more = true }, "st", false)
-    check("kein 'unter bestimmten Umstaenden'", nurVage == L["ROT_S_cd"]:format("#1"), nurVage)
+    check("kein 'unter bestimmten Umstaenden'", nurVage == L["ROT_S_cd"]:format(L["ROT_V_cast"]:format("#1")), nurVage)
     -- Der Heiler-Guide: gemessene Saetze, keine Prioritaet.
     local heil = function(line) return ns.UI.RotationSentence(line, "core", false) end
     local fuell = heil({ hk = "fill", s = 5, pct = 100, cpm = 19.1, first = true, multi = true, cost = "high", vs = "more", m = "raid" })

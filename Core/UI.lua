@@ -7129,7 +7129,9 @@ do
         return text
     end
 
-    local function zauber(id)
+    ---@param label string|nil wie er im Satz heisst ("Xuen den Weissen Tiger" hinter "Beschwoere")
+    local function zauber(id, label)
+        if label then return label end
         local name = C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(id)
         return type(name) == "string" and name or ("#" .. tostring(id))
     end
@@ -7151,8 +7153,8 @@ do
     -- JEDER NAME EIN LINK (20. Oktober): ein Satz ist ein Textfeld, und der
     -- Zeiger zeigte den Zauber der ganzen Zeile, egal ueber welchem Namen er
     -- stand. Als Link meldet jeder Name sich selbst (OnHyperlinkEnter).
-    local function gold(id)
-        return "|Hspell:" .. tostring(id) .. "|h" .. imSatz(symbol(id)) .. "|cffffd100" .. zauber(id) .. "|r|h"
+    local function gold(id, label)
+        return "|Hspell:" .. tostring(id) .. "|h" .. imSatz(symbol(id)) .. "|cffffd100" .. zauber(id, label) .. "|r|h"
     end
 
     local function resource(key)
@@ -7203,19 +7205,81 @@ do
         remunder = true, remover = true, chargesunder = true, chargesfull = true, doton = true }
     local RESN = { resmin = true, resunder = true, resis = true, respctmin = true, respctunder = true }
 
-    local function say(c, top, nm)
+    -- AM EIGENEN ZAUBER (26. Oktober): "Erneuere Mondfeuer, wenn noch unter
+    -- 12 Sek. uebrig sind" statt "... wenn Mondfeuer in unter 12 Sek.
+    -- auslaeuft". Gleich heisst: gleicher Name - der Debuff hat eine andere
+    -- ID als der Zauber.
+    local function eigen(c, selbst)
+        return selbst ~= nil and type(c) == "table" and type(c[2]) == "number"
+            and zauber(c[2]) == zauber(selbst) and L["ROT_CS_" .. tostring(c[1])] ~= "ROT_CS_" .. tostring(c[1])
+    end
+    local function eigenSatz(c)
+        local kind, n = c[1], c[3]
+        if (kind == "charges" or kind == "chargesnear") and type(n) == "number" and n % 1 ~= 0 then
+            kind, n = "chargesnear", math.ceil(n)
+        end
+        if (kind == "charges" or kind == "chargesnear" or kind == "chargesunder") and n == 1
+            and L["ROT_CS_" .. kind .. "1"] ~= "ROT_CS_" .. kind .. "1" then
+            return L["ROT_CS_" .. kind .. "1"]
+        end
+        return (L["ROT_CS_" .. kind]:gsub("%%s", (zahl(n):gsub("%%", "%%%%"))))
+    end
+
+    -- ZUSAMMENGEZOGEN (26. Oktober): "wenn Einaeschern aktiv oder bereit
+    -- ist", "wenn A und B aktiv sind" - nicht zweimal derselbe Satzbau.
+    local ADJ = { up = 1, down = 2, ready = 1, notready = 2 }
+    local verbinde
+    -- "A, B oder C" statt "A oder B oder C".
+    local function listeOder(parts)
+        if #parts <= 1 then return parts[1] or "" end
+        return table.concat(parts, ", ", 1, #parts - 1) .. L["ROT_OR"] .. parts[#parts]
+    end
+
+    -- WAS DER NAME SAGT (26. Oktober): "Xuen den Weissen Tiger beschwoeren"
+    -- ist eine Beschwoerung, "Katzengestalt" eine Gestalt. Die Muster stehen
+    -- in der Sprachdatei (ROT_VP_*), die Klammer ist der Name im Satz.
+    local NAMENSVERBEN = { "summon", "invoke", "call", "form", "stance" }
+    local function namensverb(id)
+        local name = zauber(id)
+        for _, art in ipairs(NAMENSVERBEN) do
+            local muster = L["ROT_VP_" .. art]
+            if muster ~= "ROT_VP_" .. art then
+                local label = name:match(muster)
+                if label then return art, label end
+            end
+        end
+        return nil
+    end
+    -- Eine Beschwoerung als Bedingung: "du Niuzao den Schwarzen Ochsen
+    -- beschworen hast", nicht "Niuzao den Schwarzen Ochsen beschwoeren aktiv ist".
+    local function beschwoerung(id)
+        local art, label = namensverb(id)
+        if art == "summon" or art == "invoke" or art == "call" then return art, label end
+        return nil
+    end
+    local function say(c, top, nm, selbst)
         nm = nm or zauber
         if type(c) ~= "table" then return L["ROT_C_other"] end
         local kind = c[1]
-        if kind == "and" then return say(c[2], false, nm) .. L["ROT_AND"] .. say(c[3], false, nm) end
+        if kind == "and" then return say(c[2], false, nm, selbst) .. L["ROT_AND"] .. say(c[3], false, nm, selbst) end
         if kind == "or" then
             -- Ein Oder im Oder ist dieselbe Gruppe: eine Klammer, nicht zwei.
+            local teile = {}
             local function glied(x)
-                if type(x) == "table" and x[1] == "or" then return glied(x[2]) .. L["ROT_OR"] .. glied(x[3]) end
-                return say(x, false, nm)
+                if type(x) == "table" and x[1] == "or" then glied(x[2]); glied(x[3]) else teile[#teile + 1] = x end
             end
-            local text = glied(c)
+            glied(c)
+            local gruppen = false
+            for _, x in ipairs(teile) do if type(x) == "table" and x[1] == "and" then gruppen = true end end
+            local saetze = verbinde(teile, false, nm, selbst)
+            local text = gruppen and table.concat(saetze, L["ROT_OR_SEP"]) or listeOder(saetze)
             return top and text or ("(" .. text .. ")")
+        end
+        if eigen(c, selbst) then return eigenSatz(c) end
+        if ADJ[kind] and type(c[2]) == "number" then
+            local art, label = beschwoerung(c[2])
+            local key = art and ("ROT_CN_" .. art .. "_" .. kind)
+            if key and L[key] ~= key then return L[key]:format(nm(c[2], label)) end
         end
         if kind == "charged" or kind == "notcharged" then return L["ROT_C_" .. kind]:format(zahl(c[2])) end
         if SPELL1[kind] then return L["ROT_C_" .. kind]:format(nm(c[2])) end
@@ -7250,7 +7314,8 @@ do
             return L["ROT_C_" .. kind]:format(zahl(c[2]))
         end
         if kind == "resnotcap" or kind == "resfull" then
-            if c[3] then return L["ROT_C_" .. kind .. "n"]:format(resource(c[2]), zahl(c[3])) end
+            -- Erst die Zahl: "dir weniger als 20 Runenmacht zum Maximum fehlen".
+            if c[3] then return L["ROT_C_" .. kind .. "n"]:format(zahl(c[3]), resource(c[2])) end
             return L["ROT_C_" .. kind]:format(resource(c[2]))
         end
         if kind == "resenough" then return L["ROT_C_resenough"]:format(resource(c[2])) end
@@ -7268,18 +7333,146 @@ do
         return table.concat(parts, ", ", 1, #parts - 1) .. L["ROT_AND"] .. parts[#parts]
     end
 
+    ---Bedingungen eines Und (und=true) oder eines Oder als Teilsaetze, so
+    ---zusammengezogen, wie man es sagt (26. Oktober):
+    ---  derselbe Zauber einmal:  "Einaeschern aktiv oder bereit ist",
+    ---                           "bereit, aber nicht aktiv",
+    ---                           "Knochenschild nicht aktiv ist, in unter 3 Sek.
+    ---                            auslaeuft oder weniger als 6 Stapel hat"
+    ---  dieselbe Eigenschaft:     "A und B aktiv sind", "A, B oder C aktiv ist"
+    ---  gerade gewirkt:           "du gerade A oder B gewirkt hast"
+    ---@return string[]
+    -- Was sich hinter einem Namen sammeln laesst: Aussagen der Form "X ...".
+    local GRUPPE = { up = true, down = true, refresh = true, ready = true, notready = true, cdsoon = true,
+        stackmin = true, stackunder = true, stackis = true, remunder = true, remover = true, charges = true,
+        chargesunder = true, chargesfull = true, cdunder = true, cdover = true, doton = true }
+    verbinde = function(conds, und, nm, selbst)
+        local function frei(c)
+            return type(c) == "table" and type(c[2]) == "number" and c[1] ~= "and" and c[1] ~= "or"
+                and not eigen(c, selbst) and not beschwoerung(c[2])
+        end
+        local function reihe(teile)
+            return und and liste(teile) or listeOder(teile)
+        end
+        local out, weg = {}, {}
+        for i, c in ipairs(conds) do
+            if not weg[i] then
+                -- 1. Derselbe Zauber in mehreren Bedingungen.
+                local gruppe = { c }
+                if frei(c) and GRUPPE[c[1]] then
+                    for j = i + 1, #conds do
+                        local d = conds[j]
+                        if not weg[j] and frei(d) and GRUPPE[d[1]] and zauber(d[2]) == zauber(c[2]) then
+                            gruppe[#gruppe + 1] = d
+                            weg[j] = true
+                        end
+                    end
+                end
+                local nurAdj = true
+                for _, g in ipairs(gruppe) do if not ADJ[g[1]] then nurAdj = false end end
+                if #gruppe > 1 and nurAdj then
+                    -- Nur Eigenschaften: ein Verb. Das Bejahte zuerst.
+                    table.sort(gruppe, function(a, b) return ADJ[a[1]] < ADJ[b[1]] end)
+                    local woerter = {}
+                    for _, g in ipairs(gruppe) do woerter[#woerter + 1] = L["ROT_A_" .. g[1]] end
+                    local eigenschaft
+                    if und and ADJ[gruppe[1][1]] ~= ADJ[gruppe[#gruppe][1]] then
+                        eigenschaft = table.concat(woerter, L["ROT_BUT"])
+                    else
+                        eigenschaft = reihe(woerter)
+                    end
+                    out[#out + 1] = L["ROT_J_sg"]:format(nm(c[2]), eigenschaft)
+                elseif #gruppe > 1 then
+                    -- Verschiedene Aussagen: der Name einmal vorn.
+                    local name = nm(c[2])
+                    local aussagen = {}
+                    for _, g in ipairs(gruppe) do
+                        local s = say(g, false, nm, selbst)
+                        local vorn = name .. " "
+                        aussagen[#aussagen + 1] = (s:sub(1, #vorn) == vorn) and s:sub(#vorn + 1) or s
+                    end
+                    out[#out + 1] = name .. " " .. reihe(aussagen)
+                elseif frei(c) and ADJ[c[1]] then
+                    -- 2. Dieselbe Eigenschaft anderer Zauber: "A und B aktiv sind".
+                    local wer = { c[2] }
+                    for j = i + 1, #conds do
+                        local d = conds[j]
+                        if not weg[j] and frei(d) and d[1] == c[1] then
+                            -- Nur, wer nicht selbst noch eine andere Aussage hat.
+                            local allein = true
+                            for m = j + 1, #conds do
+                                local e = conds[m]
+                                if not weg[m] and frei(e) and GRUPPE[e[1]] and zauber(e[2]) == zauber(d[2]) then allein = false end
+                            end
+                            if allein then
+                                wer[#wer + 1] = d[2]
+                                weg[j] = true
+                            end
+                        end
+                    end
+                    if #wer == 1 then
+                        out[#out + 1] = say(c, false, nm, selbst)
+                    else
+                        local namen = {}
+                        for _, id in ipairs(wer) do namen[#namen + 1] = nm(id) end
+                        out[#out + 1] = L[und and "ROT_J_pl" or "ROT_J_sg"]:format(reihe(namen), L["ROT_A_" .. c[1]])
+                    end
+                elseif (c[1] == "surge" and not und or c[1] == "nosurge" and und) and type(c[2]) == "number" then
+                    -- 4. "Daemonenwoge weder fuer A noch fuer B bereit".
+                    local partner
+                    for j = i + 1, #conds do
+                        local d = conds[j]
+                        if not partner and not weg[j] and type(d) == "table" and d[1] == c[1] and d[2] == c[2] then
+                            partner = j
+                        end
+                    end
+                    if partner then
+                        weg[partner] = true
+                        out[#out + 1] = L["ROT_C_" .. c[1] .. "_2"]:format(nm(c[2]), nm(c[3]), nm(conds[partner][3]))
+                    else
+                        out[#out + 1] = say(c, #conds == 1, nm, selbst)
+                    end
+                elseif frei(c) and c[1] == "prev" and not und then
+                    -- 3. "du gerade A oder B gewirkt hast".
+                    local namen = { nm(c[2]) }
+                    for j = i + 1, #conds do
+                        local d = conds[j]
+                        if not weg[j] and frei(d) and d[1] == "prev" then
+                            namen[#namen + 1] = nm(d[2])
+                            weg[j] = true
+                        end
+                    end
+                    out[#out + 1] = L["ROT_C_prev"]:format(listeOder(namen))
+                else
+                    out[#out + 1] = say(c, #conds == 1, nm, selbst)
+                end
+            end
+        end
+        return out
+    end
+
     ---Die Bedingungen einer Zeile als ein Nebensatz.
     local function wann(line, nm)
-        local parts = {}
-        for _, c in ipairs(line.c or {}) do parts[#parts + 1] = say(c, #(line.c or {}) == 1, nm) end
+        local selbst = line.s
+        -- "Wechsle in Katzengestalt" sagt schon, dass man nicht darin ist.
+        local conds = line.c or {}
+        local art = selbst and namensverb(selbst)
+        if (art == "form" or art == "stance") and line.a ~= "cd" then
+            local ohne = {}
+            for _, c in ipairs(conds) do
+                if not (c[1] == "down" and eigen(c, selbst)) then ohne[#ohne + 1] = c end
+            end
+            conds = ohne
+        end
+        local parts = verbinde(conds, true, nm, selbst)
         if line.any then
             local opts = {}
             for _, g in ipairs(line.any) do
-                local sub = {}
-                for _, c in ipairs(g) do sub[#sub + 1] = say(c, false, nm) end
-                opts[#opts + 1] = table.concat(sub, L["ROT_AND"])
+                opts[#opts + 1] = liste(verbinde(g, true, nm, selbst))
             end
-            local oder = table.concat(opts, L["ROT_OR"])
+            local gruppen = false
+            for _, g in ipairs(line.any) do if #g > 1 then gruppen = true end end
+            local oder = table.concat(opts, gruppen and L["ROT_OR_SEP"] or L["ROT_OR"])
             parts[#parts + 1] = #parts > 0 and ("(" .. oder .. ")") or oder
         end
         -- Was SimC zusaetzlich rechnet und im Spiel nicht sichtbar ist, steht
@@ -7408,20 +7601,64 @@ do
         return ""
     end
 
+    -- DAS VERB (26. Oktober): "Beschwoere Xuen den Weissen Tiger", nicht
+    -- "Wirke Xuen den Weissen Tiger beschwoeren"; "Wechsle in Katzengestalt";
+    -- ein grosser Cooldown "Nutze"; ein Dot, der nachlaeuft, "Erneuere".
+    local VERB_VON = { stance = "form" }
+    local ERNEUERN = { refresh = true, remunder = true, stronger = true }
+    local function verb(line, nm)
+        local art, label = namensverb(line.s)
+        -- Leerengestalt ist ein grosser Cooldown, keine Gestalt zum Wechseln.
+        local gestalt = art == "form" or art == "stance"
+        if art and not (gestalt and line.a == "cd") then
+            return L["ROT_V_" .. (VERB_VON[art] or art)]:format(nm(line.s, label))
+        end
+        -- Erneuern heisst: er laeuft schon und soll weiterlaufen. Ein Buff,
+        -- der aktiv sein MUSS, um ihn zu wirken (Hammer des Lichts), wird
+        -- nicht erneuert, sondern ausgeloest.
+        local erneuern, aktiv = false, false
+        for _, c in ipairs(line.c or {}) do
+            if ERNEUERN[c[1]] and eigen(c, line.s) then erneuern = true end
+            if c[1] == "up" and eigen(c, line.s) then aktiv = true end
+        end
+        if erneuern and not aktiv then return L["ROT_V_renew"]:format(nm(line.s)) end
+        if line.a == "cd" then return L["ROT_V_use"]:format(nm(line.s)) end
+        return L["ROT_V_cast"]:format(nm(line.s))
+    end
+
+    -- OHNE BEDINGUNG, je nach Zauber (26. Oktober): ein grosser Cooldown
+    -- "auf Abklingzeit", Aufladungen "bevor sie voll sind", ein Verbraucher
+    -- "sobald du genug Zorn hast" - nicht zwoelfmal "sobald verfuegbar".
+    local OHNE = { cd = "ROT_S_oncd", ch = "ROT_S_charges", w = "ROT_S_ready" }
+
     local function satz(line, tab, last, nm)
         nm = nm or zauber
         if line.hk then return heilSatz(line, nm) end
         if line.ik and line.ik ~= "racial" then return gegenstandSatz(line, nm) end
-        local name = nm(line.s)
-        if line.keepUp then return L["ROT_S_keep"]:format(name) end
+        if line.keepUp then return L["ROT_S_keep"]:format(nm(line.s)) end
         local when = wann(line, nm)
-        local ziel = line.t and L["ROT_T_" .. tostring(line.t[1])]:format(nm(line.t[2])) or nil
-        if ziel and when ~= "" then return L["ROT_S_target_if"]:format(name, ziel, when) end
-        if ziel then return L["ROT_S_target"]:format(name, ziel) end
-        if when ~= "" then return L["ROT_S_if"]:format(name, when) end
-        if tab == "pre" then return L["ROT_S_pre"]:format(name) end
-        if last and (tab == "st" or tab == "aoe") then return L["ROT_S_filler"]:format(name) end
-        return L["ROT_S_cd"]:format(name)
+        local ziel
+        if line.t then
+            local k = tostring(line.t[1])
+            if zauber(line.t[2]) == zauber(line.s) and L["ROT_TS_" .. k] ~= "ROT_TS_" .. k then
+                ziel = L["ROT_TS_" .. k]
+            else
+                ziel = L["ROT_T_" .. k]:format(nm(line.t[2]))
+            end
+        end
+        -- Ein Fueller hat keine Abklingzeit: Feuerbrandaura am Ende der Liste
+        -- ist "bevor die Aufladungen voll sind", keine Luecke (26. Oktober).
+        if last and not ziel and when == "" and (tab == "st" or tab == "aoe") and not OHNE[line.a] then
+            return L["ROT_S_filler"]:format(nm(line.s))
+        end
+        local v = verb(line, nm)
+        if ziel and when ~= "" then return L["ROT_S_target_if"]:format(v, ziel, when) end
+        if ziel then return L["ROT_S_target"]:format(v, ziel) end
+        if when ~= "" then return L["ROT_S_if"]:format(v, when) end
+        if tab == "pre" then return L["ROT_S_pre"]:format(v) end
+        if OHNE[line.a] then return L[OHNE[line.a]]:format(v) end
+        if line.a == "r" and line.r then return L["ROT_S_res"]:format(v, resource(line.r)) end
+        return L["ROT_S_cd"]:format(v)
     end
     UI.RotationSentence = satz
 

@@ -290,10 +290,30 @@ const bare = (s) => String(s || '').replace(/_/g, '');
   // (Celestial Alignment: one second above, 180 here).
   const rechargeOfCategory = new Map(spellCategory.map((r) => [Number(r.ID), Number(r.ChargeRecoveryTime) || 0]));
   const rechargeSeconds = new Map();
+  const chargesOfCategory = new Map(spellCategory.map((r) => [Number(r.ID), Number(r.MaxCharges) || 0]));
+  const maxCharges = new Map();
   for (const r of spellCategories) {
     const ms = rechargeOfCategory.get(Number(r.ChargeCategory)) || 0;
     if (ms > 0 && !rechargeSeconds.has(Number(r.SpellID))) rechargeSeconds.set(Number(r.SpellID), ms / 1000);
+    const n = chargesOfCategory.get(Number(r.ChargeCategory)) || 0;
+    if (n > 1 && !maxCharges.has(Number(r.SpellID))) maxCharges.set(Number(r.SpellID), n);
   }
+  // What a spell costs besides mana, by the key the addon names it with
+  // (ROT_RES_*): "when you have enough fury" (26 October).
+  const POWER_KEY = { 1: 'rage', 2: 'focus', 3: 'energy', 4: 'combo_points', 5: 'rune', 6: 'runic_power',
+    7: 'soul_shard', 8: 'astral_power', 9: 'holy_power', 11: 'maelstrom', 12: 'chi', 13: 'insanity',
+    17: 'fury', 18: 'pain', 19: 'essence' };
+  const costKey = new Map();
+  for (const r of spellPower) {
+    const key = POWER_KEY[Number(r.PowerType)];
+    if (key && (Number(r.ManaCost) || 0) > 0 && !costKey.has(Number(r.SpellID))) costKey.set(Number(r.SpellID), key);
+  }
+  // Passive: no button. A talent's passive in a line shows its talent text,
+  // not the spell (Malefic Grasp 1261149 against the cast 1261153).
+  const passiveIds = new Set(spellMisc.filter((r) => Number(r.Attributes_0) & 0x40).map((r) => Number(r.SpellID)));
+  // An item's spell is the trinket tab's, not a line: Windwalker's list
+  // ends in Thorn Bloom, and unmeasured it read as the filler (26 October).
+  const itemEffectIds = new Set(itemEffects.map((r) => Number(r.SpellID)).filter(Boolean));
   // A spell's cost: rage, runic power, astral power, insanity, fury and pain
   // are stored times ten (Starsurge: 400 for 40).
   const ZEHNTEL = new Set([1, 6, 8, 13, 17, 18]);
@@ -505,7 +525,16 @@ const bare = (s) => String(s || '').replace(/_/g, '');
     const actionSpellFor = (k, cast) => {
       const name = ALIAS[k] || k;
       const plain = name.replace(/_(cat|bear)$/, '');
-      return pick(name, 'action', cast) || pick(plain, 'action', cast);
+      const hit = pick(name, 'action', cast) || pick(plain, 'action', cast);
+      // The class's own spell, or one of its family (Fortifying Brew 115203
+      // is no talent row, but a monk's): kept.
+      if (hit && (own.has(hit) || familyOfSpell.get(hit) === family)) return hit;
+      // SimC SHORTENS: invoke_niuzao is the class's "Invoke Niuzao, the
+      // Black Ox" (132578), not Battle for Azeroth's "Invoke Niuzao"
+      // (296820) - whose line the logs then called unplayed, and the
+      // Brewmaster lost Niuzao (26 October).
+      const laenger = [...byName.keys()].filter((n) => n.startsWith(name + '_')).sort((a, b) => a.length - b.length)[0];
+      return (laenger && pick(laenger, 'action', cast)) || hit;
     };
     const actionSpell = (k) => actionSpellFor(k, null);
 
@@ -986,8 +1015,50 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         const m = proName.get(slug(nameEN.get(id)));
         return m ? [Math.round(m.share * 100), Math.round(m.cpm * 10) / 10] : undefined;
       };
-      const pack = (lines) => lines.map((l) => ({ s: l.s, c: l.c.length ? l.c : undefined, any: l.any,
-        t: l.t || undefined, m: messung(l.s), more: l.more || undefined }));
+      // The class's own IDs of a spell's name, the line's own first.
+      const eigeneIds = (id) => [id, ...kandidaten(slug(nameEN.get(id))).filter((x) => x !== id && familyOfSpell.get(x) === family)];
+      // A passive in a line becomes the button of its name; without one
+      // the line goes - there is nothing to press.
+      const ohnePassiv = [];
+      const knopf = (id) => {
+        // A line is the class's own button. Racials and potions have the
+        // trinket tab; Thorn Bloom is no monk's (26 October).
+        if ((itemEffectIds.has(id) || familyOfSpell.get(id) !== family) && !own.has(id)) {
+          ohnePassiv.push(slug(nameEN.get(id)) + '(not the class)');
+          return null;
+        }
+        if (!passiveIds.has(id)) return id;
+        // The class's own first, then the ID made with it (1261153 beside
+        // 1261149, not Warlords' 170619).
+        const ersatz = eigeneIds(id).filter((x) => x !== id && !passiveIds.has(x) && (textOf.get(x) || { d: '' }).d)
+          .sort((a, b) => (own.has(b) - own.has(a)) || Math.abs(a - id) - Math.abs(b - id))[0];
+        if (!ersatz) ohnePassiv.push(slug(nameEN.get(id)));
+        return ersatz || null;
+      };
+      // HOW A LINE WITHOUT A CONDITION READS (26 October): a big cooldown
+      // "on cooldown", charges "before they cap", a cooldown "whenever it is
+      // up", a spender "when you have enough fury" - not "as soon as
+      // available" twelve times.
+      // Only the game data: SimC's cdOf also answers for spells without a
+      // cooldown (Living Flame read "on cooldown", 26 October).
+      const art = (id) => {
+        const ids = eigeneIds(id);
+        const cd = Math.max(0, ...ids.map((x) => Math.max(cdSeconds.get(x) || 0, rechargeSeconds.get(x) || 0)));
+        const ladungen = Math.max(0, ...ids.map((x) => maxCharges.get(x) || 0));
+        const kosten = ids.map((x) => costKey.get(x)).find(Boolean);
+        if (cd >= 45) return { a: 'cd' };
+        if (ladungen >= 2) return { a: 'ch' };
+        if (cd >= 3) return { a: 'w' };
+        if (kosten) return { a: 'r', r: kosten };
+        return {};
+      };
+      // Stealth without a condition is SimC's "between the packs", no step
+      // of the fight: "Cast Stealth whenever it comes off cooldown" stood at
+      // the top of every rogue's priority (26 October).
+      const imKampf = (l) => !(slug(nameEN.get(l.s)) === 'stealth' && !(l.c && l.c.length) && !l.any);
+      const pack = (lines) => lines.map((l) => ({ ...l, s: knopf(l.s) })).filter((l) => l.s).map((l) => ({
+        s: l.s, c: l.c.length ? l.c : undefined, any: l.any,
+        t: l.t || undefined, m: messung(l.s), more: l.more || undefined, ...art(l.s) }));
       // The typical opener: the logs' spells mapped onto this class's own
       // (potions, trinkets and racials fall out - they are not its spells),
       // then the order most players follow. Raid only: see lib/opener.js.
@@ -1019,10 +1090,10 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         n: v.players || best.sample || undefined,
         src: best.source,
         pre: pack(preLines),
-        keep: keep.length ? keep : undefined,
-        st: pack(st.lines),
-        aoe: pack(aoe.lines),
-        mv: [...new Set([...st.moving, ...aoe.moving])],
+        keep: keep.length ? keep.map(knopf).filter(Boolean) : undefined,
+        st: pack(st.lines.filter(imKampf)),
+        aoe: pack(aoe.lines.filter(imKampf)),
+        mv: [...new Set([...st.moving, ...aoe.moving].map(knopf).filter(Boolean))],
         items: Object.keys(items).length ? items : undefined,
         cast: share && gemessen && gemessen.players >= MIN_MEASURED ? gemessen.players : undefined,
       });
@@ -1031,7 +1102,8 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         + `, vague ${others}${measured ? `, opener ${measured.pre.length}|${measured.post.length} of ${measured.n}` : ''}`
         + `${miss.size ? ', unknown: ' + [...miss].join(' ') : ''}`
         + `${gemessen ? `, measured ${gemessen.players}` : ', not measured'}`
-        + `${ungespielt.length ? ', not played: ' + [...new Set(ungespielt)].join(' ') : ''}`);
+        + `${ungespielt.length ? ', not played: ' + [...new Set(ungespielt)].join(' ') : ''}`
+        + `${ohnePassiv.length ? ', passive dropped: ' + [...new Set(ohnePassiv)].join(' ') : ''}`);
       }
       if (!ergebnisse.length) continue;
       // The most played on top (as before), every tree in heroes.
@@ -1098,7 +1170,7 @@ const bare = (s) => String(s || '').replace(/_/g, '');
   // What a player presses: learned spells, talents, the spec's own. A cast
   // in the log of a name whose every learned spell is passive is a talent's
   // effect (Reclamation, Twin Flame), no button.
-  const passiv = new Set(spellMisc.filter((r) => Number(r.Attributes_0) & 0x40).map((r) => Number(r.SpellID)));
+  const passiv = passiveIds;
   const gelerntNachName = new Map();
   for (const id of learned) {
     const k = slug(nameEN.get(id));
