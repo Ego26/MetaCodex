@@ -104,6 +104,10 @@ const game3 = { ...game2, nameOf: (id) => ({ ...NAMES2, 33: 'touch_of_death', 34
   isMana: (id) => id === 34 || game.isMana(id) };
 const g3 = guide({ casts: { ...casts, by: [...casts.by, [33, 8, 8], [34, 8, 8]] } }, game3);
 check('Cooldowns mit Art: Schaden und Mana', [g3.cds.find((r) => r.s === 33).k, g3.cds.find((r) => r.s === 34).k], ['dmg', 'mana']);
+// Sühne: Schaden heilt - mit dem Talent als Grund, und kein "wenig zu heilen".
+const g4 = guide({ casts: { ...casts, by: [...casts.by, [33, 8, 8]] } }, { ...game3, healsVia: (id) => ([5, 6, 33].includes(id) ? 81749 : null) });
+check('Schaden, der heilt, nennt sein Talent', g4.prio.filter((r) => r.k === 'dmgheal').map((r) => [r.s, r.via]), [[5, 81749]]);
+check('ein Schadens-Cooldown, der heilt, ist kein "wenig zu heilen"', g4.cds.find((r) => r.s === 33).k, undefined);
 
 console.log(failed === 0 ? '\nalles gruen' : `\n${failed} Fehler`);
 process.exit(failed === 0 ? 0 : 1);

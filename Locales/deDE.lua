@@ -346,6 +346,7 @@ ns.RegisterLocale("deDE", {
     ["ROT_H_proc0"] = "Nutze jeden Proc von %s.",
     ["ROT_H_proc"] = "Nutze jeden Proc von %s – er ersetzt %s, solange der Buff aktiv ist.",
     ["ROT_H_dmg"] = "Zwischendurch für Schaden: %s.",
+    ["ROT_H_dmgheal"] = "Über %s heilt auch dein Schaden: %s.",
     ["ROT_H_sit"] = "Je nach Lage: %s.",
     ["ROT_H_cd_on"] = "Nutze %s auf Abklingzeit.",
     ["ROT_H_cd_aim"] = "Hebe %s für die schweren Schadensphasen auf.",

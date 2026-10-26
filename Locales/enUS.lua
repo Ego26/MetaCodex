@@ -346,6 +346,7 @@ ns.RegisterLocale("enUS", {
     ["ROT_H_proc0"] = "Use every proc of %s.",
     ["ROT_H_proc"] = "Use every proc of %s – it replaces %s while the buff is active.",
     ["ROT_H_dmg"] = "In between, for damage: %s.",
+    ["ROT_H_dmgheal"] = "Through %s your damage heals as well: %s.",
     ["ROT_H_sit"] = "As the situation calls for: %s.",
     ["ROT_H_cd_on"] = "Use %s on cooldown.",
     ["ROT_H_cd_aim"] = "Save %s for the heavy damage phases.",

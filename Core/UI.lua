@@ -7554,10 +7554,12 @@ do
         end
         local k = line.hk
         -- Mehrere in einer Zeile: die Namen als Liste.
-        if (k == "dmg" or k == "sit") and line.list then
+        if (k == "dmg" or k == "dmgheal" or k == "sit") and line.list then
             local namen = {}
             for _, id in ipairs(line.list) do namen[#namen + 1] = nm(id) end
-            return L["ROT_H_" .. k]:format(liste(namen))
+            -- Schaden, der ueber ein Talent heilt: das Talent nennt den Grund.
+            if k == "dmgheal" and line.via then return L["ROT_H_dmgheal"]:format(nm(line.via), liste(namen)) end
+            return L["ROT_H_" .. (k == "dmgheal" and "dmg" or k)]:format(liste(namen))
         end
         if k == "proc" then
             return line.from and L["ROT_H_proc"]:format(nm(line.s), nm(line.from)) or L["ROT_H_proc0"]:format(nm(line.s))
@@ -7675,13 +7677,14 @@ do
     -- EINE ZEILE FUER VIELE (26. Oktober): "Zwischendurch fuer Schaden:
     -- Leerenschlag, Gedankenschlag und Heilige Pein" statt dreimal
     -- "Zwischendurch X fuer Schaden"; ebenso, was je nach Lage kommt.
+    local SAMMELN = { dmg = true, dmgheal = true, sit = true }
     local function sammeln(out, zeile)
         local vorige = out[#out]
-        if vorige and vorige.hk == zeile.hk and (zeile.hk == "dmg" or zeile.hk == "sit") then
+        if vorige and vorige.hk == zeile.hk and SAMMELN[zeile.hk] and vorige.via == zeile.via then
             vorige.list[#vorige.list + 1] = zeile.s
             return
         end
-        if zeile.hk == "dmg" or zeile.hk == "sit" then
+        if SAMMELN[zeile.hk] then
             zeile.list = { zeile.s }
         end
         out[#out + 1] = zeile
@@ -7690,7 +7693,7 @@ do
         local out = {}
         if tab == "core" then
             for _, x in ipairs(r.prio or {}) do
-                sammeln(out, { hk = x.k, s = x.s, pct = x.pct, cpm = x.cpm, use = x.use, from = x.from, res = x.res,
+                sammeln(out, { hk = x.k, s = x.s, via = x.via, pct = x.pct, cpm = x.cpm, use = x.use, from = x.from, res = x.res,
                     first = x.first, multi = x.multi, cost = x.cost, vs = x.vs, m = r.m })
             end
         elseif tab == "cds" then

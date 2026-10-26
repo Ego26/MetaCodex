@@ -448,6 +448,16 @@ const bare = (s) => String(s || '').replace(/_/g, '');
     console.log('SimC-Buffs nicht gelesen:', String(err.message).slice(0, 120));
   }
 
+  // MC_DOSSIER=<dir>: per spec, mode and hero tree the build with every
+  // talent's text - to read a guide against what the spec really plays.
+  const dossiers = process.env.MC_DOSSIER ? {} : null;
+  const dossier = (specId, mode, heroId, ids) => {
+    if (!dossiers) return;
+    dossiers[`${specId}-${mode}-${heroId || 0}`] = [...ids].filter((id) => nameEN.get(id)).map((id) => ({ id,
+      name: nameEN.get(id), passive: passiveIds.has(id) || undefined,
+      text: (textOf.get(id) || { d: '' }).d.replace(/\s+/g, ' ') }));
+  };
+
   // One spec that fails costs that spec, not the night.
   for (const s of catSpecs.filter((x) => texts.has(x.id))) {
    try {
@@ -779,6 +789,7 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         }
       }
       const taken = new Set([...takenIds].map((id) => bare(slug(nameEN.get(id)))));
+      dossier(s.id, mode, subTree, takenIds);
       const heroName = subTree && map.subTrees[subTree] ? slug(map.subTrees[subTree].en) : '';
       const dec = { subTree };
       // APEX (SimC engine/player/player.cpp): the tiers of the spec's tiered
@@ -1280,6 +1291,59 @@ const bare = (s) => String(s || '').replace(/_/g, '');
     },
     manaPct: (id) => manaPct.get(id) || 0,
   };
+  // THE HEALER'S BUILD (26 October): the talents of the measured top
+  // healers - the hero tree's, where given. Healers have no SimC list to
+  // fold a build into, but what their damage does depends on it (Atonement).
+  const talenteVon = (specId, mode, heroId) => {
+    const treeId = map.treeBySpec[specId];
+    const tree = treeId && map.trees[treeId];
+    if (!tree) return new Set();
+    const nodeSub = new Map(tree.nodes.map((n) => [n.id, n.subTree]));
+    for (const key of MODES[mode]) {
+      for (const entry of Object.values((rec.modes && rec.modes[key]) || {})) {
+        const e = entry && entry.specs && entry.specs[specId];
+        if (!e) continue;
+        const h = heroId && e.hero && e.hero[heroId] && e.hero[heroId].build;
+        for (const b of [h, e.build].filter(Boolean)) {
+          if (b.text) {
+            const d = loadout.decode(BASE, b.text, treeId);
+            if (d) return new Set(d.nodes.filter((n) => !heroId || !nodeSub.get(n.node) || nodeSub.get(n.node) === heroId).map((n) => n.spell));
+          }
+          const nodes = typeof b.nodes === 'number' && rec.nodeLists ? list(rec.nodeLists[b.nodes]) : null;
+          if (nodes && nodes.length) return new Set(nodes.map((n) => n.spell).filter(Boolean));
+        }
+      }
+    }
+    return new Set();
+  };
+  // DAMAGE THAT HEALS (26 October): Atonement makes every spell's damage a
+  // heal, Way of the Crane Spinning Crane Kick's, Life-Giver's Flame Fire
+  // Breath's. From the build's talents: a talent that heals "for 25 % of the
+  // damage done" - by the spells it names, or all of them where "your spell
+  // damage heals". A chance (Xuen's claw) is no rule to play by.
+  const heiltDurchSchaden = (talente) => {
+    const regeln = [];
+    for (const t of talente) {
+      const text = (textOf.get(t) || { d: '' }).d;
+      const satz = text.split(/\.\s/).find((x) => /\bheal(s|ing|ed)?\b[^.]{0,120}\bof (the )?damage (done|dealt|amount)|your (spell )?damage heals/i.test(x));
+      if (!satz || /\bchance\b/i.test(satz)) continue;
+      if (/your (spell )?damage heals/i.test(satz)) { regeln.push({ via: t, alle: true }); continue; }
+      const teil = satz.split(/,|;/).find((x) => /\bheal(s|ing|ed)?\b/i.test(x)) || satz;
+      regeln.push({ via: t, text: teil, ganz: text });
+    }
+    return (id) => {
+      const n = nameEN.get(id);
+      if (!n) return null;
+      for (const r of regeln) {
+        if (r.alle) return r.via;
+        if (r.text.includes(n)) return r.via;
+      }
+      // The heal's clause names no spell (Divine Guidance: "allies are healed
+      // for 20 % of the damage amount"): the talent's other sentences do.
+      for (const r of regeln) if (!/[A-Z][a-z]+ [A-Z]/.test(r.text) && r.ganz.includes(n)) return r.via;
+      return null;
+    };
+  };
   for (const s of catSpecs.filter((x) => x.role === 'healer')) {
     try {
       for (const mode of ['mplus', 'raid']) {
@@ -1310,8 +1374,9 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         // this player. The guide is about the healer's own buttons.
         const fam = familyOfClass.get(classOf.get(s.id) || 0) || 0;
         const isForeign = (id) => fam > 0 && !gleichnamige(id).some((x) => familyOfSpell.get(x) === fam);
-        const baue = (cX, oX, bX, otherX) => {
-          const g = healing.guide({ casts: cX, openers: oX, bosses: bX, other: otherX }, { ...healGame, spends, isForeign });
+        const baue = (cX, oX, bX, otherX, hero) => {
+          const healsVia = heiltDurchSchaden(talenteVon(s.id, mode, hero));
+          const g = healing.guide({ casts: cX, openers: oX, bosses: bX, other: otherX }, { ...healGame, spends, isForeign, healsVia });
           if (!g) return null;
           g.src = 'warcraftlogs.com';
           g.m = mode;
@@ -1336,16 +1401,18 @@ const bare = (s) => String(s || '').replace(/_/g, '');
           .sort((a, b) => b[1].casts.players - a[1].casts.players);
         const ergebnisse = [];
         for (const [h, v] of varianten) {
+          dossier(s.id, mode, Number(h), talenteVon(s.id, mode, Number(h)));
           const hAnders = pvAnders && pvAnders.heroes && pvAnders.heroes[h];
           const g = baue(v.casts, mode === 'raid' ? v.openers || [] : [], v.bosses,
-            hAnders && hAnders.casts && hAnders.casts.players >= 10 ? hAnders.casts : other);
+            hAnders && hAnders.casts && hAnders.casts.players >= 10 ? hAnders.casts : other, Number(h));
           if (!g) continue;
           g.hero = Number(h);
           g.pct = v.pct;
           ergebnisse.push(g);
         }
         if (!ergebnisse.length) {
-          const g = baue(casts, openers, pvOk && pvOk.bosses, other);
+          dossier(s.id, mode, 0, talenteVon(s.id, mode, null));
+          const g = baue(casts, openers, pvOk && pvOk.bosses, other, null);
           if (g) ergebnisse.push(g);
         }
         if (!ergebnisse.length) { report.push(`${s.id} healer ${mode}: not measured`); continue; }
@@ -1365,6 +1432,11 @@ const bare = (s) => String(s || '').replace(/_/g, '');
     }
   }
   console.log(report.join('\n'));
+  if (dossiers) {
+    fs.mkdirSync(process.env.MC_DOSSIER, { recursive: true });
+    fs.writeFileSync(path.join(process.env.MC_DOSSIER, 'talents.json'), JSON.stringify(dossiers, null, 1), 'utf8');
+    console.log('Dossiers:', Object.keys(dossiers).length);
+  }
   if (vague) {
     console.log('\nVage Bedingungen (je Ausdruck, ueber alle Speccs):');
     for (const [k, n] of [...vague].sort((x, y) => y[1] - x[1]).slice(0, 80)) console.log(String(n).padStart(5), k);

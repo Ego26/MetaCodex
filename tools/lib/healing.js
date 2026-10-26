@@ -23,6 +23,8 @@
 //             fill   no cooldown: what fills the time - with what it is
 //                    (several targets or one, dearer or cheaper)
 //             dmg    damage, apart
+//             dmgheal  damage that heals through a talent of the build
+//                    (Atonement), with that talent as "via"
 //             sit    neither heal nor damage (Totemic Projection moves the
 //                    totems): last, as a tool for the moment
 //           WHAT THE SPELL DOES decides, from the game's own text (24
@@ -82,7 +84,8 @@ const median = (a) => { const b = [...a].sort((x, y) => x - y); return b[Math.fl
  *          isUtility?:(id:number)=>boolean, isEffect?:(id:number)=>boolean,
  *          isMana?:(id:number)=>boolean, isEmpower?:(id:number)=>boolean,
  *          isSummon?:(id:number)=>boolean, spends?:(id:number)=>string|null,
- *          isForeign?:(id:number)=>boolean}} game
+ *          isForeign?:(id:number)=>boolean, healsVia?:(id:number)=>number|null}} game
+ *   healsVia: the talent through which this damage spell heals, or null;
  *   isEffect: a cast no player presses (a passive talent's effect);
  *   isForeign: not the class's own (a racial like Shadowmeld) - no line;
  *   spends: the secondary resource it costs ("holy_power"), or null
@@ -204,8 +207,12 @@ function guide(input, game) {
   const schadenAufCd = (r) => r.cd >= 4 && (r.use || 0) >= ON_COOLDOWN;
   const dmgCd = kern.filter((r) => game.isDamage(r.s) && schadenAufCd(r))
     .map((r) => ({ k: 'oncd', s: r.s, pct: pct(r), cpm: round1(r.cpm), use: r.use }));
+  // Damage that heals through a talent (Atonement, Way of the Crane) says
+  // so, with the talent: "Through Atonement your damage heals as well".
+  const heiltMit = (id) => (game.healsVia ? game.healsVia(id) : null) || undefined;
   const dmg = kern.filter((r) => game.isDamage(r.s) && !schadenAufCd(r)).sort((a, b) => b.cpm - a.cpm).slice(0, MAX_DMG)
-    .map((r) => ({ k: 'dmg', s: r.s, pct: pct(r), cpm: round1(r.cpm) }));
+    .map((r) => ({ k: heiltMit(r.s) ? 'dmgheal' : 'dmg', via: heiltMit(r.s), s: r.s, pct: pct(r), cpm: round1(r.cpm) }))
+    .sort((a, b) => (a.k === 'dmgheal' ? 0 : 1) - (b.k === 'dmgheal' ? 0 : 1));
   const prio = [...procs, ...mitCd.filter((x) => x.k !== 'reg'), ...dmgCd, ...halten, ...spendRows, ...mitCd.filter((x) => x.k === 'reg'),
     ...fill, ...manaRows, ...dmg, ...sit].slice(0, MAX_CORE + MAX_DMG + 2);
   // A cooldown that neither heals nor protects - Dash, Ursol's Vortex,
@@ -218,7 +225,7 @@ function guide(input, game) {
   const toolCd = (r) => werkzeug(r) && (r.use || 0) < ON_COOLDOWN;
   const cds = [...cdRows.filter((r) => !toolCd(r)), ...cdRows.filter(toolCd)]
     .map((r) => ({ s: r.s, pct: pct(r), per: round1(r.per), use: r.use,
-      k: toolCd(r) ? 'tool' : game.isDamage(r.s) ? 'dmg' : ist('isMana', r.s) ? 'mana' : undefined }));
+      k: toolCd(r) ? 'tool' : game.isDamage(r.s) && !heiltMit(r.s) ? 'dmg' : ist('isMana', r.s) ? 'mana' : undefined }));
 
   // The pull: only the spells of this guide, in the order most follow.
   let open;

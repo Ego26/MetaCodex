@@ -6867,6 +6867,11 @@ do
             { k = "sit", s = 8, cpm = 1.1 }, { k = "sit", s = 9, cpm = 1 } },
         cds = { { s = 10, use = 100, per = 2 }, { s = 11, use = 9, per = 1, k = "tool" }, { s = 12, use = 8, per = 1, k = "tool" } } }, "core")
     check("Heiler: Schaden und Lage je eine Zeile", #heilZ == 3, tostring(#heilZ))
+    local suehne = ns.UI.RotationLines({ heal = true, m = "raid", cds = {},
+        prio = { { k = "dmgheal", via = 81749, s = 6 }, { k = "dmgheal", via = 81749, s = 7 }, { k = "dmg", s = 8 } } }, "core")
+    check("Heiler: Schaden, der heilt, nennt das Talent",
+        #suehne == 2 and heil(suehne[1]) == L["ROT_H_dmgheal"]:format("#81749", "#6" .. L["ROT_AND"] .. "#7"),
+        #suehne == 2 and heil(suehne[1]) or tostring(#suehne))
     local schaden = heil(heilZ[2])
     check("Heiler: Zwischendurch fuer Schaden: A und B",
         schaden:find(L["ROT_H_dmg"]:format("#6" .. L["ROT_AND"] .. "#7"), 1, true) == 1, schaden)
