@@ -200,13 +200,29 @@ const bare = (s) => String(s || '').replace(/_/g, '');
   const db2 = async (table, extra) => parseCSV(await patient(`https://wago.tools/db2/${table}/csv?build=${build}${extra || ''}`));
   const [spellNames, specSpells, skillLines, chrSpecs, overrides, traitDefs, spellMisc, durations,
     spellTexts, classOptions, chrClasses, spellCooldowns, auraOptions, spellPower, itemRows,
-    spellCategories, spellCategory, itemEffects] = await Promise.all([
+    spellCategories, spellCategory, itemEffects, itemXEffects] = await Promise.all([
     db2('SpellName'), db2('SpecializationSpells'), db2('SkillLineAbility'), db2('ChrSpecialization'),
     db2('SpellEffect', '&filter%5BEffectAura%5D=332'),
     db2('TraitDefinition'), db2('SpellMisc'), db2('SpellDuration'),
     db2('Spell'), db2('SpellClassOptions'), db2('ChrClasses'), db2('SpellCooldowns'), db2('SpellAuraOptions'),
     db2('SpellPower'), db2('Item'), db2('SpellCategories'), db2('SpellCategory'), db2('ItemEffect'),
+    db2('ItemXItemEffect'),
   ]);
+  // WHICH ITEM a use-spell belongs to (26 October): the log names the spell
+  // a potion or trinket casts; its icon and name are the item's. The lowest
+  // item ID of the spell (a potion's quality ranks share one spell and icon).
+  const itemOfSpell = (() => {
+    const spellOfEffect = new Map(itemEffects.map((r) => [Number(r.ID), Number(r.SpellID)]));
+    const known = new Set(itemRows.map((r) => Number(r.ID)));
+    const m = new Map();
+    for (const r of itemXEffects) {
+      const spell = spellOfEffect.get(Number(r.ItemEffectID));
+      const item = Number(r.ItemID);
+      if (!spell || !known.has(item)) continue;
+      if (!m.has(spell) || item < m.get(spell)) m.set(spell, item);
+    }
+    return m;
+  })();
   const nameEN = new Map(spellNames.map((r) => [Number(r.ID), r.Name_lang]));
   // A talent's spell is often its passive; the one on the bar is the trait's
   // VisibleSpellID (Ancestral Swiftness: passive 448861, cast 443454 with its
@@ -400,8 +416,49 @@ const bare = (s) => String(s || '').replace(/_/g, '');
       }
     }
   }
+  // EACH DIFFICULTY ITS OWN (26 October): Normal, Heroic and Mythic, the
+  // high keys and the key levels each have their file; every one of them
+  // read alone. Too few players in one, and the activity's together stand
+  // in - and the guide says so.
+  const castsByKey = {};
+  const openersByKey = {};
+  for (const [fam, files] of Object.entries(castFiles)) {
+    files.forEach((name, i) => {
+      const key = MODES[fam][i];
+      castsByKey[key] = new Map();
+      openersByKey[key] = new Map();
+      const file = path.join(BASE, 'tools', 'data', name);
+      if (!fs.existsSync(file)) return;
+      const j = JSON.parse(fs.readFileSync(file, 'utf8'));
+      for (const [id, e] of Object.entries(j.specs || {})) {
+        if (Array.isArray(e.openers) && e.openers.length) openersByKey[key].set(Number(id), e.openers);
+        if (!e.casts || !e.casts.players) continue;
+        const by = new Map();
+        for (const [g, n, wer] of e.casts.by) by.set(g, [n, wer]);
+        castsByKey[key].set(Number(id), { players: e.casts.players, minutes: e.casts.minutes, by });
+      }
+    });
+  }
   // Below this many measured players a share says too little.
   const MIN_MEASURED = 20;
+  // A difficulty's own measurement where it is large enough, else the
+  // activity's together (alle: true).
+  const messungFuer = (key, mode, specId) => {
+    const eigen = castsByKey[key] && castsByKey[key].get(specId);
+    if (eigen && eigen.players >= MIN_MEASURED) return { m: eigen, alle: false };
+    return { m: castsBy[mode] && castsBy[mode].get(specId), alle: true };
+  };
+  const openerFuer = (key, specId) => {
+    const eigen = openersByKey[key] && openersByKey[key].get(specId);
+    return eigen && eigen.length >= 5 ? eigen : (openersBySpec.get(specId) || []);
+  };
+  // A difficulty that reads exactly as its activity's first is not stored
+  // twice: the addon falls back to it.
+  const ablegen = (specId, key, mode, eintrag) => {
+    const o = (out[specId] = out[specId] || {});
+    if (key !== mode && o[mode] && JSON.stringify(o[mode]) === JSON.stringify(eintrag)) return;
+    o[key] = eintrag;
+  };
   // A line whose spell fewer than this part of the measured players cast is
   // not played - whatever the simulation says.
   const PLAYED_FROM = 0.03;
@@ -758,7 +815,9 @@ const bare = (s) => String(s || '').replace(/_/g, '');
       return granted;
     };
 
-    for (const [mode, chain] of Object.entries(MODES)) {
+    for (const [mode, familie] of Object.entries(MODES)) for (const key of familie) {
+      // This difficulty first, then the others of its activity.
+      const chain = [key, ...familie.filter((k) => k !== key)];
       // The build: the source with the most measured players that carries
       // the string, in the first mode of the chain that has one.
       let best = null;
@@ -913,7 +972,7 @@ const bare = (s) => String(s || '').replace(/_/g, '');
       const known = (id) => takenIds.has(id) || taken.has(bare(slug(nameEN.get(id))));
       // The measurement of this spec and activity, by spell NAME: the part of
       // the players who cast it at all, and how often per minute.
-      const gemessen = castsBy[mode] && castsBy[mode].get(s.id);
+      const { m: gemessen, alle: alleStufen } = messungFuer(key, mode, s.id);
       const proName = new Map();
       if (gemessen && gemessen.players >= MIN_MEASURED) {
         for (const [g, [n, wer]] of gemessen.by) {
@@ -1247,7 +1306,7 @@ const bare = (s) => String(s || '').replace(/_/g, '');
       // then the order most players follow. Raid only: see lib/opener.js.
       let measured;
       // The openers are not split by hero tree: they belong to the most played.
-      const seqs = mode === 'raid' && v === tragend[0] ? (openersBySpec.get(s.id) || []) : [];
+      const seqs = mode === 'raid' && v === tragend[0] ? openerFuer(key, s.id) : [];
       if (seqs.length) {
         const own = (id) => {
           const k = slug(nameEN.get(Number(id)));
@@ -1291,10 +1350,11 @@ const bare = (s) => String(s || '').replace(/_/g, '');
       }
       if (!ergebnisse.length) continue;
       // The most played on top (as before), every tree in heroes.
-      (out[s.id] = out[s.id] || {})[mode] = {
+      ablegen(s.id, key, mode, {
         ...ergebnisse[0],
+        alle: messungFuer(key, mode, s.id).alle && ergebnisse[0].cast ? true : undefined,
         heroes: ergebnisse.length > 1 ? ergebnisse.map((r) => ({ ...r, src: undefined, cast: undefined })) : undefined,
-      };
+      });
     }
    } catch (err) {
     delete out[s.id];
@@ -1429,6 +1489,7 @@ const bare = (s) => String(s || '').replace(/_/g, '');
     isOneAtATime: (id) => /\bone target at a time\b/i.test(beschreibung(id)),
     spends: () => null,
     isItem: (id) => itemSpells.has(id),
+    itemOf: (id) => itemOfSpell.get(id),
     // English text: damage, and neither heals nor absorbs - Holy Shock does
     // both and stays a heal; a shield that "absorbs damage" is none.
     // Damage, and no healing. "Absorbing damage" is a shield - unless it is
@@ -1585,15 +1646,17 @@ const bare = (s) => String(s || '').replace(/_/g, '');
   };
   for (const s of catSpecs.filter((x) => x.role === 'healer')) {
     try {
-      for (const mode of ['mplus', 'raid']) {
-        const night = castsBy[mode] && castsBy[mode].get(s.id);
-        const pv = preview[s.id] && preview[s.id][mode];
+      for (const mode of ['mplus', 'raid']) for (const key of MODES[mode]) {
+        // The difficulty's own casts; without enough of them the activity's
+        // together and the preview (which has no difficulty).
+        const { m: night, alle: alleStufen } = messungFuer(key, mode, s.id);
+        const pv = alleStufen && preview[s.id] && preview[s.id][mode];
         const nachts = night && night.players >= MIN_MEASURED
           ? { players: night.players, minutes: night.minutes, by: [...night.by].map(([g, [n, wer]]) => [g, n, wer]) } : null;
         // The preview is a sample of the very top: fewer than 15 say too little.
         const pvOk = pv && pv.casts && pv.casts.players >= 15 ? pv : null;
         const casts = nachts && (!pvOk || nachts.players >= pvOk.casts.players) ? nachts : (pvOk && pvOk.casts);
-        const openers = mode === 'raid' ? (openersBySpec.get(s.id) || (pv && pv.openers) || []) : [];
+        const openers = mode === 'raid' ? ((alleStufen ? openersBySpec.get(s.id) : openerFuer(key, s.id)) || (pv && pv.openers) || []) : [];
         // The other activity, to compare the fillers (M+ against raid).
         const anders = mode === 'raid' ? 'mplus' : 'raid';
         const nachtAnders = castsBy[anders] && castsBy[anders].get(s.id);
@@ -1666,10 +1729,11 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         }
         if (!ergebnisse.length) { report.push(`${s.id} healer ${mode}: not measured`); continue; }
         const erster = ergebnisse[0];
-        (out[s.id] = out[s.id] || {})[mode] = {
+        ablegen(s.id, key, mode, {
           ...erster,
+          alle: alleStufen || undefined,
           heroes: ergebnisse.length > 1 ? ergebnisse.map((r) => ({ ...r, src: undefined })) : undefined,
-        };
+        });
         for (const g of ergebnisse) {
           report.push(`${s.id} healer ${mode} hero ${g.hero || '-'}: ${g.n} players, prio ${g.prio.map((x) => x.k).join('/')}, cds ${g.cds.length}`
             + `${g.bosses ? ', bosses ' + g.bosses.length : ''}${varianten.length || casts !== nachts ? ' (preview)' : ''}`);

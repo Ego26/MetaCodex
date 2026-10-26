@@ -7549,7 +7549,9 @@ do
     -- "19× pro Minute" las niemand - ein Guide sagt, was man tut. Die
     -- Messung entscheidet, welcher Satz kommt; sie steht nicht im Text.
     local function nutzung(line, nm)
-        local name = nm(line.s)
+        -- Ein Gegenstand mit seinem eigenen Symbol und Namen, nicht dem des
+        -- Zaubers, den er ausloest (Silbermondheiltrank, 26. Oktober).
+        local name = line.item and gegenstand(line.item, true) or nm(line.s)
         -- Mana gibt man, wenn es fehlt; Schaden macht ein Heiler, wenn
         -- gerade wenig zu heilen ist.
         if line.ck == "mana" then return L["ROT_H_cd_mana"]:format(name) end
@@ -7768,7 +7770,10 @@ do
                 for _, c in ipairs(b.cds or {}) do out[#out + 1] = { hk = "bosscd", s = c.s, t = c.t } end
             end
         elseif tab == "items" then
-            for _, x in ipairs(r.items or {}) do out[#out + 1] = { hk = "item", s = x.s, pct = x.pct, per = x.per, use = x.use, m = r.m } end
+            for _, x in ipairs(r.items or {}) do
+                if x.item and C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, x.item) end
+                out[#out + 1] = { hk = "item", s = x.s, item = x.item, pct = x.pct, per = x.per, use = x.use, m = r.m }
+            end
         end
         return out
     end
@@ -7890,6 +7895,7 @@ do
     end
 
     function UI.RotationHint(specID, mode)
+        local alle = ns.Recommend.Rotation(specID, mode) or {}
         local r = UI.RotationVariant(specID, ns.Recommend.Rotation(specID, mode))
         if not r then return "" end
         if r.heal then
@@ -7899,12 +7905,15 @@ do
             if held then text = L["ROT_H_HINT_HERO"]:format(held) .. "  " .. text end
             -- Zeitpunkte gibt es nur im Raid: ein Key hat viele Pulls.
             if r.m ~= "mplus" then text = text .. " " .. L["ROT_H_HINT_TIMES"] end
+            -- Zu wenige Spieler in dieser Stufe: alle Stufen zusammen, und das steht da.
+            if r.alle or alle.alle then text = text .. " " .. L["ROT_ALL_LEVELS"] end
             if ns.version == "dev" then text = "|cffD29922DEV-Vorschau.|r  " .. text end
             return text
         end
         local held = r.hero and ns.Catalog.SubTreeName and ns.Catalog.SubTreeName(r.hero) or "?"
         local text = L["ROT_HINT"]:format(held, r.n or 0) .. "  " .. L["ROT_NO_TRINKET"]
         if r.set then text = text .. "  " .. L["ROT_SET"] end
+        if alle.alle then text = text .. "  " .. L["ROT_ALL_LEVELS"] end
         if ns.version == "dev" then text = "|cffD29922DEV-Vorschau.|r  " .. text end
         return text
     end

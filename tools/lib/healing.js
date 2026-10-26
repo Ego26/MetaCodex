@@ -131,7 +131,7 @@ function guide(input, game) {
   const round1 = (x) => Math.round(x * 10) / 10;
   const items = rows.filter((r) => game.isItem(r.s) && r.share >= ITEM_SHARE)
     .sort((a, b) => b.share - a.share)
-    .map((r) => ({ s: r.s, pct: pct(r), per: round1(r.per), use: r.use }));
+    .map((r) => ({ s: r.s, item: game.itemOf ? game.itemOf(r.s) : undefined, pct: pct(r), per: round1(r.per), use: r.use }));
   // A talent the build does not take - the other half of a choice node
   // (Revival against Restoral) - is no button of this guide, unless nearly
   // every top healer casts it all the same (26 October).

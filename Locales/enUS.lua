@@ -377,6 +377,7 @@ ns.RegisterLocale("enUS", {
     ["ROT_H_HINT"] = "Measured on %d fights of top healers on Warcraft Logs – what they cast, not a simulator.",
     ["ROT_H_HINT_TIMES"] = "Times from the pull, as the median.",
     ["ROT_H_HINT_HERO"] = "Hero tree %s.",
+    ["ROT_ALL_LEVELS"] = "Too few measurements at this level: measured across all levels together.",
     ["ROT_I_POTION"] = "your potion",
     ["ROT_I_potion_if"] = "Drink %s if %s.",
     ["ROT_I_potion"] = "Drink %s in combat.",

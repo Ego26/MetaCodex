@@ -763,6 +763,10 @@ function Recommend.Rotation(specID, mode)
     local d = data()
     local r = d and d.rotation and d.rotation.specs and specID and d.rotation.specs[specID]
     if not r or type(mode) ~= "string" then return nil end
+    -- Je Schwierigkeit die eigene ("raid-mythic"), sonst die der Aktivitaet:
+    -- eine Stufe, die genau so lautet, steht nicht doppelt in den Daten.
+    local stufe = mode:match("^([^/]+)") or mode
+    if r[stufe] then return r[stufe] end
     if mode:find("^mplus") then return r["mplus"] end
     if mode:find("^raid") then return r["raid"] end
     return nil
