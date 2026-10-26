@@ -222,6 +222,8 @@ function atomRange(a, ctx) {
   if (head === 'buff' || head === 'debuff' || head === 'dot') {
     // The buff of a talent not taken never comes up.
     if (ctx.isTalentSpell(p[1]) && !ctx.talent(p[1])) return [0, 0];
+    // Nor the buff only an untaken talent names (Starweaver's Warp).
+    if (ctx.unreachable && ctx.unreachable(p[1])) return [0, 0];
     if (p[2] === 'react') return [0, INF];
     if (['up', 'down', 'refreshable', 'ticking'].includes(p[2])) return [0, 1];
     return [0, INF];
@@ -898,6 +900,9 @@ function buildTab(lists, start, ctx, resolve) {
         if (!neu) continue;
         id = neu;
       }
+      // A spell only an untaken talent brings (Hammer of Light outside the
+      // Templar).
+      if (resolve.unreachable && resolve.unreachable(id)) continue;
       if (opts.moving === '1' || opts.moving === 'true') { if (!moving.includes(id)) moving.push(id); continue; }
       // Keeping a buff of its own up ("lightning_shield if it is down")
       // belongs before the fight, as "keep it up".

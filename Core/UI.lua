@@ -7758,10 +7758,28 @@ do
         if tab == "pre" then
             local pre = {}
             for _, id in ipairs(r.keep or {}) do pre[#pre + 1] = { s = id, keepUp = true } end
-            for _, line in ipairs(r.pre or {}) do pre[#pre + 1] = line end
+            -- Zweimal Zorn vor dem Pull ist eine Zeile, nicht zwei gleiche.
+            for _, line in ipairs(r.pre or {}) do
+                local vorher = pre[#pre]
+                if not (vorher and vorher.s == line.s and not vorher.c and not line.c) then pre[#pre + 1] = line end
+            end
             return pre
         end
-        return r[tab] or {}
+        -- "Wechsle in Baerengestalt, wann immer es geht": eine Gestalt ohne
+        -- jede Bedingung ist keine Zeile der Prioritaet (der Waechter steht
+        -- ohnehin darin; 26. Oktober).
+        local out = {}
+        for _, line in ipairs(r[tab] or {}) do
+            local art = line.s and namensverb(line.s)
+            local leer = (art == "form" or art == "stance") and line.a ~= "cd" and not line.any and not line.t
+            if leer then
+                for _, c in ipairs(line.c or {}) do
+                    if not (c[1] == "down" and eigen(c, line.s)) then leer = false end
+                end
+            end
+            if not leer then out[#out + 1] = line end
+        end
+        return out
     end
     UI.RotationLines = zeilenVon
 

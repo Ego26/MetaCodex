@@ -495,6 +495,45 @@ const bare = (s) => String(s || '').replace(/_/g, '');
     // 318044): the older one is the one on the bar.
     skillLines.filter((r) => classLines.has(r.SkillLine)).map((r) => Number(r.Spell))
       .sort((a, b) => a - b).forEach(add);
+    // WHO NAMES A SPELL (26 October): the tree's talents and the spells
+    // every player of the spec has. A spell or buff only talents name comes
+    // with one of them taken - Hammer of Light is the Templar's, Infernal Bolt
+    // the Diabolist's; the other hero trees' lists read them all the same.
+    const textVon = (id, tiefe = 0) => {
+      const t = textOf.get(id) || { d: '', a: '' };
+      let out = t.d + ' ' + t.a;
+      if (tiefe < 1) for (const m of out.matchAll(/\$@spelldesc(\d+)/g)) out += ' ' + textVon(Number(m[1]), tiefe + 1);
+      return out;
+    };
+    const fremdeSpec = new Set(specSpells.filter((r) => Number(r.SpecID) !== s.id).map((r) => Number(r.SpellID)));
+    const treeIds = new Set();
+    for (const n of tree.nodes) for (const e of n.entries) if (e.spell) { treeIds.add(e.spell); if (visibleOf.has(e.spell)) treeIds.add(visibleOf.get(e.spell)); }
+    const grundIds = new Set([...specOwn, ...skillLines.filter((r) => classLines.has(r.SkillLine)).map((r) => Number(r.Spell))
+      .filter((id) => !treeIds.has(id) && !treeSpells.has(bare(slug(nameEN.get(id)))) && !fremdeSpec.has(id))]);
+    const grundNamen = new Set([...grundIds].map((id) => bare(slug(nameEN.get(id)))));
+    const nenner = [...treeIds, ...grundIds].map((id) => ({ id, text: textVon(id) }));
+    const nennerVon = new Map();
+    // What each name comes from by an override (any of its IDs).
+    const herkunft = new Map();
+    for (const [old, list] of replacements) {
+      for (const r of list) {
+        if (r.spec !== undefined && r.spec !== s.id) continue;
+        const b = bare(slug(nameEN.get(r.neu)));
+        if (!b || b === bare(slug(nameEN.get(old)))) continue;
+        if (!herkunft.has(b)) herkunft.set(b, new Set());
+        herkunft.get(b).add(old);
+      }
+    }
+    const genanntVon = (id) => {
+      const name = nameEN.get(id);
+      if (!name) return [];
+      if (!nennerVon.has(name)) {
+        const esc = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const re = new RegExp(`(^|[^A-Za-z])${esc}($|[^A-Za-z])`);
+        nennerVon.set(name, nenner.filter((x) => x.id !== id && (re.test(x.text) || x.text.includes('$@spellname' + id))).map((x) => x.id));
+      }
+      return nennerVon.get(name);
+    };
     // The best ID of a name for this spec (see scoreOf above).
     const own = new Set([...byName.values()].flat());
     const family = familyOfClass.get(classOf.get(s.id) || 0) || 0;
@@ -794,6 +833,36 @@ const bare = (s) => String(s || '').replace(/_/g, '');
       }
       const taken = new Set([...takenIds].map((id) => bare(slug(nameEN.get(id)))));
       dossier(s.id, mode, subTree, takenIds);
+      // A spell none of the build's talents nor the spec's own spells name,
+      // but a talent does: the build cannot press it, its buff never comes.
+      // "Crusader Strike replaces your auto-attacks" (Crusading Strikes): no
+      // button any more - the Retribution list still read it.
+      const automatisch = new Set();
+      for (const t of takenIds) {
+        const m = /^"?([A-Z][^."]*?) replaces your auto-attacks/.exec((textOf.get(t) || { d: '' }).d);
+        if (m) automatisch.add(m[1]);
+      }
+      // A spell that only another one turns into (Half Moon and Full Moon,
+      // from New Moon): unreachable when everything it comes from is.
+      const ausUnerreichbarem = (b, tiefe) => {
+        const olds = herkunft.get(b);
+        if (!olds || tiefe > 3) return false;
+        return [...olds].every((old) => {
+          const ob = bare(slug(nameEN.get(old)));
+          if (grundNamen.has(ob) || taken.has(ob)) return false;
+          return treeSpells.has(ob) || ausUnerreichbarem(ob, tiefe + 1);
+        });
+      };
+      const unerreichbar = (id) => {
+        if (id && automatisch.has(nameEN.get(id))) return true;
+        if (!id || takenIds.has(id)) return false;
+        const b = bare(slug(nameEN.get(id)));
+        if (grundIds.has(id) || grundNamen.has(b) || taken.has(b)) return false;
+        if (ausUnerreichbarem(b, 0)) return true;
+        const von = genanntVon(id);
+        if (!von.length || !von.some((x) => treeIds.has(x))) return false;
+        return !von.some((x) => takenIds.has(x) || grundIds.has(x));
+      };
       const heroName = subTree && map.subTrees[subTree] ? slug(map.subTrees[subTree].en) : '';
       const dec = { subTree };
       // APEX (SimC engine/player/player.cpp): the tiers of the spec's tiered
@@ -921,6 +990,11 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         // Holy Power spender.
         replacement: (id) => ersatzVon.get(slug(nameEN.get(id))) || null,
         alias: (k) => (AKTION_ALIAS[k] || []).find((x) => taken.has(bare(x))) || k,
+        unreachable: (id) => {
+          const weg = unerreichbar(id);
+          if (weg && process.env.MC_DEBUG === String(s.id)) console.log('  unerreichbar:', id, nameEN.get(id));
+          return weg;
+        },
         latch: latchOf,
       };
       const ctx = (targets, trinket) => {
@@ -928,6 +1002,7 @@ const bare = (s) => String(s || '').replace(/_/g, '');
           trinket,
           talent: (k) => taken.has(bare(k)),
           isTalentSpell: (k) => treeSpells.has(bare(k)),
+          unreachable: (k) => unerreichbar(spellM(k)),
           hero: (k) => bare(k) === bare(heroName),
           // SimC's names: a dungeon pull for M+, a boss for the raid.
           fightStyle: mode === 'mplus' ? 'dungeonslice' : 'patchwerk',
