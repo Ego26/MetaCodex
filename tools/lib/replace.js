@@ -68,24 +68,46 @@ function buildReplacements(src) {
  * @returns {Set<string>}
  */
 function replacedNames(map, build) {
-  const out = new Set();
-  for (const [old, list] of map) {
+  return new Set(replacementsOf(map, build).keys());
+}
+
+/**
+ * The same, with what replaces each name: old name -> the new spell's ID.
+ * A passive "replacement" replaces no button (Clawing Shadows, now a
+ * passive, took Scourge Strike off the Unholy guide - 26 October).
+ * @param {{isPassive?:(id:number)=>boolean}} build  besides replacedNames' fields
+ * @returns {Map<string, number>}
+ */
+function replacementsOf(map, build) {
+  const out = new Map();
+  // Which replacement names the line: the spec's own version, then the
+  // talent's (Final Verdict for Templar's Verdict), then an aura's - an
+  // aura put Wake of Ashes in Templar's Verdict's place (26 October).
+  // A spell the list casts by its own name stands in no other's place: Wake
+  // of Ashes is a trait override of Templar's Verdict too, and its own line.
+  const eigen = (r) => (build.inList && build.inList(build.nameOf(r.neu)) ? 3 : 0);
+  const rang = (r) => eigen(r) + (r.from === 'spec' ? 0 : r.from === 'trait' ? 1 : 2);
+  for (const [old, liste] of map) {
     const oldName = build.nameOf(old);
     if (!oldName) continue;
-    for (const r of list) {
+    for (const r of [...liste].sort((a, b) => rang(a) - rang(b))) {
       // A spec's own spell counts for that spec only; anything else when the
       // build has it.
       const has = r.spec !== undefined ? r.spec === build.specID : build.known(r.neu);
       if (!has || build.nameOf(r.neu) === oldName) continue;
+      if (build.isPassive && build.isPassive(r.neu)) continue;
+      // "Rising Sun Kick has a 20 % chance to become Rushing Wind Kick": a
+      // chance replaces nothing - Windwalker lost Rising Sun Kick to it.
+      if (build.byChance && build.byChance(old, r.neu)) continue;
       if (!r.proc) {
-        out.add(oldName);
+        if (!out.has(oldName)) out.set(oldName, r.neu);
         continue;
       }
       // A visible buff: the logs decide - hardly anyone casts the old one,
       // many the new one. Not measured: it proves nothing.
       const alt = build.share ? build.share(oldName) : null;
       const neu = build.share ? build.share(build.nameOf(r.neu)) : null;
-      if (alt !== null && neu !== null && alt < REPLACED_BELOW && neu >= REPLACING_FROM) out.add(oldName);
+      if (alt !== null && neu !== null && alt < REPLACED_BELOW && neu >= REPLACING_FROM && !out.has(oldName)) out.set(oldName, r.neu);
     }
   }
   return out;
@@ -95,4 +117,4 @@ function replacedNames(map, build) {
 const REPLACED_BELOW = 0.05;
 const REPLACING_FROM = 0.25;
 
-module.exports = { buildReplacements, replacedNames, REPLACED_BELOW, REPLACING_FROM };
+module.exports = { buildReplacements, replacedNames, replacementsOf, REPLACED_BELOW, REPLACING_FROM };

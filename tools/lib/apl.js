@@ -882,10 +882,19 @@ function buildTab(lists, start, ctx, resolve) {
         continue;
       }
       if (NOISE.has(action)) continue;
-      if (resolve.isTalentSpell(action) && !resolve.talent(action)) continue;
-      const id = resolve.actionSpell(action);
+      // SimC's name for what the build presses instead: "berserk" is the
+      // taken Incarnation (26 October).
+      const act = resolve.alias ? resolve.alias(action) : action;
+      if (resolve.isTalentSpell(act) && !resolve.talent(act)) continue;
+      let id = resolve.actionSpell(act);
       if (!id) { miss.add(action); continue; }
-      if (resolve.replaced(id)) continue;
+      // A replaced spell's line is its replacement's (Final Verdict for
+      // Templar's Verdict); without one known, it goes.
+      if (resolve.replaced(id)) {
+        const neu = resolve.replacement ? resolve.replacement(id) : null;
+        if (!neu) continue;
+        id = neu;
+      }
       if (opts.moving === '1' || opts.moving === 'true') { if (!moving.includes(id)) moving.push(id); continue; }
       // Keeping a buff of its own up ("lightning_shield if it is down")
       // belongs before the fight, as "keep it up".

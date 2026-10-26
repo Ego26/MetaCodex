@@ -29,7 +29,7 @@ const { simcBuffMap } = require('./lib/simc-buffs');
 const { simplify, simpleConditions } = require('./lib/simplify');
 const { MIN_SPELLS } = require('./lib/casts');
 const healing = require('./lib/healing');
-const { buildReplacements, replacedNames: namesReplaced } = require('./lib/replace');
+const { buildReplacements, replacementsOf } = require('./lib/replace');
 const { worthRetrying, waitSeconds } = require('./lib/http-retry');
 
 const BASE = path.resolve(process.argv[2] || '.');
@@ -849,9 +849,19 @@ const bare = (s) => String(s || '').replace(/_/g, '');
       const vollstaendig = meist >= MIN_SPELLS;
       if (proName.size && !vollstaendig) report.push(`${s.id} ${mode}: casts measured for ${meist} spells only - ignored`);
       const share = proName.size && vollstaendig ? (name) => (proName.get(name) || { share: 0 }).share : null;
-      const replacedNames = namesReplaced(replacements, {
-        specID: s.id, known, nameOf: (id) => slug(nameEN.get(id)), share,
+      const listActions = new Set(Object.values(lists).flat().map((x) => x.action));
+      const ersatzVon = replacementsOf(replacements, {
+        specID: s.id, known, nameOf: (id) => slug(nameEN.get(id)), share, isPassive: (id) => passiveIds.has(id),
+        inList: (name) => listActions.has(name),
+        // A taken talent that makes the swap a chance (Rushing Wind Kick).
+        byChance: (old, neu) => {
+          const esc = (n) => String(n).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const satz = new RegExp(`${esc(nameEN.get(old))}[^.]*\\bchance to (become|turn into|be replaced by)[^.]*${esc(nameEN.get(neu))}`, 'i');
+          return [...takenIds].some((t) => satz.test((textOf.get(t) || { d: '' }).d));
+        },
       });
+      const replacedNames = new Set(ersatzVon.keys());
+      if (process.env.MC_ERSATZ || process.env.MC_DEBUG === String(s.id)) console.log(s.id, mode, '  ersatz:', [...ersatzVon].map(([k, v]) => k + '->' + v + ' ' + nameEN.get(v)).join(', '));
       if (process.env.MC_DEBUG === String(s.id)) console.log('  ersetzt:', [...replacedNames].join(' '));
       // MC_REPLACED=1: which of the list's own actions a replacement removes.
       if (process.env.MC_REPLACED) {
@@ -868,8 +878,15 @@ const bare = (s) => String(s || '').replace(/_/g, '');
       }
       // SimC's short names for "whichever of the two the build takes".
       const ALIAS = {
-        bs_inc: ['incarnation_avatar_of_ashamane', 'berserk'],
+        bs_inc: ['incarnation_avatar_of_ashamane', 'incarnation_guardian_of_ursoc', 'berserk'],
         ca_inc: ['incarnation_chosen_of_elune', 'celestial_alignment'],
+      };
+      // The same for actions: SimC writes "berserk" and "celestial_alignment"
+      // and casts the Incarnation when it is taken (Feral M+ and Guardian had
+      // no Incarnation line at all).
+      const AKTION_ALIAS = {
+        berserk: ['incarnation_avatar_of_ashamane', 'incarnation_guardian_of_ursoc'],
+        celestial_alignment: ['incarnation_chosen_of_elune'],
       };
       // The spec's own version of a spell is what its list means by the name:
       // the Devourer's Metamorphosis is Void Metamorphosis.
@@ -895,6 +912,11 @@ const bare = (s) => String(s || '').replace(/_/g, '');
         // than the one Voltaic Blaze names. A replacement by a spell of the
         // same name (a spec's own version) is no replacement.
         replaced: (id) => replacedNames.has(slug(nameEN.get(id))),
+        // WHAT REPLACES IT is the line (26 October): Final Verdict for
+        // Templar's Verdict - dropping the line left Retribution without a
+        // Holy Power spender.
+        replacement: (id) => ersatzVon.get(slug(nameEN.get(id))) || null,
+        alias: (k) => (AKTION_ALIAS[k] || []).find((x) => taken.has(bare(x))) || k,
         latch: latchOf,
       };
       const ctx = (targets, trinket) => {
