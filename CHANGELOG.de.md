@@ -9,6 +9,14 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 - **Vereinfachtes Chinesisch (zhCN)**, die ganze Oberfläche, übersetzt
   von Maple Saint (nanjuekaien1).
 
+### Geändert
+
+- **Rotation: Reiter und Heldenbaum.** Die Reiter sind schlichter Text,
+  der offene in der Klassenfarbe unterstrichen. Der Heldenbaum ist ein
+  Dropdown rechts in derselben Zeile - vorher standen dort zwei weitere
+  Knöpfe direkt an den Reitern und sahen auf Deutsch aus wie ein Teil
+  des letzten.
+
 ## [1.1.22] - 2026-10-26
 
 ### Neu

@@ -6983,13 +6983,16 @@ do
         for _, row in ipairs(wow.rows()) do
             if row:IsShown() and rawget(row, "__rotPanel") then k = row.__rotPanel end
         end
-        local knoepfe = 0
-        for _, b in ipairs(k and k.heroes or {}) do if b:IsShown() then knoepfe = knoepfe + 1 end end
-        check("je Heldenbaum ein Knopf", knoepfe == 2, knoepfe .. " Knoepfe")
-        local zweiter
-        for _, b in ipairs(k and k.heroes or {}) do if b.hero == 55 then zweiter = b end end
-        if zweiter then zweiter:GetScript("OnClick")(zweiter) end
-        local sp = zweiter and zweiter.spec
+        -- Ein Dropdown rechts in der Reiterzeile, im Menue je Baum ein Eintrag.
+        local wahl = k and k.heroPick
+        check("ein Dropdown fuer den Heldenbaum", wahl ~= nil and wahl:IsShown())
+        if wahl then wahl:GetScript("OnClick")(wahl) end
+        local menue = wow.menu()
+        check("im Menue je Heldenbaum ein Eintrag", menue ~= nil and #menue.items == 2
+            and menue.title == L["LBL_HERO"], menue and #menue.items .. " Eintraege" or "kein Menue")
+        -- Der nicht markierte Eintrag ist der andere Baum.
+        for _, it in ipairs(menue and menue.items or {}) do if not it.set then it.run() end end
+        local sp = wahl and wahl.spec
         check("die Wahl gilt und wird gemerkt", sp ~= nil and ns.UI.RotationVariant(sp, ZWEI).hero == 55
             and MetaCodexDB.rotationHero and MetaCodexDB.rotationHero[sp] == 55, tostring(sp))
         MetaCodexDB.rotationHero = vorher2

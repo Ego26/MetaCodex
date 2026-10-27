@@ -8057,6 +8057,98 @@ do
         return b
     end
 
+    -- REITER UND SCHALTER WIE IN EINER APP (27. Oktober). Vorher waren
+    -- beide gleiche graue Kaesten, der offene nur eine Nuance heller, und
+    -- zwei Zeilen davon sahen aus wie ein Formular. Jetzt: die Reiter sind
+    -- Text, der offene mit einem Strich in der Klassenfarbe darunter -
+    -- ohne Grundlinie, denn gleich darunter zieht die Ueberschrift ihre
+    -- eigenen Linien; der Heldenbaum ist ein Dropdown rechts in derselben
+    -- Zeile. Eine eigene Zeile dafuer (erst Knoepfe, dann ein
+    -- Segment-Schalter) war zu viel Gewicht fuer eine Wahl, die die
+    -- meisten nie aendern.
+    --
+    -- In EINER Tabelle: die Datei steht an Luas Grenze von 200 lokalen
+    -- Namen, und die neuen Funktionen hier haben sie gerissen.
+    local Knopf = { DROP_H = 26 }
+
+    function Knopf.farbeAktiv()
+        if klassenFarbe then return klassenFarbe.r, klassenFarbe.g, klassenFarbe.b end
+        return S:Color("accent")
+    end
+
+    function Knopf.reiter(f, key, onClick)
+        local b = CreateFrame("Button", nil, f)
+        b:SetHeight(TAB_H)
+        b.key = key
+        b.label = S:Text(b, "title", "textSecondary")
+        b.label:SetPoint("CENTER", 0, 1)
+        b.strich = b:CreateTexture(nil, "ARTWORK")
+        b.strich:SetTexture("Interface\\Buttons\\WHITE8X8")
+        b.strich:SetPoint("BOTTOMLEFT")
+        b.strich:SetPoint("BOTTOMRIGHT")
+        b.strich:SetHeight(S:Pixel(2))
+        b.strich:Hide()
+        b:SetScript("OnEnter", function(self) S:Recolor(self.label, "textPrimary") end)
+        b:SetScript("OnLeave", function(self)
+            S:Recolor(self.label, self.__active and "textPrimary" or "textSecondary")
+        end)
+        b:SetScript("OnClick", onClick)
+        return b
+    end
+
+    function Knopf.reiterAktiv(b, aktiv)
+        b.__active = aktiv and true or false
+        S:Recolor(b.label, aktiv and "textPrimary" or "textSecondary")
+        b.strich:SetVertexColor(Knopf.farbeAktiv())
+        b.strich:SetShown(aktiv and true or false)
+    end
+
+    function Knopf.heldName(v)
+        return v.hero and ns.Catalog.SubTreeName and ns.Catalog.SubTreeName(v.hero) or "?"
+    end
+
+    ---Das Menue des Dropdowns: jeder Baum mit Anteil, der gezeigte markiert.
+    function Knopf.heldMenue(b)
+        local varianten, spec = b.varianten or {}, b.spec
+        local function waehle(hero)
+            MetaCodexDB.rotationHero = MetaCodexDB.rotationHero or {}
+            MetaCodexDB.rotationHero[spec] = hero
+            UI.Refresh()
+        end
+        -- Ohne Menue-API: zum naechsten Baum weiterschalten.
+        if not (MenuUtil and MenuUtil.CreateContextMenu) then
+            for i, v in ipairs(varianten) do
+                if v.hero == b.hero then waehle(varianten[i % #varianten + 1].hero) return end
+            end
+            return
+        end
+        MenuUtil.CreateContextMenu(b, function(_, root)
+            root:CreateTitle(L["LBL_HERO"])
+            for _, v in ipairs(varianten) do
+                local text = v.pct and L["HERO_ENTRY"]:format(Knopf.heldName(v), tonumber(v.pct) or 0)
+                    or Knopf.heldName(v)
+                root:CreateRadio(text, function(hero) return hero == b.hero end, waehle, v.hero)
+            end
+        end)
+    end
+
+    function Knopf.heldWahl(f)
+        local b = CreateFrame("Button", nil, f)
+        b:SetHeight(Knopf.DROP_H)
+        b.bg = S:Fill(b, "bgOverlay")
+        S:Border(b, "borderSubtle")
+        b.label = S:Text(b, "body", "textPrimary")
+        b.label:SetPoint("CENTER")
+        -- KEIN PFEIL (27. Oktober): die Knoepfe oben fuer Spec und
+        -- Aktivitaet oeffnen auch ein Menue und haben keinen. Einer hier
+        -- allein - erst Blizzards Grafik, zu klein, dann zwei gezeichnete
+        -- Striche, pixelig - passte zu nichts.
+        b:SetScript("OnEnter", function(self) self.bg:SetVertexColor(S:Color("bgHover")) end)
+        b:SetScript("OnLeave", function(self) self.bg:SetVertexColor(S:Color("bgOverlay")) end)
+        b:SetScript("OnClick", Knopf.heldMenue)
+        return b
+    end
+
     local function bauen(row)
         if panelOf[row] then return panelOf[row] end
         local f = CreateFrame("Frame", nil, row)
@@ -8064,14 +8156,12 @@ do
         S:Border(f, "borderSubtle")
         f.tabs = {}
         for i, key in ipairs(ALL_TABS) do
-            local b = makeButton(f, 130, TAB_H, L["ROT_TAB_" .. key], function()
+            f.tabs[i] = Knopf.reiter(f, key, function()
                 MetaCodexDB.rotationTab = key
                 UI.Refresh()
             end)
-            b.key = key
-            S:ApplyFont(b.label, "title", "textPrimary")
-            f.tabs[i] = b
         end
+        f.heroPick = Knopf.heldWahl(f)
         f.headTl = ueberschrift(f)
         f.headPrio = ueberschrift(f)
         f.tl = { icons = {} }
@@ -8214,6 +8304,7 @@ do
 
         -- Die Reiter.
         local tab = UI.RotationTab(r)
+        local tabY = PAD
         local x = PAD
         for _, b in ipairs(f.tabs) do
             local n = hatReiter(r, b.key) and #zeilenVon(r, b.key) or 0
@@ -8226,43 +8317,42 @@ do
             else
                 b.label:SetText(L["ROT_TAB_" .. b.key])
             end
-            local bw = math.max(110, (tonumber(b.label:GetStringWidth()) or 80) + 32)
+            local bw = (tonumber(b.label:GetStringWidth()) or 80) + 28
             b:SetWidth(bw)
-            b:ClearAllPoints()
-            b:SetPoint("TOPLEFT", x, -PAD)
+            b.x = x
             b:SetShown(n > 0)
-            setButtonActive(b, b.key == tab)
-            if n > 0 then x = x + bw + 6 end
+            Knopf.reiterAktiv(b, b.key == tab)
+            if n > 0 then x = x + bw + 4 end
         end
-        -- Der Heldenbaum-Schalter rechts in derselben Zeile, je Baum mit Anteil.
-        f.heroes = rawget(f, "heroes") or {}
+
+        -- Der Heldenbaum: ein Dropdown rechts in der Reiterzeile, nur wo
+        -- mehr als ein Baum gemessen ist. Der Anteil steht gedaempft hinter
+        -- dem Namen - er erklaert, er ist nicht der Name.
         local varianten = (type(alle.heroes) == "table" and #alle.heroes > 1) and alle.heroes or {}
-        local rechts = PAD
-        for i = #varianten, 1, -1 do
-            local v = varianten[i]
-            local b = f.heroes[i]
-            if not b then
-                b = makeButton(f, 120, TAB_H, "", function(self)
-                    MetaCodexDB.rotationHero = MetaCodexDB.rotationHero or {}
-                    MetaCodexDB.rotationHero[self.spec] = self.hero
-                    UI.Refresh()
-                end)
-                S:ApplyFont(b.label, "title", "textPrimary")
-                f.heroes[i] = b
+        local wahl = f.heroPick
+        if #varianten > 0 then
+            wahl.varianten, wahl.hero, wahl.spec = varianten, r.hero, data.spec
+            wahl.label:SetText(r.pct and (Knopf.heldName(r) .. "   |cff" .. S:Hex("textMuted")
+                .. r.pct .. " %|r") or Knopf.heldName(r))
+            local dw = (tonumber(wahl.label:GetStringWidth()) or 100) + 32
+            wahl:SetWidth(dw)
+            wahl:ClearAllPoints()
+            -- Passt er nicht neben die Reiter, steht er rechts ueber ihnen.
+            if x - 4 + 24 > w - PAD - dw then
+                wahl:SetPoint("TOPRIGHT", -PAD, -PAD)
+                tabY = PAD + Knopf.DROP_H + 10
+            else
+                wahl:SetPoint("TOPRIGHT", -PAD, -(tabY + (TAB_H - Knopf.DROP_H) / 2))
             end
-            b.hero, b.spec = v.hero, data.spec
-            local name = v.hero and ns.Catalog.SubTreeName and ns.Catalog.SubTreeName(v.hero) or "?"
-            b.label:SetText(v.pct and (name .. "  " .. v.pct .. " %") or name)
-            local bw = math.max(110, (tonumber(b.label:GetStringWidth()) or 80) + 32)
-            b:SetWidth(bw)
-            b:ClearAllPoints()
-            b:SetPoint("TOPRIGHT", -rechts, -PAD)
-            setButtonActive(b, v == r)
-            b:Show()
-            rechts = rechts + bw + 6
+            wahl:Show()
+        else
+            wahl:Hide()
         end
-        for i = #varianten + 1, #f.heroes do f.heroes[i]:Hide() end
-        local y = PAD + TAB_H + 18
+        for _, b in ipairs(f.tabs) do
+            b:ClearAllPoints()
+            b:SetPoint("TOPLEFT", b.x, -tabY)
+        end
+        local y = tabY + TAB_H + 22
 
         -- Der Beispiel-Ablauf, nur beim Einzelziel - wie bei Wowhead.
         if tab == "st" or tab == "core" or tab == "single" then

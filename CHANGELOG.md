@@ -9,6 +9,13 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 - **Simplified Chinese (zhCN)**, the whole interface, translated by
   Maple Saint (nanjuekaien1).
 
+### Changed
+
+- **Rotation: tabs and hero tree.** The tabs are plain text, the open
+  one underlined in the class colour. The hero tree is a dropdown at
+  the right of the same row - it used to sit as two more buttons right
+  against the tabs and, in German, looked like part of the last one.
+
 ## [1.1.22] - 2026-10-26
 
 ### Added
