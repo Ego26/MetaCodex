@@ -6,9 +6,8 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ### Added
 
-- **Simplified Chinese (zhCN)**, translated by Maple Saint
-  (nanjuekaien1). It covers everything up to v1.1.14; what came later,
-  groups & specs and the rotation among it, shows in English for now.
+- **Simplified Chinese (zhCN)**, the whole interface, translated by
+  Maple Saint (nanjuekaien1).
 
 ## [1.1.22] - 2026-10-26
 
