@@ -33,3 +33,6 @@ tools/bnet-credentials.json
 
 # Trailer (Remotion). Local only, like branding/: video copy, voice and music, not part of the addon.
 Video/
+
+# Local editor and assistant settings: personal, never in the public repo.
+.claude/
