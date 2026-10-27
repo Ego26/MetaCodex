@@ -3,16 +3,16 @@
 # MetaCodex
 
 **Aus echten Kämpfen, nicht aus Guides.** Talentbuilds mit Import-String,
-Ausrüstung mit Fundort, Verzauberungen, Steine, Verbrauchsgüter, Zielwerte
-und die Top-Spieler je Spec — für Mythic+, Raid und jede PvP-Klammer.
-Täglich gemessen aus raider.io, murlok.io und Warcraft Logs, nie aus einem
-Guide abgeschrieben. Liest deine Ausrüstung und übergibt das Fehlende an
+Ausrüstung mit Fundort, Verzauberungen, Steine, Verbrauchsgüter, Zielwerte,
+Rassen, eine Rotation, die Gruppen an der Spitze und die Top-Spieler je
+Spec — für Mythic+, Raid und jede PvP-Klammer. Täglich gemessen aus raider.io, murlok.io, Warcraft Logs und
+Battle.net, nie aus einem Guide abgeschrieben. Liest deine Ausrüstung und übergibt das Fehlende an
 Auctionator.
 
     /mc
 
 *[English readme](README.md) · [Features](FEATURES.de.md) ·
-[Changelog](CHANGELOG.de.md)*
+[Changelog](CHANGELOG.de.md) · [Für Streamer](STREAMERS.de.md)*
 
 ---
 
@@ -31,19 +31,26 @@ fällt weg.
 
 | Reiter | |
 |---|---|
-| **Guides & Rotation** | Verweise auf die geschriebenen Guides zur Spec |
-| **Zielwerte** | Gemessene Mediane der Besten, deine Werte als zweiter Balken |
+| **Guides** | Verweise auf die geschriebenen Guides zur Spec |
+| **Rotation** (Beta) | Was du drückst, in ganzen Sätzen: die Priorität aus SimulationCraft, zugeschnitten auf den Build der Top-Spieler, je Heldenbaum — Einzelziel, Flächenschaden, vor dem Pull, Tränke & Schmuck. Heiler bekommen, was Top-Heiler wirklich wirken, gemessen auf Warcraft Logs |
+| **Zielwerte** | Gemessene Mediane der Besten, deine Werte als zweiter Balken, und die Schwellen des abnehmenden Ertrags, wo du darüber liegst |
+| **Rassen** | Welche Rasse die Besten der Spec spielen, und was eine Rasse simuliert an Schaden bringt |
+| **Gruppen & Specs** | Wer oben mit wem spielt: die häufigsten M+-Gruppen und die Specs je Rolle, die Raid-Aufstellungen je Schwierigkeit, die Specs unter den Besten jeder PvP-Klammer |
 | **Talente** | Der häufigste Build mit Import-String, Alternativen als *X statt Y*, umstrittene Talente — je Dungeon in M+, je Boss im Raid |
 | **Omnium-Foliant** | Welche Rune die Besten in jeder der fünf Reihen nehmen, gemessen an dem, was sie im Kampf tut |
 | **Top-Spieler** | Wer oben steht, klickbar: Talentbuild mit Import-String und komplette Ausrüstung |
 | **Beliebt** | Fünf je Platz mit Fundort; Tooltips auf der Schlüsselstufe, die du wählst |
-| **Fundorte** | Wo die Stücke fallen, die dir fehlen – je Instanz, sortiert nach dem, was für dich noch offen ist |
+| **Fundorte** | Jeder Dungeon und jeder Raidboss mit der vollen Beuteliste der Spec, aus dem Abenteuerführer. Klick markiert einen Favoriten; ein grüner Haken sitzt auf allem, was du schon hast |
 | **Tier-Set** | Welche Set-Teile die Besten tragen, und wie viele davon |
-| **Handwerk** | Die Handwerksstücke, die wirklich getragen werden, mit ihrem Wertepaar und den gemessenen Gegenstandsstufen |
-| **Verzierungen** | Welche zwei Verzierungen zusammen getragen werden, und wie oft |
+| **Handwerk & Verzierungen** | Die Handwerksstücke, die wirklich getragen werden, mit ihrem Wertepaar und den gemessenen Gegenstandsstufen, und welche zwei Verzierungen zusammen getragen werden |
 | **Verzauberungen & Steine** | Gegen deine angelegte Ausrüstung: was noch offen ist |
 | **Verbrauchsgüter** | Nach Art gruppiert, mit Anteil, höchstem Schlüssel, Bestand und Ziel |
 | **Erinnerung** | Was vor dem Start geprüft wird, und die Einstellungen dazu – dazu eine Einkaufsliste neben dem Auktionshaus |
+
+Außerhalb des Fensters: der Build-Knopf am Talentfenster mit seiner
+Vorschau im Baum, zwei Zeilen in jedem Gegenstands-Tooltip (*auch getragen
+von*, *Werte passen zu*) und ein Fenster, wenn ein Favorit für jemand
+anderen droppt.
 
 Zehn Aktivitäten, vier Plattformen, alle vierzig Speccs. Nichts wird
 gezeigt, was keine Plattform beantworten kann: Abschnitte, Aktivitäten und
@@ -75,9 +82,14 @@ Core/Profile.lua       SavedVariables: Auswahl, Fenster, Ziele
 Core/Gear.lua          angelegte Ausrüstung: leere Sockel, fehlende Verzauberungen
 Core/List.lua          Soll minus Ist, für eine Spec oder mehrere
 Core/Drops.lua         dieselben Stücke nach Fundort statt nach Platz
+Core/Loot.lua          die ganze Beute einer Instanz für eine Spec, aus dem Journal
+Core/Wish.lua          ein Favorit ist gedroppt – bei jemand anderem
+Core/Tooltip.lua       was MetaCodex weiß, dort, wo man das Item anfasst
+Core/Tree.lua          die Vorschau im Talentbaum
 Core/Auctionator.lua   der Adapter – die EINZIGE Stelle, die Auctionator kennt
 Core/Guides.lua        die Guide-Verweise
 Core/UI.lua            das Fenster
+Core/Minimap.lua       der Knopf an der Minimap, ohne Bibliothek
 Core/Remind.lua        Erinnerung beim Betreten und am Auktionshaus
 Core/Probe.lua         /mc probe
 Core/Slash.lua         /mc
@@ -92,6 +104,9 @@ tools/collect-murlok.js        PvP und M+: Anteile, Talente, Top-Spieler
 tools/collect-wcl.js           Warcraft Logs: Raids und Verbrauchsgüter
 tools/collect-profiles.js      raider.io-Profile der Top-Spieler, geprüft
 tools/collect-bnet.js          Battle.net: PvP-Ranglisten, Loadouts, PvP-Talente, Ausrüstung
+tools/collect-bloodmallet.js   bloodmallet.com: die Rassen-Simulationen
+tools/loadout.js               liest einen Talent-String – liest, schreibt nie
+tools/wcl-quota.js             was Warcraft Logs uns gerade zugesteht
 tools/build-recommendations.js alles → die drei Datenaddons
 tools/collect-all.js           der Tageslauf, in Reihenfolge
 tools/package.sh               die Zip für ein Release
@@ -104,7 +119,8 @@ tools/schedule.ps1             der Tageslauf als Windows-Aufgabe
 Die Daten liegen **nicht im Git**. Es sind 60 MB, die sich jede Nacht
 ändern; ein Jahr davon wären Gigabytes Verlauf für nichts. Stattdessen
 läuft jede Nacht die GitHub-Action `Daily data`: sie sammelt von raider.io,
-murlok.io und Warcraft Logs, lässt die Tests laufen, packt die vier
+murlok.io, Warcraft Logs, Battle.net und bloodmallet.com, lässt die Tests
+laufen, packt die vier
 Addon-Ordner und hängt die Zip an das laufende Release
 [**nightly**](https://github.com/Ego26/MetaCodex/releases/tag/nightly).
 
@@ -133,12 +149,13 @@ Spielers. Raid- und PvP-Strings werden gegen den geloggten Kampf bzw. die
 murlok-Heatmap geprüft, bevor sie als Build gelten.
 
 Releases: ein Tag `v1.2.3` genügt, der Workflow `Release` packt den Code
-dieses Tags mit den neuesten Nightly-Daten, lädt ihn zu CurseForge hoch und
-legt das GitHub-Release an. Jede Nacht geht dasselbe Paket noch einmal hoch,
+dieses Tags mit den neuesten Nightly-Daten, lädt ihn zu CurseForge und zu
+Wago Addons hoch und legt das GitHub-Release an. Jede Nacht geht dasselbe Paket noch einmal hoch,
 mit den Tabellen dieser Nacht - der Code des neuesten Tags, nie der aktuelle
 Stand von `main`. Beides über den [BigWigs-Packager](https://github.com/BigWigsMods/packager),
-`.pkgmeta` und das Repository-Secret `CF_API_KEY`; die Änderungsnotizen
-stehen in `RELEASE-NOTES.md`.
+`.pkgmeta` und die Repository-Secrets `CF_API_KEY` und `WAGO_API_TOKEN`,
+mit den Projekt-IDs in der TOC (`X-Curse-Project-ID`, `X-Wago-ID`); die
+Änderungsnotizen stehen in `RELEASE-NOTES.md`.
 
 ## Tests
 

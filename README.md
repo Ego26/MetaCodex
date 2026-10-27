@@ -3,15 +3,17 @@
 # MetaCodex
 
 **From real fights, not from guides.** Talent builds with import strings,
-gear with drop sources, enchants, gems, consumables, stat targets and the
-top players per spec — for Mythic+, raid and every PvP bracket. Measured
-daily from raider.io, murlok.io and Warcraft Logs, never copied from a
-guide. Reads your gear and hands the missing pieces to Auctionator.
+gear with drop sources, enchants, gems, consumables, stat targets, races,
+a rotation, the groups at the top and the top players per spec — for
+Mythic+, raid and every PvP bracket.
+Measured daily from raider.io, murlok.io, Warcraft Logs and Battle.net,
+never copied from a guide. Reads your gear and hands the missing pieces to
+Auctionator.
 
     /mc
 
 *[Deutsche Fassung](README.de.md) · [Features](FEATURES.md) ·
-[Changelog](CHANGELOG.md)*
+[Changelog](CHANGELOG.md) · [For streamers](STREAMERS.md)*
 
 ---
 
@@ -29,19 +31,25 @@ optional — without it the lists still show, only the handover is missing.
 
 | Tab | |
 |---|---|
-| **Guides & Rotation** | Links to the written guides for the spec |
-| **Stat targets** | Measured medians of the best, with your own values as a second bar |
+| **Guides** | Links to the written guides for the spec |
+| **Rotation** (beta) | What to press, in plain sentences: the SimulationCraft priority cut to the build the top players run, per hero tree — single target, AoE, before the pull, potions & trinkets. Healers get what top healers actually cast, measured on Warcraft Logs |
+| **Stat targets** | Measured medians of the best, with your own values as a second bar, and the diminishing-returns thresholds where you are past one |
+| **Races** | Which race the best of the spec play, and the simulated damage a race brings |
+| **Groups & specs** | Who plays with whom at the top: the most common M+ groups and the specs per role, the raid setups per difficulty, the specs among the best of each PvP bracket |
 | **Talents** | The most common build with import string, alternatives as *X instead of Y*, contested talents — per dungeon in M+, per boss in raids |
 | **Omnium Folio** | Which rune the best take in each of the five rows, measured from what the rune does in the fight |
 | **Top players** | Who is at the top, clickable: talent build with import string and full gear |
 | **Popular** | Five per slot with drop source; tooltips on the keystone level you pick |
-| **Sources** | Where the pieces you are missing drop, per instance, sorted by what is still open for you |
+| **Sources** | Every dungeon and raid boss with the full drop list for the spec, from the Adventure Guide. Click marks a favourite; a green tick sits on what you already have |
 | **Tier set** | Which set pieces the best wear, and how many of them |
-| **Crafted** | The crafted pieces actually worn, with their stat pair and the item levels they were measured at |
-| **Embellishments** | Which two embellishments are worn together, and how often |
+| **Crafted & embellishments** | The crafted pieces actually worn, with their stat pair and the item levels they were measured at, and which two embellishments are worn together |
 | **Enchants & Gems** | Against your equipped gear: what is still open |
 | **Consumables** | Grouped by kind, with share, highest key, stock and target |
 | **Reminder** | What is checked before you go in, and the settings for it — plus a shopping list beside the auction house |
+
+Outside the window: the builds button at the talent frame with its preview
+in the tree, two lines in every item tooltip (*also worn by*, *stats fit*),
+and a window when a favourite drops for someone else.
 
 Ten activities, four platforms, all forty specs. Nothing is shown that no
 platform can answer: sections, activities and platforms without data are
@@ -71,9 +79,14 @@ Core/Profile.lua       SavedVariables: choices, window, targets
 Core/Gear.lua          equipped gear: empty sockets, missing enchants
 Core/List.lua          wanted minus owned, for one spec or several
 Core/Drops.lua         the same pieces by where they drop, not by slot
+Core/Loot.lua          every drop of an instance for a spec, from the journal
+Core/Wish.lua          a favourite dropped - for someone else
+Core/Tooltip.lua       what MetaCodex knows, written where you hold the item
+Core/Tree.lua          the preview in the talent tree
 Core/Auctionator.lua   the adapter - the ONLY file that knows Auctionator
 Core/Guides.lua        the guide links
 Core/UI.lua            the window
+Core/Minimap.lua       the button on the minimap, without a library
 Core/Remind.lua        reminders on entering and at the auction house
 Core/Probe.lua         /mc probe
 Core/Slash.lua         /mc
@@ -88,6 +101,9 @@ tools/collect-murlok.js        PvP and M+: shares, talents, top players
 tools/collect-wcl.js           Warcraft Logs: raids and consumables
 tools/collect-profiles.js      raider.io profiles of the top players, verified
 tools/collect-bnet.js          Battle.net: PvP leaderboards, loadouts, PvP talents, gear
+tools/collect-bloodmallet.js   bloodmallet.com: the race simulations
+tools/loadout.js               reads a talent import string - reads, never writes
+tools/wcl-quota.js             what Warcraft Logs currently grants us
 tools/build-recommendations.js everything -> the three data addons
 tools/collect-all.js           the daily run, in order
 tools/package.sh               the zip for a release
@@ -100,7 +116,8 @@ tools/schedule.ps1             the daily run as a Windows task
 The data are **not in git**. They are 60 MB that change every night; a
 year of that would be gigabytes of history for nothing. Instead the
 GitHub Action `Daily data` runs every night, collects from raider.io,
-murlok.io and Warcraft Logs, runs the tests, packs the four addon folders
+murlok.io, Warcraft Logs, Battle.net and bloodmallet.com, runs the tests,
+packs the four addon folders
 and attaches the zip to the rolling release
 [**nightly**](https://github.com/Ego26/MetaCodex/releases/tag/nightly).
 
@@ -129,11 +146,12 @@ fight or the murlok heatmap before they count as a build.
 
 Releases: push a tag `v1.2.3` and the `Release` workflow packs the code of
 that tag with the latest nightly data, then uploads it to CurseForge and
-creates the GitHub release. Every night the same package goes up again
+Wago Addons and creates the GitHub release. Every night the same package goes up again
 with that night's tables - the code of the newest tag, never the current
 state of `main`. Both use the [BigWigs
 packager](https://github.com/BigWigsMods/packager), `.pkgmeta` and the
-repository secret `CF_API_KEY`; the change notes come from
+repository secrets `CF_API_KEY` and `WAGO_API_TOKEN`, with the project ids
+in the TOC (`X-Curse-Project-ID`, `X-Wago-ID`); the change notes come from
 `RELEASE-NOTES.md`.
 
 ## Tests
