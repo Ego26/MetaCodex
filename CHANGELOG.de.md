@@ -4,6 +4,12 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ## [Unveröffentlicht]
 
+### Neu
+
+- **Vereinfachtes Chinesisch (zhCN)**, übersetzt von Maple Saint
+  (nanjuekaien1). Es deckt alles bis v1.1.14 ab; was danach kam,
+  darunter Gruppen & Specs und die Rotation, steht vorerst auf Englisch.
+
 ## [1.1.22] - 2026-10-26
 
 ### Neu

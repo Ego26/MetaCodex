@@ -77,7 +77,7 @@ lua.lua_setglobal(L, to_luastring('PLAYERS_TOC'));
 // zeigte "%d von %d", wo "knapp" stehen sollte. Hier, an der Datei, ist
 // es noch zu sehen.
 const dupes = [];
-for (const name of ["enUS", "deDE"]) {
+for (const name of ["enUS", "deDE", "zhCN"]) {
   const localeFile = path.join(base, "Locales", name + ".lua");
   if (!fs.existsSync(localeFile)) continue;
   const seen = new Set();
