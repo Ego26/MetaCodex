@@ -3233,7 +3233,12 @@ local function acquireRow(index)
     end)
 
     row:SetScript("OnEnter", function(self)
-        self.bg:SetAlpha(1)
+        -- Eine Karte, die man nicht anklickt (Rotation, abnehmender
+        -- Ertrag), leuchtet nicht als Ganzes auf. Die Rotationskarte wurde
+        -- beim Ueberfahren als ganzer Block heller und blieb danach halb
+        -- hell stehen (27. Oktober). Die Buildkarte darf: ein Klick
+        -- kopiert ihren String.
+        self.bg:SetAlpha(rawget(self, "__karte") and 0 or 1)
         -- Eine Rasse: ihre Faehigkeiten, und woher die Zahlen kommen.
         if rawget(self, "raceTip") then
             UI.RaceTooltip(self, rawget(self, "raceTip"))
@@ -3415,7 +3420,7 @@ local function acquireRow(index)
         end
     end)
     row:SetScript("OnLeave", function(self)
-        self.bg:SetAlpha(self.__header and 0 or 0.5)
+        self.bg:SetAlpha((self.__header or rawget(self, "__karte")) and 0 or 0.5)
         GameTooltip:Hide()
         if secondFrame then secondFrame:Hide() end
     end)
@@ -3482,6 +3487,7 @@ local function resetRow(row)
     row.dropName = nil
     row.dropNote = nil
     row.raceTip = nil
+    row.__karte = nil
     if UI.RotationPanelHide then UI.RotationPanelHide(row) end
     -- Die fuenf Spec-Symbole einer Gruppe: sonst standen sie quer ueber
     -- der naechsten Zeile, die diese Zeile wiederverwendet.
@@ -4165,6 +4171,7 @@ local function setItemRow(row, data)
     end
 
     if data.kind == "rotpanel" then
+        row.__karte = true
         row.bg:SetAlpha(0)
         row.icon:SetTexture(nil)
         row.title:SetText("")
@@ -4327,6 +4334,7 @@ local function setItemRow(row, data)
     end
 
     if data.kind == "drcard" then
+        row.__karte = true
         row.bg:SetAlpha(0)
         row.icon:SetTexture(nil)
         row.title:SetText("")
