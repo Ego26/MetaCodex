@@ -223,9 +223,11 @@ function Profile.Reset()
     if MetaCodexDB then MetaCodexDB.specs = {} end
 end
 
----@param lang string "de", "en" oder "auto"
+---@param lang string "de", "en", "zh" oder "auto"
 function Profile.SetLanguage(lang)
-    local map = { de = "deDE", en = "enUS", auto = "auto" }
+    -- Chinesisch auch auf einem englischen Client: viele chinesische
+    -- Spieler auf EU- und US-Servern spielen ihn so.
+    local map = { de = "deDE", en = "enUS", zh = "zhCN", auto = "auto" }
     local value = map[lang]
     if not value then return false end
     MetaCodexDB.lang = value

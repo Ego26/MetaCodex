@@ -42,7 +42,7 @@ switched off under Settings.
   any item into chat or the auction house search.
 - **Every activity, every spec, four platforms** — and nothing shown that
   no platform can answer.
-- **English and German**, right on any client.
+- **English, German and Simplified Chinese**, right on any client.
 
 ---
 
@@ -204,7 +204,7 @@ whether Auctionator is present.
   the handover is missing.
 
 **Slash commands:** `/mc` opens · `/mc scale 0.6–1.6` window size ·
-`/mc remind` toggles the reminder · `/mc lang de|en|auto` language ·
+`/mc remind` toggles the reminder · `/mc lang de|en|zh|auto` language ·
 `/mc probe` self-test, copyable · `/mc reset` forgets saved choices.
 
 ---

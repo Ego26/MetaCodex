@@ -82,6 +82,7 @@ ns.RegisterLocale("deDE", {
     ["SET_LANG_AUTO"] = "Folgt dem Client",
     ["SET_LANG_EN"] = "English",
     ["SET_LANG_DE"] = "Deutsch",
+    ["SET_LANG_ZH"] = "简体中文",
     ["SET_LANG_RELOAD"] = "Beschriftungen, die schon stehen, wechseln nach /reload.",
     ["SET_HINT"] = "Die Erinnerung hat ihre eigenen Einstellungen, direkt neben dem, was sie steuern.",
     ["SET_GROUP_START"] = "Beim Öffnen",
@@ -126,7 +127,7 @@ ns.RegisterLocale("deDE", {
     ["SLASH_HELP"]         = "Befehle:",
     ["SLASH_OPEN"]         = "/mc – Fenster öffnen",
     ["SLASH_PROBE"]        = "/mc probe – prüfen, was dieser Client und Auctionator wirklich hergeben",
-    ["SLASH_LANG"]         = "/mc lang de|en|auto – Sprache der Oberfläche",
+    ["SLASH_LANG"]         = "/mc lang de|en|zh|auto – Sprache der Oberfläche",
     ["SLASH_SCALE"]        = "/mc scale 0.6–1.6 – Schriftgröße im Fenster (1 = normal)",
     ["SCALE_SET"]          = "Schriftgröße: %s",
     ["SLASH_RESET"]        = "/mc reset – gespeicherte Auswahl vergessen",
@@ -417,11 +418,15 @@ ns.RegisterLocale("deDE", {
     ["ROT_V_use"] = "Nutze %s",
     ["ROT_V_renew"] = "Erneuere %s",
     ["ROT_V_summon"] = "Beschwöre %s",
+    ["ROT_V_invoke"] = "Rufe %s an",
     ["ROT_V_call"] = "Rufe %s",
     ["ROT_V_form"] = "Wechsle in %s",
     -- Woran der Name zeigt, welches Verb passt (Lua-Muster, die Klammer ist
     -- der Name im Satz).
     ["ROT_VP_summon"] = "^(.+) beschwören$",
+    -- "Xuen, den Weißen Tiger, anrufen": das Komma vor dem Verb gehoert
+    -- nicht zum Namen.
+    ["ROT_VP_invoke"] = "^(.-),? anrufen$",
     ["ROT_VP_call"] = "^(.+) rufen$",
     ["ROT_VP_form"] = "^(.+gestalt)$",
     ["ROT_VP_stance"] = "^(.+haltung)$",
@@ -469,6 +474,10 @@ ns.RegisterLocale("deDE", {
     ["ROT_CN_summon_down"] = "du %s nicht beschworen hast",
     ["ROT_CN_summon_ready"] = "du %s beschwören kannst",
     ["ROT_CN_summon_notready"] = "du %s noch nicht beschwören kannst",
+    ["ROT_CN_invoke_up"] = "du %s angerufen hast",
+    ["ROT_CN_invoke_down"] = "du %s nicht angerufen hast",
+    ["ROT_CN_invoke_ready"] = "du %s anrufen kannst",
+    ["ROT_CN_invoke_notready"] = "du %s noch nicht anrufen kannst",
     ["ROT_CN_call_up"] = "du %s gerufen hast",
     ["ROT_CN_call_down"] = "du %s nicht gerufen hast",
     ["ROT_CN_call_ready"] = "du %s rufen kannst",

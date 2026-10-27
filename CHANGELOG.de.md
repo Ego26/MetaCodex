@@ -7,7 +7,10 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 ### Neu
 
 - **Vereinfachtes Chinesisch (zhCN)**, die ganze Oberfläche, übersetzt
-  von Maple Saint (nanjuekaien1).
+  von Maple Saint (nanjuekaien1). Es folgt einem chinesischen Client von
+  selbst und lässt sich auf jedem anderen wählen: `/mc lang zh` oder
+  简体中文 unter Sprache in den Einstellungen. Auch die Addon-Liste zeigt
+  die Beschreibung dann auf Chinesisch.
 
 ### Geändert
 
@@ -16,6 +19,21 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
   Dropdown rechts in derselben Zeile - vorher standen dort zwei weitere
   Knöpfe direkt an den Reitern und sahen auf Deutsch aus wie ein Teil
   des letzten.
+
+### Behoben
+
+- **Talente grün markiert, die du schon hast.** Was das Spiel umsonst
+  gibt – der Einstieg des Heldenbaums, die Startknoten oben im
+  Klassenbaum –, zählte als fehlend; fast jede Spec zeigte „3 grün dazu“
+  auf Talenten, die längst leuchten. Jetzt zählt es als geskillt und nie
+  als wegfallend.
+- **Builds fremder Klassen am Talentfenster.** War im Fenster eine
+  andere Spec gewählt, lagen deren Builds auf deinem eigenen Baum –
+  Schamanen-Builds auf einem Schurken, „73 rot weg“. Das Talentfenster
+  zeigt deinen Baum, also zeigt die Liste dort jetzt immer die Builds
+  deiner aktiven Spec.
+- **Mönch: „Anrufen“ auf Deutsch.** Sechs Sätze zum Anrufen von Xuen,
+  Chi-Ji oder Niuzao fehlten im Deutschen und standen englisch da.
 
 ## [1.1.22] - 2026-10-26
 

@@ -1,8 +1,10 @@
 ## Interface: 120105
 ## Title: MetaCodex
 ## Title-deDE: MetaCodex
+## Title-zhCN: MetaCodex
 ## Notes: From real fights, not from guides - talent builds with import strings, gear with drop sources, enchants, gems, consumables, stat targets and the top players per spec, for M+, raid and every PvP bracket. Measured from raider.io, murlok.io, Warcraft Logs and Battle.net, never copied from a guide. Reads your gear and hands the missing pieces to Auctionator. Type /mc.
 ## Notes-deDE: Aus echten Kaempfen, nicht aus Guides - Talentbuilds mit Import-String, Ausruestung mit Fundort, Verzauberungen, Steine, Verbrauchsgueter, Zielwerte und die Top-Spieler je Spec, fuer M+, Raid und jede PvP-Klammer. Gemessen aus raider.io, murlok.io, Warcraft Logs und Battle.net, nie aus einem Guide abgeschrieben. Liest deine Ausruestung und uebergibt das Fehlende an Auctionator. Tippe /mc.
+## Notes-zhCN: 来自真实战斗，而非攻略——每个专精的天赋配置（含导入字符串）、装备及掉落来源、附魔、宝石、消耗品、属性目标和顶尖玩家，涵盖史诗钥石、团队副本和所有 PvP 分段。统计自 raider.io、murlok.io、Warcraft Logs 和 Battle.net，绝不照搬攻略。读取你的装备，并把缺少的物品交给 Auctionator。输入 /mc。
 ## Author: Ego26
 ## Version: @project-version@
 ## SavedVariables: MetaCodexDB

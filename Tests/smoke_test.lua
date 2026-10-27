@@ -2703,6 +2703,15 @@ check("Held-Baum hat einen deutschen Namen", ns.Catalog.SubTreeName(40) == "Zaub
 ns.SetLanguage("enUS")
 check("und einen englischen", ns.Catalog.SubTreeName(40) == "Spellslinger", ns.Catalog.SubTreeName(40))
 ns.SetLanguage("deDE")
+
+-- Chinesisch laesst sich waehlen, auch auf einem anderen Client.
+do
+    local vorher = MetaCodexDB.lang
+    check("/mc lang zh wird angenommen", ns.Profile.SetLanguage("zh") == true)
+    check("  und die Oberflaeche spricht Chinesisch", L["SET_LANG"] == "语言", tostring(L["SET_LANG"]))
+    MetaCodexDB.lang = vorher
+    ns.SetLanguage("deDE")
+end
 do
     ns.Profile.SetMode("mplus")
     local trees = ns.Recommend.HeroTrees(105, "mplus", ns.Recommend.ALL)

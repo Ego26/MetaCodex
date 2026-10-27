@@ -52,10 +52,11 @@ hat das ganze Bild.
 
 ## Sprache
 
-**Englisch ist der Standard, Deutsch kommt dazu.** Die Oberfläche hat
-`enUS` als Basis und `deDE` als Überschreibung – ein deutscher Client
-bekommt also ungefragt Deutsch, und `/mc lang de|en|auto` übersteuert
-auch das. Dieselbe Reihenfolge gilt drumherum: Readme, Changelog und
+**Englisch ist der Standard, Deutsch und vereinfachtes Chinesisch kommen
+dazu.** Die Oberfläche hat `enUS` als Basis und `deDE` und `zhCN` als
+Überschreibungen – ein deutscher oder chinesischer Client bekommt also
+ungefragt seine Sprache, und `/mc lang de|en|zh|auto` übersteuert auch
+das. Dieselbe Reihenfolge gilt drumherum: Readme, Changelog und
 Feature-Seite sind zuerst englisch, mit einer `.de`-Fassung. Gespeichert
 werden nur IDs von Gegenständen, Zaubern und Begegnungen, deshalb stimmen
 Namen und Symbole auf jedem Client.
@@ -82,7 +83,7 @@ Core/Probe.lua         /mc probe
 Core/Slash.lua         /mc
 Core/Boot.lua          Ereignisse
 
-Locales/               enUS.lua, deDE.lua
+Locales/               enUS.lua, deDE.lua, zhCN.lua
 Tests/                 Rauch- und Logiktests in einer echten Lua-VM (fengari)
 
 tools/build-catalog.js         Spieltabellen → MetaCodex_Data/Catalog.lua

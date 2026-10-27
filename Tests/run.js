@@ -103,6 +103,31 @@ if (dupes.length) {
 }
 console.log("  ok   kein Sprachschluessel doppelt");
 
+// JEDER TEXT IN ALLEN DREI SPRACHEN (27. Oktober).
+//
+// Ein fehlender Schluessel faellt im Spiel nicht auf: er zeigt still den
+// englischen Text. So fehlten im Deutschen sechs Saetze zum Anrufen (Xuen,
+// Niuzao), und im Chinesischen nach zwei Wochen fast vierhundert. Hier
+// ist es eine Zeile Ausgabe, bevor es jemand im Spiel sieht.
+const keysOf = (name) => {
+  const set = new Set();
+  const text = fs.readFileSync(path.join(base, "Locales", name + ".lua"), "utf8");
+  for (const m of text.matchAll(/\["([A-Za-z0-9_]+)"\]\s*=/g)) set.add(m[1]);
+  return set;
+};
+const enKeys = keysOf("enUS");
+const gaps = [];
+for (const name of ["deDE", "zhCN"]) {
+  const have = keysOf(name);
+  const missing = [...enKeys].filter((k) => !have.has(k));
+  if (missing.length) gaps.push(name + ": " + missing.join(", "));
+}
+if (gaps.length) {
+  console.error("  FAIL jeder Text in allen Sprachen  -> " + gaps.join(" | "));
+  process.exit(1);
+}
+console.log("  ok   jeder Text in allen Sprachen");
+
 // Und ein Schluessel, den der Code BENUTZT, den es aber nicht gibt.
 //
 // L[] gibt dann nil zurueck, und die naechste Zeile ruft :format()

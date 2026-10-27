@@ -2164,7 +2164,8 @@ local function settingsRows()
     -- Sprache. Die Beschriftungen, die schon stehen, wechseln erst nach
     -- /reload - das sagt die Zeile, statt es den Spieler merken zu lassen.
     local current = (MetaCodexDB and MetaCodexDB.lang) or "auto"
-    local shown = current == "deDE" and "de" or current == "enUS" and "en" or "auto"
+    local shown = current == "deDE" and "de" or current == "enUS" and "en"
+        or current == "zhCN" and "zh" or "auto"
     rows[#rows + 1] = {
         kind = "option", label = L["SET_LANG"], group = L["SET_GROUP_WINDOW"],
         value = L["SET_LANG_" .. shown:upper()],
@@ -2172,6 +2173,7 @@ local function settingsRows()
             { value = "auto", label = L["SET_LANG_AUTO"] },
             { value = "en", label = L["SET_LANG_EN"] },
             { value = "de", label = L["SET_LANG_DE"] },
+            { value = "zh", label = L["SET_LANG_ZH"] },
         },
         pick = function(value)
             ns.Profile.SetLanguage(value)

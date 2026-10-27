@@ -7,7 +7,9 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 ### Added
 
 - **Simplified Chinese (zhCN)**, the whole interface, translated by
-  Maple Saint (nanjuekaien1).
+  Maple Saint (nanjuekaien1). It follows a Chinese client by itself and
+  can be chosen on any other: `/mc lang zh`, or 简体中文 under language
+  in the settings. The addon list shows its description in Chinese too.
 
 ### Changed
 
@@ -15,6 +17,21 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
   one underlined in the class colour. The hero tree is a dropdown at
   the right of the same row - it used to sit as two more buttons right
   against the tabs and, in German, looked like part of the last one.
+
+### Fixed
+
+- **Talents marked green that you already have.** The talents the game
+  gives for free - the first node of the hero tree, the starting nodes
+  at the top of the class tree - counted as missing, so nearly every
+  spec showed "3 green to add" on talents that were long lit. They now
+  count as taken, and never as lost.
+- **Other classes' builds at the talent frame.** With another spec
+  chosen in the window, the list at the talent frame showed its builds
+  on your own tree - shaman builds on a rogue, "73 red to drop". The
+  talent frame shows your tree, so it now always shows the builds of
+  your active spec.
+- **Monk: "Invoke" in German.** Six sentences for invoking Xuen, Chi-Ji
+  or Niuzao were missing in German and showed in English.
 
 ## [1.1.22] - 2026-10-26
 

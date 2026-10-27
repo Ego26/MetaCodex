@@ -41,7 +41,7 @@ unter Einstellungen abschalten.
   verlinkt jeden Gegenstand in den Chat oder ins Suchfeld des Auktionshauses.
 - **Jede Aktivität, jede Spec, vier Plattformen** — und nichts angezeigt,
   was keine Plattform beantworten kann.
-- **Deutsch und Englisch**, auf jedem Client richtig.
+- **Deutsch, Englisch und vereinfachtes Chinesisch**, auf jedem Client richtig.
 
 ---
 
@@ -214,7 +214,7 @@ gemessen hat, und ob Auctionator da ist.
   alles trotzdem, nur die Übergabe fällt weg.
 
 **Slash-Befehle:** `/mc` öffnet · `/mc scale 0.6–1.6` Fenstergröße ·
-`/mc remind` schaltet die Erinnerung · `/mc lang de|en|auto` Sprache ·
+`/mc remind` schaltet die Erinnerung · `/mc lang de|en|zh|auto` Sprache ·
 `/mc probe` Selbsttest zum Kopieren · `/mc reset` setzt die Auswahl zurück.
 
 ---

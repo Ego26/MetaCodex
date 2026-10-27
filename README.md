@@ -49,10 +49,10 @@ hidden. [FEATURES.md](FEATURES.md) has the whole picture.
 
 ## Language
 
-**English is the default, German is the addition.** The interface has
-`enUS` as its base locale and `deDE` as an override, so a German client
-gets German without being asked and `/mc lang de|en|auto` overrides even
-that. The same order applies to everything around the addon: this readme,
+**English is the default, German and Simplified Chinese are the
+additions.** The interface has `enUS` as its base locale and `deDE` and
+`zhCN` as overrides, so a German or Chinese client gets its language
+without being asked, and `/mc lang de|en|zh|auto` overrides even that. The same order applies to everything around the addon: this readme,
 the changelog and the feature page are English first with a `.de`
 counterpart. Only item, spell and encounter IDs are stored, so names and
 icons are right on any client language.
@@ -79,7 +79,7 @@ Core/Probe.lua         /mc probe
 Core/Slash.lua         /mc
 Core/Boot.lua          events
 
-Locales/               enUS.lua, deDE.lua
+Locales/               enUS.lua, deDE.lua, zhCN.lua
 Tests/                 smoke and logic tests in a real Lua VM (fengari)
 
 tools/build-catalog.js         game tables -> MetaCodex_Data/Catalog.lua
