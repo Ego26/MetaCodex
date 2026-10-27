@@ -341,6 +341,18 @@ check("jede Spec hat eigene Auswahl", ns.Profile.Current().main == nil)
 
 ns.Profile.Select(1, 71)                   -- Krieger, Waffen
 check("fremde Klasse erkannt", ns.Profile.IsForeignClass() == true)
+-- Das Talentfenster zeigt den eigenen Baum, also die eigenen Builds - nicht
+-- die der im Fenster gewaehlten Spec. Sonst lagen Schamanen-Builds auf dem
+-- Schurkenbaum (27. Oktober).
+check("das Talentfenster bleibt bei der aktiven Spec", ns.Profile.TalentFrameSpec() == 105,
+    tostring(ns.Profile.TalentFrameSpec()))
+do
+    local vorher = MetaCodexDB.hero
+    MetaCodexDB.hero = { [105] = 33, [71] = 44 }
+    check("der Heldenbaum je Spec, auch fuer das Talentfenster",
+        ns.Profile.HeroTree(105) == 33 and ns.Profile.HeroTree() == 44)
+    MetaCodexDB.hero = vorher
+end
 local stat, source = ns.Compat.SpecPrimaryStat(71)
 -- Aus den Spieldaten, nicht vom Client.
 --

@@ -93,6 +93,18 @@ function Profile.SelectedSpec()
     return (pick and pick.spec) or ns.Compat.CurrentSpec() or 0
 end
 
+---Die Spec, deren Baum Blizzards Talentfenster zeigt: immer die aktive.
+---
+---Nicht die im Fenster gewaehlte. Wer im Addon fuer den Elementar-
+---Schamanen nachschlug und als Schurke das Talentfenster oeffnete, sah
+---dort Schamanen-Builds auf dem Schurkenbaum, und die Vorschau zaehlte
+---"73 rot weg" (27. Oktober). Im Talentfenster gibt es nur den eigenen
+---Baum, also gibt es dort auch nur die eigenen Builds.
+---@return number specID
+function Profile.TalentFrameSpec()
+    return ns.Compat.CurrentSpec() or Profile.SelectedSpec()
+end
+
 ---Der gewaehlte Spielmodus.
 ---
 ---Er haengt am Konto und nicht an der Spezialisierung: wer fuer den
@@ -1246,11 +1258,12 @@ end
 ---
 ---Je Spec gemerkt: Sturmbringer ist eine Wahl des Verstaerkungs-
 ---Schamanen und sagt ueber den Wiederherstellungs-Druiden nichts.
+---@param specID number|nil eine andere als die gezeigte, z. B. die des Talentfensters
 ---@return number|nil subTreeID
-function Profile.HeroTree()
+function Profile.HeroTree(specID)
     local db = MetaCodexDB or {}
     local by = db.hero
-    return by and by[Profile.SelectedSpec()] or nil
+    return by and by[specID or Profile.SelectedSpec()] or nil
 end
 
 ---@param subTreeID number|nil

@@ -9952,7 +9952,8 @@ local function talentPanelRows()
     -- beiden - und das Panel sagte "nichts gemessen", obwohl alles da
     -- war.
     if not (ns.Data and ns.Data.Ensure and ns.Data.Ensure()) then return {} end
-    local specID = ns.Profile.SelectedSpec()
+    -- Die Spec des Baums daneben, nicht die im grossen Fenster gewaehlte.
+    local specID = ns.Profile.TalentFrameSpec()
     -- Derselbe Schluessel wie die Talentseite im grossen Fenster: wer
     -- dort einen Dungeon gewaehlt hat, meint ihn hier auch.
     if ns.Profile.Dungeon("talents") and ns.Data.EnsureDungeons then
@@ -9960,7 +9961,7 @@ local function talentPanelRows()
     end
     local mode = ns.Profile.LookupMode("talents")
     if not specID or not mode then return {} end
-    local hero = ns.Profile.HeroTree()
+    local hero = ns.Profile.HeroTree(specID)
     -- Woher die Builds stammen - dasselbe Etikett, das auf dem Waehler
     -- steht, und spaeter der Name der angelegten Talentbelegung.
     local modeLabel
@@ -10100,7 +10101,7 @@ local function openTalentModePicker(anchor)
     -- Was keine Talente hat, steht nicht zur Wahl.
     local function has(mode)
         return mode and ns.Recommend.HasMode(mode.key)
-            and ns.Recommend.HasSection(ns.Profile.SelectedSpec(), mode.key,
+            and ns.Recommend.HasSection(ns.Profile.TalentFrameSpec(), mode.key,
                 ns.Recommend.ALL, "talents")
     end
 
