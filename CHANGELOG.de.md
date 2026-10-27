@@ -4,6 +4,8 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ## [Unveröffentlicht]
 
+## [1.1.23] - 2026-10-27
+
 ### Neu
 
 - **Vereinfachtes Chinesisch (zhCN)**, die ganze Oberfläche, übersetzt

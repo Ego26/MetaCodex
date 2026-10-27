@@ -1,3 +1,29 @@
+## v1.1.23 — 简体中文
+
+### Added
+
+- **Simplified Chinese**, the whole interface — translated by Maple
+  Saint (nanjuekaien1), thank you! It follows a Chinese client by
+  itself and can be chosen on any other: `/mc lang zh`, or 简体中文
+  under language in the settings. German names and Chinese text stand
+  side by side in the same line.
+
+### Changed
+
+- **Rotation**: the tabs are plain text, the open one underlined in the
+  class colour; the hero tree is a dropdown at the right of the same
+  row.
+
+### Fixed
+
+- **Talents you already have no longer show green** in the preview at
+  the talent frame — the free ones the game grants, like the first node
+  of the hero tree, counted as missing for nearly every spec.
+- **The talent frame shows the builds of your active spec**, whatever
+  the window is showing — no more builds of another class on your tree.
+- **Monk, in German**: the lines for invoking Xuen, Chi-Ji or Niuzao
+  were missing and showed in English.
+
 ## v1.1.22 — rotation and groups
 
 ### Added

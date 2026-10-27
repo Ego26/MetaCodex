@@ -4,6 +4,8 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ## [Unreleased]
 
+## [1.1.23] - 2026-10-27
+
 ### Added
 
 - **Simplified Chinese (zhCN)**, the whole interface, translated by
