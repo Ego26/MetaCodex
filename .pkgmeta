@@ -47,6 +47,8 @@ ignore:
   - .pkgmeta
   - README.md
   - README.de.md
+  - STREAMERS.md
+  - STREAMERS.de.md
   - FEATURES.md
   - FEATURES.de.md
   # The history stays in the repository. Into the package goes
