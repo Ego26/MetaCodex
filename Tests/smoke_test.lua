@@ -5255,6 +5255,23 @@ do
         tostring(zurueck):find("2002", 1, true) == nil, tostring(zurueck))
     check("der Text steht trotzdem da", fs2:GetText() == "Felphis")
 
+    -- CHINESISCH AUF EINEM DEUTSCHEN CLIENT (27. Oktober): mit /mc lang zh
+    -- stand das ganze Fenster voller Kaestchen, weil die Grundschrift des
+    -- Clients keine chinesischen Zeichen kennt. Dann ist die chinesische
+    -- Schrift die Grundschrift - fuer jede Zeile, nicht nur fuer die, die
+    -- durch S:SetText laufen.
+    ns.SetLanguage("zhCN")
+    local fs3 = S:Text(ns.UI.Frame(), "body", "textPrimary")
+    check("Oberflaeche chinesisch auf deutschem Client: chinesische Grundschrift",
+        tostring(fs3:GetFont()):find("AR", 1, true) ~= nil, tostring(fs3:GetFont()))
+    S:SetText(fs3, "Felphis")
+    check("  auch fuer lateinischen Text darin",
+        tostring(fs3:GetFont()):find("AR", 1, true) ~= nil, tostring(fs3:GetFont()))
+    ns.SetLanguage("deDE")
+    local fs4 = S:Text(ns.UI.Frame(), "body", "textPrimary")
+    check("  auf Deutsch wieder die Schrift des Clients",
+        tostring(fs4:GetFont()):find("AR", 1, true) == nil, tostring(fs4:GetFont()))
+
     -- Und sie bleibt an keiner Zeile haengen, die weiterbenutzt wird.
     --
     -- Genau daran ist es gescheitert: wer das Profil eines koreanischen

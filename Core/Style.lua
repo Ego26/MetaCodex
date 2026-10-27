@@ -293,6 +293,29 @@ local function fontFor(fontString, script, size, flags)
     return nil
 end
 
+---Die Grundschrift: die des Clients - ausser die Oberflaeche spricht eine
+---Sprache, die diese Schrift nicht zeichnen kann.
+---
+---CHINESISCH AUF EINEM DEUTSCHEN CLIENT (27. Oktober). Seit /mc lang zh
+---geht das, und das Fenster stand voller Kaestchen: STANDARD_TEXT_FONT
+---eines deutschen oder englischen Clients kennt keine chinesischen
+---Zeichen. Dann ist die chinesische Schrift die Grundschrift. Sie hat
+---auch lateinische Buchstaben, deutsche Gegenstandsnamen bleiben lesbar.
+---@param fontString table zum Ausprobieren, wie bei fontFor
+---@param size number
+---@param flags string
+---@return string
+local function baseFont(fontString, size, flags)
+    local ui = ns.CurrentLocale and ns.CurrentLocale()
+    local client = GetLocale and GetLocale()
+    local cjk = { zhCN = true, zhTW = true }
+    if cjk[ui] and not cjk[client] then
+        local path = fontFor(fontString, "chinese", size, flags)
+        if path then return path end
+    end
+    return STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
+end
+
 ---Welches Schriftsystem ein Text braucht - oder nil fuer das eigene.
 ---
 ---Gelesen an den Bytes, nicht an der Sprache des Spielers: in derselben
@@ -354,7 +377,7 @@ function Style:SetText(fontString, text)
         -- fast gelegen: wer das Setzen dem Suchen ueberlaesst, setzt
         -- nur beim allerersten Mal etwas.
         local path = fontFor(fontString, script, size, flags)
-            or STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
+            or baseFont(fontString, size, flags)
         fontString:SetFont(path, size, flags)
         fontString.__script = script
     end
@@ -368,8 +391,9 @@ function Style:ApplyFont(fontString, size, token)
     local points = type(size) == "string" and Style.font[size] or size or Style.font.body
     local r, g, b = Style:Color(token or "textPrimary")
 
-    local path = STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
     local outline = (0.2126 * r + 0.7152 * g + 0.0722 * b) > 0.5
+    local size = Style:Pixel(points * (Style.fontScale or 1))
+    local path = baseFont(fontString, size, outline and "OUTLINE" or "")
 
     -- __fontPoints ist die GEWUENSCHTE Groesse, __size die gesetzte. Ohne
     -- die Trennung waere jede Aenderung der Schriftgroesse auf der
@@ -382,8 +406,7 @@ function Style:ApplyFont(fontString, size, token)
     fontString.__script = nil
     texts[fontString] = true
 
-    fontString:SetFont(path, Style:Pixel(points * (Style.fontScale or 1)),
-        outline and "OUTLINE" or "")
+    fontString:SetFont(path, size, outline and "OUTLINE" or "")
     fontString:SetTextColor(r, g, b)
     fontString:SetShadowOffset(0, 0)
     if not outline then fontString:SetShadowColor(0, 0, 0, 0) end
