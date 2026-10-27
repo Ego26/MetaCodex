@@ -195,37 +195,49 @@ end
 ---NUR DER GEWAEHLTE EINTRAG. Ein Wahlknoten bietet zwei Talente an und
 ---du hast eines; beide zu zaehlen hiesse, dir etwas anzudichten, das du
 ---nicht hast.
----@return table<number, boolean>
----@return table<number, number>  Zauber -> gekaufte Raenge
+---
+---UND AUCH DAS GESCHENKTE (27. Oktober). Der Einstieg des Held-Baums und
+---die Startknoten oben im Klassenbaum gibt das Spiel umsonst: aktiv, aber
+---null Raenge gekauft. Gezaehlt wurde nur Gekauftes, und so standen sie
+---gruen ("fehlt dir") auf Talenten, die laengst leuchten - bei fast jeder
+---Spec, "3 gruen dazu, 0 rot weg". Darum zwei Antworten: was aktiv ist
+---(fuer Gruen) und was gekauft ist (fuer Rot - Geschenktes kann man nicht
+---abwaehlen, und ein Importstring fuehrt es gar nicht erst).
+---@return table<number, number> aktiv    Zauber -> aktive Raenge
+---@return table<number, number> gekauft  Zauber -> gekaufte Raenge
 function Tree.Worn()
     local configID = activeConfig()
-    local out = {}
+    local aktiv, gekauft = {}, {}
     if not (configID and C_Traits and C_Traits.GetConfigInfo and C_Traits.GetNodeInfo) then
-        return out
+        return aktiv, gekauft
     end
     local ok, info = pcall(C_Traits.GetConfigInfo, configID)
-    if not (ok and info and info.treeIDs) then return out end
+    if not (ok and info and info.treeIDs) then return aktiv, gekauft end
 
     for _, treeID in ipairs(info.treeIDs) do
         for _, nodeID in ipairs(nodesOf(configID, treeID)) do
             local ok2, node = pcall(C_Traits.GetNodeInfo, configID, nodeID)
             node = ok2 and node or nil
-            local raenge = tonumber(node and node.ranksPurchased) or 0
+            local kauf = tonumber(node and node.ranksPurchased) or 0
+            local raenge = math.max(kauf, tonumber(node and node.activeRank) or 0)
             if node and raenge > 0 then
+                local spells = {}
                 local gewaehlt = node.activeEntry and node.activeEntry.entryID
                 if gewaehlt then
-                    local spell = spellOfEntry(configID, gewaehlt)
-                    if spell then out[spell] = raenge end
+                    spells[1] = spellOfEntry(configID, gewaehlt)
                 else
                     for _, entryID in ipairs(node.entryIDs or {}) do
-                        local spell = spellOfEntry(configID, entryID)
-                        if spell then out[spell] = raenge end
+                        spells[#spells + 1] = spellOfEntry(configID, entryID)
                     end
+                end
+                for _, spell in pairs(spells) do
+                    aktiv[spell] = raenge
+                    if kauf > 0 then gekauft[spell] = kauf end
                 end
             end
         end
     end
-    return out
+    return aktiv, gekauft
 end
 
 -- ---------------------------------------------------- Die Rahmen
@@ -322,7 +334,7 @@ function Tree.Show(spells)
     local tab = tabFrame()
     if not (map and tab and tab.GetTalentButtonByNodeID) then return 0, 0, fehlt end
 
-    local worn = Tree.Worn()
+    local worn, gekauft = Tree.Worn()
     -- RAENGE, NICHT NUR "GEKAUFT JA/NEIN".
     --
     -- Ein Build mit 75 Knoten und einer mit 71 geben dieselben
@@ -425,7 +437,8 @@ function Tree.Show(spells)
             if mark(spell, "success") then plus = plus + 1 end
         end
     end
-    for spell, rang in pairs(worn) do
+    -- Rot nur gegen Gekauftes: Geschenktes faellt mit keinem Build weg.
+    for spell, rang in pairs(gekauft) do
         if rang > (wanted[spell] or 0) then
             if mark(spell, "danger") then minus = minus + 1 end
         end

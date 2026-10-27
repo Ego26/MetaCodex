@@ -1654,10 +1654,13 @@ do
     for _ in pairs(map or {}) do inMap = inMap + 1 end
     check("der Baum ist auf Zauber abgebildet", inMap > 0, inMap .. " Zauber")
 
-    local worn = ns.Tree.Worn()
+    local worn, gekauft = ns.Tree.Worn()
     local geskillt = 0
     for _ in pairs(worn) do geskillt = geskillt + 1 end
     check("  und was geskillt ist, ist bekannt", geskillt > 0, geskillt .. " Zauber")
+    -- Knoten 102 (Zauber 500002) ist geschenkt: aktiv, nicht gekauft.
+    check("  auch Geschenktes zaehlt als geskillt", worn[500002] == 1 and gekauft[500002] == nil,
+        tostring(worn[500002]) .. " / " .. tostring(gekauft[500002]))
 
     -- Ein Knopf je Knoten, damit die Vorschau etwas anheften kann. Eine
     -- schlichte Tabelle und keine Attrappe: die beantwortet jede Frage
@@ -1675,9 +1678,11 @@ do
     -- einen ungeskillten dazunimmt.
     -- MIT RANG. Der Build uebernimmt, was der Spieler hat; nur so
     -- bleibt der eine weggelassene Zauber der einzige Abgang.
+    -- Weggelassen wird etwas GEKAUFTES: Geschenktes faellt mit keinem
+    -- Build weg und wird nie rot.
     local wollen, weggelassen, mitZwei = {}, nil, nil
     for spell, raenge in pairs(worn) do
-        if not weggelassen then weggelassen = spell
+        if not weggelassen and gekauft[spell] then weggelassen = spell
         else
             wollen[#wollen + 1] = { spell = spell, rank = raenge }
             if raenge > 1 and not mitZwei then mitZwei = spell end
@@ -1716,6 +1721,20 @@ do
         say("  -- kein Talent mit zwei Raengen geskillt, Rangfall uebersprungen")
     end
     check("  und keines geht still verloren", #fehlt == 0, #fehlt .. " nicht gefunden")
+
+    -- DAS GESCHENKTE: weder gruen, wenn der Build es nennt, noch rot, wenn
+    -- er es nicht nennt. Im Spiel stand "3 gruen dazu" auf dem Einstieg des
+    -- Held-Baums und den Startknoten, bei fast jeder Spec (27. Oktober).
+    local genau, ohne = {}, {}
+    for spell, raenge in pairs(worn) do
+        genau[#genau + 1] = { spell = spell, rank = raenge }
+        if spell ~= 500002 then ohne[#ohne + 1] = { spell = spell, rank = raenge } end
+    end
+    local p5, m5 = ns.Tree.Show(genau)
+    check("  der eigene Baum als Build: nichts gruen, nichts rot", p5 == 0 and m5 == 0,
+        p5 .. " gruen, " .. m5 .. " rot")
+    local _, m6 = ns.Tree.Show(ohne)
+    check("  ohne das Geschenkte: trotzdem nichts rot", m6 == 0, m6 .. " rot")
 
     -- Ohne Knopf wird gezaehlt statt verschwiegen.
     _G.PlayerSpellsFrame.TalentsFrame = {
