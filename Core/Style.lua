@@ -316,6 +316,51 @@ local function baseFont(fontString, size, flags)
     return STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
 end
 
+-- EINE SCHRIFTFAMILIE STATT EINER SCHRIFT (27. Oktober).
+--
+-- Eine Schrift allein reicht nicht, sobald zwei Schriftsysteme in einer
+-- Zeile stehen. Chinesische Oberflaeche auf einem deutschen Client:
+-- "1109 次记录 · Blut · Täuschung" - die chinesische Schrift hat keine
+-- Umlaute ("W□chter"), die deutsche keine chinesischen Zeichen. Eine
+-- Familie traegt je Schriftsystem eine Schrift, und das Spiel nimmt fuer
+-- jedes Zeichen die passende - so zeigt Blizzards eigener Chat russische
+-- und chinesische Namen auf jedem Client. Lateinisch fest FRIZQT, nicht
+-- die Standardschrift: auf einem chinesischen Client ist die selbst
+-- chinesisch und haette wieder keine Umlaute.
+local ALPHABETS = {
+    { "roman", "Fonts\\FRIZQT__.TTF" },
+    { "korean", "Fonts\\2002.TTF" },
+    { "simplifiedchinese", "Fonts\\ARKai_T.TTF" },
+    { "traditionalchinese", "Fonts\\bLEI00D.TTF" },
+    { "russian", "Fonts\\FRIZQT___CYR.TTF" },
+}
+local families = {}
+
+---Die Familie fuer eine Groesse, oder nil, wo das Spiel keine anbietet.
+---@param size number
+---@param flags string
+---@return table|nil
+local function familyFor(size, flags)
+    if type(CreateFontFamily) ~= "function" then return nil end
+    local key = ("%.2f|%s"):format(size, flags)
+    if families[key] ~= nil then return families[key] or nil end
+    local members = {}
+    for _, a in ipairs(ALPHABETS) do
+        members[#members + 1] = {
+            alphabet = a[1],
+            file = a[2],
+            height = size,
+            flags = flags,
+        }
+    end
+    local name = "MetaCodexFont" .. key:gsub("[^%w]", "_")
+    local ok, family = pcall(CreateFontFamily, name, members)
+    -- Gescheitert heisst: der alte Weg, eine Schrift je Zeile. Gemerkt,
+    -- damit es nicht bei jeder Zeile neu versucht wird.
+    families[key] = (ok and family) or false
+    return families[key] or nil
+end
+
 ---Welches Schriftsystem ein Text braucht - oder nil fuer das eigene.
 ---
 ---Gelesen an den Bytes, nicht an der Sprache des Spielers: in derselben
@@ -364,6 +409,12 @@ end
 function Style:SetText(fontString, text)
     text = text or ""
     local script = Style:ScriptOf(text)
+    -- Mit einer Familie zeichnet das Spiel jedes Zeichen selbst richtig.
+    -- rawget: ein Rahmen antwortet auf unbekannte Felder nicht immer mit nil.
+    if rawget(fontString, "__family") then
+        fontString:SetText(text)
+        return
+    end
     if script ~= fontString.__script then
         local points = fontString.__fontPoints or Style.font.body
         local r, g, b = Style:Color(fontString.__token or "textPrimary")
@@ -393,7 +444,7 @@ function Style:ApplyFont(fontString, size, token)
 
     local outline = (0.2126 * r + 0.7152 * g + 0.0722 * b) > 0.5
     local size = Style:Pixel(points * (Style.fontScale or 1))
-    local path = baseFont(fontString, size, outline and "OUTLINE" or "")
+    local flags = outline and "OUTLINE" or ""
 
     -- __fontPoints ist die GEWUENSCHTE Groesse, __size die gesetzte. Ohne
     -- die Trennung waere jede Aenderung der Schriftgroesse auf der
@@ -406,7 +457,13 @@ function Style:ApplyFont(fontString, size, token)
     fontString.__script = nil
     texts[fontString] = true
 
-    fontString:SetFont(path, size, outline and "OUTLINE" or "")
+    local family = familyFor(size, flags)
+    fontString.__family = family
+    if family then
+        fontString:SetFontObject(family)
+    else
+        fontString:SetFont(baseFont(fontString, size, flags), size, flags)
+    end
     fontString:SetTextColor(r, g, b)
     fontString:SetShadowOffset(0, 0)
     if not outline then fontString:SetShadowColor(0, 0, 0, 0) end

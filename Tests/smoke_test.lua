@@ -5272,6 +5272,28 @@ do
     check("  auf Deutsch wieder die Schrift des Clients",
         tostring(fs4:GetFont()):find("AR", 1, true) == nil, tostring(fs4:GetFont()))
 
+    -- UND WO DAS SPIEL SCHRIFTFAMILIEN KANN, EINE FAMILIE: eine Schrift
+    -- allein hat entweder die Umlaute oder die chinesischen Zeichen, und
+    -- in "1109 次记录 · Täuschung" stehen beide ("W□chter").
+    do
+        local gebaut
+        _G.CreateFontFamily = function(name, members)
+            gebaut = members
+            return { name = name, members = members }
+        end
+        local fs5 = S:Text(ns.UI.Frame(), "caption", "textPrimary")
+        _G.CreateFontFamily = nil
+        local hat = {}
+        for _, m in ipairs(gebaut or {}) do hat[m.alphabet] = m.file end
+        check("Schriftfamilie: jede Zeile bekommt eine", rawget(fs5, "__family") ~= nil)
+        check("  lateinisch mit Umlauten, chinesisch, koreanisch, kyrillisch",
+            hat.roman == "Fonts\\FRIZQT__.TTF" and hat.simplifiedchinese ~= nil
+                and hat.korean ~= nil and hat.russian ~= nil)
+        S:SetText(fs5, "W\195\164chter \230\136\145")
+        check("  und der Text steht ohne Schriftwechsel da",
+            fs5:GetText() == "W\195\164chter \230\136\145" and rawget(fs5, "__script") == nil)
+    end
+
     -- Und sie bleibt an keiner Zeile haengen, die weiterbenutzt wird.
     --
     -- Genau daran ist es gescheitert: wer das Profil eines koreanischen
