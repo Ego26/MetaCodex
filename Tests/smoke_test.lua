@@ -5281,7 +5281,13 @@ do
             gebaut = members
             return { name = name, members = members }
         end
+        -- Auf Deutsch bleibt alles wie vorher: keine Familie.
+        local fs6 = S:Text(ns.UI.Frame(), "caption", "textPrimary")
+        check("Schriftfamilie nicht auf Deutsch", rawget(fs6, "__family") == nil
+            and tostring(fs6:GetFont()):find("FRIZQT", 1, true) ~= nil, tostring(fs6:GetFont()))
+        ns.SetLanguage("zhCN")
         local fs5 = S:Text(ns.UI.Frame(), "caption", "textPrimary")
+        ns.SetLanguage("deDE")
         _G.CreateFontFamily = nil
         local hat = {}
         for _, m in ipairs(gebaut or {}) do hat[m.alphabet] = m.file end

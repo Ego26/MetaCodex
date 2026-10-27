@@ -305,11 +305,16 @@ end
 ---@param size number
 ---@param flags string
 ---@return string
+local CJK = { zhCN = true, zhTW = true }
+
+---Spricht die Oberflaeche Chinesisch?
+---@return boolean
+local function chineseUI()
+    return CJK[ns.CurrentLocale and ns.CurrentLocale()] or false
+end
+
 local function baseFont(fontString, size, flags)
-    local ui = ns.CurrentLocale and ns.CurrentLocale()
-    local client = GetLocale and GetLocale()
-    local cjk = { zhCN = true, zhTW = true }
-    if cjk[ui] and not cjk[client] then
+    if chineseUI() and not CJK[GetLocale and GetLocale()] then
         local path = fontFor(fontString, "chinese", size, flags)
         if path then return path end
     end
@@ -324,7 +329,11 @@ end
 -- Umlaute ("W□chter"), die deutsche keine chinesischen Zeichen. Eine
 -- Familie traegt je Schriftsystem eine Schrift, und das Spiel nimmt fuer
 -- jedes Zeichen die passende - so zeigt Blizzards eigener Chat russische
--- und chinesische Namen auf jedem Client. Lateinisch fest FRIZQT, nicht
+-- und chinesische Namen auf jedem Client.
+--
+-- NUR BEI CHINESISCHER OBERFLAECHE. Auf Deutsch und Englisch bleibt die
+-- Schrift, wie sie war - dort gab es nichts zu loesen, und die Familie
+-- zeichnete im Spiel sichtbar anders. Lateinisch fest FRIZQT, nicht
 -- die Standardschrift: auf einem chinesischen Client ist die selbst
 -- chinesisch und haette wieder keine Umlaute.
 local ALPHABETS = {
@@ -457,7 +466,7 @@ function Style:ApplyFont(fontString, size, token)
     fontString.__script = nil
     texts[fontString] = true
 
-    local family = familyFor(size, flags)
+    local family = chineseUI() and familyFor(size, flags) or nil
     fontString.__family = family
     if family then
         fontString:SetFontObject(family)
