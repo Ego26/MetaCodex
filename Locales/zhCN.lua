@@ -313,7 +313,7 @@ ns.RegisterLocale("zhCN", {
 	["GROUP_TALENTS"]      = "天赋",
 	["GROUP_GEAR"]         = "装备",
 	["SECTION_settings"]   = "通用",
-	["SECTION_guides"]     = "攻略与循环",
+	["SECTION_guides"]     = "攻略",
 	["SECTION_stats"]      = "属性目标",
 	["SECTION_races"] = "种族",
 	["SECTION_rotation"] = "循环",
