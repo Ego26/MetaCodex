@@ -41,7 +41,7 @@ unter Einstellungen abschalten.
 - **Rotation** (Beta) — was du drückst, in ganzen Sätzen: die Priorität
   aus SimulationCraft, zugeschnitten auf den Build der Top-Spieler, je
   Heldenbaum. Für Heiler, was Top-Heiler wirklich wirken, gemessen.
-- **Gruppen & Specs** — wer oben mit wem spielt: die häufigsten
+- **Gruppen & Klassen** — wer oben mit wem spielt: die häufigsten
   M+-Gruppen, die Raid-Aufstellungen, die Specs unter den Besten im PvP.
 - **Top-Spieler**, klickbar — ihr Talentbuild mit Import-String, ihre
   komplette Ausrüstung, ihr Profil.
@@ -123,7 +123,7 @@ Klick öffnet das Profil *im Fenster*: seinen Talent-String (mit Vermerk, ob
 er zur Aktivität passt), seine komplette Ausrüstung — Tooltips zeigen
 jedes Stück genau so, wie er es trägt — und die Adresse seines Profils.
 
-**Gruppen & Specs** — Wer oben mit wem spielt. In **M+** die häufigsten
+**Gruppen & Klassen** — Wer oben mit wem spielt. In **M+** die häufigsten
 Fünfergruppen und die Specs je Rolle, aus den hohen Schlüsseln
 (raider.io) und +7 bis +21 (Warcraft Logs), auch je Dungeon; ob eine
 Gruppe Kampfrausch und Wiederbelebung im Kampf mitbringt, steht dabei,

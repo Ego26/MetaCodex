@@ -35,7 +35,7 @@ fällt weg.
 | **Rotation** (Beta) | Was du drückst, in ganzen Sätzen: die Priorität aus SimulationCraft, zugeschnitten auf den Build der Top-Spieler, je Heldenbaum — Einzelziel, Flächenschaden, vor dem Pull, Tränke & Schmuck. Heiler bekommen, was Top-Heiler wirklich wirken, gemessen auf Warcraft Logs |
 | **Zielwerte** | Gemessene Mediane der Besten, deine Werte als zweiter Balken, und die Schwellen des abnehmenden Ertrags, wo du darüber liegst |
 | **Rassen** | Welche Rasse die Besten der Spec spielen, und was eine Rasse simuliert an Schaden bringt |
-| **Gruppen & Specs** | Wer oben mit wem spielt: die häufigsten M+-Gruppen und die Specs je Rolle, die Raid-Aufstellungen je Schwierigkeit, die Specs unter den Besten jeder PvP-Klammer |
+| **Gruppen & Klassen** | Wer oben mit wem spielt: die häufigsten M+-Gruppen und die Specs je Rolle, die Raid-Aufstellungen je Schwierigkeit, die Specs unter den Besten jeder PvP-Klammer |
 | **Talente** | Der häufigste Build mit Import-String, Alternativen als *X statt Y*, umstrittene Talente — je Dungeon in M+, je Boss im Raid |
 | **Omnium-Foliant** | Welche Rune die Besten in jeder der fünf Reihen nehmen, gemessen an dem, was sie im Kampf tut |
 | **Top-Spieler** | Wer oben steht, klickbar: Talentbuild mit Import-String und komplette Ausrüstung |
