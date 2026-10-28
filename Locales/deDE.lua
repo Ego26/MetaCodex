@@ -654,7 +654,7 @@ ns.RegisterLocale("deDE", {
     ["COMP_BREZ"] = "Kampf-Wiederbelebung",
     ["COMP_NO_LUST"] = "ohne Kampfrausch",
     ["COMP_NO_BREZ"] = "ohne Kampf-Wiederbelebung",
-    ["COMP_YOURS"] = "deine Spec",
+    ["COMP_YOURS"] = "deine Spezialisierung",
     ["COMP_TIP_GROUP"] = "Gruppe in Top-Runs",
     ["COMP_TIP_RUNS"] = "Gespielt in %d von %d Runs (%d %%).",
     ["COMP_TIP_SPEC"] = "In %d %% der %d Runs dabei.",
