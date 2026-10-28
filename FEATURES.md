@@ -294,8 +294,7 @@ same.
 ## Controls
 
 - **Spec** (header, left): your own is the default. Any other class and
-  spec can be chosen; under "Also buy for …" further specs join the same
-  shopping list.
+  spec can be chosen.
 - **Activity**: M+, raid, PvP — in submenus. Only what has data for the
   current tab is listed.
 - **Platform**: one or all. Where a platform has nothing for a tab it is

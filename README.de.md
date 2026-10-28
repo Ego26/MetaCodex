@@ -5,7 +5,7 @@
 **Aus echten Kämpfen, nicht aus Guides.** Talentbuilds mit Import-String,
 Ausrüstung mit Fundort, Verzauberungen, Steine, Verbrauchsgüter, Zielwerte,
 Rassen, eine Rotation, die Gruppen an der Spitze und die Top-Spieler je
-Spec — für Mythic+, Raid und jede PvP-Klammer. Täglich gemessen aus raider.io, murlok.io, Warcraft Logs und
+Spezialisierung — für Mythic+, Raid und jede PvP-Klammer. Täglich gemessen aus raider.io, murlok.io, Warcraft Logs und
 Battle.net, nie aus einem Guide abgeschrieben. Liest deine Ausrüstung und übergibt das Fehlende an
 Auctionator.
 
@@ -31,16 +31,16 @@ fällt weg.
 
 | Reiter | |
 |---|---|
-| **Guides** | Verweise auf die geschriebenen Guides zur Spec |
+| **Guides** | Verweise auf die geschriebenen Guides zur Spezialisierung |
 | **Rotation** (Beta) | Was du drückst, in ganzen Sätzen: die Priorität aus SimulationCraft, zugeschnitten auf den Build der Top-Spieler, je Heldenbaum — Einzelziel, Flächenschaden, vor dem Pull, Tränke & Schmuck. Heiler bekommen, was Top-Heiler wirklich wirken, gemessen auf Warcraft Logs |
 | **Zielwerte** | Gemessene Mediane der Besten, deine Werte als zweiter Balken, und die Schwellen des abnehmenden Ertrags, wo du darüber liegst |
-| **Rassen** | Welche Rasse die Besten der Spec spielen, und was eine Rasse simuliert an Schaden bringt |
-| **Gruppen & Klassen** | Wer oben mit wem spielt: die häufigsten M+-Gruppen und die Specs je Rolle, die Raid-Aufstellungen je Schwierigkeit, die Specs unter den Besten jeder PvP-Klammer |
+| **Rassen** | Welche Rasse die Besten der Spezialisierung spielen, und was eine Rasse simuliert an Schaden bringt |
+| **Gruppen & Klassen** | Wer oben mit wem spielt: die häufigsten M+-Gruppen und die Spezialisierungen je Rolle, die Raid-Aufstellungen je Schwierigkeit, die Spezialisierungen unter den Besten jeder PvP-Klammer |
 | **Talente** | Der häufigste Build mit Import-String, Alternativen als *X statt Y*, umstrittene Talente — je Dungeon in M+, je Boss im Raid |
 | **Omnium-Foliant** | Welche Rune die Besten in jeder der fünf Reihen nehmen, gemessen an dem, was sie im Kampf tut |
 | **Top-Spieler** | Wer oben steht, klickbar: Talentbuild mit Import-String und komplette Ausrüstung |
 | **Beliebt** | Fünf je Platz mit Fundort; Tooltips auf der Schlüsselstufe, die du wählst |
-| **Fundorte** | Jeder Dungeon und jeder Raidboss mit der vollen Beuteliste der Spec, aus dem Abenteuerführer. Klick markiert einen Favoriten; ein grüner Haken sitzt auf allem, was du schon hast |
+| **Fundorte** | Jeder Dungeon und jeder Raidboss mit der vollen Beuteliste der Spezialisierung, aus dem Abenteuerführer. Klick markiert einen Favoriten; ein grüner Haken sitzt auf allem, was du schon hast |
 | **Tier-Set** | Welche Set-Teile die Besten tragen, und wie viele davon |
 | **Handwerk & Verzierungen** | Die Handwerksstücke, die wirklich getragen werden, mit ihrem Wertepaar und den gemessenen Gegenstandsstufen, und welche zwei Verzierungen zusammen getragen werden |
 | **Verzauberungen & Steine** | Gegen deine angelegte Ausrüstung: was noch offen ist |
@@ -52,7 +52,7 @@ Vorschau im Baum, zwei Zeilen in jedem Gegenstands-Tooltip (*auch getragen
 von*, *Werte passen zu*) und ein Fenster, wenn ein Favorit für jemand
 anderen droppt.
 
-Zehn Aktivitäten, vier Plattformen, alle vierzig Speccs. Nichts wird
+Zehn Aktivitäten, vier Plattformen, alle vierzig Spezialisierungen. Nichts wird
 gezeigt, was keine Plattform beantworten kann: Abschnitte, Aktivitäten und
 Plattformen ohne Daten sind ausgeblendet. [FEATURES.de.md](FEATURES.de.md)
 hat das ganze Bild.
@@ -80,9 +80,9 @@ Core/Catalog.lua       Zugriff auf den Katalog – kennt als Einzige das Format
 Core/Recommend.lua     Zugriff auf die Empfehlungen: Modi, Quellen, Mischen
 Core/Profile.lua       SavedVariables: Auswahl, Fenster, Ziele
 Core/Gear.lua          angelegte Ausrüstung: leere Sockel, fehlende Verzauberungen
-Core/List.lua          Soll minus Ist, für eine Spec oder mehrere
+Core/List.lua          Soll minus Ist, für eine Spezialisierung oder mehrere
 Core/Drops.lua         dieselben Stücke nach Fundort statt nach Platz
-Core/Loot.lua          die ganze Beute einer Instanz für eine Spec, aus dem Journal
+Core/Loot.lua          die ganze Beute einer Instanz für eine Spezialisierung, aus dem Journal
 Core/Wish.lua          ein Favorit ist gedroppt – bei jemand anderem
 Core/Tooltip.lua       was MetaCodex weiß, dort, wo man das Item anfasst
 Core/Tree.lua          die Vorschau im Talentbaum

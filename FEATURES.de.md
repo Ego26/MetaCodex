@@ -24,25 +24,25 @@ unter Einstellungen abschalten.
   Alternativen, je Dungeon in M+, je Boss im Raid, je Klammer im PvP.
   Kopieren, einfügen, fertig — oder direkt am Talentfenster laden.
 - **Wo jedes Stück fällt** — jeder aktuelle Dungeon und jeder Raidboss mit
-  der vollen Beuteliste deiner Spec, und Tooltips auf der Stufe, die
+  der vollen Beuteliste deiner Spezialisierung, und Tooltips auf der Stufe, die
   *dein* Schlüsselstein gibt.
 - **Favoriten** — markier die Stücke, hinter denen du her bist; das Addon
   sagt, wo die meisten fallen, und meldet sich, wenn eines für jemand
   anderen droppt.
-- **Im Tooltip** — welche anderen Specs dieses Stück tragen und zu wessen
+- **Im Tooltip** — welche anderen Spezialisierungen dieses Stück tragen und zu wessen
   Werten es passt. Die Antwort auf jede kriegsgebundene Beute.
 - **Verzauberungen & Steine gegen deine Ausrüstung** — was noch offen ist,
   was du schon hast, was du kaufen musst.
 - **Verbrauchsgüter**, gruppiert nach Art, mit Bestand und Ziel.
 - **Zielwerte**, gemessen an den Besten, deine Werte daneben — und die
   Schwellen des abnehmenden Ertrags markiert, wo du darüber liegst.
-- **Rassen** — welche Rasse die Besten deiner Spec spielen, und was eine
+- **Rassen** — welche Rasse die Besten deiner Spezialisierung spielen, und was eine
   Rasse an Schaden bringt.
 - **Rotation** (Beta) — was du drückst, in ganzen Sätzen: die Priorität
   aus SimulationCraft, zugeschnitten auf den Build der Top-Spieler, je
   Heldenbaum. Für Heiler, was Top-Heiler wirklich wirken, gemessen.
 - **Gruppen & Klassen** — wer oben mit wem spielt: die häufigsten
-  M+-Gruppen, die Raid-Aufstellungen, die Specs unter den Besten im PvP.
+  M+-Gruppen, die Raid-Aufstellungen, die Spezialisierungen unter den Besten im PvP.
 - **Top-Spieler**, klickbar — ihr Talentbuild mit Import-String, ihre
   komplette Ausrüstung, ihr Profil.
 - **Erinnerung** vor dem Start und am Auktionshaus — und ein Reiter, der
@@ -52,7 +52,7 @@ unter Einstellungen abschalten.
   Balken und Zahl, und ein Klick sucht es.
 - **Einkaufslisten an Auctionator** mit Stückzahlen; **Shift-Klick**
   verlinkt jeden Gegenstand in den Chat oder ins Suchfeld des Auktionshauses.
-- **Jede Aktivität, jede Spec, vier Plattformen** — und nichts angezeigt,
+- **Jede Aktivität, jede Spezialisierung, vier Plattformen** — und nichts angezeigt,
   was keine Plattform beantworten kann.
 - **Deutsch, Englisch und vereinfachtes Chinesisch**, auf jedem Client richtig.
 
@@ -63,7 +63,7 @@ unter Einstellungen abschalten.
 ### Überblick
 
 **Guides** — Verweise auf die geschriebenen Guides zu deiner
-Spec: Wowhead (Rotation und BiS), Method, Archon, murlok. Ein Klick legt die
+Spezialisierung: Wowhead (Rotation und BiS), Method, Archon, murlok. Ein Klick legt die
 Adresse zum Kopieren hin — ein Addon kann keinen Browser öffnen, aber den
 Weg dorthin kurz machen.
 
@@ -71,7 +71,7 @@ Weg dorthin kurz machen.
 auf Abklingzeit", „Wirke Lavaeruption, wenn Meister der Elemente nicht
 aktiv ist", und am Ende der Füller. Für Schadensklassen und Tanks ist es
 die Priorität, die SimulationCraft spielt, zugeschnitten auf den Build,
-den die gemessenen Top-Spieler deiner Spec spielen — Talente, die sie
+den die gemessenen Top-Spieler deiner Spezialisierung spielen — Talente, die sie
 nicht nehmen, und Zauber eines Heldenbaums, den sie nicht spielen,
 fallen heraus. Eine Rotation je Heldenbaum, mit einem Dropdown, wo genug
 Top-Spieler jeden spielen, je Aktivität und Schwierigkeit. Reiter für
@@ -99,7 +99,7 @@ Schwellen verschiebt. Die meisten werden das nie zu sehen bekommen — die
 gemessenen Zielwerte liegen fast durchweg unter der ersten Schwelle, und
 eine Warnung, die nie zutrifft, überliest man bald.
 
-**Rassen** — Welche Rasse die gemessenen Top-Spieler deiner Spec spielen,
+**Rassen** — Welche Rasse die gemessenen Top-Spieler deiner Spezialisierung spielen,
 und was eine Rasse bringt. Zwei Zahlen je Zeile. **Gespielt** kommt von
 raider.io: jeder Spieler der besten M+-Läufe und die Profile der besten
 Raid- und PvP-Spieler, jeder einmal gezählt. Hat eine Aktivität allein
@@ -118,18 +118,18 @@ auf Horde oder Allianz eingrenzbar, mit den Rassen beider Seiten darunter.
 Das Tooltip listet die Rassenfähigkeiten so auf, wie die Charaktererstellung
 sie beschreibt.
 
-**Top-Spieler** — Wer diese Spec gerade oben spielt, je Aktivität. Ein
+**Top-Spieler** — Wer diese Spezialisierung gerade oben spielt, je Aktivität. Ein
 Klick öffnet das Profil *im Fenster*: seinen Talent-String (mit Vermerk, ob
 er zur Aktivität passt), seine komplette Ausrüstung — Tooltips zeigen
 jedes Stück genau so, wie er es trägt — und die Adresse seines Profils.
 
 **Gruppen & Klassen** — Wer oben mit wem spielt. In **M+** die häufigsten
-Fünfergruppen und die Specs je Rolle, aus den hohen Schlüsseln
+Fünfergruppen und die Spezialisierungen je Rolle, aus den hohen Schlüsseln
 (raider.io) und +7 bis +21 (Warcraft Logs), auch je Dungeon; ob eine
 Gruppe Kampfrausch und Wiederbelebung im Kampf mitbringt, steht dabei,
 wo sie fehlen. Im **Raid** je Schwierigkeit, in wie vielen Kills eine
-Spec steht und wie oft im Schnitt. Im **PvP**, welche Specs unter den
-Top-Spielern jeder Klammer stehen. Deine eigene Spec ist markiert. Was
+Spezialisierung steht und wie oft im Schnitt. Im **PvP**, welche Spezialisierungen unter den
+Top-Spielern jeder Klammer stehen. Deine eigene Spezialisierung ist markiert. Was
 gespielt wird, kein Beweis, was am stärksten ist — auch das sagt die
 Karte.
 
@@ -163,8 +163,8 @@ bekämst, mit „Held 3/8" im Tooltip. Was du schon trägst oder dabeihast,
 sagt es — **angelegt** oder **liegt schon im Gepäck**.
 
 **Fundorte** — Wohin man dafür geht. Jeder aktuelle Dungeon und jeder
-Raidboss listet alle Drops deiner Spec, direkt aus dem Abenteuerführer des
-Spiels mit seinem Klassen- und Spec-Filter — dieselbe Liste wie sein
+Raidboss listet alle Drops deiner Spezialisierung, direkt aus dem Abenteuerführer des
+Spiels mit seinem Klassen- und Spezialisierungsfilter — dieselbe Liste wie sein
 Beute-Reiter, nicht nur die Stücke, die Top-Spieler tragen. Was gemessen
 wurde, trägt seinen Anteil daneben. Dungeons und Raids stehen immer beide
 da, egal welche Aktivität gewählt ist, und Raids sind nach Bossen in der
@@ -172,7 +172,7 @@ Reihenfolge des Abenteuerführers geteilt. Handwerk, Set, PvP und Weltbeute
 stehen unten in einer Karte **Anderswo**.
 
 Ein Klick markiert ein Stück als **Favorit** — goldener Rahmen und Stern,
-je Charakter und Spec — und eine Hinweiszeile nennt die Instanz, in der die
+je Charakter und Spezialisierung — und eine Hinweiszeile nennt die Instanz, in der die
 meisten deiner Favoriten fallen. Ein grüner Haken sitzt auf allem, was du
 schon hast: angelegt, oder irgendwo in Taschen, Bank, Reagenzien- oder
 Kriegsmeutebank. **Hervorhebung** markiert, wonach du suchst: Favoriten
@@ -247,7 +247,7 @@ gemessen hat, und ob Auctionator da ist.
 ## Außerhalb des Fensters
 
 **Builds am Talentfenster** — Ein Knopf unten am Talentfenster öffnet
-die Builds deiner aktiven Spec — des Baums daneben, egal, was das
+die Builds deiner aktiven Spezialisierung — des Baums daneben, egal, was das
 Fenster gerade zeigt; ein Klick lädt einen davon, über dieselbe
 Methode, die auch Blizzards Import-Dialog benutzt. Je Dungeon und je
 Boss wählbar, gegliedert wie im Fenster. Shift-Klick kopiert statt zu
@@ -269,7 +269,7 @@ Build spielt einen anderen Held-Baum als du* — was der Baum dir nicht
 zeigen kann, weil der andere gar nicht gezeichnet wird.
 
 **Im Gegenstands-Tooltip** — Zwei Zeilen, und nur dort, wo sie etwas wert
-sind. *Auch getragen von* nennt die anderen Specs, die dieses Stück tragen,
+sind. *Auch getragen von* nennt die anderen Spezialisierungen, die dieses Stück tragen,
 mit ihrem Anteil und der Aktivität, in der es gemessen wurde — die Frage
 hinter jeder kriegsgebundenen Beute: taugt das für einen meiner anderen
 Charaktere? Zwei Zeilen als Vorgabe, alle, solange Shift gedrückt ist.
@@ -289,7 +289,7 @@ Gegenstand unter der Maus Schritt für Schritt auf, warum eine Zeile dort
 steht oder eben nicht.
 
 **Wenn ein Favorit droppt** — Fällt ein von dir markiertes Stück — in
-irgendeiner Spec dieses Charakters — für jemand anderen, geht nach dem Boss
+irgendeiner Spezialisierung dieses Charakters — für jemand anderen, geht nach dem Boss
 oder am Ende des Dungeons ein kleines Fenster auf und sagt, was es war und
 wer es bekommen hat, als Name-Realm in seiner Klassenfarbe. Ein Klick
 flüstert ihn an und fragt nach dem Handel — immer auf Englisch, denn es
@@ -310,9 +310,8 @@ ohnehin nicht; die Ausrüstung ist dieselbe.
 
 ## Bedienung
 
-- **Spec** (Kopfzeile links): die eigene ist voreingestellt. Jede andere
-  Klasse und Spec ist wählbar; unter „Auch einkaufen für …" kommen weitere
-  Speccs in dieselbe Einkaufsliste.
+- **Spezialisierung** (Kopfzeile links): die eigene ist voreingestellt.
+  Jede andere Klasse und Spezialisierung ist wählbar.
 - **Aktivität**: M+, Raid, PvP — in Untermenüs. Es steht nur da, wozu es
   für den aktuellen Reiter Daten gibt.
 - **Plattform**: einzeln oder alle. Wo eine Plattform zu einem Reiter
@@ -356,7 +355,7 @@ Selbsttest zum Kopieren · `/mc reset` setzt die Auswahl zurück.
 | **raider.io** | M+: Ausrüstung, Verzauberungen, Steine, Talente mit fertigem Import-String. Die Profile der Top-Spieler, die Rasse, die jeder spielt, und die Gruppen der hohen Schlüssel |
 | **murlok.io** | Alle PvP-Klammern und M+: Ausrüstung, Steine, Zielwerte, Talente, Ranglisten der Top-Spieler |
 | **Warcraft Logs** | Raid komplett und Verbrauchsgüter — das, was sonst niemand veröffentlicht. Die Gruppen von +7 bis +21 und die Raid-Aufstellungen, was Top-Heiler wirken, und die Abläufe von Raid-Pulls |
-| **Battle.net** | Die offiziellen PvP-Ranglisten mit Wertung: jede Wertungsart, EU und US. Je Top-Spieler der Import-String der gewerteten Spec, PvP-Talente, Held-Baum, Ausrüstung, Verzauberungen und Steine — direkt aus Blizzards Charakterprofil — und welche Specs oben stehen |
+| **Battle.net** | Die offiziellen PvP-Ranglisten mit Wertung: jede Wertungsart, EU und US. Je Top-Spieler der Import-String der gewerteten Spezialisierung, PvP-Talente, Held-Baum, Ausrüstung, Verzauberungen und Steine — direkt aus Blizzards Charakterprofil — und welche Spezialisierungen oben stehen |
 | **SimulationCraft** | Die Rotations-Priorität für Schadensklassen und Tanks — simuliert, nicht gemessen, und die Karte sagt das auch |
 | **bloodmallet.com** | Die Rassen-Simulationen, ebenfalls aus SimulationCraft und ebenfalls als simuliert markiert |
 
@@ -384,9 +383,9 @@ also auch keinen Reiter dafür.
 |---|---|
 | **10 Aktivitäten** | M+ (High Keys), M+ (+7 bis +21), Raid Normal / Heroisch / Mythisch, 2v2, 3v3, Solo Shuffle, RBG, RBG Blitz |
 | **4 Plattformen** | raider.io, murlok.io, Warcraft Logs, Battle.net — einzeln wählbar oder „Alle Plattformen". SimulationCraft liefert zusätzlich die Rotation, bloodmallet.com die Rassen-Simulationen |
-| **Alle 40 Speccs** | Auch für Klassen, die du gar nicht spielst — zum Nachsehen oder zum Einkaufen für den Zweitcharakter |
+| **Alle 40 Spezialisierungen** | Auch für Klassen, die du gar nicht spielst — zum Nachsehen oder zum Einkaufen für den Zweitcharakter |
 | **3.008 Talent-Import-Strings** | Jeder von einem echten Spieler, jeder mit einem Klick kopierbar |
-| **3.058 Spielerprofile** | Die Top-Spieler je Spec und Aktivität, mit kompletter Ausrüstung |
+| **3.058 Spielerprofile** | Die Top-Spieler je Spezialisierung und Aktivität, mit kompletter Ausrüstung |
 | **Jede Nacht neu** | Die Daten sind höchstens einen Tag alt |
 
 ---
