@@ -4,6 +4,16 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ## [Unreleased]
 
+## [1.1.24] - 2026-10-28
+
+### Fixed
+
+- **The MetaCodex button stayed on the Reputation and Currency tabs.**
+  It hung on the whole character frame, which is narrower on those
+  tabs, so it floated beside it. It now belongs to the Character tab
+  itself: it shows there only and closes with it. A position you moved
+  it to is kept.
+
 ## [1.1.23] - 2026-10-27
 
 ### Added

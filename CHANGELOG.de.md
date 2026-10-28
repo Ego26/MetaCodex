@@ -4,6 +4,16 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ## [Unveröffentlicht]
 
+## [1.1.24] - 2026-10-28
+
+### Behoben
+
+- **Der MetaCodex-Knopf blieb unter „Ruf" und „Abzeichen" stehen.** Er
+  hing am ganzen Charakterfenster, das auf diesen Reitern schmaler ist,
+  und schwebte daneben. Jetzt gehört er zum Reiter „Charakter" selbst:
+  er steht nur dort und schließt sich mit ihm. Eine selbst verschobene
+  Lage bleibt erhalten.
+
 ## [1.1.23] - 2026-10-27
 
 ### Neu

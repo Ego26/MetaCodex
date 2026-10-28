@@ -1,3 +1,11 @@
+## v1.1.24 — character button fix
+
+### Fixed
+
+- **The MetaCodex button in the character frame** no longer stays on
+  the Reputation and Currency tabs, where it floated beside the
+  narrower frame. It shows on the Character tab only.
+
 ## v1.1.23 — 简体中文
 
 ### Added
