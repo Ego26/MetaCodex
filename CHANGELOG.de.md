@@ -6,6 +6,13 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ## [1.1.24] - 2026-10-28
 
+### Geändert
+
+- **Deutsche Begriffe**: die Oberfläche sagt „Spezialisierung" statt
+  „Spec" und „Speccs", wie das Spiel, in allen siebzehn Texten. Der
+  Abschnitt „Gruppen & Specs" heißt „Gruppen & Klassen" - kurz genug
+  für die Seitenleiste.
+
 ### Behoben
 
 - **Der MetaCodex-Knopf blieb unter „Ruf" und „Abzeichen" stehen.** Er
@@ -13,6 +20,14 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
   und schwebte daneben. Jetzt gehört er zum Reiter „Charakter" selbst:
   er steht nur dort und schließt sich mit ihm. Eine selbst verschobene
   Lage bleibt erhalten.
+- **Die Talent-Vorschau zeigte geskillte Talente als fehlend.** Manche
+  Talente tragen zwei Nummern - die des Baums und die aus den Logs
+  (Schnelligkeit der Ahnen des Schamanen: 443454 im Baum, 448861 in den
+  gemessenen Builds). Die Vorschau fand den Knoten über den Namen,
+  verglich „hast du es?" aber über die Nummer, und so stand das Talent
+  grün da, mit einem roten Rahmen daneben. Jetzt vergleicht sie mit der
+  Nummer des Baums. Geprüft gegen jedes Talent der Builds aller
+  Spezialisierungen.
 
 ## [1.1.23] - 2026-10-27
 

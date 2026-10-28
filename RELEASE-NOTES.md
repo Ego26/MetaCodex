@@ -1,10 +1,18 @@
-## v1.1.24 — character button fix
+## v1.1.24 — character button, talent preview, German wording
+
+### Changed
+
+- **German**: "Spezialisierung" instead of "Spec" throughout, as the
+  game says it. The section "Gruppen & Specs" is now "Gruppen & Klassen".
 
 ### Fixed
 
 - **The MetaCodex button in the character frame** no longer stays on
   the Reputation and Currency tabs, where it floated beside the
   narrower frame. It shows on the Character tab only.
+- **Talent preview**: a talent you already have no longer shows green
+  (with a red frame beside it) when the measured build names it by a
+  second number - Ancestral Swiftness for shamans, for example.
 
 ## v1.1.23 — 简体中文
 

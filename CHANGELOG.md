@@ -6,6 +6,13 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ## [1.1.24] - 2026-10-28
 
+### Changed
+
+- **German wording**: the interface says "Spezialisierung" instead of
+  "Spec" and "Speccs", as the game does, in all seventeen texts. The
+  section "Gruppen & Specs" is called "Gruppen & Klassen" - short enough
+  for the sidebar.
+
 ### Fixed
 
 - **The MetaCodex button stayed on the Reputation and Currency tabs.**
@@ -13,6 +20,13 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
   tabs, so it floated beside it. It now belongs to the Character tab
   itself: it shows there only and closes with it. A position you moved
   it to is kept.
+- **The talent preview marked talents you have as missing.** Some
+  talents carry two numbers - the tree's and the one in the logs (the
+  shaman's Ancestral Swiftness is 443454 in the tree, 448861 in the
+  measured builds). The preview found the node by name but compared
+  "do you have it" by number, so the talent stood green, with a red
+  frame beside it. It now compares with the tree's own number. Checked
+  against every talent of every spec's builds.
 
 ## [1.1.23] - 2026-10-27
 
