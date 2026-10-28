@@ -4783,6 +4783,9 @@ end
 do
     CharacterFrame = CreateFrame("Frame", "CharacterFrame")
     CharacterFrame.CloseButton = CreateFrame("Button", nil, CharacterFrame)
+    -- Der Reiter "Charakter" darin: an ihm haengt der Knopf, damit er unter
+    -- "Ruf" und "Abzeichen" nicht stehen bleibt.
+    PaperDollFrame = CreateFrame("Frame", "PaperDollFrame", CharacterFrame)
     -- Blizzards Wertekasten, und darin noch einer: genau darunter lag
     -- der Knopf, nachdem man ihn dorthin gezogen hatte - und war damit
     -- auch nicht mehr zu greifen.
@@ -4793,6 +4796,8 @@ do
     local button = ns.UI.AttachCharacterButton()
     check("Knopf im Charakterfenster gebaut", button ~= nil and button.icon ~= nil)
     check("ein zweiter Aufruf baut keinen zweiten", ns.UI.AttachCharacterButton() == button)
+    check("er haengt am Reiter Charakter, nicht am ganzen Fenster",
+        button ~= nil and button:GetParent() == PaperDollFrame)
     if button then
         check("das Symbol ist das Logo", tostring(button.icon.__texture or ""):find("logo", 1, true) ~= nil,
             tostring(button.icon.__texture))

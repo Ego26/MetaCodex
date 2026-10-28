@@ -9751,7 +9751,13 @@ function UI.AttachCharacterButton()
     -- Ein rundes Symbol im Stil der Minimap-Knoepfe: Hintergrund, Logo,
     -- Ring, Leuchten beim Hovern. Ein Textkaestchen ging in der Kopfzeile
     -- unter; das Logo erkennt man aus dem Augenwinkel.
-    local button = CreateFrame("Button", "MetaCodexCharacterButton", host)
+    --
+    -- NUR AUF DEM REITER "CHARAKTER" (28. Oktober). Am ganzen Fenster
+    -- haengend stand er auch unter "Ruf" und "Abzeichen" - und weil das
+    -- Fenster dort schmaler wird, schwebte er neben ihm in der Welt. Der
+    -- Reiter selbst ist sein Elternrahmen: zu mit ihm, unsichtbar auf den
+    -- anderen. Die Lage zaehlt weiter vom ganzen Fenster aus.
+    local button = CreateFrame("Button", "MetaCodexCharacterButton", PaperDollFrame or host)
     button:SetSize(40, 40)
     -- Lage und Ebene setzt placeCharacterButton, gemessen am Fenster.
     button:SetMovable(true)
