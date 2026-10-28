@@ -1816,6 +1816,26 @@ do
     -- gleich; ein Rahmen um den falschen sieht aus wie eine Auskunft.
     check("  bei zwei gleichnamigen Knoten wird nicht geraten",
         ns.Tree.NodeFor(900005) == nil, tostring(ns.Tree.NodeFor(900005)))
+    -- UND VERGLICHEN WIRD MIT DER NUMMER DES BAUMS (28. Oktober): ein Build
+    -- mit 900001 an Stelle des geskillten 500001 ist derselbe Baum - nichts
+    -- gruen, nichts rot. Im Spiel stand Schnelligkeit der Ahnen gruen.
+    check("  die zweite Nummer ist dieselbe wie die des Baums", ns.Tree.Canon(900001) == 500001,
+        tostring(ns.Tree.Canon(900001)))
+    _G.PlayerSpellsFrame.TalentsFrame = {
+        GetTalentButtonByNodeID = function() return { GetLeft = function() return 100 end, IsVisible = function() return true end } end,
+    }
+    local w2 = ns.Tree.Worn()
+    if w2[500001] then
+        local zweit = {}
+        for spell, raenge in pairs(w2) do
+            zweit[#zweit + 1] = { spell = spell == 500001 and 900001 or spell, rank = raenge }
+        end
+        local p7, m7 = ns.Tree.Show(zweit)
+        check("  ein geskilltes Talent unter zweiter Nummer ist nicht gruen", p7 == 0 and m7 == 0,
+            p7 .. " gruen, " .. m7 .. " rot")
+    else
+        say("  -- 500001 nicht geskillt, Vergleich mit zweiter Nummer uebersprungen")
+    end
 
     ns.Tree.Hide()
     _G.PlayerSpellsFrame.TalentsFrame = echt

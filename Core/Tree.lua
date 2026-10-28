@@ -82,7 +82,7 @@ end
 -- kein Vergessen von aussen: ein Specwechsel bringt eine andere Nummer
 -- mit, und was geskillt ist, wird ohnehin bei jeder Vorschau neu
 -- gelesen.
-local mapConfig, spellToNode, nodeSubTree, nameToNode
+local mapConfig, spellToNode, nodeSubTree, nameToNode, nodeSpells
 
 ---Wie der Zauber heisst - in der Sprache dieses Clients.
 ---@param id number
@@ -105,7 +105,7 @@ function Tree.Map()
     local ok, info = pcall(C_Traits.GetConfigInfo, configID)
     if not (ok and info and info.treeIDs) then return nil end
 
-    local out, subs, byName = {}, {}, {}
+    local out, subs, byName, proKnoten = {}, {}, {}, {}
     for _, treeID in ipairs(info.treeIDs) do
         for _, nodeID in ipairs(nodesOf(configID, treeID)) do
             local ok2, node = pcall(C_Traits.GetNodeInfo, configID, nodeID)
@@ -121,6 +121,10 @@ function Tree.Map()
             if sub then subs[nodeID] = sub end
             for _, entryID in ipairs((node and node.entryIDs) or {}) do
                 local spell = spellOfEntry(configID, entryID)
+                if spell then
+                    proKnoten[nodeID] = proKnoten[nodeID] or {}
+                    table.insert(proKnoten[nodeID], spell)
+                end
                 -- Der erste gewinnt: derselbe Zauber kann an zwei Stellen
                 -- haengen, und ein zweiter Treffer wuerde den ersten
                 -- ueberschreiben, ohne dass einer der beiden falscher
@@ -154,7 +158,7 @@ function Tree.Map()
             end
         end
     end
-    mapConfig, spellToNode, nodeSubTree, nameToNode = configID, out, subs, byName
+    mapConfig, spellToNode, nodeSubTree, nameToNode, nodeSpells = configID, out, subs, byName, proKnoten
     return out
 end
 
@@ -171,6 +175,30 @@ function Tree.NodeFor(spell)
     local hit = name and nameToNode and nameToNode[name]
     return hit or nil
 end
+
+---Die Nummer, die der Baum fuer dieses Talent traegt.
+---
+---VERGLICHEN WIRD MIT DER NUMMER DES BAUMS (28. Oktober). Den Knoten fand
+---die Vorschau schon ueber den Namen, verglich dann aber "hast du es?"
+---mit der Nummer der Messdaten: 448861 "Schnelligkeit der Ahnen" stand
+---gruen auf dem geskillten 443454. Gemeint ist der Eintrag desselben
+---Namens in diesem Knoten - in einem Wahlknoten genau der eine.
+---@param spell number
+---@return number
+local function kanon(spell)
+    if not spell then return spell end
+    local map = Tree.Map()
+    if not map or map[spell] then return spell end
+    local nodeID = Tree.NodeFor(spell)
+    local liste = nodeID and nodeSpells and nodeSpells[nodeID]
+    if not liste then return spell end
+    local name = spellName(spell)
+    for _, s in ipairs(liste) do
+        if name and spellName(s) == name then return s end
+    end
+    return spell
+end
+Tree.Canon = kanon
 
 ---Der Held-Baum eines Knotens, wenn er zu einem gehoert.
 ---@param nodeID number
@@ -343,7 +371,7 @@ function Tree.Show(spells)
     -- fuenf neuen Talente und nicht, womit sie bezahlt werden.
     local wanted = {}
     for _, spell in ipairs(spells) do
-        local id = tonumber(spell) or tonumber(spell and spell.spell)
+        local id = kanon(tonumber(spell) or tonumber(type(spell) == "table" and spell.spell))
         -- Ohne Rangangabe ist es einer: so steht es in den Daten bei
         -- den Zugaengen einer Alternative, und mehr behaupten wir
         -- dort nicht.
