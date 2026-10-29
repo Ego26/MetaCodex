@@ -313,6 +313,48 @@ const COMPARE = !!process.env.MC_COMPARE;
 const DRY = !!process.env.MC_DRYRUN;
 const missedAuras = new Map();
 
+// --- Zielwerte ohne Buffs ---------------------------------------------
+//
+// CombatantInfo misst die Werte BEIM PULL, und da wirken Flaeschchen,
+// Waffenoel und Essen schon. murlok liest das Arsenal, also nur die
+// Ausruestung - und das ist auch, was man im Charakterfenster vergleicht.
+// Nachgemessen am 29. Oktober: in M+ lag die Summe der vier Zweitwerte
+// hier bei ALLEN 40 Specs ueber murlok, im Mittel um rund 290 Punkte.
+// Beim Wiederherstellungs-Druiden stand so 1668 Tempo, wo murlok 1419
+// und Archon 1435 messen.
+//
+// Darum wird je Spieler abgezogen, was beim Pull nachweislich wirkt -
+// mit der Hoehe aus dem Tooltip im Spiel:
+//
+//   Flaeschchen   165 (hoehere Qualitaet, Stufe 295) / 152 (Stufe 278).
+//                 Beide Raenge wirken denselben Zauber; die Aura im Log
+//                 traegt nur Zauber, Stapel und Symbol. Abgezogen wird
+//                 165 - wer die niedrigere trinkt, steht hoechstens 13
+//                 Punkte zu tief.
+//   Phoenixoel    Verzauberung 8051: +13 Krit und Tempo, 8052: +16. Je
+//                 WAFFE, denn zwei geoelte Waffen geben es zweimal.
+//
+// Und was sich nicht beziffern laesst, wird nicht geschaetzt: Essen
+// setzt seine Hoehe erst beim Essen, und von den "Well Fed"-Buffs fuehrt
+// kein Weg zur Speise zurueck (siehe readConsumableItems). Wer beim Pull
+// eine Wertungs-Aura oder ein Waffenoel unbekannter Hoehe traegt, zaehlt
+// fuer die Zielwerte nicht mit. Gemessen an 209 Spielern: im Raid trifft
+// das rund jeden Fuenften (Essen), in M+ fast niemanden.
+const PULL_RATING = {
+  auras: {
+    1235110: { haste: 165 },    // Flask of the Blood Knights
+    1235111: { crit: 165 },     // Flask of the Shattered Sun
+    1235108: { mastery: 165 },  // Flask of the Magisters
+    1235057: { vers: 165 },     // Flask of Thalassian Resistance
+  },
+  enchants: {
+    8051: { crit: 13, haste: 13 },  // Thalassian Phoenix Oil, Rang 1
+    8052: { crit: 16, haste: 16 },  // Thalassian Phoenix Oil, Rang 2
+  },
+};
+// Warum ein Spieler fuer die Zielwerte nicht zaehlte - fuers Protokoll.
+const pullSkipped = new Map();
+
 let token = null;
 
 async function getToken() {
@@ -535,7 +577,7 @@ const SLOT_BY_INDEX = {
  * der Quelle. Von Warcraft Logs kommt nur, WAS benutzt wurde.
  */
 async function readConsumableItems(build, expansion) {
-  const [effects, links, items, spellEffects, itemClasses, spellNames] = await Promise.all([
+  const [effects, links, items, spellEffects, itemClasses, spellNames, itemEnchants] = await Promise.all([
     fetchText(`https://wago.tools/db2/ItemEffect/csv?build=${build}`).then(parseCSV),
     fetchText(`https://wago.tools/db2/ItemXItemEffect/csv?build=${build}`).then(parseCSV),
     fetchText(`https://wago.tools/db2/ItemSparse/csv?build=${build}`
@@ -543,6 +585,7 @@ async function readConsumableItems(build, expansion) {
     fetchText(`https://wago.tools/db2/SpellEffect/csv?build=${build}`).then(parseCSV),
     fetchText(`https://wago.tools/db2/Item/csv?build=${build}`).then(parseCSV),
     fetchText(`https://wago.tools/db2/SpellName/csv?build=${build}`).then(parseCSV),
+    fetchText(`https://wago.tools/db2/SpellItemEnchantment/csv?build=${build}`).then(parseCSV),
   ]);
 
   // Nur Gegenstaende der laufenden Erweiterung: ein Zauber wie
@@ -663,8 +706,33 @@ async function readConsumableItems(build, expansion) {
     castSpells.push(Number(row.SpellID));
   }
 
+  // Was beim Pull ZWEITWERTE gibt - fuer die Zielwerte, siehe
+  // PULL_RATING. Eine Aura zaehlt, wenn ein Effekt Wertung aendert
+  // (Aura 189) und dabei einen der vier Zweitwerte trifft; eine
+  // zeitweilige Verzauberung, wenn sie einen Wertungs-Effekt (5) auf
+  // einen davon traegt. Aus den Spieldaten, nicht aus einer Liste: was
+  // hier steht und in PULL_RATING fehlt, ist unbekannter Hoehe.
+  const RATING_MASK = { crit: 1792, haste: 917504, mastery: 33554432, vers: 1879048192 };
+  const ratingAuras = new Set();
+  for (const row of spellEffects) {
+    if (row.EffectAura !== '189') continue;
+    const mask = Number(row.EffectMiscValue_0) || 0;
+    if (Object.values(RATING_MASK).some((bits) => (mask & bits) === bits)) {
+      ratingAuras.add(Number(row.SpellID));
+    }
+  }
+  const RATING_ARG = new Set(['32', '36', '40', '49']);
+  const ratingEnchants = new Set();
+  for (const row of itemEnchants) {
+    for (const i of [0, 1, 2]) {
+      if (row['Effect_' + i] === '5' && RATING_ARG.has(row['EffectArg_' + i])) {
+        ratingEnchants.add(Number(row.ID));
+      }
+    }
+  }
+
   return {
-    bySpell, names: current, kindOf, fedSpells,
+    bySpell, names: current, kindOf, fedSpells, ratingAuras, ratingEnchants,
     castFilter: 'ability.id in (' + [...new Set(castSpells)].join(', ') + ')',
   };
 }
@@ -1441,14 +1509,36 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
       // Gesammelt werden alle Werte einzeln, nicht als laufende Summe -
       // gebraucht wird der MEDIAN. Ein Durchschnitt kippt schon durch
       // einen einzigen Ausreisser, und in Ranglisten stehen Ausreisser.
+      //
+      // Ohne die Buffs, die beim Pull schon wirken - siehe PULL_RATING.
       const rating = {
         crit: Math.round(Number(event.critMelee) || Number(event.critSpell) || 0),
         haste: Math.round(Number(event.hasteMelee) || Number(event.hasteSpell) || 0),
         mastery: Math.round(Number(event.mastery) || 0),
         vers: Math.round(Number(event.versatilityDamageDone) || 0),
       };
-      if (rating.crit + rating.haste + rating.mastery + rating.vers > 0) {
-        for (const spec of seenAll) spec.ratings.push(rating);
+      const abzug = [];
+      let unbekannt = null;
+      for (const aura of event.auras || []) {
+        const spellID = Number(aura.ability);
+        if (PULL_RATING.auras[spellID]) abzug.push(PULL_RATING.auras[spellID]);
+        else if (consumables.ratingAuras.has(spellID)) unbekannt = unbekannt || ('Aura ' + spellID + ' ' + (aura.name || '?'));
+      }
+      for (const piece of event.gear) {
+        const ench = piece && Number(piece.temporaryEnchant);
+        if (!ench) continue;
+        if (PULL_RATING.enchants[ench]) abzug.push(PULL_RATING.enchants[ench]);
+        else if (consumables.ratingEnchants.has(ench)) unbekannt = unbekannt || ('Waffenbuff ' + ench);
+      }
+      if (unbekannt) {
+        pullSkipped.set(unbekannt, (pullSkipped.get(unbekannt) || 0) + 1);
+      } else {
+        for (const teil of abzug) {
+          for (const [key, wert] of Object.entries(teil)) rating[key] = Math.max(0, rating[key] - wert);
+        }
+        if (rating.crit + rating.haste + rating.mastery + rating.vers > 0) {
+          for (const spec of seenAll) spec.ratings.push(rating);
+        }
       }
 
       // Talente. Zwei Fragen, zwei Zaehlungen:
@@ -2026,6 +2116,15 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
 Haeufigste nicht zugeordnete Auren (${missedAuras.size} verschiedene):`);
     for (const [id, n] of top) console.log(`  ${String(n).padStart(5)}x  ${id}`);
   }
+  // Immer, nicht nur auf Wunsch: wer hier steht, fehlt in den Zielwerten,
+  // und eine neue Speise oder ein neues Oel soll man im Protokoll sehen.
+  if (pullSkipped.size) {
+    const weg = [...pullSkipped.values()].reduce((a, b) => a + b, 0);
+    console.log(`\nZielwerte: ${weg} Spieler nicht gezaehlt (Buff unbekannter Hoehe beim Pull):`);
+    for (const [grund, n] of [...pullSkipped.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15)) {
+      console.log(`  ${String(n).padStart(5)}x  ${grund}`);
+    }
+  }
   if (!players) throw new Error('Keine Ausruestungsdaten gefunden.');
 
   // --- Zaehlungen in Anteile ------------------------------------------
@@ -2104,7 +2203,10 @@ Haeufigste nicht zugeordnete Auren (${missedAuras.size} verschiedene):`);
       // sie eng beieinander, sind sich die Gemessenen einig; liegen sie
       // weit auseinander, ist der Median eine Mitte zwischen zwei
       // Schulen, und das soll man sehen.
-      if (entry.ratings && entry.ratings.length >= 5) {
+      //
+      // Auch unter fuenf Spielern: besser wenige echte Werte als keine.
+      // Die Zahl reist mit, und das Fenster sagt dann, wie duenn sie ist.
+      if (entry.ratings && entry.ratings.length >= 1) {
         const sorted = (key) => entry.ratings.map((r) => r[key]).sort((a, b) => a - b);
         const at = (values, anteil) =>
           values[Math.min(values.length - 1, Math.floor(values.length * anteil))];

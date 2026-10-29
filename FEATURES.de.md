@@ -88,6 +88,12 @@ noch nicht jede Zeile ist von Hand geprüft.
 **Zielwerte** — Welche Sekundärwerte die Besten in welcher Höhe tragen,
 gemessen als Median aus echten Kämpfen. Zwei Balken je Wert: das Ziel und
 dein Stand. Grün, sobald du da bist; sonst steht dabei, wie viel fehlt.
+Logs messen beim Pull, wenn Fläschchen und Waffenöl schon wirken; beides
+wird wieder herausgerechnet, und wer Essen oder einen anderen Buff trägt,
+dessen Höhe sich nicht beziffern lässt, zählt nicht mit. So lässt sich das
+Ziel mit dem Charakterfenster ohne Buffs vergleichen. Der Hinweis unter
+der Liste nennt, auf wie vielen Spielern ein Ziel steht, und warnt, wenn
+es weniger als fünf sind.
 
 Ab einer gewissen Wertung bringt jeder weitere Punkt weniger. Wo deine
 eigene Wertung über so einer Schwelle liegt, färbt sich der Teil des

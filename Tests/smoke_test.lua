@@ -5759,6 +5759,15 @@ do
     rowsInSection("stats")
     local vonMurlok = ns.UI.Frame().hintText:GetText() or ""
     check("Zielwerte von murlok sagen Top 50, nicht Median", vonMurlok == L["STAT_HINT_TOP"]:format(50), vonMurlok)
+    -- UNTER FUENF trotzdem Werte, aber mit dem Hinweis, wie duenn sie sind.
+    for _, quelle in ipairs({ "murlok.io", "warcraftlogs.com" }) do
+        ns.Recommend.Stats = function()
+            return { players = 3, priority = { "haste" }, values = { haste = { pct = 46, rating = 1419 } } }, quelle
+        end
+        rowsInSection("stats")
+        local duenn = ns.UI.Frame().hintText:GetText() or ""
+        check("drei Spieler (" .. quelle .. "): Werte mit Warnung", duenn == L["STAT_HINT_FEW"]:format(3), duenn)
+    end
     ns.Recommend.Stats = echt
     rowsInSection("stats")
 end

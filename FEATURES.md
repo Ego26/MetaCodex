@@ -85,7 +85,11 @@ been checked by hand yet.
 **Stat targets** — Which secondary stats the best carry and how much,
 measured as the median from real fights. Two bars per stat: the target and
 where you are. Green once you are there; otherwise it says how much is
-missing.
+missing. Logs measure at the pull, when flask and weapon oil are already
+active; both are taken out again, and a player whose food or other buff
+cannot be put in numbers is left out, so the target compares with your
+character sheet without buffs. The hint under the list says how many
+players a target rests on, and warns when it is fewer than five.
 
 Past a certain rating every further point of a stat brings less. Where
 your own rating has crossed such a threshold, the part of the bar beyond
