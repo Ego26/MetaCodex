@@ -931,6 +931,7 @@ ns.RegisterLocale("deDE", {
 ns.RegisterLocale("deDE", {
     ["STAT_HINT"]  = "Median der gemessenen Spieler, je Wert einzeln — Wertungspunkte, nicht die Wirkung im Charakterfenster.",
     ["STAT_HINT_N"] = "Median aus %d gemessenen Spielern, je Wert einzeln — Wertungspunkte, nicht die Wirkung im Charakterfenster.",
+    ["STAT_HINT_TOP"] = "Aus den Top %d Spielern auf murlok.io, je Wert einzeln — Wertungspunkte, nicht die Wirkung im Charakterfenster.",
     ["STAT_SHARE"] = "%d%% der Wertungspunkte",
     ["STAT_YOURS"] = "du hast %d von %d",
     ["STAT_MEMO"] = "Stand vor dem Lauf",

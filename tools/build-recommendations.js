@@ -552,6 +552,14 @@ for (const [mode, bySource] of Object.entries(byMode)) {
         }
       }
 
+      // murlok MISST AUCH (29. Oktober): seine Zielwerte sind Wertungen
+      // seiner Top 50, nicht nur eine Rangfolge. Ohne Zahl zaehlten sie als
+      // null Spieler, und der Wiederherstellungs-Druide bekam in M+ die 1668
+      // Tempo von 14 Logs-Spielern statt der 1419 von 50 - Archon misst 1435.
+      if (entry.stats && entry.stats.values && !entry.stats.players
+          && source === 'murlok.io' && entry.talentSample > 0) {
+        entry.stats.players = entry.talentSample;
+      }
       if (entry.stats) {
         const priority = (entry.stats.priority || []).map(luaString).join(', ');
         // Der Stichprobenumfang entscheidet bei "alle Plattformen",

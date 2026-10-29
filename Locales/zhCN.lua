@@ -960,6 +960,7 @@ ns.RegisterLocale("zhCN", {
 	-- shows it.
 	["STAT_HINT"]  = "统计玩家的中位数，一次一个属性——评分点，而不是角色面板显示的效果。",
 	["STAT_HINT_N"] = "%d 名统计玩家的中位数，一次一个属性——评分点，而不是角色面板显示的效果。",
+	["STAT_HINT_TOP"] = "来自 murlok.io 前 %d 名玩家，一次一个属性——评分点，而不是角色面板显示的效果。",
 	["STAT_SHARE"] = "占所有副属性评分的 %d%%",
 	["STAT_YOURS"] = "你有 %d / %d",
 	["STAT_MEMO"] = "如同进本前",

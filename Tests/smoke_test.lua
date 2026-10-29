@@ -5752,6 +5752,13 @@ do
     local mitZahl = ns.UI.Frame().hintText:GetText() or ""
     check("der Hinweis nennt die Zahl der Gemessenen",
         mitZahl:find("40", 1, true) ~= nil, mitZahl)
+    -- MURLOK NENNT SEINE TOP-SPIELER, keinen Median (29. Oktober).
+    ns.Recommend.Stats = function()
+        return { players = 50, priority = { "haste" }, values = { haste = { pct = 46, rating = 1419 } } }, "murlok.io"
+    end
+    rowsInSection("stats")
+    local vonMurlok = ns.UI.Frame().hintText:GetText() or ""
+    check("Zielwerte von murlok sagen Top 50, nicht Median", vonMurlok == L["STAT_HINT_TOP"]:format(50), vonMurlok)
     ns.Recommend.Stats = echt
     rowsInSection("stats")
 end

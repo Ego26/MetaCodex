@@ -960,6 +960,7 @@ ns.RegisterLocale("enUS", {
     -- shows it.
     ["STAT_HINT"]  = "Median of the measured players, one stat at a time — rating points, not the effect your character sheet shows.",
     ["STAT_HINT_N"] = "Median of %d measured players, one stat at a time — rating points, not the effect your character sheet shows.",
+    ["STAT_HINT_TOP"] = "From the top %d players on murlok.io, one stat at a time — rating points, not the effect your character sheet shows.",
     ["STAT_SHARE"] = "%d%% of all secondary rating",
     ["STAT_YOURS"] = "you have %d of %d",
     ["STAT_MEMO"] = "as before the run",

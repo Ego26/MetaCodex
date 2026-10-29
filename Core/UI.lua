@@ -5854,9 +5854,11 @@ function UI.Refresh()
         -- Wert - nicht der Build eines bestimmten Spielers, und die vier
         -- zusammen traegt so vermutlich niemand. Wer das weiss, weiss
         -- auch, wie er sie zu lesen hat.
+        -- murlok nennt seine Top-Spieler, nicht ihren Median: der Satz
+        -- sagt, woher die Zahl ist, und behauptet nichts darueber hinaus.
         local n = currentRows[1] and currentRows[1].players
-        hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted)
-            or (n and L["STAT_HINT_N"]:format(n) or L["STAT_HINT"]))
+        local hinweis = n and (fromSource == "murlok.io" and L["STAT_HINT_TOP"] or L["STAT_HINT_N"]):format(n)
+        hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted) or hinweis or L["STAT_HINT"])
     elseif section.key == "consumables" then
         currentRows, fromSource = withFallback(function(source)
             return BAU.consumableRows(specID, mode, source)
