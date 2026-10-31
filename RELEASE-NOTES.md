@@ -1,3 +1,21 @@
+## v1.1.25 — stat targets without buffs
+
+### Fixed
+
+- **Stat targets no longer include flask and weapon oil.** Warcraft
+  Logs reads stats at the pull, when both are already up, so the
+  targets stood up to a few hundred points above what your character
+  sheet shows without buffs. Both are now taken out again; players
+  whose food or another buff cannot be put in numbers are left out.
+- **More players behind the M+ targets.** The top 50 on murlok.io now
+  count as 50 players, so the larger sample wins instead of a handful
+  of logs. The hint says where the numbers come from.
+
+### Changed
+
+- **Small samples still show**, with a hint when fewer than five
+  players stand behind a target.
+
 ## v1.1.24 — character button, talent preview, German wording
 
 ### Changed

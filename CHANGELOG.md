@@ -4,6 +4,32 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ## [Unreleased]
 
+## [1.1.25] - 2026-10-31
+
+### Fixed
+
+- **Stat targets from Warcraft Logs included flask and weapon oil.**
+  The logs read stats at the pull, when both are already active, while
+  murlok.io reads the armory. In M+ the sum of the four secondaries was
+  higher in the logs for all 40 specs, by about 290 on average. The
+  collector now takes the flask (165) and Thalassian Phoenix Oil (13 or
+  16 on crit and haste, per weapon) out again, player by player, and
+  leaves out anyone carrying a rating buff of unknown size at the pull -
+  food, mostly: 2 to 6 % in M+, 3 to 11 % in raid. Checked against the
+  armory of the same players: the flask is never in it, so the
+  correction is right; haste, mastery and crit now agree with murlok to
+  within about 25 on average across all specs.
+- **murlok.io's stat targets counted as zero players.** They are the
+  ratings of its top 50, but without a count they lost to any log
+  sample: the Restoration Druid got 1668 haste from 14 players in M+.
+  They now count as 50, and the hint says "From the top 50 players on
+  murlok.io" rather than calling them a median.
+
+### Changed
+
+- **Stat targets below five players** are shown instead of left out,
+  with a hint that the sample is thin.
+
 ## [1.1.24] - 2026-10-28
 
 ### Changed

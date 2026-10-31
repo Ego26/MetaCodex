@@ -4,6 +4,33 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ## [Unveröffentlicht]
 
+## [1.1.25] - 2026-10-31
+
+### Behoben
+
+- **Zielwerte aus Warcraft Logs enthielten Fläschchen und Waffenöl.**
+  Die Logs lesen die Werte beim Pull, wenn beides schon wirkt, murlok.io
+  dagegen das Arsenal. In M+ lag die Summe der vier Zweitwerte in den
+  Logs bei allen 40 Spezialisierungen höher, im Mittel um rund 290. Der
+  Sammler zieht jetzt das Fläschchen (165) und das Thalassische
+  Phönixöl (13 oder 16 auf Krit und Tempo, je Waffe) Spieler für Spieler
+  wieder ab und lässt weg, wer beim Pull einen Wertungs-Buff unbekannter
+  Höhe trägt - meist Essen: 2 bis 6 % in M+, 3 bis 11 % im Raid.
+  Gegengeprüft am Arsenal derselben Spieler: das Fläschchen steht dort
+  nie, die Korrektur stimmt also; Tempo, Meisterschaft und Krit liegen
+  über alle Spezialisierungen im Mittel bis auf etwa 25 bei murlok.
+- **Die Zielwerte von murlok.io zählten als null Spieler.** Es sind die
+  Wertungen seiner Top 50, aber ohne Zahl verloren sie gegen jede
+  Stichprobe aus den Logs: der Wiederherstellungs-Druide bekam in M+
+  1668 Tempo von 14 Spielern. Jetzt zählen sie als 50, und der Hinweis
+  sagt „Aus den Top 50 Spielern auf murlok.io" statt sie Median zu
+  nennen.
+
+### Geändert
+
+- **Zielwerte unter fünf Spielern** werden gezeigt statt weggelassen,
+  mit einem Hinweis, dass die Stichprobe dünn ist.
+
 ## [1.1.24] - 2026-10-28
 
 ### Geändert
