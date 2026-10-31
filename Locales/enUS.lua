@@ -959,7 +959,7 @@ ns.RegisterLocale("enUS", {
     -- The rank sat there and was the smaller answer: the order already
     -- shows it.
     ["STAT_HINT"]  = "Median of the measured players, one stat at a time — rating points, not the effect your character sheet shows.",
-    ["STAT_HINT_N"] = "Median of %d measured players, without flask, oil or food, one stat at a time — rating points, not the effect your character sheet shows.",
+    ["STAT_HINT_N"] = "Median of %d measured players, without flask, oil, food or potion, one stat at a time — rating points, not the effect your character sheet shows.",
     ["STAT_HINT_FEW"] = "Only %d measured — too few for a firm target, treat it as a rough guide. Rating points, not the effect your character sheet shows.",
     ["STAT_HINT_TOP"] = "From the top %d players on murlok.io, one stat at a time — rating points, not the effect your character sheet shows.",
     ["STAT_SHARE"] = "%d%% of all secondary rating",

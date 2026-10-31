@@ -89,8 +89,9 @@ noch nicht jede Zeile ist von Hand geprüft.
 gemessen als Median aus echten Kämpfen. Zwei Balken je Wert: das Ziel und
 dein Stand. Grün, sobald du da bist; sonst steht dabei, wie viel fehlt.
 Logs messen beim Pull, wenn Fläschchen und Waffenöl schon wirken; beides
-wird wieder herausgerechnet, und wer Essen oder einen anderen Buff trägt,
-dessen Höhe sich nicht beziffern lässt, zählt nicht mit. So lässt sich das
+wird wieder herausgerechnet. Wer Essen oder einen anderen Buff trägt,
+dessen Höhe sich nicht beziffern lässt, zählt nicht mit, und wer kurz vor
+dem Pull einen Trank mit Wertungs-Buff getrunken hat, ebenso. So lässt sich das
 Ziel mit dem Charakterfenster ohne Buffs vergleichen. Der Hinweis unter
 der Liste nennt, auf wie vielen Spielern ein Ziel steht, und warnt, wenn
 es weniger als fünf sind.

@@ -3,7 +3,9 @@
 // Sie entscheidet, welche Prozentzahl im Fenster steht, und sie ist an
 // einem Abend im September 2026 als falsch aufgefallen. Was einmal
 // falsch war, bekommt einen Test.
-const { countsForThisFight, PRE_PULL } = require('../lib/consumable-window');
+const {
+  countsForThisFight, PRE_PULL, activeAtPull, AT_PULL,
+} = require('../lib/consumable-window');
 
 let failed = 0;
 function check(what, got, want) {
@@ -53,6 +55,28 @@ check('ohne Zeitstempel wird nicht gefiltert',
   countsForThisFight('potion', undefined, START, END), true);
 check('unbekannte Art zaehlt',
   countsForThisFight(undefined, START - 600000, START, END), true);
+
+// Vortrank fuer die Zielwerte (31. Oktober): Liquid Luster vor dem Pull
+// steckte als +420 Vielseitigkeit in den Werten, ohne Aura dazu. Erkannt
+// wird er am ersten Ereignis seines Buffs im Kampf.
+console.log('Zielwerte: trug er beim Pull einen Trank mit Wertungs-Buff?');
+const ev = (type, when, who) => ({ type, timestamp: when, targetID: who });
+const beimPull = (events) => [...activeAtPull(events, START)].sort().join(',');
+check('lief schon: erstes Ereignis ist das Ablaufen',
+  beimPull([ev('removebuff', START + 27000, 1)]), '1');
+check('lief schon: erstes Ereignis ist ein Erneuern',
+  beimPull([ev('refreshbuff', START + 25000, 2)]), '2');
+check('lief schon: erstes Ereignis ist ein weiterer Stapel',
+  beimPull([ev('applybuffstack', START + 3000, 3)]), '3');
+check('Schluck im selben Augenblick wie der Pull zaehlt',
+  beimPull([ev('applybuff', START + AT_PULL, 4)]), '4');
+check('Schluck mitten im Kampf aendert die Werte beim Pull nicht',
+  beimPull([ev('applybuff', START + 60000, 5), ev('removebuff', START + 90000, 5)]), '');
+check('je Spieler zaehlt nur sein erstes Ereignis',
+  beimPull([ev('applybuff', START + 60000, 6), ev('removebuff', START + 27000, 7)]), '7');
+check('ohne Beginn des Kampfes: nicht auszuschliessen',
+  [...activeAtPull([ev('applybuff', START + 60000, 8)], null)].join(','), '8');
+check('keine Ereignisse, kein Vortrank', beimPull([]), '');
 
 if (failed) {
   console.log(``);

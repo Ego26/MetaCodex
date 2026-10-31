@@ -86,8 +86,9 @@ been checked by hand yet.
 measured as the median from real fights. Two bars per stat: the target and
 where you are. Green once you are there; otherwise it says how much is
 missing. Logs measure at the pull, when flask and weapon oil are already
-active; both are taken out again, and a player whose food or other buff
-cannot be put in numbers is left out, so the target compares with your
+active; both are taken out again. A player whose food or other buff
+cannot be put in numbers is left out, and so is one who drank a potion
+with a stat buff just before the pull, so the target compares with your
 character sheet without buffs. The hint under the list says how many
 players a target rests on, and warns when it is fewer than five.
 

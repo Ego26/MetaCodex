@@ -27,7 +27,7 @@ const { worthRetrying, waitSeconds } = require('./lib/http-retry');
 const path = require('path');
 const https = require('https');
 // Die Zaehlregel fuer Verbrauchsgueter - eigene Datei, eigener Test.
-const { countsForThisFight } = require('./lib/consumable-window');
+const { countsForThisFight, activeAtPull } = require('./lib/consumable-window');
 const { share, shares } = require('./lib/share');
 // Gruppen in Top-Runs: wer mit wem im selben Kampf stand.
 const { groupFromSpecs, compsByMode, raidCounts } = require('./lib/comps');
@@ -721,6 +721,20 @@ async function readConsumableItems(build, expansion) {
       ratingAuras.add(Number(row.SpellID));
     }
   }
+  // Und welche Verbrauchsgueter beim Wirken so eine Aura bringen - selbst
+  // oder einen Sprung weiter. Gemeint sind die Traenke: Liquid Luster
+  // legt "Lustrous Gleam" (+420 Vielseitigkeit je Stapel) nach, Potion of
+  // Recklessness tauscht den niedrigsten Zweitwert gegen den hoechsten.
+  // Wer sie vor dem Pull trinkt, hat sie in den Werten, aber NICHT in den
+  // Auren beim Pull - nachgemessen am 31. Oktober am Arsenal derselben
+  // Spieler mit derselben Ausruestung. Abgefragt wird die Aura des Tranks
+  // selbst, nicht der nachgelegte Stapel: sie hat je Schluck nur zwei,
+  // drei Ereignisse. Siehe activeAtPull.
+  const ratingPotionAuras = new Set();
+  for (const spellID of castSpells) {
+    const hits = [spellID, ...(triggers.get(spellID) || [])];
+    if (hits.some((id) => ratingAuras.has(id))) ratingPotionAuras.add(spellID);
+  }
   const RATING_ARG = new Set(['32', '36', '40', '49']);
   const ratingEnchants = new Set();
   for (const row of itemEnchants) {
@@ -732,7 +746,7 @@ async function readConsumableItems(build, expansion) {
   }
 
   return {
-    bySpell, names: current, kindOf, fedSpells, ratingAuras, ratingEnchants,
+    bySpell, names: current, kindOf, fedSpells, ratingAuras, ratingEnchants, ratingPotionAuras,
     castFilter: 'ability.id in (' + [...new Set(castSpells)].join(', ') + ')',
   };
 }
@@ -1370,7 +1384,9 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
             events(dataType: CombatantInfo, fightIDs: [$fight], limit: 60) { data }
             fights(fightIDs: [$fight]) { startTime endTime }
             masterData { actors(type: "Player") { id name server } }
-            region { slug }`;
+            region { slug }` + (consumables.ratingPotionAuras.size ? `
+            vortrank: events(dataType: Buffs, fightIDs: [$fight], limit: 500,
+              filterExpression: "ability.id in (${[...consumables.ratingPotionAuras].join(', ')})") { data }` : '');
     const FUSS = `
           } }
         }`;
@@ -1402,6 +1418,9 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
     // Wann dieser Lauf lief. Ohne das las die Wirkungs-Abfrage weiter
     // unten den GANZEN Bericht - siehe dort.
     const thisFight = (report && report.fights && report.fights[0]) || null;
+    // Wer beim Pull einen Trank mit Wertungs-Buff trug - siehe activeAtPull.
+    const vorgetrunken = activeAtPull((report && report.vortrank && report.vortrank.data) || [],
+      thisFight ? Number(thisFight.startTime) : null);
     // Wer die Spieler SIND. Die Kampfdaten tragen nur eine Nummer;
     // Name und Realm stehen im Stammblatt des Berichts. Gebraucht wird
     // das fuer genau eines: das raider.io-Profil desselben Spielers zu
@@ -1423,6 +1442,8 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
     // Wirkung davor. Ohne diese Liste wurde sie zweimal gezaehlt, und im
     // Fenster stand "135 %" - eine Zahl, die es nicht geben kann.
     const fromAura = new Map();
+    // Die Zielwerte dieses Laufs, bis die Wirkungen gelesen sind.
+    const pendingRatings = [];
 
     for (const event of events) {
       const specID = Number(event.specID);
@@ -1536,8 +1557,11 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
         for (const teil of abzug) {
           for (const [key, wert] of Object.entries(teil)) rating[key] = Math.max(0, rating[key] - wert);
         }
+        // Noch nicht verbucht: erst muss feststehen, dass er nicht vor
+        // dem Pull einen Trank getrunken hat. Das steht in den Wirkungen,
+        // und die kommen weiter unten.
         if (rating.crit + rating.haste + rating.mastery + rating.vers > 0) {
-          for (const spec of seenAll) spec.ratings.push(rating);
+          pendingRatings.push({ source: Number(event.sourceID), rating, seenAll });
         }
       }
 
@@ -1856,6 +1880,14 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
     } catch (err) {
       process.stdout.write('?');
     }
+    // Jetzt erst die Zielwerte, ohne wer beim Pull einen Trank trug.
+    for (const p of pendingRatings) {
+      if (vorgetrunken.has(p.source)) {
+        pullSkipped.set('Trank vor dem Pull', (pullSkipped.get('Trank vor dem Pull') || 0) + 1);
+        continue;
+      }
+      for (const spec of p.seenAll) spec.ratings.push(p.rating);
+    }
 
     // Der Ablauf um den Pull: zwanzig Sekunden davor bis fuenfzehn danach,
     // je Spieler einer bekannten Spec.
@@ -2120,7 +2152,7 @@ Haeufigste nicht zugeordnete Auren (${missedAuras.size} verschiedene):`);
   // und eine neue Speise oder ein neues Oel soll man im Protokoll sehen.
   if (pullSkipped.size) {
     const weg = [...pullSkipped.values()].reduce((a, b) => a + b, 0);
-    console.log(`\nZielwerte: ${weg} Spieler nicht gezaehlt (Buff unbekannter Hoehe beim Pull):`);
+    console.log(`\nZielwerte: ${weg} Spieler nicht gezaehlt (Buff beim Pull, nicht herauszurechnen):`);
     for (const [grund, n] of [...pullSkipped.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15)) {
       console.log(`  ${String(n).padStart(5)}x  ${grund}`);
     }

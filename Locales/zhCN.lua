@@ -959,7 +959,7 @@ ns.RegisterLocale("zhCN", {
 	-- The rank sat there and was the smaller answer: the order already
 	-- shows it.
 	["STAT_HINT"]  = "统计玩家的中位数，一次一个属性——评分点，而不是角色面板显示的效果。",
-	["STAT_HINT_N"] = "%d 名统计玩家的中位数，已去除合剂、武器油和食物，一次一个属性——评分点，而不是角色面板显示的效果。",
+	["STAT_HINT_N"] = "%d 名统计玩家的中位数，已去除合剂、武器油、食物和药水，一次一个属性——评分点，而不是角色面板显示的效果。",
 	["STAT_HINT_FEW"] = "仅统计了 %d 名玩家——太少，不足以作为确定的目标，仅供粗略参考。评分点，而不是角色面板显示的效果。",
 	["STAT_HINT_TOP"] = "来自 murlok.io 前 %d 名玩家，一次一个属性——评分点，而不是角色面板显示的效果。",
 	["STAT_SHARE"] = "占所有副属性评分的 %d%%",

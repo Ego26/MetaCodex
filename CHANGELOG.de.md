@@ -4,6 +4,20 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ## [Unveröffentlicht]
 
+### Behoben
+
+- **Zielwerte aus Warcraft Logs zählten Tränke vor dem Pull mit.**
+  Liquid Luster gibt 420 Vielseitigkeit je Stapel, Potion of Recklessness
+  tauscht den niedrigsten Zweitwert gegen den höchsten - und beide
+  steckten in den Werten beim Pull, ohne unter dessen Auren zu stehen.
+  In M+ trug rund jeder Dritte einen, und Vielseitigkeit lag dadurch im
+  Mittel etwa 100 über murlok.io. Gegengeprüft am Arsenal von 145
+  Spielern: ohne Trank stimmte Vielseitigkeit bei jedem, dessen
+  Ausrüstung sich nicht geändert hatte, auf den Punkt. Wer beim Pull so
+  einen Trank trägt, zählt für die Zielwerte nicht mehr mit; welche
+  Tränke das sind, kommt aus den Spieldaten, und ob er beim Pull schon
+  lief, verrät sein Buff selbst.
+
 ## [1.1.25] - 2026-10-31
 
 ### Behoben

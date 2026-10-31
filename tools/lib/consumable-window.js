@@ -47,4 +47,49 @@ function countsForThisFight(kind, when, fightStart, fightEnd) {
     && Number(when) <= Number(fightEnd);
 }
 
-module.exports = { countsForThisFight, PER_FIGHT, PRE_PULL };
+// Wirkte beim Pull ein Trank, der Zweitwerte gibt?
+//
+// Eine zweite Frage, fuer die Zielwerte. Liquid Luster und Potion of
+// Recklessness geben Zweitwerte, und wer sie vor dem Pull trinkt, hat sie
+// in den Werten beim Pull - aber nicht in der Liste der Auren, die das
+// Log dazu schickt. Am 31. Oktober stand so bei rund jedem Dritten in M+
+// 420 Vielseitigkeit mehr als in seinem Arsenal, bei gleicher
+// Ausruestung bis aufs letzte Teil.
+//
+// Gefragt wird der BUFF, nicht der Schluck. In M+ beginnt der Kampf mit
+// dem Schluesselstein, getrunken wird davor, und den Schluck fand das Log
+// unter dieser Nummer nicht - in zwei Laeufen, in denen jeder Spieler den
+// Buff beim Pull trug, kein einziger. Der Buff dagegen steht da: sein
+// erstes Ereignis im Kampf verraet, ob er schon vorher lief.
+//
+//   Ablaufen, Erneuern, ein Stapel mehr oder weniger als ERSTES
+//   Ereignis: dann lief er beim Pull schon.
+//   Ein frisches Auflegen: nur, wenn es spaetestens eine Sekunde nach
+//   dem Pull kommt - Pull und Schluck stehen oft im selben Augenblick.
+//
+// Ist der Beginn des Kampfes unbekannt, laesst sich ein Vortrank nicht
+// ausschliessen - dann zaehlt jeder, der den Buff ueberhaupt hatte.
+const AT_PULL = 1000;
+const FRESH = new Set(['applybuff', 'applydebuff']);
+
+/**
+ * @param {Array<{type: string, timestamp: number, targetID: number}>} events
+ *   Buff-Ereignisse der Trank-Auren im Kampf, zeitlich geordnet
+ * @param {number|null} fightStart Beginn des Kampfes, null wenn unbekannt
+ * @returns {Set<number>} wer den Buff beim Pull trug
+ */
+function activeAtPull(events, fightStart) {
+  const first = new Map();
+  for (const e of events || []) {
+    const who = Number(e.targetID);
+    if (!first.has(who)) first.set(who, e);
+  }
+  const out = new Set();
+  for (const [who, e] of first) {
+    if (fightStart === null || fightStart === undefined) { out.add(who); continue; }
+    if (!FRESH.has(e.type) || Number(e.timestamp) <= Number(fightStart) + AT_PULL) out.add(who);
+  }
+  return out;
+}
+
+module.exports = { countsForThisFight, PER_FIGHT, PRE_PULL, activeAtPull, AT_PULL };

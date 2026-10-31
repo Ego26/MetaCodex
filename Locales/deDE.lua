@@ -930,7 +930,7 @@ ns.RegisterLocale("deDE", {
 
 ns.RegisterLocale("deDE", {
     ["STAT_HINT"]  = "Median der gemessenen Spieler, je Wert einzeln — Wertungspunkte, nicht die Wirkung im Charakterfenster.",
-    ["STAT_HINT_N"] = "Median aus %d gemessenen Spielern, ohne Fläschchen, Öl und Essen, je Wert einzeln — Wertungspunkte, nicht die Wirkung im Charakterfenster.",
+    ["STAT_HINT_N"] = "Median aus %d gemessenen Spielern, ohne Fläschchen, Öl, Essen und Trank, je Wert einzeln — Wertungspunkte, nicht die Wirkung im Charakterfenster.",
     ["STAT_HINT_FEW"] = "Nur %d Spieler gemessen — zu wenige für einen festen Zielwert, eher ein grober Anhalt. Wertungspunkte, nicht die Wirkung im Charakterfenster.",
     ["STAT_HINT_TOP"] = "Aus den Top %d Spielern auf murlok.io, je Wert einzeln — Wertungspunkte, nicht die Wirkung im Charakterfenster.",
     ["STAT_SHARE"] = "%d%% der Wertungspunkte",
