@@ -4,6 +4,8 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ## [Unreleased]
 
+## [1.1.26] - 2026-11-04
+
 ### Added
 
 - **Builds for where you stand.** At the entrance of a season dungeon or
@@ -18,8 +20,8 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
   pull.** Liquid Luster adds 420 Versatility per stack, Potion of
   Recklessness trades the lowest secondary for the highest - and both
   were in the stats at the pull without showing among its auras. In M+
-  roughly a third of players carried one, which put Versatility about
-  100 above murlok.io on average. Checked against the armory of 145
+  about four in ten players carried one, which put Versatility about
+  100 above murlok.io on average; it is now within about 30. Checked against the armory of 145
   players: without a potion, Versatility matched to the point for every
   player whose gear had not changed. Players with such a potion active
   at the pull are now left out of the targets; which potions count comes

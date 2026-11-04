@@ -1,3 +1,21 @@
+## v1.1.26 — builds for where you stand
+
+### Added
+
+- **Builds for where you stand.** At the entrance of a season dungeon or
+  inside it, the Builds button at the talent frame opens the list on that
+  dungeon's builds, one click from loading. In a raid it opens on your
+  difficulty. Your selection stays as it is, a manual pick wins until you
+  move on, and it can be switched off in the settings. Where your spec has
+  no build of its own for that dungeon, the list says whose builds it shows.
+
+### Fixed
+
+- **Stat targets no longer count potions drunk before the pull.** Some
+  potions add secondary stats and were in the numbers Warcraft Logs reads
+  at the pull, which put Versatility too high for many specs. Players with
+  such a potion active at the pull are now left out of the targets.
+
 ## v1.1.25 — stat targets without buffs
 
 ### Fixed

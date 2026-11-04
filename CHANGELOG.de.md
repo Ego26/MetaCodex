@@ -4,6 +4,8 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ## [Unveröffentlicht]
 
+## [1.1.26] - 2026-11-04
+
 ### Neu
 
 - **Builds passend zum Standort.** Am Eingang eines Saison-Dungeons oder
@@ -18,8 +20,8 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
   Liquid Luster gibt 420 Vielseitigkeit je Stapel, Potion of Recklessness
   tauscht den niedrigsten Zweitwert gegen den höchsten - und beide
   steckten in den Werten beim Pull, ohne unter dessen Auren zu stehen.
-  In M+ trug rund jeder Dritte einen, und Vielseitigkeit lag dadurch im
-  Mittel etwa 100 über murlok.io. Gegengeprüft am Arsenal von 145
+  In M+ trugen rund vier von zehn einen, und Vielseitigkeit lag dadurch im
+  Mittel etwa 100 über murlok.io; jetzt sind es etwa 30. Gegengeprüft am Arsenal von 145
   Spielern: ohne Trank stimmte Vielseitigkeit bei jedem, dessen
   Ausrüstung sich nicht geändert hatte, auf den Punkt. Wer beim Pull so
   einen Trank trägt, zählt für die Zielwerte nicht mehr mit; welche
