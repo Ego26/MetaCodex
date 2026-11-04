@@ -415,11 +415,17 @@ local RAID_BY_DIFFICULTY = { [14] = "raid-normal", [15] = "raid", [16] = "raid-m
 ---beide kommen dort vom Client, und eine Saison holt alte Dungeons zurueck,
 ---deren Karte nicht jede Fassung des Journals kennt.
 ---@param place table|nil aus Compat.PlaceHere
----@param current string|nil die gewaehlte Aktivitaet: "+7 - +21" bleibt dabei
+---
+---Beide Schluesselklammern fuehren jeden Dungeon, aber nicht jede Spec: die
+---hohen Keys kennen je Dungeon oft nur eine Handvoll. Gewaehlt ist die, die
+---fuer DIESE Spec den Build mit den meisten Spielern hat. Wer "+7 - +21"
+---gewaehlt hat, bleibt dabei, solange es dort einen gibt.
+---@param current string|nil die gewaehlte Aktivitaet
+---@param specID number|nil die Spec, fuer die vorgeschlagen wird
 ---@return string|nil mode
 ---@return string|nil dungeon Modusschluessel, nil im Raid
 ---@return table|nil entry
-function Recommend.PlaceMode(place, current)
+function Recommend.PlaceMode(place, current, specID)
     if not place then return nil end
     local function search(mode)
         for _, entry in ipairs(Recommend.Dungeons(mode)) do
@@ -431,9 +437,25 @@ function Recommend.PlaceMode(place, current)
         end
         return nil
     end
-    for _, mode in ipairs({ current == "mplus-keys" and current or "mplus", "mplus" }) do
-        local entry = search(mode)
-        if entry then return mode, entry.key, entry end
+    -- Wie viele Spieler hinter dem eigenen Build dieses Dungeons stehen.
+    local function own(entry)
+        if not specID then return 0 end
+        local ok, _, build = pcall(Recommend.Talents, specID, entry.key, Recommend.ALL)
+        if not ok or not build or build.fromBase or not build.text then return 0 end
+        return build.players or 1
+    end
+    local high, keys = search("mplus"), search("mplus-keys")
+    if high or keys then
+        local nHigh = high and own(high) or 0
+        local nKeys = keys and own(keys) or 0
+        local useKeys
+        if current == "mplus-keys" then
+            useKeys = keys ~= nil and (nKeys > 0 or nHigh == 0)
+        else
+            useKeys = keys ~= nil and (high == nil or nKeys > nHigh)
+        end
+        local entry = useKeys and keys or high
+        return useKeys and "mplus-keys" or "mplus", entry.key, entry
     end
     local raid = RAID_BY_DIFFICULTY[place.difficulty]
     if not raid then
@@ -616,7 +638,14 @@ function Recommend.Talents(specID, mode, source, hero)
         local entry = view(part and part.specs and part.specs[specID])
         if not picks and has(entry, "picks") then picks, picksFrom = entry.talents, name end
         if has(entry, "build") then
+            -- WER MEHR SPIELER HAT, STELLT DEN BUILD - solange er einen String
+            -- hat. Hier gewann die erste Quelle mit String, und Ueberleben
+            -- zeigte in den High Keys den Build eines einzigen Spielers als
+            -- "100 %". Dieselbe Regel wie bei den Zielwerten.
+            local mehr = (entry.build.players or 0) > ((build and build.players) or 0)
             if entry.build.text and not (build and build.text) then
+                build, buildFrom = entry.build, name
+            elseif entry.build.text and mehr then
                 build, buildFrom = entry.build, name
             elseif not build then
                 build, buildFrom = entry.build, name
@@ -1106,6 +1135,10 @@ function Recommend.OtherBuilds(specID, mode, source, hero)
     if not byMode or not specID then return nil end
     local names = (source and source ~= Recommend.ALL) and { source }
         or Recommend.SourcesFor(mode)
+    -- Die Alternativen derselben Quelle wie der Build: sie nennen, worin sie
+    -- von IHM abweichen. Von einer anderen Quelle waere das eine falsche Liste.
+    local _, build, _, from = Recommend.Talents(specID, mode, source, hero)
+    if build and from and not build.fromBase then names = { from } end
     for _, name in ipairs(names) do
         local part = byMode[name]
         local entry = part and part.specs and part.specs[specID]

@@ -23,6 +23,7 @@ const zlib = require('zlib');
 const Loadout = require('./loadout');
 const { share } = require('./lib/share');
 const { groupOf, compsByMode } = require('./lib/comps');
+const { fromSignatures, pickMajority, othersThan } = require('./lib/majority-build');
 
 const BASE = process.argv[2];
 if (!BASE) {
@@ -613,21 +614,26 @@ const slug = (text) => String(text).toLowerCase()
           .filter((r) => r.pct > 0)
           .sort((a, b) => b.pct - a.pct);
         if (rows.length) res.talents = rows;
-        const builds = Object.entries(src.builds || {}).sort((a, b) => b[1] - a[1]);
+        const candidates = fromSignatures(src.builds);
+        const chosen = pickMajority(candidates, src.talents, denom);
         const asNodes = (signature) => signature.split(',').map((part) => {
           const bits = part.split(':');
           return { spell: Number(bits[0]), rank: Number(bits[1]) };
         });
-        if (builds.length) {
-          const topNodes = asNodes(builds[0][0]);
+        if (chosen) {
+          const topNodes = asNodes(chosen.key);
           res.build = {
-            pct: share(builds[0][1], denom),
-            text: src.buildText[builds[0][0]] || null,
+            pct: share(chosen.count, denom),
+            text: src.buildText[chosen.key] || null,
             nodes: topNodes,
+            // Worauf er ruht und wie weit er mit der Mehrheit geht. Die Zahl
+            // der Spieler entscheidet auch, welche Quelle ihn stellt.
+            players: src.talentPlayers || 0,
+            fit: chosen.fit,
           };
           const topSet = new Set(topNodes.map((n) => n.spell));
           const others = [];
-          for (const [signature, count] of builds.slice(1, 12)) {
+          for (const { key: signature, count } of othersThan(candidates, chosen.key).slice(0, 11)) {
             const nodes = asNodes(signature);
             const set = new Set(nodes.map((n) => n.spell));
             const added = nodes.filter((n) => !topSet.has(n.spell)).map((n) => n.spell);

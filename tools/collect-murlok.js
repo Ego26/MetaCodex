@@ -269,7 +269,7 @@ function parsePlayers(html) {
       slug: m[2],
       character: m[3],
     });
-    if (out.length >= 20) break;
+    if (out.length >= 50) break;
   }
   return out.length ? out : null;
 }
