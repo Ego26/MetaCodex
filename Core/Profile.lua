@@ -651,6 +651,22 @@ function Profile.SetTalentPanel(on)
     MetaCodexDB.talentPanel = on and true or false
 end
 
+---Richtet sich die Liste am Talentfenster nach dem Standort?
+---
+---Vorgabe an: wer vor einem Dungeon die Build-Liste oeffnet, sucht den Build
+---fuer diesen Dungeon. Die gemerkte Auswahl bleibt davon unberuehrt.
+---@return boolean
+function Profile.TalentPlace()
+    local db = MetaCodexDB or {}
+    if db.talentPlace == nil then return true end
+    return db.talentPlace and true or false
+end
+
+---@param on boolean
+function Profile.SetTalentPlace(on)
+    MetaCodexDB.talentPlace = on and true or false
+end
+
 function Profile.AuctionPanel()
     if not Profile.RemindersOn() then return false end
     local db = MetaCodexDB or {}

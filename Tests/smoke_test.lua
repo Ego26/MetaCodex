@@ -1326,6 +1326,8 @@ do
 
     local auf = _G.PlayerSpellsFrame.TalentsFrame:GetScript("OnShow")
     if auf then auf(_G.PlayerSpellsFrame.TalentsFrame) end
+    -- Fuer spaeter: die Tests dazwischen ersetzen den Baum durch Attrappen.
+    TALENTBAUM_AUF = auf
 
     -- Erst der Knopf, noch keine Liste.
     check("die Liste springt nicht von selbst auf",
@@ -3456,6 +3458,192 @@ wow.instance = nil
 ns.Profile.SetMode("mplus")
 MetaCodexDB.section = "enchants"
 ns.UI.Refresh()
+
+-- ------------------------------------- Der Standort am Talentfenster
+--
+-- "Ich stehe vor Nalorakks Bau, Talentfenster offen, Build mit einem Klick."
+-- Ein Spieler fragte es am 2. November. Die Attrappe spielt den Client: die
+-- Eingaenge auf der Karte und die Instanz, in der man steht.
+do
+    local echt = {
+        dungeons = ns.Recommend.Dungeons, talents = ns.Recommend.Talents,
+        ensure = ns.Data.EnsureDungeons, journal = _G.C_EncounterJournal, map = _G.C_Map,
+        mode = ns.Profile.Mode(), dungeon = ns.Profile.Dungeon("talents"),
+    }
+    local LISTE = {
+        ["mplus"] = { { key = "mplus/nalorakk", name = "Den", inst = 1311 } },
+        ["mplus-keys"] = { { key = "mplus-keys/nalorakk", name = "Den", inst = 1311 } },
+        ["raid"] = { { key = "raid/boss", name = "Boss", group = "Abyss", enc = 7, inst = 1320 } },
+        ["raid-mythic"] = { { key = "raid-mythic/boss", name = "Boss", group = "Abyss", enc = 7, inst = 1320 } },
+    }
+    ns.Recommend.Dungeons = function(mode) return LISTE[mode] or {} end
+    ns.Data.EnsureDungeons = function() return true end
+
+    -- Welche Stichprobe zu welchem Ort gehoert.
+    local PM = ns.Recommend.PlaceMode
+    local m, d = PM({ inst = 1311 }, "3v3")
+    check("Ort: ein Dungeon findet seine M+-Stichprobe",
+        m == "mplus" and d == "mplus/nalorakk", tostring(m) .. " " .. tostring(d))
+    m, d = PM({ inst = 1311 }, "mplus-keys")
+    check("  und wer +7 - +21 gewaehlt hat, bleibt dabei",
+        m == "mplus-keys" and d == "mplus-keys/nalorakk", tostring(d))
+    m, d = PM({ inst = 1320, difficulty = 16 }, "mplus")
+    check("  ein Raid die Schwierigkeit, in der man steht",
+        m == "raid-mythic" and d == nil, tostring(m))
+    m = PM({ inst = 1320, difficulty = 14 }, "mplus")
+    check("  und fehlt sie, die gemessene", m == "raid", tostring(m))
+    m, d = PM({ name = "Instanz 1311" }, "mplus")
+    check("  drinnen auch ueber den Namen", d == "mplus/nalorakk", tostring(d))
+    check("  was nicht gemessen ist, schlaegt nichts vor",
+        PM({ inst = 9999 }, "mplus") == nil and PM(nil, "mplus") == nil)
+
+    -- Draussen: die Eingaenge auf der Karte. 1000 Meter breit, der Spieler
+    -- in der Mitte; 0.05 Karte sind 50 Meter.
+    local eingaenge = {}
+    _G.C_EncounterJournal = {
+        GetDungeonEntrancesForMap = function(map)
+            return map == 1 and eingaenge or {}
+        end,
+        GetInstanceForGameMap = function(map) return map == 2825 and 1311 or nil end,
+    }
+    _G.C_Map = {
+        GetBestMapForUnit = function() return 2 end,
+        GetPlayerMapPosition = function() return { x = 0.5, y = 0.5 } end,
+        GetMapWorldSize = function() return 1000, 1000 end,
+        GetMapInfo = function(map) return { parentMapID = map == 2 and 1 or 0 } end,
+    }
+    eingaenge[1] = { position = { x = 0.55, y = 0.5 }, journalInstanceID = 1311 }
+    local ort = ns.Compat.PlaceHere()
+    check("Ort: vor dem Eingang, auch von der Karte darunter aus",
+        ort ~= nil and ort.inst == 1311 and ort.inside == false, ort and tostring(ort.inst))
+    eingaenge[1] = { position = { x = 0.9, y = 0.5 }, journalInstanceID = 1311 }
+    check("  weit davon weg nicht", ns.Compat.PlaceHere() == nil)
+
+    wow.instance, wow.instanceID = "party", 2825
+    ort = ns.Compat.PlaceHere()
+    check("  in der Instanz sagt es der Client",
+        ort ~= nil and ort.inst == 1311 and ort.inside == true, ort and tostring(ort.inst))
+    wow.instance = "arena"
+    check("  eine Arena ist kein Ort fuer diese Frage", ns.Compat.PlaceHere() == nil)
+    wow.instance = nil
+    -- Im Kampf kann der Client geheime Werte liefern, und schon ein Vergleich
+    -- bricht ab. Das darf das Talentfenster nicht mitreissen.
+    _G.C_Map.GetMapWorldSize = function() error("secret value") end
+    check("  bricht der Client ab, wissen wir es eben nicht", ns.Compat.PlaceHere() == nil)
+    _G.C_Map.GetMapWorldSize = function() return 1000, 1000 end
+
+    -- Am Fenster.
+    local gefragt, basis = {}, false
+    ns.Recommend.Talents = function(_, mode)
+        gefragt[#gefragt + 1] = mode
+        return {}, { pct = 40, text = "AAAA", nodes = {}, fromBase = basis or nil, fromMode = basis and "mplus" or nil }
+    end
+    ns.Profile.SetMode("3v3")
+    ns.Profile.SetDungeon(nil, "talents")
+    ns.UI.HideTalentPanel()
+    eingaenge[1] = { position = { x = 0.55, y = 0.5 }, journalInstanceID = 1311 }
+
+    TALENTBAUM_AUF()
+    local panel = _G.MetaCodexTalentList
+    check("auch vor dem Dungeon geht die Liste nicht von selbst auf", panel:IsShown() == false)
+    ns.UI.ShowTalentPanel()
+    check("auf Klick steht sie da", panel:IsShown() == true)
+    check("  mit dem Dungeon auf dem Knopf",
+        panel.pick.label:GetText() == "Instanz 1311", tostring(panel.pick.label:GetText()))
+    check("  und seinen Builds", gefragt[#gefragt] == "mplus/nalorakk", tostring(gefragt[#gefragt]))
+    local hinweis = panel.hint:GetText() or ""
+    check("  sie sagt, warum", hinweis:find(L["TP_HERE"]:format("Instanz 1311"), 1, true) ~= nil, hinweis)
+    check("  ein Klick laedt ihn unter dem Namen des Dungeons",
+        panel.rows[1].buildName == "Instanz 1311", tostring(panel.rows[1].buildName))
+    check("  die gemerkte Auswahl bleibt unberuehrt",
+        ns.Profile.Mode() == "3v3" and ns.Profile.Dungeon("talents") == nil, ns.Profile.Mode())
+
+    -- Ehrlich, wenn der Dungeon fuer diese Spec nichts hat.
+    basis = true
+    ns.UI.RefreshTalentPanel()
+    hinweis = panel.hint:GetText() or ""
+    check("nichts Eigenes gemessen: das steht dabei",
+        hinweis:find(L["TP_HERE_BASE"]:format("Instanz 1311", ns.ModeLabel("mplus")), 1, true) ~= nil, hinweis)
+    -- Aus demselben Dungeon, nur aus der anderen Schluesselklammer: kein Rueckfall.
+    local echtTalente = ns.Recommend.Talents
+    ns.Recommend.Talents = function()
+        return {}, { pct = 40, text = "AAAA", nodes = {}, fromBase = true, fromMode = "mplus/nalorakk" }
+    end
+    ns.UI.RefreshTalentPanel()
+    hinweis = panel.hint:GetText() or ""
+    check("  derselbe Dungeon aus der anderen Klammer ist kein Rueckfall",
+        hinweis:find(L["TP_HERE_BASE"]:format("Instanz 1311", ns.ModeLabel("mplus")), 1, true) == nil, hinweis)
+    ns.Recommend.Talents = echtTalente
+    basis = false
+
+    -- Wer sie zumacht und wieder oeffnet, sieht denselben Dungeon.
+    panel.close.__scripts.OnClick(panel.close)
+    TALENTBAUM_AUF()
+    check("zugemacht bleibt sie zu", panel:IsShown() == false)
+    ns.UI.ShowTalentPanel()
+    check("  auf Klick zeigt sie wieder diesen Dungeon", gefragt[#gefragt] == "mplus/nalorakk")
+
+    -- Von Hand gewaehlt schlaegt den Standort.
+    wow.lastMenu = nil
+    panel.pick.__scripts.OnClick(panel.pick)
+    local menu = wow.lastMenu
+    local hier, andere
+    for _, item in ipairs((menu and menu.items) or {}) do
+        if item.label == L["TP_HERE_PICK"]:format("Instanz 1311") then hier = item end
+        if item.label == L["DUNGEON_ALL"] and not andere then andere = item end
+    end
+    check("im Menue steht der Standort", hier ~= nil and hier.set == true)
+    check("  und alle Dungeons daneben", andere ~= nil)
+    if andere then
+        andere.run()
+        check("  wer etwas anderes waehlt, hat recht",
+            gefragt[#gefragt] == "mplus" and ns.Profile.Mode() == "mplus", tostring(gefragt[#gefragt]))
+        wow.fire("ZONE_CHANGED")
+        check("  auch wenn er in derselben Zone weitergeht", gefragt[#gefragt] == "mplus", tostring(gefragt[#gefragt]))
+    end
+    if hier then
+        hier.run()
+        check("  und kommt ueber das Menue zurueck", gefragt[#gefragt] == "mplus/nalorakk", tostring(gefragt[#gefragt]))
+    end
+
+    -- Von Hand gewaehlt, zugemacht, woanders gewesen, zurueckgekommen: die Wahl
+    -- galt nur fuer das letzte Mal hier.
+    if andere then
+        andere.run()
+        panel.close.__scripts.OnClick(panel.close)
+        ns.UI.ShowTalentPanel()
+        check("von Hand gewaehlt bleibt, solange man hier ist", gefragt[#gefragt] == "mplus", tostring(gefragt[#gefragt]))
+        panel.close.__scripts.OnClick(panel.close)
+        local hierNoch = eingaenge[1]
+        eingaenge[1] = nil
+        wow.fire("ZONE_CHANGED_NEW_AREA")
+        eingaenge[1] = hierNoch
+        wow.fire("ZONE_CHANGED_NEW_AREA")
+        check("  und laedt bei geschlossener Liste nichts", panel:IsShown() == false)
+        ns.UI.ShowTalentPanel()
+        check("  woanders gewesen gilt wieder der Standort", gefragt[#gefragt] == "mplus/nalorakk", tostring(gefragt[#gefragt]))
+    end
+
+    -- Abgeschaltet oder weitergegangen: wieder die gemerkte Auswahl.
+    ns.Profile.SetMode("3v3")
+    eingaenge[1] = nil
+    wow.fire("ZONE_CHANGED_NEW_AREA")
+    check("weitergegangen gilt wieder die Auswahl", gefragt[#gefragt] == "3v3", tostring(gefragt[#gefragt]))
+    eingaenge[1] = { position = { x = 0.55, y = 0.5 }, journalInstanceID = 1311 }
+    ns.Profile.SetTalentPlace(false)
+    ns.UI.TalentPlaceChanged()
+    check("abgeschaltet schlaegt der Standort nichts vor", gefragt[#gefragt] == "3v3", tostring(gefragt[#gefragt]))
+    ns.Profile.SetTalentPlace(true)
+    eingaenge[1] = nil
+
+    ns.Recommend.Dungeons, ns.Recommend.Talents = echt.dungeons, echt.talents
+    ns.Data.EnsureDungeons = echt.ensure
+    _G.C_EncounterJournal, _G.C_Map = echt.journal, echt.map
+    ns.UI.TalentPlaceChanged()
+    ns.UI.HideTalentPanel()
+    ns.Profile.SetMode(echt.mode)
+    ns.Profile.SetDungeon(echt.dungeon, "talents")
+end
 
 -- --------------------------------------------------------------- Sonde
 

@@ -247,6 +247,14 @@ it fails the string lands in the copy box. The button is draggable and
 the list hangs off it — we cannot know which corner is free on your
 screen.
 
+Standing at the entrance of a season dungeon or inside it, a click on the
+button opens the list on that dungeon's builds; in a raid, on your
+difficulty — the game cannot say which boss is next, so that one stays a
+choice in the menu. It does not touch what you have selected: pick something
+else and that stands until you move on. Where your spec has nothing of its
+own measured in that dungeon, the list says whose builds it shows instead.
+It can be switched off in the settings.
+
 **The preview in the tree** — Hover a build and it is drawn on the tree
 itself: green around what you would gain, red around what you would
 lose. Against **your** tree, not against the most common build: the data

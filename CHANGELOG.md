@@ -4,6 +4,14 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ## [Unreleased]
 
+### Added
+
+- **Builds for where you stand.** At the entrance of a season dungeon or
+  inside it, the Builds button at the talent frame opens the list on that
+  dungeon's builds, one click from loading; in a raid, on your difficulty.
+  Your selection stays as it is, a manual pick wins until you move on, and
+  it can be switched off in the settings.
+
 ### Fixed
 
 - **Stat targets from Warcraft Logs counted potions drunk before the

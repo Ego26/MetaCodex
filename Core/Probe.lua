@@ -47,6 +47,13 @@ function Probe.Run()
     ns.Print("  %s: %s", L["PROBE_CONVERT"],
         yesno(ns.Adapter.Has("ConvertToSearchString")))
 
+    -- Was der Vorschlag am Talentfenster gerade sieht. Ob ein Eingang in
+    -- Reichweite gemeldet wird, laesst sich nur im Spiel sehen.
+    local place = ns.Compat.PlaceHere()
+    local placeMode, placeDungeon = ns.Recommend.PlaceMode(place, ns.Profile.Mode())
+    line("  " .. L["PROBE_PLACE"], tostring(place and place.inst), tostring(place and place.inside),
+        tostring(placeMode), tostring(placeDungeon))
+
     -- Namen sind die Waehrung dieses Addons: ohne sie gibt es keine Suche.
     -- Was nicht aufloest, gehoert benannt und nicht verschwiegen.
     local ids = ns.Catalog.AllIDs()

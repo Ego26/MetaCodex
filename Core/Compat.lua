@@ -660,6 +660,71 @@ function Compat.InstanceName(instanceID)
     return nil
 end
 
+-- Wie nah "vor dem Eingang" ist, in Metern des Spiels. Der Punkt auf der
+-- Karte ist das Symbol, nicht das Portal: er kann ein gutes Stueck daneben
+-- liegen, und wer davor auf dem Reittier steht, steht nicht auf dem Punkt.
+local EINGANG_NAH = 150
+
+---Die Instanz, in oder vor der der Spieler gerade steht.
+---
+---Drinnen sagt es der Client. Draussen gibt es keine Frage "vor welchem
+---Eingang stehe ich", nur die Eingaenge auf der Karte, die jeder im
+---Weltkartenfenster sieht - also wird gemessen. Die Eingaenge stehen auf
+---der Zonenkarte, nicht unbedingt auf der, die der Spieler gerade hat (eine
+---Hoehle, eine Stadt): darum geht es die Karten aufwaerts.
+---
+---Im Ganzen abgesichert: im Kampf koennen Antworten des Clients seit
+---Midnight geheime Werte sein, und schon ein Vergleich damit bricht ab. Dann
+---wissen wir den Ort eben nicht.
+---@return table|nil { inst, name, inside, kind, difficulty }
+function Compat.PlaceHere()
+    local ok, place = pcall(function()
+        local journal = C_EncounterJournal
+        local inside, kind = false, nil
+        if IsInInstance then inside, kind = IsInInstance() end
+        if inside then
+            if kind ~= "party" and kind ~= "raid" then return nil end
+            local name, _, difficulty, _, _, _, _, mapID = GetInstanceInfo()
+            local inst = journal and journal.GetInstanceForGameMap and mapID
+                and journal.GetInstanceForGameMap(mapID) or nil
+            return { inst = inst, name = name, inside = true, kind = kind, difficulty = difficulty }
+        end
+
+        if not (C_Map and C_Map.GetBestMapForUnit and journal
+            and journal.GetDungeonEntrancesForMap) then
+            return nil
+        end
+        local map = C_Map.GetBestMapForUnit("player")
+        for _ = 1, 4 do
+            if not map or map == 0 then return nil end
+            local pos = C_Map.GetPlayerMapPosition(map, "player")
+            local width, height = C_Map.GetMapWorldSize(map)
+            if pos and width and width > 0 then
+                local best, bestDist
+                for _, entrance in ipairs(journal.GetDungeonEntrancesForMap(map) or {}) do
+                    local dx = (entrance.position.x - pos.x) * width
+                    local dy = (entrance.position.y - pos.y) * height
+                    local dist = math.sqrt(dx * dx + dy * dy)
+                    if dist <= EINGANG_NAH and (not bestDist or dist < bestDist) then
+                        best, bestDist = entrance, dist
+                    end
+                end
+                if best then
+                    return {
+                        inst = best.journalInstanceID, inside = false,
+                        difficulty = GetRaidDifficultyID and GetRaidDifficultyID() or nil,
+                    }
+                end
+            end
+            local info = C_Map.GetMapInfo(map)
+            map = info and info.parentMapID
+        end
+        return nil
+    end)
+    if ok then return place end
+    return nil
+end
+
 function Compat.DropText(encounterID, instanceID)
     local boss, place
     if encounterID and EJ_GetEncounterInfo then

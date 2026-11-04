@@ -400,6 +400,52 @@ function Recommend.Dungeons(mode)
     return (d and d.dungeons and d.dungeons[mode]) or {}
 end
 
+-- Die Schwierigkeiten des Clients und ihre Stichprobe. Der Schlachtzugsfinder
+-- hat keine eigene; Normal ist das, was ihm am naechsten kommt, und das Etikett
+-- sagt dann auch "Normal".
+local RAID_BY_DIFFICULTY = { [14] = "raid-normal", [15] = "raid", [16] = "raid-mythic", [17] = "raid-normal" }
+
+---Was zu einem Ort gemessen ist: Aktivitaet und, wo es geht, der Dungeon.
+---
+---Ein Dungeon hat seine eigene Stichprobe. Ein Raid nur die seiner Bosse, und
+---welcher als naechster dran ist, weiss der Client nicht - dort bleibt es bei
+---der Schwierigkeit, den Boss waehlt man im Menue.
+---
+---Gesucht wird ueber die Journal-Nummer. Drinnen zusaetzlich ueber den Namen:
+---beide kommen dort vom Client, und eine Saison holt alte Dungeons zurueck,
+---deren Karte nicht jede Fassung des Journals kennt.
+---@param place table|nil aus Compat.PlaceHere
+---@param current string|nil die gewaehlte Aktivitaet: "+7 - +21" bleibt dabei
+---@return string|nil mode
+---@return string|nil dungeon Modusschluessel, nil im Raid
+---@return table|nil entry
+function Recommend.PlaceMode(place, current)
+    if not place then return nil end
+    local function search(mode)
+        for _, entry in ipairs(Recommend.Dungeons(mode)) do
+            if (place.inst and entry.inst == place.inst)
+                or (place.name and entry.inst
+                    and ns.Compat.InstanceName(entry.inst) == place.name) then
+                return entry
+            end
+        end
+        return nil
+    end
+    for _, mode in ipairs({ current == "mplus-keys" and current or "mplus", "mplus" }) do
+        local entry = search(mode)
+        if entry then return mode, entry.key, entry end
+    end
+    local raid = RAID_BY_DIFFICULTY[place.difficulty]
+    if not raid then
+        raid = (type(current) == "string" and current:find("^raid")) and current or "raid"
+    end
+    for _, mode in ipairs({ raid, "raid" }) do
+        local entry = search(mode)
+        if entry then return mode, nil, entry end
+    end
+    return nil
+end
+
 ---Die erste Quelle, die zu dieser Spec eine solche Liste hat.
 ---
 ---NICHT ueber Recommend.For: der mittelt ueber die Quellen und behaelt

@@ -262,6 +262,14 @@ laden, im Kampf sagt es das, und scheitert es, landet der String im
 Kopierfeld. Der Knopf ist ziehbar, die Liste hängt an ihm — welche Ecke
 bei dir frei ist, wissen wir nicht.
 
+Stehst du am Eingang eines Saison-Dungeons oder darin, öffnet ein Klick auf
+den Knopf die Liste direkt mit den Builds dieses Dungeons; im Raid mit deiner
+Schwierigkeit — welcher Boss als nächster dran ist, weiß das Spiel nicht,
+der bleibt eine Wahl im Menü. An deiner Auswahl ändert das nichts: Wählst
+du etwas anderes, gilt das, bis du weitergehst. Hat deine Spezialisierung in
+dem Dungeon nichts Eigenes gemessen, steht dabei, wessen Builds du
+stattdessen siehst. In den Einstellungen lässt es sich abschalten.
+
 **Die Vorschau im Baum** — Wer mit der Maus über einen Build fährt,
 sieht ihn im Talentbaum selbst: grün um das, was dazukäme, rot um das,
 was wegfiele. Gegen **deinen** Baum, nicht gegen den häufigsten Build:

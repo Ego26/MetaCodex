@@ -4,6 +4,14 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ## [Unveröffentlicht]
 
+### Neu
+
+- **Builds passend zum Standort.** Am Eingang eines Saison-Dungeons oder
+  darin öffnet der Build-Knopf am Talentfenster die Liste direkt mit den
+  Builds dieses Dungeons, einen Klick vom Laden entfernt; im Raid mit deiner
+  Schwierigkeit. Deine Auswahl bleibt, wie sie ist, eine Wahl von Hand gilt,
+  bis du weitergehst, und in den Einstellungen lässt es sich abschalten.
+
 ### Behoben
 
 - **Zielwerte aus Warcraft Logs zählten Tränke vor dem Pull mit.**

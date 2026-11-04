@@ -2096,6 +2096,10 @@ local function settingsRows()
         ns.Profile.SetTalentPanel(value)
         if not value then UI.HideTalentPanel() end
     end)
+    switch(L["SET_TALENTPLACE"], KNOEPFE, ns.Profile.TalentPlace(), function(value)
+        ns.Profile.SetTalentPlace(value)
+        UI.TalentPlaceChanged()
+    end)
 
     -- Der Tooltip beantwortet zwei Fragen, ohne dass man etwas oeffnet.
     switch(L["SET_TOOLTIP"], TOOLTIP, ns.Profile.TooltipOn(), function(value)
@@ -9953,8 +9957,72 @@ local function talentFrame()
     return _G.PlayerSpellsFrame or _G.ClassTalentFrame
 end
 
+-- DER STANDORT SCHLAEGT VOR, ER STELLT NICHTS UM.
+--
+-- "Ich stehe vor Nalorakks Bau, habe das Talentfenster offen, und will den
+-- Build dafuer mit einem Klick." Die Builds je Dungeon gab es, nur musste man
+-- sie im Menue suchen.
+--
+-- Der Vorschlag lebt nur hier, nicht in der gemerkten Auswahl. Sie gilt auch
+-- fuer das grosse Fenster: wer dort 3v3 nachschlaegt und zwischendurch vor
+-- einem Dungeon die Talente oeffnet, wuerde sonst sein Fenster auf M+
+-- umgestellt finden. Und wer hier von Hand etwas waehlt, hat recht, bis er den
+-- Ort wechselt.
+--
+--   ortHier  was der Standort hergibt
+--   ort      was davon gerade gilt
+--   ortAus   von Hand etwas anderes gewaehlt
+--   ortInst  wo zuletzt nachgesehen wurde
+--
+-- UND ER OEFFNET NICHTS. Die Liste geht auf Klick auf, auch vor einem Dungeon:
+-- die erste Fassung sprang dort von selbst auf, und das war nicht gewollt. Der
+-- Klick auf den Knopf zeigt dann gleich den richtigen Dungeon.
+
+---Was der Standort hergibt.
+---
+---Die Daten erst, wenn er ueberhaupt eine Instanz meldet: sonst luden sie bei
+---jedem Blick ins Talentfenster, irgendwo in der Welt.
+---@return table|nil { key, mode, dungeon, label }
+function TP.Standort()
+    if not ns.Profile.TalentPlace() then return nil end
+    local place = ns.Compat.PlaceHere()
+    TP.ortInst = place and place.inst
+    if not place then return nil end
+    if not (ns.Data and ns.Data.Ensure and ns.Data.Ensure()) then return nil end
+    local mode, dungeon, entry = ns.Recommend.PlaceMode(place, ns.Profile.Mode())
+    if not mode then return nil end
+    if dungeon and not ns.Data.EnsureDungeons() then return nil end
+    local label = dungeon and unitName(entry)
+        or ((unitGroup(entry) or entry.name) .. " · " .. (ns.ModeLabel(mode) or mode))
+    return { key = mode .. "|" .. (dungeon or ""), mode = mode, dungeon = dungeon, label = label }
+end
+
+---Den Standort neu lesen.
+---@return boolean changed
+function TP.OrtNeu()
+    local neu = TP.Standort()
+    local alt = TP.ortHier
+    local anders = (neu and neu.key) ~= (alt and alt.key)
+    TP.ortHier = neu
+    if anders then TP.ortAus = false end
+    TP.ort = (neu and not TP.ortAus) and neu or nil
+    return anders
+end
+
+---Wonach die Liste gerade nachschlaegt.
+---@return string mode
+---@return string|nil dungeon
+---@return string lookup der Schluessel fuer die Daten
+function TP.Auswahl()
+    local ort = TP.ort
+    if ort then return ort.mode, ort.dungeon, ort.dungeon or ort.mode end
+    return ns.Profile.Mode(), ns.Profile.Dungeon("talents"), ns.Profile.LookupMode("talents")
+end
+
 ---Die Builds, die wir gerade empfehlen.
 ---@return table[] rows
+---@return table[]|nil pvp
+---@return table|nil build der haeufigste, fuer die Frage, woher er stammt
 local function talentPanelRows()
     -- ERST DIE DATEN, DANN DIE FRAGE.
     --
@@ -9968,20 +10036,19 @@ local function talentPanelRows()
     local specID = ns.Profile.TalentFrameSpec()
     -- Derselbe Schluessel wie die Talentseite im grossen Fenster: wer
     -- dort einen Dungeon gewaehlt hat, meint ihn hier auch.
-    if ns.Profile.Dungeon("talents") and ns.Data.EnsureDungeons then
+    local aktiv, dungeon, mode = TP.Auswahl()
+    if dungeon and ns.Data.EnsureDungeons then
         ns.Data.EnsureDungeons()
     end
-    local mode = ns.Profile.LookupMode("talents")
     if not specID or not mode then return {} end
     local hero = ns.Profile.HeroTree(specID)
     -- Woher die Builds stammen - dasselbe Etikett, das auf dem Waehler
     -- steht, und spaeter der Name der angelegten Talentbelegung.
     local modeLabel
     for _, entry in ipairs(ns.MODES or {}) do
-        if entry.key == ns.Profile.Mode() then modeLabel = entry.label end
+        if entry.key == aktiv then modeLabel = entry.label end
     end
-    local dungeon = ns.Profile.Dungeon("talents")
-    for _, d in ipairs(ns.Recommend.Dungeons(ns.Profile.Mode()) or {}) do
+    for _, d in ipairs(ns.Recommend.Dungeons(aktiv) or {}) do
         if d.key == dungeon then modeLabel = unitName(d) end
     end
     local ok, picks, build = pcall(ns.Recommend.Talents, specID, mode,
@@ -10096,7 +10163,7 @@ local function talentPanelRows()
             }
         end
     end
-    return out, pvp
+    return out, pvp, build
 end
 
 ---Aktivitaet, Dungeon und Boss fuer das Panel waehlen.
@@ -10130,12 +10197,28 @@ local function openTalentModePicker(anchor)
         end
         ns.Profile.SetMode(modeKey)
         ns.Profile.SetDungeon(dungeonKey, "talents")
+        -- Von Hand gewaehlt schlaegt den Standort, bis man ihn wechselt.
+        TP.ortAus, TP.ort = true, nil
         UI.RefreshTalentPanel()
         if frame and frame:IsShown() then UI.Refresh() end
     end
 
+    local function istEs(modeKey, dungeonKey)
+        local aktiv, dungeon = TP.Auswahl()
+        return aktiv == modeKey and dungeon == dungeonKey
+    end
+
     MenuUtil.CreateContextMenu(anchor, function(_, root)
         root:CreateTitle(L["LBL_ACTIVITY"])
+        -- Und der Weg zurueck, wenn man von Hand etwas anderes gewaehlt hat.
+        if TP.ortHier then
+            root:CreateRadio(L["TP_HERE_PICK"]:format(TP.ortHier.label), function()
+                return TP.ort ~= nil
+            end, function()
+                TP.ortAus, TP.ort = false, TP.ortHier
+                UI.RefreshTalentPanel()
+            end)
+        end
         for _, group in ipairs(ns.MODE_GROUPS or {}) do
             local any = false
             for _, key in ipairs(group.keys) do
@@ -10153,8 +10236,7 @@ local function openTalentModePicker(anchor)
                         local tief = sub:CreateButton(mode.label)
                         local allKey = unitLabels(mode.key)
                         tief:CreateRadio(L[allKey], function()
-                            return ns.Profile.Mode() == mode.key
-                                and not ns.Profile.Dungeon("talents")
+                            return istEs(mode.key, nil)
                         end, function() waehle(mode.key, nil) end)
                         -- Bosse gehoeren unter ihren Schlachtzug: zwei
                         -- Raids nebeneinander, neun Bosse flach - das
@@ -10170,14 +10252,13 @@ local function openTalentModePicker(anchor)
                             if g then ziel = tief:CreateButton(g) end
                             for _, entry in ipairs(gruppen[g]) do
                                 ziel:CreateRadio(unitName(entry), function()
-                                    return ns.Profile.Dungeon("talents") == entry.key
+                                    return istEs(mode.key, entry.key)
                                 end, function() waehle(mode.key, entry.key) end)
                             end
                         end
                     else
                         sub:CreateRadio(mode.label, function()
-                            return ns.Profile.Mode() == mode.key
-                                and not ns.Profile.Dungeon("talents")
+                            return istEs(mode.key, nil)
                         end, function() waehle(mode.key, nil) end)
                     end
                 end
@@ -10427,22 +10508,19 @@ function UI.RefreshTalentPanel()
     -- steht jetzt vielleicht gar nicht mehr in der Liste.
     pinnedRow = nil
     if ns.Tree then ns.Tree.Hide() end
-    local rows, pvpListe = talentPanelRows()
+    local rows, pvpListe, build = talentPanelRows()
     -- Woraus die Builds stammen, steht dabei: eine Kette ohne ihre
     -- Aktivitaet ist eine Zahl ohne Frage.
-    local label
-    for _, entry in ipairs(ns.MODES or {}) do
-        if entry.key == ns.Profile.Mode() then label = entry.label end
-    end
+    local aktiv, dungeon = TP.Auswahl()
+    local label = ns.ModeLabel(aktiv)
 
     -- Auf dem Knopf steht, wonach gerade nachgeschlagen wird: der
     -- Dungeon, wenn einer gewaehlt ist, sonst die Aktivitaet.
-    local dungeon = ns.Profile.Dungeon("talents")
     local dLabel
-    for _, d in ipairs(ns.Recommend.Dungeons(ns.Profile.Mode()) or {}) do
+    for _, d in ipairs(ns.Recommend.Dungeons(aktiv) or {}) do
         if d.key == dungeon then dLabel = unitName(d) end
     end
-    talentPanel.pick.label:SetText(dLabel or label or ns.Profile.Mode() or "")
+    talentPanel.pick.label:SetText(dLabel or label or aktiv or "")
 
     -- DIE ZEILEN SETZEN SICH SELBST.
     --
@@ -10518,12 +10596,26 @@ function UI.RefreshTalentPanel()
     -- So hoch, wie die Liste wirklich ist: in einer PvP-Klammer kommen
     -- bis zu vier Zeilen dazu, und eine feste Hoehe liesse sie entweder
     -- abgeschnitten oder mit einem leeren Streifen darunter stehen.
-    talentPanel:SetHeight(y + 46 - 2)
-    if #rows == 0 then
-        talentPanel.hint:SetText(L["TP_EMPTY"])
-    else
-        talentPanel.hint:SetText(L["TP_HINT2"])
+    --
+    -- Ueber dem Bedienhinweis steht, was der Standort beigetragen hat - und
+    -- wenn der Dungeon fuer diese Spec nichts Eigenes hat, auch das. Die
+    -- Daten fallen dann auf die ganze Aktivitaet zurueck: richtig, aber ohne
+    -- diesen Satz stuende der Dungeonname ueber einem allgemeinen Build.
+    local zeilen, mehr = {}, 0
+    if TP.ort then
+        zeilen[#zeilen + 1] = L["TP_HERE"]:format(TP.ort.label)
+        mehr = mehr + 14
     end
+    -- Aus DEMSELBEN Dungeon in der anderen Schluesselklammer ist kein Rueckfall:
+    -- "+7 - +21" misst ohne String, und der kommt von den hohen Keys dort.
+    local woher = build and build.fromBase and tostring(build.fromMode or aktiv)
+    if dLabel and woher and not woher:find("/", 1, true) then
+        zeilen[#zeilen + 1] = L["TP_HERE_BASE"]:format(dLabel, ns.ModeLabel(woher) or woher)
+        mehr = mehr + 28
+    end
+    zeilen[#zeilen + 1] = #rows == 0 and L["TP_EMPTY"] or L["TP_HINT2"]
+    talentPanel:SetHeight(y + 46 - 2 + mehr)
+    talentPanel.hint:SetText(table.concat(zeilen, "\n"))
 end
 
 -- EIN KNOPF, KEIN AUFSPRINGENDES FENSTER.
@@ -10916,6 +11008,9 @@ end
 function UI.ShowTalentPanel()
     local f = talentFrame()
     if not f then return end
+    -- Wer mit offenem Fenster zum Eingang gegangen ist, hat keinen Zonenwechsel
+    -- ausgeloest: beim Oeffnen der Liste wird noch einmal nachgesehen.
+    TP.OrtNeu()
     local p = buildTalentPanel()
     p:ClearAllPoints()
     p:SetHeight(TP.HEIGHT)
@@ -10987,6 +11082,12 @@ local function showTalentPanel()
     end
     b:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", x, y)
     b:Show()
+end
+
+---Der Schalter in den Einstellungen.
+function UI.TalentPlaceChanged()
+    TP.OrtNeu()
+    UI.RefreshTalentPanel()
 end
 
 ---Was der Client zum Laden eines Builds anbietet.
@@ -11454,6 +11555,9 @@ end
 local talentWatch = CreateFrame("Frame")
 talentWatch:RegisterEvent("ADDON_LOADED")
 talentWatch:RegisterEvent("PLAYER_ENTERING_WORLD")
+talentWatch:RegisterEvent("ZONE_CHANGED")
+talentWatch:RegisterEvent("ZONE_CHANGED_INDOORS")
+talentWatch:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 talentWatch:SetScript("OnEvent", function(_, event, name)
     -- Das Talentfenster wird nachgeladen. Welches Addon es mitbringt,
     -- hat zwischen den Erweiterungen gewechselt, also werden beide
@@ -11463,5 +11567,19 @@ talentWatch:SetScript("OnEvent", function(_, event, name)
         and name ~= "Blizzard_ClassTalentUI" then
         return
     end
-    hookTalentFrame()
+    if event == "ADDON_LOADED" or event == "PLAYER_ENTERING_WORLD" then
+        hookTalentFrame()
+    end
+    if event == "ADDON_LOADED" then return end
+    -- Die Liste steht offen und der Ort aendert sich: sie zieht mit.
+    if talentPanel and talentPanel:IsShown() then
+        if TP.OrtNeu() then UI.RefreshTalentPanel() end
+        return
+    end
+    -- Sie ist zu. Gelesen wird der Ort erst beim Klick, aber wer inzwischen
+    -- woanders war, dessen Wahl von Hand gilt dann nicht mehr. Nur die Nummer:
+    -- dafuer muessen keine Daten geladen werden.
+    local place = ns.Compat.PlaceHere()
+    local hier = place and place.inst
+    if hier ~= TP.ortInst then TP.ortInst, TP.ortHier = hier, nil end
 end)
