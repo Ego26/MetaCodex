@@ -14,10 +14,32 @@
 const fs = require('fs');
 const path = require('path');
 const { share } = require('./lib/share');
+const Loadout = require('./loadout');
+const { useStringNodes } = require('./lib/string-nodes');
 const { mergeTiers } = require('./lib/merge-tiers');
 const { wornBy } = require('./lib/worn-by');
 const { tallyRaces, raceShares, raceSims, pooled } = require('./lib/races');
 const { addRaidCounts, raidShares } = require('./lib/comps');
+
+// Was eine Quelle als Build meldet, steht im Fenster so, wie sein String es sagt:
+// die Logs und Battle.net fuehren Knoten mit mehreren Stufen zeilenweise. Siehe
+// tools/lib/string-nodes.js.
+function stringNodesFor(part) {
+  for (const [specID, entry] of Object.entries(part.specs || {})) {
+    const tree = Loadout.treeOfSpec(BASE, Number(specID));
+    if (!tree) continue;
+    const decode = (text) => {
+      try {
+        const decoded = Loadout.decode(BASE, text, tree);
+        return decoded && decoded.spec === Number(specID) ? decoded.nodes : null;
+      } catch (err) {
+        return null;
+      }
+    };
+    useStringNodes(entry, decode);
+    for (const h of Object.values(entry.hero || {})) useStringNodes(h, decode);
+  }
+}
 
 const BASE = process.argv[2];
 if (!BASE) {
@@ -158,6 +180,7 @@ for (const name of fs.readdirSync(dir).sort()) {
   mode[part.source] = part;
   sources.add(part.source);
   newest = Math.max(newest, part.builtOn || 0);
+  stringNodesFor(part);
   // Die Rassen aus der raider.io-Laufliste: Profiladresse -> "Rasse|Seite".
   for (const [specID, entry] of Object.entries(part.specs)) {
     if (!entry.races) continue;
@@ -176,6 +199,7 @@ for (const name of fs.readdirSync(dir).sort()) {
 }
 
 for (const part of profileParts) {
+  stringNodesFor(part);
   const mode = byMode[part.mode] || (byMode[part.mode] = {});
   const target = mode[part.source] || (mode[part.source] = {
     source: part.source, mode: part.mode, builtOn: part.builtOn, specs: {},
@@ -189,12 +213,29 @@ for (const part of profileParts) {
       .filter((pl) => pl.race)
       .map((pl) => ({ key: pl.rio || pl.url, race: pl.race })));
     const spec = target.specs[specID] || (target.specs[specID] = {});
-    // Ein verifizierter Build zaehlt nur, wo die Quelle keinen hat -
-    // die Ketten aus der Laufliste (M+) sind die breitere Stichprobe.
-    if (entry.build && !(spec.build && spec.build.text)) {
+    // Ein verifizierter Build zaehlt, wo die Quelle keinen hat - und wo er
+    // mehr Spieler hinter sich hat als die Laufliste. Sie ist nur fuer die
+    // Meta-Specs die breitere Stichprobe: Ueberleben stand dort im November
+    // mit einem einzigen Spieler, und der stand dann als "100 %" im Fenster.
+    const mehrSpieler = (neu, alt) => (neu && neu.build)
+      && (!(alt && alt.build && alt.build.text)
+        || (neu.build.players || 0) > (alt.build.players || 0));
+    if (mehrSpieler(entry, spec)) {
       spec.build = entry.build;
-      if (entry.builds) spec.builds = entry.builds;
+      spec.builds = entry.builds;
       builds += 1;
+    }
+    // Dasselbe je Held-Baum. Fehlte der Baum in der Laufliste ganz, kommt er
+    // mit seinem Anteil.
+    for (const [sub, h] of Object.entries(entry.hero || {})) {
+      spec.hero = spec.hero || {};
+      const alt = spec.hero[sub];
+      if (!alt) {
+        spec.hero[sub] = { ...h };
+      } else if (mehrSpieler(h, alt)) {
+        alt.build = h.build;
+        alt.builds = h.builds;
+      }
     }
     // Die Rangliste: nur, wenn keine Quelle in diesem Modus eine fuehrt
     // (Raid). Bei PvP und M+ hat murlok sie schon, mit echtem Rang.
@@ -358,7 +399,9 @@ function emitTalents(out, entry, indent) {
     const at = nodeIndex(out, entry.build.nodes);
     const pool = nodePools.get(out);
     pool.used = (pool.used || 0) + 1;
-    out.push(indent + `build = { pct = ${entry.build.pct}, ${text}nodes = ${at} },`);
+    const worauf = (entry.build.players ? `players = ${entry.build.players}, ` : '')
+      + (entry.build.fit !== undefined ? `fit = ${entry.build.fit}, ` : '');
+    out.push(indent + `build = { pct = ${entry.build.pct}, ${worauf}${text}nodes = ${at} },`);
   }
   if (entry.builds && entry.builds.length) {
     out.push(indent + 'builds = { ' + entry.builds.map((v) => {

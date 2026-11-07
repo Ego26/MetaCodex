@@ -20,7 +20,7 @@ unter Einstellungen abschalten.
 
 ## Auf einen Blick
 
-- **Talentbuilds mit Import-String** — der häufigste Build und seine
+- **Talentbuilds mit Import-String** — der Mehrheits-Build und seine
   Alternativen, je Dungeon in M+, je Boss im Raid, je Klammer im PvP.
   Kopieren, einfügen, fertig — oder direkt am Talentfenster laden.
 - **Wo jedes Stück fällt** — jeder aktuelle Dungeon und jeder Raidboss mit
@@ -142,9 +142,12 @@ Karte.
 
 ### Talente
 
-**Talente & Builds** — Der häufigste Build als eine Zeile: Klick, String
-kopieren, im Talentfenster bei „Importieren" einfügen. Darunter bis zu sechs
-Alternativen, jede beschrieben als *„Talent X statt Talent Y"*, damit du
+**Talente & Builds** — Der Mehrheits-Build als eine Zeile: Klick, String
+kopieren, im Talentfenster bei „Importieren" einfügen. Er ist der Build eines
+echten Spielers, dessen Talente auch die meisten anderen nehmen, aus der Quelle
+mit den meisten gemessenen Spielern, und er sagt, wie viele das sind und wie weit
+er mit der Mehrheit geht. Darunter bis zu sechs Alternativen, die häufigsten
+exakten Builds, jede beschrieben als *„Talent X statt Talent Y"*, damit du
 siehst, worin sich die Meinungen unterscheiden — und jede mit eigenem
 String. Dann die umstrittenen Talente (die, die zwischen 15 und 85 % der
 Besten nehmen) und bei PvP die PvP-Talente in eigener Gruppe. Bei M+
@@ -272,7 +275,7 @@ stattdessen siehst. In den Einstellungen lässt es sich abschalten.
 
 **Die Vorschau im Baum** — Wer mit der Maus über einen Build fährt,
 sieht ihn im Talentbaum selbst: grün um das, was dazukäme, rot um das,
-was wegfiele. Gegen **deinen** Baum, nicht gegen den häufigsten Build:
+was wegfiele. Gegen **deinen** Baum, nicht gegen den Build oben:
 in den Daten steht je Build die vollständige Talentliste, der Client
 sagt, welche Knoten du hast — auch die, die das Spiel umsonst gibt und
 die kein Build wegnehmen kann —, und der Unterschied dieser beiden

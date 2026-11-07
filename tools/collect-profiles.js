@@ -28,6 +28,7 @@
 const fs = require('fs');
 const path = require('path');
 const { share } = require('./lib/share');
+const { pickMajority, othersThan } = require('./lib/majority-build');
 const https = require('https');
 const zlib = require('zlib');
 
@@ -42,6 +43,10 @@ const DIR = path.join(BASE, 'tools', 'data');
 // Kampf-Build traegt.
 const MAX = Number(process.env.MC_PLAYERS || 10);
 const MAX_RAID = Number(process.env.MC_RAID_PLAYERS || 20);
+// In M+ alle, die murlok nennt. Sie sind die eine Stichprobe, die jede Spec
+// abdeckt: in den obersten Laeufen stand der Ueberlebens-Jaeger im November
+// genau einmal. Zehn davon ergaben keinen Build, sondern eine Anekdote.
+const MAX_MPLUS = Number(process.env.MC_MPLUS_PLAYERS || 50);
 const DELAY = Number(process.env.MC_DELAY || 250);
 const DRY = process.env.MC_DRYRUN === '1';
 const ONLY = process.env.MC_MODES ? process.env.MC_MODES.split(',') : null;
@@ -180,25 +185,35 @@ function buildsFrom(players) {
   const verified = players.filter((p) => p.verified && p.text);
   if (!verified.length) return {};
   const byText = new Map();
+  const popularity = {};
   for (const p of verified) {
     const cur = byText.get(p.text) || { n: 0, spells: p.spells };
     cur.n += 1;
     byText.set(p.text, cur);
+    for (const s of p.spells) {
+      const talent = s.spell + '|' + s.rank;
+      popularity[talent] = (popularity[talent] || 0) + 1;
+    }
   }
-  const sorted = [...byText.entries()].sort((a, b) => b[1].n - a[1].n);
-  const top = sorted[0];
+  const candidates = [...byText.entries()].map(([text, info]) => ({
+    key: text, count: info.n, talents: info.spells.map((s) => s.spell + '|' + s.rank),
+  }));
+  const chosen = pickMajority(candidates, popularity, verified.length);
+  const top = byText.get(chosen.key);
   const build = {
-    pct: share(top[1].n, verified.length),
-    text: top[0],
-    nodes: top[1].spells,
+    pct: share(chosen.count, verified.length),
+    text: chosen.key,
+    nodes: top.spells,
     players: verified.length,
+    fit: chosen.fit,
   };
-  const topSet = new Set(top[1].spells.map((s) => s.spell));
+  const topSet = new Set(top.spells.map((s) => s.spell));
   const builds = [];
-  for (const [text, info] of sorted.slice(1)) {
+  for (const { key: text } of othersThan(candidates, chosen.key)) {
+    const info = byText.get(text);
     const set = new Set(info.spells.map((s) => s.spell));
     const added = info.spells.filter((s) => !topSet.has(s.spell)).map((s) => s.spell);
-    const removed = top[1].spells.filter((s) => !set.has(s.spell)).map((s) => s.spell);
+    const removed = top.spells.filter((s) => !set.has(s.spell)).map((s) => s.spell);
     if (!added.length && !removed.length) continue;
     builds.push({ pct: share(info.n, verified.length), text, added, removed });
     if (builds.length >= 6) break;
@@ -262,7 +277,7 @@ function buildsFrom(players) {
     for (const [specID, entry] of Object.entries(job.specs || {})) {
       const players = [];
       if (job.kind === 'murlok') {
-        for (const p of (entry.players || []).slice(0, MAX)) {
+        for (const p of (entry.players || []).slice(0, job.mode === 'mplus' ? MAX_MPLUS : MAX)) {
           const prof = await profile(p.region, p.slug, p.character);
           players.push({
             rank: p.rank, name: p.name, realm: p.realm, region: p.region,

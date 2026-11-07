@@ -28,6 +28,8 @@ const path = require('path');
 const https = require('https');
 // Die Zaehlregel fuer Verbrauchsgueter - eigene Datei, eigener Test.
 const { countsForThisFight, activeAtPull } = require('./lib/consumable-window');
+const { fromSignatures, pickMajority, othersThan } = require('./lib/majority-build');
+const Loadout = require('./loadout');
 const { share, shares } = require('./lib/share');
 // Gruppen in Top-Runs: wer mit wem im selben Kampf stand.
 const { groupFromSpecs, compsByMode, raidCounts } = require('./lib/comps');
@@ -352,6 +354,15 @@ const PULL_RATING = {
     8052: { crit: 16, haste: 16 },  // Thalassian Phoenix Oil, Rang 2
   },
 };
+// Wo ein Build gespielt wurde: Signatur -> { code, fight, source }. Der Zauber
+// ist je Spec eindeutig, also genuegt eine Karte fuer den ganzen Lauf.
+const buildSeenAt = new Map();
+// Wie viele Strings ein Lauf hoechstens holt. Eine Abfrage kostet rund 3,4
+// Punkte; das Kontingent sind 9000 je Stunde.
+const MAX_STRINGS = Number(process.env.MC_STRINGS || 1500);
+const R_TALENT_CODE = `query ($code: String!, $fight: Int!, $actor: Int!) {
+  reportData { report(code: $code) { fights(fightIDs: [$fight]) { talentImportCode(actorID: $actor) } } }
+}`;
 // Warum ein Spieler fuer die Zielwerte nicht zaehlte - fuers Protokoll.
 const pullSkipped = new Map();
 
@@ -1599,6 +1610,9 @@ Berichte abrufen: ${codes.length} aus ${reports.size}, `
       if (picked.length) {
         picked.sort();
         const signature = picked.join(',');
+        if (!buildSeenAt.has(signature)) {
+          buildSeenAt.set(signature, { code, fight: fightID, source: Number(event.sourceID), specID });
+        }
         for (const spec of seenAll) {
           spec.builds[signature] = (spec.builds[signature] || 0) + 1;
         }
@@ -2169,6 +2183,77 @@ Haeufigste nicht zugeordnete Auren (${missedAuras.size} verschiedene):`);
   const dir = path.join(BASE, 'tools', 'data');
   fs.mkdirSync(dir, { recursive: true });
 
+  // DIE STRINGS. Warcraft Logs fuehrt sie je Spieler und Kampf
+  // (ReportFight.talentImportCode) - vom Spiel erzeugt, nicht von uns
+  // nachgebaut. Nachgemessen am 4. November an 22 Spielern: die Zahl der
+  // Knoten stimmte immer.
+  //
+  // Geholt wird nur, was gebraucht wird, und zuerst das Wichtigste: die ganzen
+  // Aktivitaeten, dann die Dungeons und Bosse, zuletzt die Alternativen. Was
+  // ueber die Grenze faellt, hat keinen String; das Addon nimmt dann die
+  // naechstgroessere Ansicht und sagt es.
+  const chooseBuild = (t) => {
+    const candidates = fromSignatures(t.builds);
+    return { candidates, chosen: pickMajority(candidates, t.talents || {}, t.players) };
+  };
+  const gesucht = new Map();
+  const want = (signature, rank) => {
+    if (signature && (!gesucht.has(signature) || gesucht.get(signature) > rank)) gesucht.set(signature, rank);
+  };
+  for (const [mode, tally] of Object.entries(tallies)) {
+    const whole = !mode.includes('/');
+    for (const entry of Object.values(tally)) {
+      const { candidates, chosen } = chooseBuild(entry);
+      if (!chosen) continue;
+      want(chosen.key, whole ? 0 : 1);
+      for (const h of Object.values(entry.hero || {})) {
+        const heroPick = chooseBuild(h).chosen;
+        if (heroPick) want(heroPick.key, whole ? 0 : 2);
+      }
+      if (whole) for (const c of othersThan(candidates, chosen.key).slice(0, 6)) want(c.key, 3);
+    }
+  }
+  const buildText = new Map();
+  let stringsAsked = 0, stringsBad = 0;
+  const reihe = [...gesucht.entries()].sort((a, b) => a[1] - b[1]).map(([signature]) => signature);
+  for (const signature of reihe.slice(0, MAX_STRINGS)) {
+    const seen = buildSeenAt.get(signature);
+    if (!seen) continue;
+    stringsAsked += 1;
+    try {
+      const antwort = await gql(R_TALENT_CODE, { code: seen.code, fight: seen.fight, actor: seen.source });
+      const text = antwort.reportData.report.fights[0].talentImportCode;
+      // Vertrauen ist gut: der String muss zu Spec und Talenten dieses Builds
+      // passen, sonst steht er nicht im Fenster.
+      const tree = text && Loadout.treeOfSpec(BASE, seen.specID);
+      const decoded = tree ? Loadout.decode(BASE, text, tree) : null;
+      const inText = new Set(((decoded && decoded.nodes) || []).map((n) => n.spell));
+      const teile = signature.split(',').map((part) => Number(part.split(':')[0]));
+      const treffer = teile.filter((spell) => inText.has(spell)).length;
+      if (decoded && decoded.spec === seen.specID && treffer >= teile.length * 0.95) {
+        buildText.set(signature, text);
+      } else {
+        stringsBad += 1;
+      }
+    } catch (err) {
+      stringsBad += 1;
+    }
+    await sleep(100);
+  }
+  console.log(`\nStrings: ${buildText.size} geholt, ${stringsBad} unbrauchbar, ${reihe.length} gesucht, Grenze ${MAX_STRINGS}`);
+
+  const asNodes = (signature) => signature.split(',').map((part) => {
+    const bits = part.split(':');
+    return { spell: Number(bits[0]), rank: Number(bits[1]) };
+  });
+  const buildOut = (t, chosen, denom) => ({
+    pct: share(chosen.count, denom),
+    text: buildText.get(chosen.key) || null,
+    nodes: asNodes(chosen.key),
+    players: t.players || 0,
+    fit: chosen.fit,
+  });
+
   for (const [mode, tally] of Object.entries(tallies)) {
     const specs = {};
     for (const [specID, entry] of Object.entries(tally)) {
@@ -2277,7 +2362,7 @@ Haeufigste nicht zugeordnete Auren (${missedAuras.size} verschiedene):`);
       // Nur fuer den Profil-Sammler; das Addon bekommt das nie zu sehen.
       if (entry.names && entry.names.length) out.lookup = entry.names;
 
-      // Je Held-Baum: Anteil der Spieler, Talente, haeufigster Build.
+      // Je Held-Baum: Anteil der Spieler, Talente, Mehrheits-Build.
       if (entry.hero && Object.keys(entry.hero).length) {
         out.hero = {};
         for (const [sub, h] of Object.entries(entry.hero)) {
@@ -2288,13 +2373,8 @@ Haeufigste nicht zugeordnete Auren (${missedAuras.size} verschiedene):`);
             return { spell: Number(parts[0]), rank: Number(parts[1]), pct: share(n, denom) };
           }).filter((r) => r.pct > 0).sort((a, b) => b.pct - a.pct);
           if (rows.length) ho.talents = rows;
-          const hb = Object.entries(h.builds).sort((a, b) => b[1] - a[1]);
-          if (hb.length) {
-            ho.build = {
-              pct: share(hb[0][1], denom),
-              nodes: hb[0][0].split(',').map((part) => { const b = part.split(':'); return { spell: Number(b[0]), rank: Number(b[1]) }; }),
-            };
-          }
+          const heroPick = chooseBuild(h).chosen;
+          if (heroPick) ho.build = buildOut(h, heroPick, denom);
           out.hero[sub] = ho;
         }
       }
@@ -2428,15 +2508,25 @@ Haeufigste nicht zugeordnete Auren (${missedAuras.size} verschiedene):`);
         };
       }
 
-      const builds = Object.entries(entry.builds || {}).sort((a, b) => b[1] - a[1]);
-      if (builds.length) {
-        out.build = {
-          pct: share(builds[0][1], entry.players),
-          nodes: builds[0][0].split(',').map((part) => {
-            const bits = part.split(':');
-            return { spell: Number(bits[0]), rank: Number(bits[1]) };
-          }),
-        };
+      const { candidates, chosen } = chooseBuild(entry);
+      if (chosen) {
+        out.build = buildOut(entry, chosen, entry.players);
+        // Die Alternativen, soweit ihr String da ist: ohne ihn laesst sich
+        // keine laden, und dann ist sie nur eine Zahl.
+        const topSet = new Set(out.build.nodes.map((n) => n.spell));
+        const others = [];
+        for (const c of othersThan(candidates, chosen.key)) {
+          if (others.length >= 6) break;
+          const text = buildText.get(c.key);
+          if (!text) continue;
+          const nodes = asNodes(c.key);
+          const set = new Set(nodes.map((n) => n.spell));
+          const added = nodes.filter((n) => !topSet.has(n.spell)).map((n) => n.spell);
+          const removed = out.build.nodes.filter((n) => !set.has(n.spell)).map((n) => n.spell);
+          if (!added.length && !removed.length) continue;
+          others.push({ pct: share(c.count, entry.players), text, added, removed });
+        }
+        if (others.length) out.builds = others;
       }
 
       const gemTotal = Object.values(entry.gems).reduce((a, b) => a + b, 0);
@@ -2533,7 +2623,7 @@ Probelauf ${mode}, ${Object.keys(specs).length} Speccs, Spec ${id}:`);
       const picks = (one || {}).talents || [];
       const build = (one || {}).build;
       console.log(`  Talente: ${picks.length} einzeln`
-        + (build ? `, haeufigster Build ${build.nodes.length} Knoten bei ${build.pct}%` : ', kein Build'));
+        + (build ? `, Mehrheits-Build ${build.nodes.length} Knoten, exakt ${build.pct}%` : ', kein Build'));
       console.log(`  ${file} bleibt unberuehrt.`);
       continue;
     }

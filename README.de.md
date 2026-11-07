@@ -36,7 +36,7 @@ fällt weg.
 | **Zielwerte** | Gemessene Mediane der Besten, deine Werte als zweiter Balken, und die Schwellen des abnehmenden Ertrags, wo du darüber liegst |
 | **Rassen** | Welche Rasse die Besten der Spezialisierung spielen, und was eine Rasse simuliert an Schaden bringt |
 | **Gruppen & Klassen** | Wer oben mit wem spielt: die häufigsten M+-Gruppen und die Spezialisierungen je Rolle, die Raid-Aufstellungen je Schwierigkeit, die Spezialisierungen unter den Besten jeder PvP-Klammer |
-| **Talente** | Der häufigste Build mit Import-String, Alternativen als *X statt Y*, umstrittene Talente — je Dungeon in M+, je Boss im Raid |
+| **Talente** | Der Mehrheits-Build mit Import-String, Alternativen als *X statt Y*, umstrittene Talente — je Dungeon in M+, je Boss im Raid |
 | **Omnium-Foliant** | Welche Rune die Besten in jeder der fünf Reihen nehmen, gemessen an dem, was sie im Kampf tut |
 | **Top-Spieler** | Wer oben steht, klickbar: Talentbuild mit Import-String und komplette Ausrüstung |
 | **Beliebt** | Fünf je Platz mit Fundort; Tooltips auf der Schlüsselstufe, die du wählst |

@@ -20,7 +20,7 @@ switched off under Settings.
 
 ## At a glance
 
-- **Talent builds with import strings** — the most common build and its
+- **Talent builds with import strings** — the majority build and its
   alternatives, per dungeon in M+, per boss in raids, per bracket in PvP.
   Copy, paste, done — or load one straight from the talent frame.
 - **Where every piece drops** — each current dungeon and each raid boss
@@ -134,9 +134,11 @@ strongest — the card says that too.
 
 ### Talents
 
-**Talents & builds** — The most common build as one row: click, copy the
-string, paste it into the talent window's import box. Below it up to six
-alternatives, each described as *"talent X instead of talent Y"* so you
+**Talents & builds** — The majority build as one row: click, copy the
+string, paste it into the talent window's import box. It is a real player's
+build whose talents most players also take, from the source that measured the
+most players, and it says how many that is and how far it goes with the
+majority. Below it up to six alternatives, the most common exact builds, each described as *"talent X instead of talent Y"* so you
 see where opinions differ — each with its own string. Then the contested
 talents (those between 15 and 85 % of the best take) and, for PvP, the PvP
 talents in their own group. In M+ additionally per dungeon, in raids per
@@ -257,7 +259,7 @@ It can be switched off in the settings.
 
 **The preview in the tree** — Hover a build and it is drawn on the tree
 itself: green around what you would gain, red around what you would
-lose. Against **your** tree, not against the most common build: the data
+lose. Against **your** tree, not against the build on top: the data
 carry the complete talent list per build, the client says which nodes
 you have — the free ones the game grants included, which no build can
 take away — and the difference between those two sets is the answer. A pin on each row holds the preview, so you can take the mouse

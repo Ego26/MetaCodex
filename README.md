@@ -36,7 +36,7 @@ optional — without it the lists still show, only the handover is missing.
 | **Stat targets** | Measured medians of the best, with your own values as a second bar, and the diminishing-returns thresholds where you are past one |
 | **Races** | Which race the best of the spec play, and the simulated damage a race brings |
 | **Groups & specs** | Who plays with whom at the top: the most common M+ groups and the specs per role, the raid setups per difficulty, the specs among the best of each PvP bracket |
-| **Talents** | The most common build with import string, alternatives as *X instead of Y*, contested talents — per dungeon in M+, per boss in raids |
+| **Talents** | The majority build with import string, alternatives as *X instead of Y*, contested talents — per dungeon in M+, per boss in raids |
 | **Omnium Folio** | Which rune the best take in each of the five rows, measured from what the rune does in the fight |
 | **Top players** | Who is at the top, clickable: talent build with import string and full gear |
 | **Popular** | Five per slot with drop source; tooltips on the keystone level you pick |

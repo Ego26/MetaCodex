@@ -550,6 +550,42 @@ local function unitGroup(entry)
     return (entry.inst and ns.Compat.InstanceName(entry.inst)) or entry.group
 end
 
+---Die Ueberschrift eines Builds, und was darunter gehoert.
+---
+---Oben steht der Mehrheits-Build (tools/lib/majority-build.js). Sein Anteil als
+---exakter Build sagt wenig: ein Talent anders ist schon ein anderer Build. Was
+---zaehlt, ist, wie viele Spieler dahinterstehen und wie weit er mit ihnen geht.
+---Unter fuenf Spielern gibt es keine Mehrheit, nur ein paar Spieler, und dann
+---steht das da. Aelterer Bestand kennt keine Zahl und bleibt beim Anteil.
+---@param build table
+---@return string head
+---@return string|nil fit
+function UI.BuildHead(build)
+    local n = tonumber(build.players)
+    if not n then return L["TALENT_BUILD"]:format(build.pct or 0) end
+    if n < 5 then return L["TALENT_FEW"]:format(n) end
+    -- Ohne diese Zahl wurde er als haeufigster gewaehlt, und so heisst er dann.
+    if not build.fit then return L["TALENT_BUILD"]:format(build.pct or 0) end
+    return L["TALENT_MAJORITY"]:format(n), L["TALENT_FIT"]:format(build.fit)
+end
+
+---Titel und Zeile der Build-Karte im Fenster.
+---
+---"1 % spielen genau diesen Build" ist wahr und nutzlos: bei 790 Spielern spielt
+---kaum einer genau denselben, und ueber dem Mehrheits-Build stuende eine Zahl,
+---die kleiner ist als die der Alternativen darunter. Gefragt ist, wie weit er mit
+---den anderen geht. Aelterer Bestand kennt nur seinen Anteil.
+---@param data table { players, fit, pct }
+---@return string title
+---@return string note
+function UI.BuildCard(data)
+    local n = tonumber(data.players)
+    if not n then return L["CARD_TARGET"], L["CARD_SHARE"]:format(data.pct or 0) end
+    if n < 5 then return L["CARD_BUILD"], L["CARD_FEW"]:format(n) end
+    if not data.fit then return L["CARD_TARGET"], L["CARD_SHARE"]:format(data.pct or 0) end
+    return L["CARD_MAJORITY"], L["CARD_FIT"]:format(data.fit, n)
+end
+
 local function openDungeonPicker(anchor)
     local mode = ns.Profile.Mode()
     local allKey, titleKey = unitLabels(mode)
@@ -2448,9 +2484,10 @@ local function talentRows(specID, mode, source)
             -- Die fertige Kette der Quelle, wenn es eine gibt.
             text = build.text,
             pct = build.pct, count = #build.nodes,
+            players = build.players, fit = build.fit,
             fromBase = build.fromBase, fromMode = build.fromMode,
             fromSource = build.fromSource,
-            group = L["TALENT_BUILD"]:format(build.pct or 0),
+            group = UI.BuildHead(build),
         }
 
     end
@@ -4364,10 +4401,11 @@ local function setItemRow(row, data)
         local w = math.max(1, contentWidth() - S.space.sm * 2)
         local h = CARD_HEIGHT * (S.fontScale or 1)
         fitArt(card, wide or small, w, h)
-        card.title:SetText(data.cardTitle or L["CARD_TARGET"])
+        local kartenTitel, kartenZeile = UI.BuildCard(data)
+        card.title:SetText(data.cardTitle or kartenTitel)
         -- Der Titel steht schon darueber; die Zeile darunter traegt die
         -- Zahl, nicht noch einmal den Namen.
-        card.note:SetText(data.cardNote or L["CARD_SHARE"]:format(data.pct or 0))
+        card.note:SetText(data.cardNote or kartenZeile)
         -- Ohne Kette waere die Karte ein Knopf, der nichts tut. Dann
         -- sagt sie das, statt zum Klicken einzuladen.
         local ready = data.text ~= nil and data.text ~= ""
@@ -9989,11 +10027,17 @@ function TP.Standort()
     TP.ortInst = place and place.inst
     if not place then return nil end
     if not (ns.Data and ns.Data.Ensure and ns.Data.Ensure()) then return nil end
-    local mode, dungeon, entry = ns.Recommend.PlaceMode(place, ns.Profile.Mode())
+    -- Die Daten je Dungeon vor der Frage: welche Klammer dort den Build mit den
+    -- meisten Spielern hat, steht in ihnen.
+    if ns.Data.EnsureDungeons then ns.Data.EnsureDungeons() end
+    local mode, dungeon, entry = ns.Recommend.PlaceMode(place, ns.Profile.Mode(),
+        ns.Profile.TalentFrameSpec())
     if not mode then return nil end
     if dungeon and not ns.Data.EnsureDungeons() then return nil end
     local label = dungeon and unitName(entry)
         or ((unitGroup(entry) or entry.name) .. " · " .. (ns.ModeLabel(mode) or mode))
+    -- Welche Klammer es wurde, wenn es nicht die hohen Keys sind.
+    if dungeon and mode ~= "mplus" then label = label .. " · " .. (ns.ModeLabel(mode) or mode) end
     return { key = mode .. "|" .. (dungeon or ""), mode = mode, dungeon = dungeon, label = label }
 end
 
@@ -10097,9 +10141,11 @@ local function talentPanelRows()
 
     local out = {}
     if build and build.text and build.text ~= "" then
+        local kopf, passt = UI.BuildHead(build)
+        local knoten = L["TP_NODES"]:format(#(build.nodes or {}))
         out[#out + 1] = {
-            name = L["TALENT_BUILD"]:format(build.pct or 0),
-            note = L["TP_NODES"]:format(#(build.nodes or {})),
+            name = kopf,
+            note = passt and (knoten .. "  ·  " .. passt) or knoten,
             text = build.text,
             label = modeLabel,
             spells = listeMit(nil, nil),

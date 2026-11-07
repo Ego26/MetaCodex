@@ -4,6 +4,39 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ## [Unveröffentlicht]
 
+## [1.1.27] - 2026-11-07
+
+### Geändert
+
+- **Der Mehrheits-Build.** Der häufigste exakte Build sagt wenig, denn ein
+  einziges anderes Talent macht einen neuen Build: Der Elementar-Schamane hatte
+  790 Spieler und 1 %, mit Talenten, die die meisten von ihnen nicht nehmen.
+  Oben steht jetzt der Build eines echten Spielers, dessen Talente am häufigsten
+  gewählt werden, mit dem String aus dem Spiel. Liste und Karte sagen, auf wie
+  vielen Spielern er ruht und wie viele seiner Talente auch die Mehrheit nimmt;
+  die Prozente bei den Alternativen bleiben der Anteil, der genau diesen Build
+  spielt.
+- **Die größte Stichprobe entscheidet.** Bisher stellte die erste Quelle mit
+  String den Build. Jetzt ist es die mit den meisten Spielern, wie bei den
+  Zielwerten, und ihre Alternativen kommen mit.
+- **Am Dungeon** öffnet die Liste die Schlüsselklammer mit den meisten Spielern
+  für deine Spezialisierung und sagt es, wenn das nicht die High Keys sind.
+
+### Behoben
+
+- **M+ High Keys zeigten Builds von einer Handvoll Spielern.** Die Laufliste von
+  raider.io erfasst die Meta-Spezialisierungen: 21 von 40 hatten dort unter fünf
+  Spieler, und Überleben zeigte den Build eines einzigen als „100 %“. Warcraft
+  Logs liefert jetzt auch Strings (2300 im ersten Lauf, jeder gegen den geloggten
+  Build geprüft), und murloks ganze Top 50 je Spezialisierung laufen durch die
+  geprüften Profile statt zehn. Im ersten Lauf ruhte jede Spezialisierung auf
+  mindestens 38 Spielern, im Median 46.
+- **Viel mehr Builds je Dungeon:** 286 von 320 Paaren aus Spezialisierung und
+  Dungeon haben einen eigenen, vorher 119. Im Median sind es fünf Spieler, darum
+  sagt die Liste unter fünf „nur N Spieler gemessen“, statt es Mehrheit zu nennen.
+- **Talent-Vorschau:** Ein Talent mit mehreren Stufen (Apex-Talente) zählt als ein
+  Talent: Ein Punkt weniger ist ein roter Rahmen, nicht ein grüner und ein roter.
+
 ## [1.1.26] - 2026-11-04
 
 ### Neu

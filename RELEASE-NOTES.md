@@ -1,3 +1,24 @@
+## v1.1.27 — builds that show what most players run
+
+### Changed
+
+- **The majority build.** The build on top is no longer the most common
+  exact one: a single different talent makes a new build, so that could be
+  a build only 1 % play. It is now a real player's build whose talents most
+  players also take, with the game's own string. The list says how many
+  players it rests on and how far it goes with the majority.
+- **The largest sample decides.** Where sources disagree, the one that
+  measured the most players provides the build.
+
+### Fixed
+
+- **M+ high keys showed builds of a handful of players.** Over half the
+  specs rested on fewer than five, and one player's build could stand there
+  as "100 %". Every spec now rests on dozens.
+- **Far more builds per dungeon.** Most specs now have one of their own in
+  each dungeon. Samples per dungeon stay small, and below five players the
+  list says so.
+
 ## v1.1.26 — builds for where you stand
 
 ### Added

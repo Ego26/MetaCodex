@@ -1839,6 +1839,40 @@ do
         say("  -- 500001 nicht geskillt, Vergleich mit zweiter Nummer uebersprungen")
     end
 
+    -- EIN KNOTEN MIT MEHREREN STUFEN IST EIN TALENT (7. November). Das Apex-Talent
+    -- stand gruen, obwohl voll geskillt: die Logs nennen jede Stufe einzeln, das
+    -- Spiel nur die letzte.
+    local echtInfo = C_Traits.GetNodeInfo
+    local apexRang = 4
+    C_Traits.GetNodeInfo = function(cfg, nodeID)
+        local info = echtInfo(cfg, nodeID)
+        if nodeID == 190 and info then
+            info.ranksPurchased, info.activeRank = apexRang, apexRang
+            info.activeEntry = { entryID = 1903 }
+        end
+        return info
+    end
+    local rest = {}
+    for spell, raenge in pairs((ns.Tree.Worn())) do
+        if spell ~= 500064 then rest[#rest + 1] = { spell = spell, rank = raenge } end
+    end
+    local function mitApex(...)
+        local liste = {}
+        for _, n in ipairs(rest) do liste[#liste + 1] = n end
+        for _, n in ipairs({ ... }) do liste[#liste + 1] = n end
+        return ns.Tree.Show(liste)
+    end
+    local pa, ma = mitApex({ spell = 500064, rank = 4 })
+    check("voll geskillt und voll gewollt: nichts markiert", pa == 0 and ma == 0, pa .. " gruen, " .. ma .. " rot")
+    pa, ma = mitApex({ spell = 500061, rank = 1 }, { spell = 500062, rank = 2 }, { spell = 500064, rank = 1 })
+    check("  die Stufen einzeln zaehlen zusammen", pa == 0 and ma == 0, pa .. " gruen, " .. ma .. " rot")
+    pa, ma = mitApex({ spell = 500062, rank = 3 })
+    check("  ein Punkt weniger ist ein roter Rahmen, nicht zwei", pa == 0 and ma == 1, pa .. " gruen, " .. ma .. " rot")
+    apexRang = 3
+    pa, ma = mitApex({ spell = 500064, rank = 4 })
+    check("  ein Punkt mehr ist ein gruener", pa == 1 and ma == 0, pa .. " gruen, " .. ma .. " rot")
+    C_Traits.GetNodeInfo = echtInfo
+
     ns.Tree.Hide()
     _G.PlayerSpellsFrame.TalentsFrame = echt
 end
@@ -2543,13 +2577,16 @@ local keyed = ns.Recommend.Players(105, "mplus-keys", ns.Recommend.ALL)
 check("Top-Spieler auch unter M+ (+7 - +21)", keyed ~= nil and #keyed > 0,
     keyed and (#keyed .. " Zeilen") or "leer")
 
--- Die Schluesselklammer kommt nur aus den Logs und hat keine Kette; der
--- Build wird vom Grundmodus geliehen, und die Ueberschrift sagt es.
+-- Die Schluesselklammer kommt nur aus den Logs. Seit dem 4. November fuehren die
+-- ihren String selbst; nur wo er fehlt, wird der Build vom Grundmodus geliehen,
+-- und die Ueberschrift sagt es. Ein Build ohne Herkunft waere der Fehler.
 local kp, kb = ns.Recommend.Talents(105, "mplus-keys", ns.Recommend.ALL)
 if kp then
     check("Klammer hat einen Build mit Kette", kb ~= nil and kb.text ~= nil and kb.text ~= "",
         kb and (kb.text and (#kb.text .. " Zeichen") or "ohne Kette") or "kein Build")
-    check("und er ist als geliehen markiert", kb ~= nil and kb.fromBase == true)
+    check("und er ist gemessen oder als geliehen markiert",
+        kb ~= nil and (kb.fromBase == true or (kb.players or 0) > 0),
+        kb and (kb.fromBase and "geliehen" or (tostring(kb.players) .. " Spieler")) or "kein Build")
     ns.Profile.SetMode("mplus-keys")
     check("Klammer zeigt den Kopierknopf", rowsInSection("talents") > 0,
         rowsInSection("talents") .. " Zeilen")
@@ -3599,7 +3636,8 @@ do
         check("  wer etwas anderes waehlt, hat recht",
             gefragt[#gefragt] == "mplus" and ns.Profile.Mode() == "mplus", tostring(gefragt[#gefragt]))
         wow.fire("ZONE_CHANGED")
-        check("  auch wenn er in derselben Zone weitergeht", gefragt[#gefragt] == "mplus", tostring(gefragt[#gefragt]))
+        check("  auch wenn er in derselben Zone weitergeht",
+            panel.pick.label:GetText() == ns.ModeLabel("mplus"), tostring(panel.pick.label:GetText()))
     end
     if hier then
         hier.run()
@@ -3643,6 +3681,85 @@ do
     ns.UI.HideTalentPanel()
     ns.Profile.SetMode(echt.mode)
     ns.Profile.SetDungeon(echt.dungeon, "talents")
+end
+
+-- ------------------------------------------------ Wer den Build stellt
+--
+-- Ueberleben zeigte in den High Keys den Build eines einzigen Spielers als
+-- "100 %", weil die erste Quelle mit String gewann. Am 4. November aufgefallen.
+do
+    local d = MetaCodex_Recommendations
+    local KNOTEN = { { spell = 1, rank = 1 } }
+    d.modes["test/mehrheit"] = {
+        ["raider.io"] = { specs = { [255] = {
+            build = { pct = 100, players = 1, fit = 100, text = "EINER", nodes = KNOTEN },
+            builds = { { pct = 50, text = "RIO-ALT", added = { 2 } } },
+        } } },
+        ["warcraftlogs.com"] = { specs = { [255] = {
+            build = { pct = 20, players = 40, fit = 90, text = "VIELE", nodes = KNOTEN },
+            builds = { { pct = 10, text = "LOGS-ALT", added = { 3 } } },
+        } } },
+    }
+    local _, build, _, von = ns.Recommend.Talents(255, "test/mehrheit", ns.Recommend.ALL)
+    check("die Quelle mit den meisten Spielern stellt den Build",
+        build and build.text == "VIELE" and von == "warcraftlogs.com", build and build.text)
+    local andere = ns.Recommend.OtherBuilds(255, "test/mehrheit", ns.Recommend.ALL)
+    check("  und ihre Alternativen, nicht die einer anderen Quelle",
+        andere and andere[1].text == "LOGS-ALT", andere and andere[1].text)
+
+    d.modes["test/mehrheit"]["warcraftlogs.com"].specs[255].build.text = nil
+    _, build = ns.Recommend.Talents(255, "test/mehrheit", ns.Recommend.ALL)
+    check("  ohne String zaehlt die Zahl nicht: laden laesst sich nur einer mit String",
+        build and build.text == "EINER", build and build.text)
+    d.modes["test/mehrheit"] = nil
+
+    -- Was im Fenster steht.
+    local kopf, passt = ns.UI.BuildHead({ players = 473, fit = 92, pct = 5 })
+    check("die Ueberschrift nennt die Spieler", kopf == L["TALENT_MAJORITY"]:format(473), kopf)
+    check("  und wie weit er mit der Mehrheit geht", passt == L["TALENT_FIT"]:format(92), passt)
+    kopf, passt = ns.UI.BuildHead({ players = 1, fit = 100, pct = 100 })
+    check("ein einziger Spieler ist keine Mehrheit",
+        kopf == L["TALENT_FEW"]:format(1) and passt == nil, kopf)
+    kopf = ns.UI.BuildHead({ pct = 30 })
+    check("aelterer Bestand bleibt beim Anteil", kopf == L["TALENT_BUILD"]:format(30), kopf)
+    kopf = ns.UI.BuildHead({ players = 10, pct = 30 })
+    check("ohne fit ist er der haeufigste, kein Mehrheits-Build", kopf == L["TALENT_BUILD"]:format(30), kopf)
+
+    -- Die Karte im Fenster: "1 % spielen genau diesen Build" sagte nichts mehr.
+    local titel, zeile = ns.UI.BuildCard({ players = 790, fit = 99, pct = 1 })
+    check("die Karte nennt den Mehrheits-Build", titel == L["CARD_MAJORITY"], titel)
+    check("  und wie weit er mit den anderen geht",
+        zeile == L["CARD_FIT"]:format(99, 790) and not zeile:find("1%%"), zeile)
+    titel, zeile = ns.UI.BuildCard({ players = 3, fit = 100, pct = 33 })
+    check("  drei Spieler sind keine Mehrheit",
+        titel == L["CARD_BUILD"] and zeile == L["CARD_FEW"]:format(3), zeile)
+    titel, zeile = ns.UI.BuildCard({ pct = 30 })
+    check("  aelterer Bestand bleibt beim Anteil", zeile == L["CARD_SHARE"]:format(30), zeile)
+
+    -- Am Dungeon entscheidet die Spielerzahl fuer DIESE Spec.
+    local echtD, echtT = ns.Recommend.Dungeons, ns.Recommend.Talents
+    ns.Recommend.Dungeons = function(mode)
+        if mode == "mplus" then return { { key = "mplus/x", name = "X", inst = 5 } } end
+        if mode == "mplus-keys" then return { { key = "mplus-keys/x", name = "X", inst = 5 } } end
+        return {}
+    end
+    local n = { ["mplus/x"] = 3, ["mplus-keys/x"] = 30 }
+    ns.Recommend.Talents = function(_, mode)
+        return {}, { pct = 10, players = n[mode], text = n[mode] and "AAAA" or nil, nodes = {},
+            fromBase = (not n[mode]) or nil }
+    end
+    local m = ns.Recommend.PlaceMode({ inst = 5 }, "mplus", 255)
+    check("am Dungeon gewinnt die Klammer mit den meisten Spielern", m == "mplus-keys", tostring(m))
+    n["mplus-keys/x"] = 2
+    m = ns.Recommend.PlaceMode({ inst = 5 }, "mplus", 255)
+    check("  bei den hohen Keys bleibt es, wenn sie mehr haben", m == "mplus", tostring(m))
+    n["mplus-keys/x"], n["mplus/x"] = 30, nil
+    m = ns.Recommend.PlaceMode({ inst = 5 }, "3v3", 255)
+    check("  und wo die hohen Keys nichts haben, die andere", m == "mplus-keys", tostring(m))
+    n["mplus-keys/x"], n["mplus/x"] = 1, 90
+    m = ns.Recommend.PlaceMode({ inst = 5 }, "mplus-keys", 255)
+    check("  wer +7 - +21 gewaehlt hat, bleibt dabei", m == "mplus-keys", tostring(m))
+    ns.Recommend.Dungeons, ns.Recommend.Talents = echtD, echtT
 end
 
 -- --------------------------------------------------------------- Sonde

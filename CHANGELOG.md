@@ -4,6 +4,38 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ## [Unreleased]
 
+## [1.1.27] - 2026-11-07
+
+### Changed
+
+- **The majority build.** The most common exact build says little, because
+  one different talent makes a new build: the Elemental Shaman's had 790
+  players and 1 %, with talents most of them do not take. On top now stands
+  the build of a real player whose talents are chosen most often, with the
+  string the game wrote. The list and the card say how many players it rests
+  on and how many of its talents the majority also takes; percentages on the
+  alternatives remain the share playing exactly that build.
+- **The largest sample decides.** The first source with a string used to
+  provide the build. Now the one with the most players does, as with stat
+  targets, and its alternatives come with it.
+- **At a dungeon** the list opens on the key bracket with the most players
+  for your spec, and says so if that is not high keys.
+
+### Fixed
+
+- **M+ high keys showed builds of a handful of players.** raider.io's run
+  list covers the meta specs: 21 of 40 specs had fewer than five players
+  there, and Survival showed one player's build as "100 %". Warcraft Logs now
+  provides strings too (2300 in the first run, each checked against the
+  logged build), and murlok's full top 50 per spec go through the verified
+  profiles instead of ten. In the first run every spec rested on at least 38
+  players, with a median of 46.
+- **Far more builds per dungeon:** 286 of 320 spec and dungeon pairs have one
+  of their own, up from 119. The median is five players, so below five the
+  list says "only N players measured" rather than calling it a majority.
+- **Talent preview:** a talent with several tiers (apex talents) counts as one
+  talent: one point short is one red frame, not a green and a red one.
+
 ## [1.1.26] - 2026-11-04
 
 ### Added
