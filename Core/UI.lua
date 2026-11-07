@@ -564,7 +564,9 @@ function UI.BuildHead(build)
     local n = tonumber(build.players)
     if not n then return L["TALENT_BUILD"]:format(build.pct or 0) end
     if n < 5 then return L["TALENT_FEW"]:format(n) end
-    return L["TALENT_MAJORITY"]:format(n), build.fit and L["TALENT_FIT"]:format(build.fit) or nil
+    -- Ohne diese Zahl wurde er als haeufigster gewaehlt, und so heisst er dann.
+    if not build.fit then return L["TALENT_BUILD"]:format(build.pct or 0) end
+    return L["TALENT_MAJORITY"]:format(n), L["TALENT_FIT"]:format(build.fit)
 end
 
 ---Titel und Zeile der Build-Karte im Fenster.
@@ -580,7 +582,8 @@ function UI.BuildCard(data)
     local n = tonumber(data.players)
     if not n then return L["CARD_TARGET"], L["CARD_SHARE"]:format(data.pct or 0) end
     if n < 5 then return L["CARD_BUILD"], L["CARD_FEW"]:format(n) end
-    return L["CARD_MAJORITY"], L["CARD_FIT"]:format(data.fit or 0, n)
+    if not data.fit then return L["CARD_TARGET"], L["CARD_SHARE"]:format(data.pct or 0) end
+    return L["CARD_MAJORITY"], L["CARD_FIT"]:format(data.fit, n)
 end
 
 local function openDungeonPicker(anchor)

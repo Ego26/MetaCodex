@@ -1839,6 +1839,40 @@ do
         say("  -- 500001 nicht geskillt, Vergleich mit zweiter Nummer uebersprungen")
     end
 
+    -- EIN KNOTEN MIT MEHREREN STUFEN IST EIN TALENT (7. November). Das Apex-Talent
+    -- stand gruen, obwohl voll geskillt: die Logs nennen jede Stufe einzeln, das
+    -- Spiel nur die letzte.
+    local echtInfo = C_Traits.GetNodeInfo
+    local apexRang = 4
+    C_Traits.GetNodeInfo = function(cfg, nodeID)
+        local info = echtInfo(cfg, nodeID)
+        if nodeID == 190 and info then
+            info.ranksPurchased, info.activeRank = apexRang, apexRang
+            info.activeEntry = { entryID = 1903 }
+        end
+        return info
+    end
+    local rest = {}
+    for spell, raenge in pairs((ns.Tree.Worn())) do
+        if spell ~= 500064 then rest[#rest + 1] = { spell = spell, rank = raenge } end
+    end
+    local function mitApex(...)
+        local liste = {}
+        for _, n in ipairs(rest) do liste[#liste + 1] = n end
+        for _, n in ipairs({ ... }) do liste[#liste + 1] = n end
+        return ns.Tree.Show(liste)
+    end
+    local pa, ma = mitApex({ spell = 500064, rank = 4 })
+    check("voll geskillt und voll gewollt: nichts markiert", pa == 0 and ma == 0, pa .. " gruen, " .. ma .. " rot")
+    pa, ma = mitApex({ spell = 500061, rank = 1 }, { spell = 500062, rank = 2 }, { spell = 500064, rank = 1 })
+    check("  die Stufen einzeln zaehlen zusammen", pa == 0 and ma == 0, pa .. " gruen, " .. ma .. " rot")
+    pa, ma = mitApex({ spell = 500062, rank = 3 })
+    check("  ein Punkt weniger ist ein roter Rahmen, nicht zwei", pa == 0 and ma == 1, pa .. " gruen, " .. ma .. " rot")
+    apexRang = 3
+    pa, ma = mitApex({ spell = 500064, rank = 4 })
+    check("  ein Punkt mehr ist ein gruener", pa == 1 and ma == 0, pa .. " gruen, " .. ma .. " rot")
+    C_Traits.GetNodeInfo = echtInfo
+
     ns.Tree.Hide()
     _G.PlayerSpellsFrame.TalentsFrame = echt
 end
@@ -3688,6 +3722,8 @@ do
         kopf == L["TALENT_FEW"]:format(1) and passt == nil, kopf)
     kopf = ns.UI.BuildHead({ pct = 30 })
     check("aelterer Bestand bleibt beim Anteil", kopf == L["TALENT_BUILD"]:format(30), kopf)
+    kopf = ns.UI.BuildHead({ players = 10, pct = 30 })
+    check("ohne fit ist er der haeufigste, kein Mehrheits-Build", kopf == L["TALENT_BUILD"]:format(30), kopf)
 
     -- Die Karte im Fenster: "1 % spielen genau diesen Build" sagte nichts mehr.
     local titel, zeile = ns.UI.BuildCard({ players = 790, fit = 99, pct = 1 })

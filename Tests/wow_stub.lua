@@ -498,6 +498,12 @@ function M.install(opts)
     -- dieselbe Rechnung machen; geprueft wird ihre Uebereinstimmung.
     local TREE = opts.tree or {
         { node = 101, entries = { { entry = 1001, spell = 500001, maxRanks = 1 } } },
+        -- Ein Knoten mit mehreren Stufen, wie das Apex-Talent: 1, 2, 1 Punkte.
+        { node = 190, tiered = true, entries = {
+            { entry = 1901, spell = 500061, maxRanks = 1 },
+            { entry = 1902, spell = 500062, maxRanks = 2 },
+            { entry = 1903, spell = 500064, maxRanks = 1 },
+        } },
         { node = 102, entries = { { entry = 1002, spell = 500002, maxRanks = 2 } } },
         { node = 103, entries = {
             { entry = 1003, spell = 500003, maxRanks = 1 },
@@ -578,7 +584,8 @@ function M.install(opts)
                 -- Der Knoten nennt seinen eigenen Hoechstrang. Er kann
                 -- vom Eintrag abweichen, und genau daran hing ein Bit.
                 maxRanks = n.entries[1] and n.entries[1].maxRanks or 1,
-                type = (#ids > 1) and G.Enum.TraitNodeType.Selection or G.Enum.TraitNodeType.Single,
+                type = n.tiered and G.Enum.TraitNodeType.Tiered
+                    or ((#ids > 1) and G.Enum.TraitNodeType.Selection or G.Enum.TraitNodeType.Single),
                 ranksPurchased = picked and picked.rank or 0,
                 -- Aktiv ist auch, was geschenkt wurde.
                 activeRank = picked and (picked.granted and 1 or picked.rank) or 0,

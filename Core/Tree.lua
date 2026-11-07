@@ -82,7 +82,7 @@ end
 -- kein Vergessen von aussen: ein Specwechsel bringt eine andere Nummer
 -- mit, und was geskillt ist, wird ohnehin bei jeder Vorschau neu
 -- gelesen.
-local mapConfig, spellToNode, nodeSubTree, nameToNode, nodeSpells
+local mapConfig, spellToNode, nodeSubTree, nameToNode, nodeSpells, nodeTiered
 
 ---Wie der Zauber heisst - in der Sprache dieses Clients.
 ---@param id number
@@ -105,7 +105,7 @@ function Tree.Map()
     local ok, info = pcall(C_Traits.GetConfigInfo, configID)
     if not (ok and info and info.treeIDs) then return nil end
 
-    local out, subs, byName, proKnoten = {}, {}, {}, {}
+    local out, subs, byName, proKnoten, gestuft = {}, {}, {}, {}, {}
     for _, treeID in ipairs(info.treeIDs) do
         for _, nodeID in ipairs(nodesOf(configID, treeID)) do
             local ok2, node = pcall(C_Traits.GetNodeInfo, configID, nodeID)
@@ -119,6 +119,9 @@ function Tree.Map()
             -- "dieser Build will einen anderen Held-Baum".
             local sub = node and tonumber(node.subTreeID)
             if sub then subs[nodeID] = sub end
+            -- Der Typ steht im Knoten; 1 ist "Tiered", auch ohne das Enum.
+            local stufig = (Enum and Enum.TraitNodeType and Enum.TraitNodeType.Tiered) or 1
+            if node and node.type == stufig then gestuft[nodeID] = true end
             for _, entryID in ipairs((node and node.entryIDs) or {}) do
                 local spell = spellOfEntry(configID, entryID)
                 if spell then
@@ -158,7 +161,8 @@ function Tree.Map()
             end
         end
     end
-    mapConfig, spellToNode, nodeSubTree, nameToNode, nodeSpells = configID, out, subs, byName, proKnoten
+    mapConfig, spellToNode, nodeSubTree, nameToNode, nodeSpells, nodeTiered =
+        configID, out, subs, byName, proKnoten, gestuft
     return out
 end
 
@@ -199,6 +203,25 @@ local function kanon(spell)
     return spell
 end
 Tree.Canon = kanon
+
+---Ein Knoten mit mehreren Stufen ist EIN Talent, mit einer Zahl.
+---
+---Das Spiel meldet nur die zuletzt aktive Stufe. Wer drei von vier Punkten will
+---und vier hat, wuerde sonst eine andere Nummer vermissen und die eigene zu viel
+---haben: gruen UND rot auf demselben Knoten, fuer einen einzigen Punkt. Also
+---zaehlt alles unter der ersten Nummer des Knotens, zusammengezaehlt.
+---@param raenge table<number, number> Zauber -> Rang
+---@return table<number, number>
+local function stufenZusammen(raenge)
+    local out = {}
+    for spell, rang in pairs(raenge) do
+        local nodeID = Tree.NodeFor(spell)
+        local liste = nodeID and nodeTiered and nodeTiered[nodeID] and nodeSpells[nodeID]
+        local key = (liste and liste[1]) or spell
+        out[key] = (out[key] or 0) + rang
+    end
+    return out
+end
 
 ---Der Held-Baum eines Knotens, wenn er zu einem gehoert.
 ---@param nodeID number
@@ -381,6 +404,7 @@ function Tree.Show(spells)
         local rang = (type(spell) == "table" and tonumber(spell.rank)) or 1
         if id and rang > (wanted[id] or 0) then wanted[id] = rang end
     end
+    wanted, worn, gekauft = stufenZusammen(wanted), stufenZusammen(worn), stufenZusammen(gekauft)
 
     local plus, minus = 0, 0
 

@@ -21,6 +21,26 @@ const { wornBy } = require('./lib/worn-by');
 const { tallyRaces, raceShares, raceSims, pooled } = require('./lib/races');
 const { addRaidCounts, raidShares } = require('./lib/comps');
 
+// Was eine Quelle als Build meldet, steht im Fenster so, wie sein String es sagt:
+// die Logs und Battle.net fuehren Knoten mit mehreren Stufen zeilenweise. Siehe
+// tools/lib/string-nodes.js.
+function stringNodesFor(part) {
+  for (const [specID, entry] of Object.entries(part.specs || {})) {
+    const tree = Loadout.treeOfSpec(BASE, Number(specID));
+    if (!tree) continue;
+    const decode = (text) => {
+      try {
+        const decoded = Loadout.decode(BASE, text, tree);
+        return decoded && decoded.spec === Number(specID) ? decoded.nodes : null;
+      } catch (err) {
+        return null;
+      }
+    };
+    useStringNodes(entry, decode);
+    for (const h of Object.values(entry.hero || {})) useStringNodes(h, decode);
+  }
+}
+
 const BASE = process.argv[2];
 if (!BASE) {
   console.error('Aufruf: node tools/build-recommendations.js <Pfad zum AddOn-Ordner>');
@@ -160,24 +180,7 @@ for (const name of fs.readdirSync(dir).sort()) {
   mode[part.source] = part;
   sources.add(part.source);
   newest = Math.max(newest, part.builtOn || 0);
-  // Was die Logs als Build melden, steht im Fenster so, wie sein String es sagt:
-  // siehe tools/lib/string-nodes.js.
-  if (part.source === 'warcraftlogs.com') {
-    for (const [specID, entry] of Object.entries(part.specs)) {
-      const tree = Loadout.treeOfSpec(BASE, Number(specID));
-      if (!tree) continue;
-      const decode = (text) => {
-        try {
-          const decoded = Loadout.decode(BASE, text, tree);
-          return decoded && decoded.spec === Number(specID) ? decoded.nodes : null;
-        } catch (err) {
-          return null;
-        }
-      };
-      useStringNodes(entry, decode);
-      for (const h of Object.values(entry.hero || {})) useStringNodes(h, decode);
-    }
-  }
+  stringNodesFor(part);
   // Die Rassen aus der raider.io-Laufliste: Profiladresse -> "Rasse|Seite".
   for (const [specID, entry] of Object.entries(part.specs)) {
     if (!entry.races) continue;
@@ -196,6 +199,7 @@ for (const name of fs.readdirSync(dir).sort()) {
 }
 
 for (const part of profileParts) {
+  stringNodesFor(part);
   const mode = byMode[part.mode] || (byMode[part.mode] = {});
   const target = mode[part.source] || (mode[part.source] = {
     source: part.source, mode: part.mode, builtOn: part.builtOn, specs: {},
