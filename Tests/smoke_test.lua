@@ -2543,13 +2543,16 @@ local keyed = ns.Recommend.Players(105, "mplus-keys", ns.Recommend.ALL)
 check("Top-Spieler auch unter M+ (+7 - +21)", keyed ~= nil and #keyed > 0,
     keyed and (#keyed .. " Zeilen") or "leer")
 
--- Die Schluesselklammer kommt nur aus den Logs und hat keine Kette; der
--- Build wird vom Grundmodus geliehen, und die Ueberschrift sagt es.
+-- Die Schluesselklammer kommt nur aus den Logs. Seit dem 4. November fuehren die
+-- ihren String selbst; nur wo er fehlt, wird der Build vom Grundmodus geliehen,
+-- und die Ueberschrift sagt es. Ein Build ohne Herkunft waere der Fehler.
 local kp, kb = ns.Recommend.Talents(105, "mplus-keys", ns.Recommend.ALL)
 if kp then
     check("Klammer hat einen Build mit Kette", kb ~= nil and kb.text ~= nil and kb.text ~= "",
         kb and (kb.text and (#kb.text .. " Zeichen") or "ohne Kette") or "kein Build")
-    check("und er ist als geliehen markiert", kb ~= nil and kb.fromBase == true)
+    check("und er ist gemessen oder als geliehen markiert",
+        kb ~= nil and (kb.fromBase == true or (kb.players or 0) > 0),
+        kb and (kb.fromBase and "geliehen" or (tostring(kb.players) .. " Spieler")) or "kein Build")
     ns.Profile.SetMode("mplus-keys")
     check("Klammer zeigt den Kopierknopf", rowsInSection("talents") > 0,
         rowsInSection("talents") .. " Zeilen")
