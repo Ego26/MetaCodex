@@ -3689,6 +3689,17 @@ do
     kopf = ns.UI.BuildHead({ pct = 30 })
     check("aelterer Bestand bleibt beim Anteil", kopf == L["TALENT_BUILD"]:format(30), kopf)
 
+    -- Die Karte im Fenster: "1 % spielen genau diesen Build" sagte nichts mehr.
+    local titel, zeile = ns.UI.BuildCard({ players = 790, fit = 99, pct = 1 })
+    check("die Karte nennt den Mehrheits-Build", titel == L["CARD_MAJORITY"], titel)
+    check("  und wie weit er mit den anderen geht",
+        zeile == L["CARD_FIT"]:format(99, 790) and not zeile:find("1%%"), zeile)
+    titel, zeile = ns.UI.BuildCard({ players = 3, fit = 100, pct = 33 })
+    check("  drei Spieler sind keine Mehrheit",
+        titel == L["CARD_BUILD"] and zeile == L["CARD_FEW"]:format(3), zeile)
+    titel, zeile = ns.UI.BuildCard({ pct = 30 })
+    check("  aelterer Bestand bleibt beim Anteil", zeile == L["CARD_SHARE"]:format(30), zeile)
+
     -- Am Dungeon entscheidet die Spielerzahl fuer DIESE Spec.
     local echtD, echtT = ns.Recommend.Dungeons, ns.Recommend.Talents
     ns.Recommend.Dungeons = function(mode)

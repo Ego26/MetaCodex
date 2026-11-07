@@ -567,6 +567,22 @@ function UI.BuildHead(build)
     return L["TALENT_MAJORITY"]:format(n), build.fit and L["TALENT_FIT"]:format(build.fit) or nil
 end
 
+---Titel und Zeile der Build-Karte im Fenster.
+---
+---"1 % spielen genau diesen Build" ist wahr und nutzlos: bei 790 Spielern spielt
+---kaum einer genau denselben, und ueber dem Mehrheits-Build stuende eine Zahl,
+---die kleiner ist als die der Alternativen darunter. Gefragt ist, wie weit er mit
+---den anderen geht. Aelterer Bestand kennt nur seinen Anteil.
+---@param data table { players, fit, pct }
+---@return string title
+---@return string note
+function UI.BuildCard(data)
+    local n = tonumber(data.players)
+    if not n then return L["CARD_TARGET"], L["CARD_SHARE"]:format(data.pct or 0) end
+    if n < 5 then return L["CARD_BUILD"], L["CARD_FEW"]:format(n) end
+    return L["CARD_MAJORITY"], L["CARD_FIT"]:format(data.fit or 0, n)
+end
+
 local function openDungeonPicker(anchor)
     local mode = ns.Profile.Mode()
     local allKey, titleKey = unitLabels(mode)
@@ -2465,6 +2481,7 @@ local function talentRows(specID, mode, source)
             -- Die fertige Kette der Quelle, wenn es eine gibt.
             text = build.text,
             pct = build.pct, count = #build.nodes,
+            players = build.players, fit = build.fit,
             fromBase = build.fromBase, fromMode = build.fromMode,
             fromSource = build.fromSource,
             group = UI.BuildHead(build),
@@ -4381,10 +4398,11 @@ local function setItemRow(row, data)
         local w = math.max(1, contentWidth() - S.space.sm * 2)
         local h = CARD_HEIGHT * (S.fontScale or 1)
         fitArt(card, wide or small, w, h)
-        card.title:SetText(data.cardTitle or L["CARD_TARGET"])
+        local kartenTitel, kartenZeile = UI.BuildCard(data)
+        card.title:SetText(data.cardTitle or kartenTitel)
         -- Der Titel steht schon darueber; die Zeile darunter traegt die
         -- Zahl, nicht noch einmal den Namen.
-        card.note:SetText(data.cardNote or L["CARD_SHARE"]:format(data.pct or 0))
+        card.note:SetText(data.cardNote or kartenZeile)
         -- Ohne Kette waere die Karte ein Knopf, der nichts tut. Dann
         -- sagt sie das, statt zum Klicken einzuladen.
         local ready = data.text ~= nil and data.text ~= ""
