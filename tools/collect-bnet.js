@@ -24,7 +24,7 @@ const path = require('path');
 const bnet = require('./bnet');
 const { share } = require('./lib/share');
 const { specShares } = require('./lib/comps');
-const { pickMajority, othersThan } = require('./lib/majority-build');
+const { buildsFromPlayers } = require('./lib/majority-build');
 
 const BASE = process.argv[2];
 if (!BASE) {
@@ -214,42 +214,8 @@ function pctRows(counter, denom) {
     .sort((a, b) => b.pct - a.pct);
 }
 
-function buildsFrom(players) {
-  const verified = players.filter((p) => p.verified && p.text);
-  if (!verified.length) return {};
-  const byText = new Map();
-  const popularity = {};
-  for (const p of verified) {
-    const cur = byText.get(p.text) || { n: 0, spells: p.spells };
-    cur.n += 1;
-    byText.set(p.text, cur);
-    for (const s of p.spells) {
-      const talent = s.spell + '|' + s.rank;
-      popularity[talent] = (popularity[talent] || 0) + 1;
-    }
-  }
-  const candidates = [...byText.entries()].map(([text, info]) => ({
-    key: text, count: info.n, talents: info.spells.map((s) => s.spell + '|' + s.rank),
-  }));
-  const chosen = pickMajority(candidates, popularity, verified.length);
-  const top = byText.get(chosen.key);
-  const build = {
-    pct: share(chosen.count, verified.length),
-    text: chosen.key, nodes: top.spells, players: verified.length, fit: chosen.fit,
-  };
-  const topSet = new Set(top.spells.map((s) => s.spell));
-  const builds = [];
-  for (const { key: text } of othersThan(candidates, chosen.key)) {
-    const info = byText.get(text);
-    const set = new Set(info.spells.map((s) => s.spell));
-    const added = info.spells.filter((s) => !topSet.has(s.spell)).map((s) => s.spell);
-    const removed = top[1].spells.filter((s) => !set.has(s.spell)).map((s) => s.spell);
-    if (!added.length && !removed.length) continue;
-    builds.push({ pct: share(info.n, verified.length), text, added, removed });
-    if (builds.length >= 6) break;
-  }
-  return { build, builds };
-}
+/** Siehe tools/lib/majority-build.js - eine Fassung fuer beide Sammler. */
+const buildsFrom = (players) => buildsFromPlayers(players, share);
 
 /** Ein Spec-Eintrag im Format der anderen Quellen. */
 function summarise(players) {

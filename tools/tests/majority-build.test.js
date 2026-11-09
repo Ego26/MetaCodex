@@ -3,7 +3,8 @@
 // Ueberleben bekam in den High Keys den Build eines einzigen Spielers, und
 // Elementar einen 5-%-Build mit Talenten gegen die Mehrheit. Was einmal falsch
 // war, bekommt einen Test.
-const { fromSignatures, pickMajority, othersThan } = require('../lib/majority-build');
+const { fromSignatures, pickMajority, othersThan, buildsFromPlayers } = require('../lib/majority-build');
+const { share } = require('../lib/share');
 
 let failed = 0;
 function check(what, got, want) {
@@ -53,6 +54,33 @@ check('nichts gezaehlt, nichts gewaehlt', pickMajority([], {}, 0), null);
 const andere = othersThan(fromSignatures({ 'a:1': 1, 'b:1': 5, 'c:1': 2 }), 'b:1');
 check('die Alternativen ohne den gewaehlten, haeufigste zuerst',
   andere.map((c) => c.key).join(' '), 'c:1 a:1');
+
+// Aus Profilen, wie Profilpruefung und Battle.net sie liefern (8. November:
+// Battle.net brach hier mit "reading 'spells'" ab).
+console.log('Builds aus geprueften Profilen');
+const sp = (...ids) => ids.map((id) => ({ spell: id, rank: 1 }));
+const spieler = [
+  { verified: true, text: 'MEHRHEIT', spells: sp(1, 2) },
+  { verified: true, text: 'AUSREISSER', spells: sp(3, 4) },
+  { verified: true, text: 'AUSREISSER', spells: sp(3, 4) },
+  { verified: true, text: 'NAH', spells: sp(1, 3) },
+  { verified: true, text: 'NAH2', spells: sp(2, 5) },
+  { verified: true, text: 'MEHRHEIT', spells: sp(1, 2) },
+  { verified: false, text: 'UNGEPRUEFT', spells: sp(9) },
+  { verified: true, text: null, spells: sp(8) },
+];
+const aus = buildsFromPlayers(spieler, share);
+check('der Mehrheits-Build aus den Profilen', aus.build && aus.build.text, 'MEHRHEIT');
+check('  auf allen geprueften mit String', aus.build && aus.build.players, 6);
+check('  mit seinen Knoten', aus.build && aus.build.nodes.map((n) => n.spell).join(), '1,2');
+check('  und wie weit er mit der Mehrheit geht', aus.build && aus.build.fit, 100);
+check('die Alternativen rechnen gegen ihn', aus.builds && aus.builds[0].text, 'AUSREISSER');
+check('  mit dem, was dazukommt', aus.builds && aus.builds[0].added.join(), '3,4');
+check('  und dem, was wegfaellt', aus.builds && aus.builds[0].removed.join(), '1,2');
+check('Ungeprueftes und Strings ohne Text zaehlen nicht',
+  aus.builds.some((b) => b.text === 'UNGEPRUEFT' || b.text === null), false);
+check('ohne gepruefte Spieler kein Build', JSON.stringify(buildsFromPlayers([], share)), '{}');
+check('  auch ohne Liste', JSON.stringify(buildsFromPlayers(undefined, share)), '{}');
 
 if (failed) {
   console.log('');

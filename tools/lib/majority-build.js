@@ -67,4 +67,56 @@ function othersThan(candidates, key) {
     .sort((a, b) => b.count - a.count || (a.key < b.key ? -1 : 1));
 }
 
-module.exports = { fromSignatures, pickMajority, othersThan };
+/**
+ * Die Builds aus geprueften Spielerprofilen: Mehrheits-Build und Alternativen.
+ *
+ * Einmal hier statt zweimal in den Sammlern. Die Profilpruefung und Battle.net
+ * hatten je eine Kopie, und beim Umbau am 7. November blieb in der einen ein
+ * Rest der alten Fassung stehen: "top[1].spells". Battle.net brach daran in
+ * der Nacht darauf ab, und die Daten gingen ohne seine Builds hinaus.
+ *
+ * @param {Array<{verified: boolean, text: string, spells: Array<{spell: number, rank: number}>}>} players
+ * @param {function(number, number): number} share Anteil in ganzen Prozent
+ * @returns {{build?: object, builds?: Array}}
+ */
+function buildsFromPlayers(players, share) {
+  const verified = (players || []).filter((p) => p.verified && p.text);
+  if (!verified.length) return {};
+  const byText = new Map();
+  const popularity = {};
+  for (const p of verified) {
+    const cur = byText.get(p.text) || { n: 0, spells: p.spells || [] };
+    cur.n += 1;
+    byText.set(p.text, cur);
+    for (const s of p.spells || []) {
+      const talent = s.spell + '|' + s.rank;
+      popularity[talent] = (popularity[talent] || 0) + 1;
+    }
+  }
+  const candidates = [...byText.entries()].map(([text, info]) => ({
+    key: text, count: info.n, talents: info.spells.map((s) => s.spell + '|' + s.rank),
+  }));
+  const chosen = pickMajority(candidates, popularity, verified.length);
+  const top = byText.get(chosen.key);
+  const build = {
+    pct: share(chosen.count, verified.length),
+    text: chosen.key,
+    nodes: top.spells,
+    players: verified.length,
+    fit: chosen.fit,
+  };
+  const topSet = new Set(top.spells.map((s) => s.spell));
+  const builds = [];
+  for (const { key: text } of othersThan(candidates, chosen.key)) {
+    const info = byText.get(text);
+    const set = new Set(info.spells.map((s) => s.spell));
+    const added = info.spells.filter((s) => !topSet.has(s.spell)).map((s) => s.spell);
+    const removed = top.spells.filter((s) => !set.has(s.spell)).map((s) => s.spell);
+    if (!added.length && !removed.length) continue;
+    builds.push({ pct: share(info.n, verified.length), text, added, removed });
+    if (builds.length >= 6) break;
+  }
+  return { build, builds };
+}
+
+module.exports = { fromSignatures, pickMajority, othersThan, buildsFromPlayers };
