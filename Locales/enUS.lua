@@ -236,6 +236,7 @@ ns.RegisterLocale("enUS", {
     ["DROPS_HINT"]         = "Every drop for your spec in this season's dungeons and raids. The percentage is the share of top players wearing it: dungeons from M+ (High Keys), raids from Raid (HC). Click an item to mark it as a favourite.",
     ["DROPS_SEARCH"] = "Search items",
     ["DROPS_NO_MATCH"] = "No item for your spec matches \"%s\".",
+    ["DROPS_FOUND"] = "Matches for \"%s\": %d - everything else is greyed out.",
     ["DROPS_GROUP_ELSEWHERE"] = "Elsewhere",
     ["DROPS_NEED_N"] = "%d favourites",
     ["DROPS_NEED_1"] = "1 favourite",

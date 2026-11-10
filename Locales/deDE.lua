@@ -236,6 +236,7 @@ ns.RegisterLocale("deDE", {
     ["DROPS_HINT"]         = "Alle Drops deiner Spezialisierung in den Dungeons und Raids der Saison. Prozent: Anteil der Top-Spieler, die es tragen – Dungeons aus M+ (High Keys), Raids aus Raid (HC). Klick markiert ein Item als Favorit.",
     ["DROPS_SEARCH"] = "Gegenstand suchen",
     ["DROPS_NO_MATCH"] = "Kein Gegenstand deiner Spezialisierung passt zu „%s“.",
+    ["DROPS_FOUND"] = "Treffer für „%s“: %d – alles andere ist ausgegraut.",
     ["DROPS_GROUP_ELSEWHERE"] = "Anderswo",
     ["DROPS_NEED_N"] = "%d Favoriten",
     ["DROPS_NEED_1"] = "1 Favorit",

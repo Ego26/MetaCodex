@@ -236,6 +236,7 @@ ns.RegisterLocale("zhCN", {
 	["DROPS_HINT"]         = "本赛季地下城和团队副本中你专精的所有掉落。百分比 = 顶尖玩家中穿戴它的比例：地下城取自史诗钥石（高层），团队副本取自团队副本（英雄）。点击物品可标记为收藏。",
 	["DROPS_SEARCH"] = "搜索物品",
 	["DROPS_NO_MATCH"] = "没有符合“%s”的你专精的物品。",
+	["DROPS_FOUND"] = "“%s”的匹配：%d——其他物品已变灰。",
 	["DROPS_GROUP_ELSEWHERE"] = "其他来源",
 	["DROPS_NEED_N"] = "%d 个关注",
 	["DROPS_NEED_1"] = "1 个关注",

@@ -7,8 +7,9 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 ### Added
 
 - **Search on the drops page.** Type any part of an item's name, in the
-  game's language; the grid keeps only what matches and says so when nothing
-  does.
+  game's language. Matches stay bright and everything else is greyed out,
+  so you still see what else drops in the same place; the hint counts the
+  matches.
 
 ### Changed
 

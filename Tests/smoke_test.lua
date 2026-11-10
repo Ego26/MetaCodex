@@ -8255,15 +8255,8 @@ do
         MetaCodexDB.favorites, MetaCodexDB.need = sterne, need
     end
 
-    -- DIE SUCHE (10. November): nur, was zum Namen passt.
-    local gesucht = ns.Drops.Build(SPEC, "mplus", nil, { match = function(id) return id == 201 end })
-    local nurEins = finde(gesucht, function(r) return r.inst == 1001 end)
-    check("die Suche laesst nur passende Gegenstaende stehen",
-        nurEins and #nurEins.items == 1 and nurEins.items[1].id == 201,
-        nurEins and tostring(#nurEins.items) or "keine Zeile")
-    check("  und Zeilen ohne Treffer fallen weg",
-        finde(gesucht, function(r) return r.inst == 1002 end) == nil)
-    check("  ein Teil des Namens genuegt, gross oder klein", ns.UI.ItemMatches(201, "item 2") == true)
+    -- DIE SUCHE (10. November): ein Teil des Namens, gross oder klein.
+    check("die Suche findet ueber einen Teil des Namens", ns.UI.ItemMatches(201, "item 2") == true)
     check("  was nicht passt, passt nicht", ns.UI.ItemMatches(201, "Helm") == false)
 
     -- Und im Fenster.
@@ -8275,7 +8268,10 @@ do
     check("  aber ein Suchfeld", ns.UI.Frame().searchBox:IsShown() == true)
     ns.UI.SetDropQuery("Item 201")
     local mitSuche = rowsInSection("drops")
-    check("  die Suche wirkt im Fenster", mitSuche < gezeigt, mitSuche .. " statt " .. gezeigt .. " Zeilen")
+    -- Sie blendet ab und versteckt nichts: dieselben Zeilen, ein Treffer.
+    check("  die Suche laesst alle Zeilen stehen", mitSuche == gezeigt, mitSuche .. " statt " .. gezeigt .. " Zeilen")
+    local gefunden = ns.UI.Frame().hintText:GetText() or ""
+    check("  und nennt die Treffer", gefunden == L["DROPS_FOUND"]:format("Item 201", 1), gefunden)
     ns.UI.SetDropQuery("gibt es nicht")
     rowsInSection("drops")
     local leer = ns.UI.Frame().hintText:GetText() or ""

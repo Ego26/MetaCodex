@@ -168,7 +168,7 @@ the pieces top players wear. What was measured carries its share of top
 players next to it: for dungeons from M+ (High Keys), for raids from Raid
 (HC). Dungeons and raids always both show, so the page has no activity
 button, and raids are split by boss in journal order. A **search field**
-finds a piece by any part of its name. Crafted, set, PvP and world pieces
+finds a piece by any part of its name and greys out the rest. Crafted, set, PvP and world pieces
 stand in a card **Elsewhere** at the bottom.
 
 A click marks a piece as a **favourite** — gold frame and star, per

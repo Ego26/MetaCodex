@@ -7,8 +7,9 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 ### Neu
 
 - **Suche auf der Fundort-Seite.** Ein beliebiger Teil des Namens genügt, in
-  der Sprache des Spiels; das Raster zeigt nur, was passt, und sagt es, wenn
-  nichts passt.
+  der Sprache des Spiels. Treffer bleiben hell, alles andere wird ausgegraut,
+  sodass man weiter sieht, was am selben Ort noch fällt; der Hinweis zählt
+  die Treffer.
 
 ### Geändert
 

@@ -2682,6 +2682,20 @@ function UI.DropQuery()
     return q
 end
 
+---Wie viele Kaestchen der Fundorte zur Suche passen.
+---@param rows table[]
+---@param q string
+---@return number
+function UI.DropMatches(rows, q)
+    local n = 0
+    for _, row in ipairs(rows or {}) do
+        for _, item in ipairs(row.items or {}) do
+            if item.id and UI.ItemMatches(item.id, q) then n = n + 1 end
+        end
+    end
+    return n
+end
+
 ---Die Suche setzen - aus dem Feld oder aus der Pruefung.
 ---
 ---Kurz gewartet, bevor neu gezeichnet wird: sonst baute jeder Tastendruck die
@@ -2729,9 +2743,7 @@ function UI.RefreshDrops()
 end
 
 function UI.DropRows(specID, mode, source)
-    local q = UI.DropQuery()
-    local rows, _, from = ns.Drops.Build(specID, mode, source,
-        q and { match = function(id) return UI.ItemMatches(id, q) end } or nil)
+    local rows, _, from = ns.Drops.Build(specID, mode, source)
     if #rows == 0 then return {}, nil end
 
     -- DIE LEGENDE DER RINGE, ueber der Liste.
@@ -4105,7 +4117,13 @@ local function setDropRow(row, data)
         -- noch nicht, bleibt das Kaestchen, wie es ist.
         local trifft = passt == true or meist or gewollt
         local unbekannt = gewaehlt > 0 and passt == nil
-        if irgendwas and not trifft and not unbekannt then
+        -- DIE SUCHE BLENDET AB, SIE VERSTECKT NICHTS (10. November). Erst
+        -- verschwand, was nicht passte - aber man sucht einen Gegenstand IN
+        -- seinem Dungeon, und ohne die anderen sieht man nicht, was dort sonst
+        -- noch faellt. Dieselbe Regel wie bei der Hervorhebung.
+        local suche = UI.DropQuery()
+        local verfehlt = suche ~= nil and not UI.ItemMatches(item.id, suche)
+        if verfehlt or (irgendwas and not trifft and not unbekannt) then
             c.icon:SetDesaturated(true)
             c.icon:SetAlpha(0.3)
             S:Recolor(c.share, "textMuted")
@@ -6038,7 +6056,9 @@ function UI.Refresh()
         local wohin = erste and ((erste.enc and ns.Compat.EncounterName
             and ns.Compat.EncounterName(erste.enc)) or ns.Compat.InstanceName(erste.inst))
         local gesucht = UI.DropQuery()
-        hintText:SetText((#currentRows == 0 and gesucht and L["DROPS_NO_MATCH"]:format(gesucht))
+        local treffer = gesucht and UI.DropMatches(currentRows, gesucht) or 0
+        hintText:SetText((gesucht and treffer == 0 and L["DROPS_NO_MATCH"]:format(gesucht))
+            or (gesucht and L["DROPS_FOUND"]:format(gesucht, treffer))
             or (#currentRows == 0 and emptyReason(mode, wanted))
             or (wohin and L["DROPS_TOP_NEED"]:format(wohin))
             or L["DROPS_HINT"])

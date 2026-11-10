@@ -180,7 +180,7 @@ wurde, trägt seinen Anteil daneben: bei Dungeons aus M+ (High Keys), bei
 Raids aus Raid (HC). Dungeons und Raids stehen immer beide da, darum hat die
 Seite keinen Aktivitäts-Knopf, und Raids sind nach Bossen in der Reihenfolge
 des Abenteuerführers geteilt. Ein **Suchfeld** findet ein Stück über einen
-beliebigen Teil seines Namens. Handwerk, Set, PvP und Weltbeute stehen unten
+beliebigen Teil seines Namens und graut den Rest aus. Handwerk, Set, PvP und Weltbeute stehen unten
 in einer Karte **Anderswo**.
 
 Ein Klick markiert ein Stück als **Favorit** — goldener Rahmen und Stern,
