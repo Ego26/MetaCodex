@@ -165,9 +165,11 @@ you already wear or carry says so — **equipped** or **already in your bags**.
 lists all the drops for your spec, straight from the game's Adventure Guide
 with its class and spec filter — the same list as its Loot tab, not only
 the pieces top players wear. What was measured carries its share of top
-players next to it. Dungeons and raids always both show, whatever activity
-is picked, and raids are split by boss in journal order. Crafted, set, PvP
-and world pieces stand in a card **Elsewhere** at the bottom.
+players next to it: for dungeons from M+ (High Keys), for raids from Raid
+(HC). Dungeons and raids always both show, so the page has no activity
+button, and raids are split by boss in journal order. A **search field**
+finds a piece by any part of its name. Crafted, set, PvP and world pieces
+stand in a card **Elsewhere** at the bottom.
 
 A click marks a piece as a **favourite** — gold frame and star, per
 character and spec — and a hint line names the instance where most of your

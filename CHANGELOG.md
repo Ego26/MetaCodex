@@ -4,6 +4,29 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ## [Unreleased]
 
+### Added
+
+- **Search on the drops page.** Type any part of an item's name, in the
+  game's language; the grid keeps only what matches and says so when nothing
+  does.
+
+### Changed
+
+- **The drops page has no activity button any more.** It shows every dungeon
+  and raid of the season anyway; the button looked as if it narrowed the
+  loot. Shares now come from M+ (High Keys) for dungeons and Raid (HC) for
+  raids.
+
+### Fixed
+
+- **The drops page showed almost nothing.** The Adventure Guide loads its
+  loot from the server and answers the first question with an empty list:
+  measured in game, Den of Nalorakk gave 0 drops and 8 a minute later. An
+  empty answer counted as final for the whole session, so only the measured
+  pieces stood there. An empty or incomplete list is now asked again when the
+  journal reports new data, and otherwise every few seconds, for up to half a
+  minute.
+
 ## [1.1.27] - 2026-11-07
 
 ### Changed

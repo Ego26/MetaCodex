@@ -3762,6 +3762,52 @@ do
     ns.Recommend.Dungeons, ns.Recommend.Talents = echtD, echtT
 end
 
+-- ------------------------------------------- Das Journal liefert spaeter
+--
+-- Beim ersten Fragen antwortet das Journal mit 0 und laedt die Beute erst vom
+-- Server: im Spiel gemessen 0, eine Minute spaeter 8 (10. November). Eine
+-- leere Liste darf darum nicht als fertig gelten.
+do
+    local echt = {
+        sel = _G.EJ_SelectInstance, filter = _G.EJ_SetLootFilter, num = _G.EJ_GetNumLoot,
+        diff = _G.EJ_SetDifficulty, valid = _G.EJ_IsValidInstanceDifficulty,
+        ej = _G.C_EncounterJournal, zeit = _G.GetTime,
+    }
+    local uhr, anzahl = 100, 0
+    _G.GetTime = function() return uhr end
+    _G.EJ_SelectInstance = function() end
+    _G.EJ_SetLootFilter = function() end
+    _G.EJ_SetDifficulty = function() end
+    _G.EJ_IsValidInstanceDifficulty = function() return true end
+    _G.EJ_GetNumLoot = function() return anzahl end
+    _G.C_EncounterJournal = {
+        GetLootInfoByIndex = function(i) return { itemID = 900 + i, encounterID = 1, name = "Beute " .. i } end,
+    }
+    local SPEC = ns.Profile.SelectedSpec()
+    ns.Loot.Reset()
+    local items, fertig = ns.Loot.Items(1311, SPEC)
+    check("Journal: eine leere erste Antwort gilt nicht als fertig",
+        items ~= nil and #items == 0 and fertig == false, tostring(items and #items) .. " / " .. tostring(fertig))
+    anzahl = 8
+    items = ns.Loot.Items(1311, SPEC)
+    check("  gleich danach wird nicht schon wieder gefragt", #items == 0, tostring(#items))
+    uhr = 103
+    items, fertig = ns.Loot.Items(1311, SPEC)
+    check("  ein paar Sekunden spaeter ist die Beute da", #items == 8 and fertig == true,
+        #items .. " / " .. tostring(fertig))
+    anzahl, uhr = 0, 200
+    ns.Loot.Reset()
+    ns.Loot.Items(1309, SPEC)
+    uhr = 231
+    local nichts, aufgegeben = ns.Loot.Items(1309, SPEC)
+    check("  was nach einer halben Minute leer ist, hat dort nichts",
+        #nichts == 0 and aufgegeben == true, tostring(aufgegeben))
+    _G.EJ_SelectInstance, _G.EJ_SetLootFilter, _G.EJ_GetNumLoot = echt.sel, echt.filter, echt.num
+    _G.EJ_SetDifficulty, _G.EJ_IsValidInstanceDifficulty = echt.diff, echt.valid
+    _G.C_EncounterJournal, _G.GetTime = echt.ej, echt.zeit
+    ns.Loot.Reset()
+end
+
 -- --------------------------------------------------------------- Sonde
 
 wow.printed = {}
@@ -8209,10 +8255,33 @@ do
         MetaCodexDB.favorites, MetaCodexDB.need = sterne, need
     end
 
+    -- DIE SUCHE (10. November): nur, was zum Namen passt.
+    local gesucht = ns.Drops.Build(SPEC, "mplus", nil, { match = function(id) return id == 201 end })
+    local nurEins = finde(gesucht, function(r) return r.inst == 1001 end)
+    check("die Suche laesst nur passende Gegenstaende stehen",
+        nurEins and #nurEins.items == 1 and nurEins.items[1].id == 201,
+        nurEins and tostring(#nurEins.items) or "keine Zeile")
+    check("  und Zeilen ohne Treffer fallen weg",
+        finde(gesucht, function(r) return r.inst == 1002 end) == nil)
+    check("  ein Teil des Namens genuegt, gross oder klein", ns.UI.ItemMatches(201, "item 2") == true)
+    check("  was nicht passt, passt nicht", ns.UI.ItemMatches(201, "Helm") == false)
+
     -- Und im Fenster.
     MetaCodexDB.section = "drops"
     local gezeigt = rowsInSection("drops")
     check("das Raster zeigt Zeilen", gezeigt >= 4, gezeigt .. " Zeilen")
+    -- Die Beute haengt an keiner Aktivitaet: kein Knopf, der so aussieht.
+    check("auf den Fundorten steht kein Aktivitaetsknopf", ns.UI.Frame().activityButton:IsShown() == false)
+    check("  aber ein Suchfeld", ns.UI.Frame().searchBox:IsShown() == true)
+    ns.UI.SetDropQuery("Item 201")
+    local mitSuche = rowsInSection("drops")
+    check("  die Suche wirkt im Fenster", mitSuche < gezeigt, mitSuche .. " statt " .. gezeigt .. " Zeilen")
+    ns.UI.SetDropQuery("gibt es nicht")
+    rowsInSection("drops")
+    local leer = ns.UI.Frame().hintText:GetText() or ""
+    check("  ohne Treffer sagt sie es", leer == L["DROPS_NO_MATCH"]:format("gibt es nicht"), leer)
+    ns.UI.SetDropQuery(nil)
+    gezeigt = rowsInSection("drops")
     local texte = {}
     for _, row in ipairs(wow.rows()) do
         if row:IsShown() then

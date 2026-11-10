@@ -4,6 +4,29 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ## [Unveröffentlicht]
 
+### Neu
+
+- **Suche auf der Fundort-Seite.** Ein beliebiger Teil des Namens genügt, in
+  der Sprache des Spiels; das Raster zeigt nur, was passt, und sagt es, wenn
+  nichts passt.
+
+### Geändert
+
+- **Die Fundort-Seite hat keinen Aktivitäts-Knopf mehr.** Sie zeigt ohnehin
+  jeden Dungeon und Raid der Saison; der Knopf sah aus, als schränke er die
+  Beute ein. Die Anteile kommen jetzt bei Dungeons aus M+ (High Keys), bei
+  Raids aus Raid (HC).
+
+### Behoben
+
+- **Die Fundort-Seite zeigte fast nichts.** Der Abenteuerführer lädt seine
+  Beute vom Server und antwortet auf die erste Frage mit einer leeren Liste:
+  im Spiel gemessen, Nalorakks Bau gab 0 Drops und eine Minute später 8. Die
+  leere Antwort galt die ganze Sitzung als endgültig, also stand nur das
+  Gemessene da. Eine leere oder unvollständige Liste wird jetzt erneut
+  gefragt, sobald das Journal neue Daten meldet, und sonst alle paar
+  Sekunden, bis zu einer halben Minute.
+
 ## [1.1.27] - 2026-11-07
 
 ### Geändert

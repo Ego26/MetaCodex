@@ -176,10 +176,12 @@ sagt es — **angelegt** oder **liegt schon im Gepäck**.
 Raidboss listet alle Drops deiner Spezialisierung, direkt aus dem Abenteuerführer des
 Spiels mit seinem Klassen- und Spezialisierungsfilter — dieselbe Liste wie sein
 Beute-Reiter, nicht nur die Stücke, die Top-Spieler tragen. Was gemessen
-wurde, trägt seinen Anteil daneben. Dungeons und Raids stehen immer beide
-da, egal welche Aktivität gewählt ist, und Raids sind nach Bossen in der
-Reihenfolge des Abenteuerführers geteilt. Handwerk, Set, PvP und Weltbeute
-stehen unten in einer Karte **Anderswo**.
+wurde, trägt seinen Anteil daneben: bei Dungeons aus M+ (High Keys), bei
+Raids aus Raid (HC). Dungeons und Raids stehen immer beide da, darum hat die
+Seite keinen Aktivitäts-Knopf, und Raids sind nach Bossen in der Reihenfolge
+des Abenteuerführers geteilt. Ein **Suchfeld** findet ein Stück über einen
+beliebigen Teil seines Namens. Handwerk, Set, PvP und Weltbeute stehen unten
+in einer Karte **Anderswo**.
 
 Ein Klick markiert ein Stück als **Favorit** — goldener Rahmen und Stern,
 je Charakter und Spezialisierung — und eine Hinweiszeile nennt die Instanz, in der die

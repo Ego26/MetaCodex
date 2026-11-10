@@ -212,7 +212,8 @@ end
 ---@param specID number|nil
 ---@param mode string
 ---@param source string|nil
----@param opts table|nil  loot / slot / need zum Pruefen ueberschreibbar
+---@param opts table|nil  loot / slot / need zum Pruefen ueberschreibbar;
+---  match(itemID) laesst nur gesuchte Gegenstaende durch
 ---@return table[] rows
 ---@return table summary
 ---@return string|nil fromSource
@@ -265,6 +266,8 @@ function Drops.Build(specID, mode, source, opts)
         local platz = (m and m.slot) or platzVon(id, filter)
         if not platz then return nil end
         if nurPlatz and nurPlatz ~= platz then return nil end
+        -- Die Suche: nur, was zum gesuchten Namen passt.
+        if opts.match and not opts.match(id) then return nil end
         return {
             id = id, slot = platz, enc = enc, spec = specID,
             pct = m and m.pct or nil, ilvl = m and m.ilvl or nil,

@@ -28,6 +28,35 @@ local versuche = {}
 local VERSUCHE = 3
 local wache
 
+-- LEER HEISST NOCH NICHT DA (10. November). Das Journal fordert die Beute
+-- beim ersten Fragen erst beim Server an und antwortet so lange mit 0 - im
+-- Spiel gemessen: Nalorakks Bau gab 0 Drops, eine Minute spaeter 8, auf
+-- jeder Schwierigkeit. Eine leere Liste galt hier als fertig und wurde die
+-- ganze Sitzung behalten; die Fundorte zeigten dann nur noch Gemessenes.
+--
+-- Darum wird nachgefragt: sobald das Journal Daten meldet, und sonst alle
+-- paar Sekunden - aber nur so lange, wie Geduld sinnvoll ist. Was nach einer
+-- halben Minute noch leer ist, hat fuer diese Spec dort wirklich nichts.
+local GEDULD = 30
+local NACHFRAGE = 2
+
+local function jetzt()
+    if type(GetTime) ~= "function" then return nil end
+    local ok, t = pcall(GetTime)
+    return ok and tonumber(t) or nil
+end
+
+-- Einmal kurz danach die Seite neu zeichnen, solange etwas aussteht.
+local nachgeschaut = false
+local function spaeterNachsehen()
+    if nachgeschaut or not (C_Timer and C_Timer.After) then return end
+    nachgeschaut = true
+    C_Timer.After(NACHFRAGE + 0.5, function()
+        nachgeschaut = false
+        if ns.UI and ns.UI.RefreshDrops then ns.UI.RefreshDrops() end
+    end)
+end
+
 -- Die Liste ist auf allen Schwierigkeiten dieselbe; gefragt wird die,
 -- die es fuer die Instanz gibt, die hoechste zuerst. 8 ist der
 -- Schluesselstein, 23 mythisch, 16/15/14 die Schlachtzugsstufen.
@@ -60,13 +89,15 @@ local function wachen()
         wache.__bald = true
         local function los()
             wache.__bald = false
-            local weg = false
+            -- Nicht wegwerfen, sondern zum Nachfragen freigeben: der
+            -- Zeitpunkt der ersten Frage bleibt, und mit ihm die Geduld.
+            local offen = false
             for _, jeSpec in pairs(cache) do
-                for inst, eintrag in pairs(jeSpec) do
-                    if not eintrag.complete then jeSpec[inst] = nil; weg = true end
+                for _, eintrag in pairs(jeSpec) do
+                    if not eintrag.complete then eintrag.asked = nil; offen = true end
                 end
             end
-            if weg and ns.UI and ns.UI.Refresh then ns.UI.Refresh() end
+            if offen and ns.UI and ns.UI.RefreshDrops then ns.UI.RefreshDrops() end
         end
         -- Die Ereignisse kommen in Schueben; einmal danach genuegt.
         if C_Timer and C_Timer.After then C_Timer.After(0.5, los) else los() end
@@ -126,18 +157,32 @@ function Loot.Items(inst, specID)
     local jeSpec = cache[specID]
     if not jeSpec then jeSpec = {}; cache[specID] = jeSpec end
     local da = jeSpec[inst]
-    if da then return da.items, da.complete end
-    if journalOffen() then return nil end
+    if da then
+        local t = jetzt()
+        -- Fertig, oder gerade erst gefragt: die Antwort von eben.
+        if da.complete or (da.asked and t and (t - da.asked) < NACHFRAGE)
+            or (da.asked and not t) then
+            return da.items, da.complete
+        end
+    end
+    if journalOffen() then return da and da.items or nil, da and da.complete or nil end
     local classID = ns.Compat.ClassOfSpec and ns.Compat.ClassOfSpec(specID)
     if type(classID) ~= "number" then return nil end
     local art = ns.Catalog.InstanceKind(inst) or "dungeon"
     wachen()
     local items, vollstaendig = frage(inst, art, classID, specID)
     if not items then return nil end
+    if #items == 0 then vollstaendig = false end
     local schluessel = specID .. ":" .. inst
     versuche[schluessel] = (versuche[schluessel] or 0) + 1
-    da = { items = items, complete = vollstaendig or versuche[schluessel] >= VERSUCHE }
+    local t = jetzt()
+    local erst = (da and da.first) or t
+    -- Ohne Uhr (die Pruefung) zaehlen die Versuche.
+    local genug = (t and erst and (t - erst) >= GEDULD)
+        or (not t and versuche[schluessel] >= VERSUCHE)
+    da = { items = items, complete = vollstaendig or genug or false, first = erst, asked = t }
     jeSpec[inst] = da
+    if not da.complete then spaeterNachsehen() end
     return items, da.complete
 end
 

@@ -2674,8 +2674,64 @@ end
 ---@return string|nil fromSource
 UI.DROP_PLACES = { "dungeon", "raid", "craft", "set", "pvp", "boe", "world" }
 
+---Wonach auf den Fundorten gesucht wird, oder nil.
+---@return string|nil
+function UI.DropQuery()
+    local q = frame and rawget(frame, "__dropQuery")
+    if type(q) ~= "string" or q == "" then return nil end
+    return q
+end
+
+---Die Suche setzen - aus dem Feld oder aus der Pruefung.
+---
+---Kurz gewartet, bevor neu gezeichnet wird: sonst baute jeder Tastendruck die
+---ganze Seite neu, und bei "Kriegs" waeren es sechs.
+---@param text string|nil
+function UI.SetDropQuery(text)
+    if not frame then return end
+    local q = tostring(text or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    frame.__dropQuery = q ~= "" and q or nil
+    frame.__dropTick = (rawget(frame, "__dropTick") or 0) + 1
+    local tick = frame.__dropTick
+    if C_Timer and C_Timer.After then
+        C_Timer.After(0.25, function()
+            if rawget(frame, "__dropTick") == tick then UI.Refresh() end
+        end)
+    else
+        UI.Refresh()
+    end
+end
+
+---Passt der Gegenstand zur Suche? Teil des Namens, gross oder klein.
+---
+---Der Name kommt vom Client, also in der Sprache des Spiels. Kennt er ihn noch
+---nicht, wird er angefordert; die Seite zeichnet sich neu, wenn er da ist.
+---@param itemID number
+---@param q string
+---@return boolean
+function UI.ItemMatches(itemID, q)
+    local name = ns.Compat.ItemInfo(itemID)
+    if type(name) ~= "string" then
+        ns.Compat.RequestItem(itemID)
+        return false
+    end
+    -- string.lower kennt nur ASCII: "Ä" bleibt "Ä". Darum zusaetzlich so,
+    -- wie getippt - wer "Äther" schreibt, findet es auch.
+    return name:lower():find(q:lower(), 1, true) ~= nil or name:find(q, 1, true) ~= nil
+end
+
+---Die Fundorte neu zeichnen, wenn sie gerade offen sind - fuer das Journal,
+---das seine Beute nachliefert.
+function UI.RefreshDrops()
+    if frame and frame:IsShown() and MetaCodexDB and MetaCodexDB.section == "drops" then
+        UI.Refresh()
+    end
+end
+
 function UI.DropRows(specID, mode, source)
-    local rows, _, from = ns.Drops.Build(specID, mode, source)
+    local q = UI.DropQuery()
+    local rows, _, from = ns.Drops.Build(specID, mode, source,
+        q and { match = function(id) return UI.ItemMatches(id, q) end } or nil)
     if #rows == 0 then return {}, nil end
 
     -- DIE LEGENDE DER RINGE, ueber der Liste.
@@ -5071,6 +5127,33 @@ local function build()
     end)
     frame.highlightButton = highlightButton
 
+    -- DIE SUCHE DER FUNDORTE (10. November). Filter beantworten "zeig mir
+    -- Helme"; gesucht wird aber auch ein bestimmter Gegenstand, dessen Namen
+    -- man kennt. Getippt wird ein Teil davon, gross oder klein.
+    local searchBox = CreateFrame("EditBox", nil, content)
+    searchBox:SetAutoFocus(false)
+    searchBox:SetHeight(22)
+    searchBox:SetFontObject("GameFontHighlightSmall")
+    searchBox:SetTextInsets(S.space.sm, S.space.sm, 0, 0)
+    searchBox:SetMaxLetters(40)
+    S:Fill(searchBox, "bgOverlay")
+    S:Border(searchBox, "borderSubtle")
+    searchBox.hint = S:Text(searchBox, "caption", "textMuted")
+    searchBox.hint:SetPoint("LEFT", S.space.sm, 0)
+    searchBox.hint:SetText(L["DROPS_SEARCH"])
+    searchBox:SetScript("OnTextChanged", function(self)
+        local text = self:GetText() or ""
+        self.hint:SetShown(text == "")
+        UI.SetDropQuery(text)
+    end)
+    searchBox:SetScript("OnEscapePressed", function(self)
+        self:SetText("")
+        self:ClearFocus()
+    end)
+    searchBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+    searchBox:Hide()
+    frame.searchBox = searchBox
+
     local originButton = makeButton(content, 170, 22, "", function(self)
         openSourcePickerGear(self, frame.__sources or {})
     end)
@@ -5562,6 +5645,9 @@ function UI.Refresh()
     -- wo ein Dungeon ueberhaupt etwas aendert.
     local mode = MASS.DUNGEON_SECTIONS[section.key] and ns.Profile.LookupMode(section.key)
         or ns.Profile.Mode()
+    -- Die Fundorte rechnen fest: Dungeons aus M+ (High Keys), Schlachtzuege
+    -- aus Raid (HC) - siehe Drops.Build. Der Aktivitaetsknopf steht dort nicht.
+    if section.key == "drops" then mode = "mplus" end
     for _, entry in ipairs(ns.MODES) do
         if entry.key == base then frame.activityButton.label:SetText(entry.label) end
     end
@@ -5633,7 +5719,9 @@ function UI.Refresh()
     -- NUR, WO SIE ETWAS AENDERT (26. Oktober): Rotation und Rassen haengen
     -- an keiner Plattform; "Gruppen & Specs" zaehlt je Aktivitaet eine
     -- (choices bleibt dort 1). Die Aktivitaet waehlt man trotzdem.
-    frame.activityButton:SetShown(dataSection)
+    -- Auf den Fundorten nicht: die Beute haengt an keiner Aktivitaet, und
+    -- ein Knopf dafuer sah aus, als schraenke er sie ein (10. November).
+    frame.activityButton:SetShown(dataSection and section.key ~= "drops")
     frame.sourceButton:SetShown(dataSection and UI.SourceMatters(section.key) and choices >= 2)
 
     -- Die Katalogangabe stand hier klein und grau und wurde nicht
@@ -5709,6 +5797,7 @@ function UI.Refresh()
     -- hervorgehoben wird: "Krit + Meisterschaft" ist die Auskunft,
     -- "Hervorhebung (2)" waere ein Raetsel.
     frame.highlightButton:SetShown(section.key == "drops")
+    frame.searchBox:SetShown(section.key == "drops" and not viewingPlayer)
     -- Seit dem Umbau gibt es keine Rangfolge mehr zu waehlen: oben
     -- steht "Wo du hinwillst", darunter die Instanzen nach Namen.
     frame.sortButton:SetShown(section.key == "races" and UI.RaceTargetChoices() ~= nil)
@@ -5948,7 +6037,9 @@ function UI.Refresh()
         end
         local wohin = erste and ((erste.enc and ns.Compat.EncounterName
             and ns.Compat.EncounterName(erste.enc)) or ns.Compat.InstanceName(erste.inst))
-        hintText:SetText(#currentRows == 0 and emptyReason(mode, wanted)
+        local gesucht = UI.DropQuery()
+        hintText:SetText((#currentRows == 0 and gesucht and L["DROPS_NO_MATCH"]:format(gesucht))
+            or (#currentRows == 0 and emptyReason(mode, wanted))
             or (wohin and L["DROPS_TOP_NEED"]:format(wohin))
             or L["DROPS_HINT"])
     elseif section.key == "players" then
@@ -6145,7 +6236,7 @@ function UI.Refresh()
         { frame.slotButton, 110 }, { frame.originButton, 170 },
         { frame.heroButton, 170 }, { frame.categoryButton, 110 },
         { frame.highlightButton, 110 }, { frame.sortButton, 110 },
-        { frame.dungeonButton, 160 },
+        { frame.dungeonButton, 160 }, { frame.searchBox, 150 },
     }
 
     -- Ein Knopf ist so breit wie das, was darauf steht.
