@@ -1,3 +1,24 @@
+## v1.1.28 — every drop, with a search
+
+### Added
+
+- **Search on the drops page.** Type any part of an item's name, in your
+  game language. Matching items stay bright, everything else is greyed out,
+  so you still see what else drops in the same place. The line above the
+  list counts the matches.
+
+### Changed
+
+- **No activity button on the drops page.** It always shows every dungeon
+  and raid of the season, and the button looked as if it narrowed the loot.
+
+### Fixed
+
+- **The drops page showed only a few items.** The Adventure Guide loads its
+  loot from the server and first answers with an empty list. MetaCodex took
+  that as final, so mostly only the measured items appeared. It now asks
+  again until the loot has arrived, and the page fills in by itself.
+
 ## v1.1.27 — builds that show what most players run
 
 ### Changed

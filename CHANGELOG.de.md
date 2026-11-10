@@ -4,6 +4,8 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ## [Unveröffentlicht]
 
+## [1.1.28] - 2026-11-10
+
 ### Neu
 
 - **Suche auf der Fundort-Seite.** Ein beliebiger Teil des Namens genügt, in

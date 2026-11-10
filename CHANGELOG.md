@@ -4,6 +4,8 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ## [Unreleased]
 
+## [1.1.28] - 2026-11-10
+
 ### Added
 
 - **Search on the drops page.** Type any part of an item's name, in the
