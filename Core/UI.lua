@@ -6167,8 +6167,8 @@ function UI.Refresh()
     -- Unter "Alle Plattformen" fragt sie ALLE Plattformen (18. November).
     -- Die erste, murlok, nennt auf ihrer Seite nur fuenf Stuecke je Platz -
     -- und das sind in M+ meist Raid-Stuecke. Wer "Alle Dungeons" waehlt,
-    -- bekommt dann die Antwort der ersten Plattform, die dort etwas
-    -- gemessen hat, und die Statuszeile nennt sie.
+    -- bekommt die Antwort der Plattform, die dort am meisten gemessen
+    -- hat, und die Statuszeile nennt sie.
     local andere = {}
     local sources = {}
     if section.key == "gear" and not viewingPlayer then
@@ -6230,16 +6230,30 @@ function UI.Refresh()
             end
             return kept
         end
+        -- Es antwortet die Plattform mit den MEISTEN Treffern, nicht die
+        -- erste mit irgendeinem. murlok nennt nur fuenf je Platz; hat es
+        -- darunter ein Dungeon-Stueck, stand unter "Alle Dungeons" genau
+        -- eins, obwohl Warcraft Logs mehrere gemessen hat (Elementar, 18.
+        -- November). Gezaehlt wird, was gezeigt wuerde - fuenf je Platz.
+        -- Bei Gleichstand bleibt die Reihenfolge der Plattformen.
         local kept = treffer(currentRows)
-        if #kept == 0 then
-            for _, other in ipairs(andere) do
-                local hier = treffer(other.rows)
-                if #hier > 0 then
-                    kept, fromSource = hier, other.name
-                    frame.__fromSource = fromSource
-                    frame.__provenance = UI.ProvenanceLine(fromSource, specID, mode, fromSource)
-                    break
-                end
+        local function zahl(rows)
+            local n, je = 0, {}
+            for _, row in ipairs(rows) do
+                local slot = row.slot or ""
+                je[slot] = (je[slot] or 0) + 1
+                if je[slot] <= UI.GEAR_JE_PLATZ then n = n + 1 end
+            end
+            return n
+        end
+        local best = zahl(kept)
+        for _, other in ipairs(andere) do
+            local hier = treffer(other.rows)
+            local n = zahl(hier)
+            if n > best then
+                kept, best, fromSource = hier, n, other.name
+                frame.__fromSource = fromSource
+                frame.__provenance = UI.ProvenanceLine(fromSource, specID, mode, fromSource)
             end
         end
         -- Nichts von dieser Quelle ist eine Antwort, kein leeres Fenster.

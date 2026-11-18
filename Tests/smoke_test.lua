@@ -774,6 +774,27 @@ do
     check("  die Statuszeile nennt die Plattform, die geantwortet hat",
         ns.UI.Frame().__fromSource == zweite, tostring(ns.UI.Frame().__fromSource) .. " statt " .. zweite)
 
+    -- Haben beide etwas, antwortet die mit MEHR Treffern (Elementar, 18.
+    -- November: murlok kannte ein Dungeon-Stueck, Warcraft Logs zwei).
+    -- Die zweite hat jetzt drei aus Dungeons, die erste zwei.
+    Bliste[#Bliste + 1] = { id = 7202, pct = 5, ilvl = 999 }
+    Bliste[#Bliste + 1] = { id = 7203, pct = 3, ilvl = 999 }
+    local echtDrop = ns.Catalog.DropSource
+    ns.Catalog.DropSource = function(id)
+        if id == 7202 or id == 7203 then return 3, 30 end
+        return echtDrop(id)
+    end
+    ns.Profile.SetCategory("gearSource", "group:dungeon")
+    local mehr = rowsInSection("gear")
+    check("  'Alle Dungeons': es antwortet die Plattform mit den meisten Treffern",
+        ns.UI.Frame().__fromSource == zweite and mehr == dungeons + 1,
+        tostring(ns.UI.Frame().__fromSource) .. ", " .. dungeons .. " -> " .. mehr)
+    -- Bei Gleichstand bleibt die erste.
+    Bliste[#Bliste] = nil
+    rowsInSection("gear")
+    check("  bei Gleichstand bleibt die erste Plattform",
+        ns.UI.Frame().__fromSource == erste, tostring(ns.UI.Frame().__fromSource))
+
     ns.Recommend.Gear = echt.gear
     ns.Catalog.DropSource, ns.Catalog.InstanceKind = echt.drop, echt.art
     ns.Catalog.InstanceCurrent, ns.Compat.DropText = echt.jetzt, echt.text

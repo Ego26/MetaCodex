@@ -13,8 +13,8 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
   sagte, niemand trage etwas von dort. Das war falsch. Jetzt hat jede
   Filterstufe ihre eigenen fünf: alle Dungeons, alle Schlachtzüge, ein
   einzelner Dungeon oder Boss, das Handwerk. Unter „Alle Plattformen“
-  antwortet die erste Plattform, die dort etwas gemessen hat, und die
-  Statuszeile nennt sie.
+  antwortet die Plattform, die dort die meisten Stücke gemessen hat, und
+  die Statuszeile nennt sie.
 
 ## [1.1.28] - 2026-11-10
 

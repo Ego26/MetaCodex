@@ -12,7 +12,7 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
   at all and the window said nobody wears anything from there. That was
   wrong. Now every filter level gets its own five: all dungeons, all raids,
   a single dungeon or boss, crafted. Under "All platforms" the answer comes
-  from the first platform that measured something there, and the status line
+  from the platform that measured the most items there, and the status line
   names it.
 
 ## [1.1.28] - 2026-11-10
