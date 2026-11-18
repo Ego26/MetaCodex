@@ -811,16 +811,12 @@ local function gearRows(specID, mode, source)
     local rows = {}
     for _, slot in ipairs(GEAR_ORDER) do
         local list = (not only or only == slot) and gear[slot] or nil
-        local shown = 0
         for _, item in ipairs(list or {}) do
-            -- Der Filter greift VOR der Begrenzung auf drei. Sonst
-            -- verbrauchen drei alte Gegenstaende die Plaetze, und der
-            -- aktuelle faellt hinten heraus.
+            -- Alle Stuecke, nicht fuenf. Gekuerzt wird erst NACH dem
+            -- Fundort-Filter (UI.GEAR_JE_PLATZ): "Alle Dungeons" zeigt die
+            -- fuenf meistgetragenen aus Dungeons, nicht das, was von den
+            -- fuenf insgesamt zufaellig aus einem Dungeon kommt.
             if (item.ilvl or 0) >= minLevel then
-                shown = shown + 1
-                -- Drei je Platz. Wer den vierthaeufigsten Gegenstand
-                -- traegt, braucht keine Liste, sondern einen eigenen Kopf.
-                if shown > 5 then break end
                 local name, link, icon = ns.Compat.ItemInfo(item.id)
                 -- Noch nicht im Zwischenspeicher: anfordern. Boot.lua
                 -- hoert auf GET_ITEM_INFO_RECEIVED und frischt auf.
@@ -1116,6 +1112,24 @@ end
 ---@return table[] { key, label }
 local ORIGIN_GROUPS = { "dungeon", "raid", "other" }
 local ORIGIN_RANK = { dungeon = 1, raid = 2, other = 3 }
+
+---Wie viele Stuecke je Platz in "Beliebt" stehen - NACH dem Fundort-Filter.
+---
+---Jede Filterstufe hat ihre eigenen fuenf (18. November): alle Fundorte,
+---alle Dungeons, ein Dungeon, ein Boss, das Handwerk. Vorher wurde vor dem
+---Filter gekuerzt, und bei 22 von 40 Specs stand unter den fuenf kein
+---einziges Dungeon-Schmuckstueck - "Alle Dungeons" blieb leer.
+UI.GEAR_JE_PLATZ = 5
+
+---Passt eine Zeile zum gewaehlten Fundort?
+---@param row table
+---@param picked string  "group:dungeon", "inst:123" oder "enc:456"
+---@return boolean
+function UI.GearSourceHit(row, picked)
+    local group = type(picked) == "string" and picked:match("^group:(.+)$") or nil
+    if group then return (row.sourceGroup or "other") == group end
+    return row.sourceKey == picked or row.sourceBossKey == picked
+end
 
 local function sourcesIn(rows)
     local seen, out = {}, {}
@@ -6149,7 +6163,33 @@ function UI.Refresh()
 
     -- Der Fundort-Filter der Ausruestung. Erst NACH dem Platzfilter:
     -- die Auswahl soll nur zeigen, was in der sichtbaren Liste steht.
-    local sources = (section.key == "gear" and not viewingPlayer) and sourcesIn(currentRows) or {}
+    --
+    -- Unter "Alle Plattformen" fragt sie ALLE Plattformen (18. November).
+    -- Die erste, murlok, nennt auf ihrer Seite nur fuenf Stuecke je Platz -
+    -- und das sind in M+ meist Raid-Stuecke. Wer "Alle Dungeons" waehlt,
+    -- bekommt dann die Antwort der ersten Plattform, die dort etwas
+    -- gemessen hat, und die Statuszeile nennt sie.
+    local andere = {}
+    local sources = {}
+    if section.key == "gear" and not viewingPlayer then
+        local alle = currentRows
+        if wanted == ns.Recommend.ALL then
+            alle = {}
+            for _, row in ipairs(currentRows) do alle[#alle + 1] = row end
+            for _, name in ipairs(ns.Recommend.SourcesFor(mode)) do
+                if name ~= fromSource then
+                    local rows = {}
+                    -- Den Platzwaehler beachtet gearRows selbst.
+                    for _, row in ipairs((BAU.gearRows(specID, mode, name))) do
+                        rows[#rows + 1] = row
+                        alle[#alle + 1] = row
+                    end
+                    andere[#andere + 1] = { name = name, rows = rows }
+                end
+            end
+        end
+        sources = sourcesIn(alle)
+    end
     frame.__sources = sources
     frame.originButton:SetShown(#sources > 1)
     local pickedSource = ns.Profile.Category("gearSource")
@@ -6183,12 +6223,24 @@ function UI.Refresh()
     end
     if pickedSource == nil then frame.originButton.label:SetText(L["SOURCE_ANY"]) end
     if pickedSource then
-        local kept = {}
-        for _, row in ipairs(currentRows) do
-            local hit = wantGroup and (row.sourceGroup or "other") == wantGroup
-                or row.sourceKey == pickedSource
-                or row.sourceBossKey == pickedSource
-            if hit then kept[#kept + 1] = row end
+        local function treffer(rows)
+            local kept = {}
+            for _, row in ipairs(rows) do
+                if UI.GearSourceHit(row, pickedSource) then kept[#kept + 1] = row end
+            end
+            return kept
+        end
+        local kept = treffer(currentRows)
+        if #kept == 0 then
+            for _, other in ipairs(andere) do
+                local hier = treffer(other.rows)
+                if #hier > 0 then
+                    kept, fromSource = hier, other.name
+                    frame.__fromSource = fromSource
+                    frame.__provenance = UI.ProvenanceLine(fromSource, specID, mode, fromSource)
+                    break
+                end
+            end
         end
         -- Nichts von dieser Quelle ist eine Antwort, kein leeres Fenster.
         --
@@ -6197,6 +6249,16 @@ function UI.Refresh()
         -- die Auskunft - sie muss nur dastehen.
         if #kept == 0 then
             kept[1] = { kind = "note", text = L["ORIGIN_EMPTY"] }
+        end
+        currentRows = kept
+    end
+
+    -- Erst jetzt kuerzen: fuenf je Platz, aus dem, was der Filter liess.
+    if section.key == "gear" and not viewingPlayer then
+        local n, kept = {}, {}
+        for _, row in ipairs(currentRows) do
+            if row.slot then n[row.slot] = (n[row.slot] or 0) + 1 end
+            if not row.slot or n[row.slot] <= UI.GEAR_JE_PLATZ then kept[#kept + 1] = row end
         end
         currentRows = kept
     end

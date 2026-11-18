@@ -570,8 +570,10 @@ const slug = (text) => String(text).toLowerCase()
             }
             return out;
           })
-          .sort((a, b) => b.pct - a.pct)
-          .slice(0, 5);
+          .sort((a, b) => b.pct - a.pct);
+        // Gekuerzt wird erst in build-recommendations.js, je Fundort
+        // (tools/lib/gear-trim.js): fuenf hier abzuschneiden liess den
+        // Dungeon-Filter leer, sobald die Besten Raid-Stuecke tragen.
         if (rows.length) out.gear[slotKey] = rows;
       }
 

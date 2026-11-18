@@ -713,6 +713,75 @@ do
     check("ohne Filter sind es wieder alle", rowsInSection("gear") == all)
 end
 
+-- JEDE FILTERSTUFE HAT IHRE EIGENEN FUENF (18. November).
+--
+-- Ein Spieler meldete: "M+ Dungeons" zeigt keinen einzigen Schmuck. Die
+-- fuenf meistgetragenen waren alle aus dem Schlachtzug, gekuerzt wurde vor
+-- dem Filter - und das Fenster sagte, niemand trage etwas von dort. Hier
+-- mit erfundenen Daten: sieben Raid-Stuecke vorne, zwei aus einem Dungeon
+-- dahinter, und eine zweite Plattform mit einem dritten Dungeon.
+do
+    local echt = {
+        gear = ns.Recommend.Gear, quellen = ns.Recommend.SourcesFor,
+        drop = ns.Catalog.DropSource, art = ns.Catalog.InstanceKind,
+        jetzt = ns.Catalog.InstanceCurrent, text = ns.Compat.DropText,
+    }
+    local A = {}
+    for i = 1, 7 do A[#A + 1] = { id = 7000 + i, pct = 60 - i, ilvl = 999 } end
+    A[#A + 1] = { id = 7101, pct = 4, ilvl = 999 }
+    A[#A + 1] = { id = 7102, pct = 2, ilvl = 999 }
+    local Bliste = { { id = 7201, pct = 9, ilvl = 999 } }
+    -- Die echten Plattformnamen: andere Teile fragen dieselbe Liste.
+    local quellen = echt.quellen(ns.Profile.Mode())
+    local erste, zweite = quellen[1] or "A", quellen[2] or "B"
+    ns.Recommend.Gear = function(_, _, source)
+        if source == zweite then return { ["Trinkets"] = Bliste }, zweite end
+        return { ["Trinkets"] = A }, erste
+    end
+    ns.Catalog.DropSource = function(id)
+        if id > 7000 and id < 7100 then return 1, 10 end
+        if id == 7101 or id == 7102 then return 2, 20 end
+        if id == 7201 then return 3, 30 end
+        return nil
+    end
+    ns.Catalog.InstanceKind = function(inst)
+        return (inst == 10 and "raid") or ((inst == 20 or inst == 30) and "dungeon") or nil
+    end
+    ns.Catalog.InstanceCurrent = function() return true end
+    ns.Compat.DropText = function(enc, inst)
+        return (enc and ("Boss " .. enc)) or (inst and ("Ort " .. inst)) or nil
+    end
+    ns.Profile.SetGearSlot("Trinkets")
+    ns.Profile.SetCategory("gearSource", nil)
+
+    local alle = rowsInSection("gear")
+    ns.Profile.SetCategory("gearSource", "group:dungeon")
+    local dungeons = rowsInSection("gear")
+    check("Fundort: ohne Filter fuenf, mit 'Alle Dungeons' die zwei dahinter",
+        alle - dungeons == 3, alle .. " -> " .. dungeons)
+    check("  und das bleibt gewaehlt", ns.Profile.Category("gearSource") == "group:dungeon")
+
+    ns.Profile.SetCategory("gearSource", "enc:1")
+    local boss = rowsInSection("gear")
+    check("  ein Boss mit sieben Stuecken zeigt fuenf", boss == alle, boss .. " statt " .. alle)
+
+    -- Nur die zweite Plattform hat diesen Dungeon gemessen.
+    ns.Profile.SetCategory("gearSource", "inst:30")
+    local mitZweiter = rowsInSection("gear")
+    check("  ein Fundort, den nur die zweite Plattform kennt, steht zur Wahl",
+        ns.Profile.Category("gearSource") == "inst:30", tostring(ns.Profile.Category("gearSource")))
+    check("  und zeigt ihr Stueck", alle - mitZweiter == 4, alle .. " -> " .. mitZweiter)
+    check("  die Statuszeile nennt die Plattform, die geantwortet hat",
+        ns.UI.Frame().__fromSource == zweite, tostring(ns.UI.Frame().__fromSource) .. " statt " .. zweite)
+
+    ns.Recommend.Gear = echt.gear
+    ns.Catalog.DropSource, ns.Catalog.InstanceKind = echt.drop, echt.art
+    ns.Catalog.InstanceCurrent, ns.Compat.DropText = echt.jetzt, echt.text
+    ns.Profile.SetGearSlot(nil)
+    ns.Profile.SetCategory("gearSource", nil)
+    rowsInSection("gear")
+end
+
 -- Tier-Set und Handwerk: dieselben Daten, andere Frage.
 --
 -- Nicht "was ziehe ich an diesen Platz", sondern "welches Set-Teil

@@ -297,7 +297,8 @@ function summarise(players) {
   }
   const gear = {};
   for (const [label, counter] of Object.entries(gearTally)) {
-    gear[label] = pctRows(counter, slotPlayers[label]).slice(0, 8)
+    // Alle, nicht acht: gekuerzt wird je Fundort in build-recommendations.js.
+    gear[label] = pctRows(counter, slotPlayers[label])
       .map((r) => ({ id: Number(r.key), pct: r.pct, name: names[r.key].name, kind: names[r.key].kind }));
   }
   if (Object.keys(gear).length) out.gear = gear;

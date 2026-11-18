@@ -2273,8 +2273,9 @@ Haeufigste nicht zugeordnete Auren (${missedAuras.size} verschiedene):`);
           .sort((a, b) => b.pct - a.pct);
       }
       // Ausruestung: Anteil an den Spielern DIESER Spec, hoechste zuerst.
-      // Fuenf je Platz, damit neben dem Set-Teil auch die Alternativen
-      // stehen.
+      // Alle, nicht fuenf. Gekuerzt wird erst in build-recommendations.js, je Fundort
+      // (tools/lib/gear-trim.js): fuenf hier abzuschneiden liess den
+      // Dungeon-Filter leer, sobald die Besten Raid-Stuecke tragen.
       for (const [slot, items] of Object.entries(entry.gear || {})) {
         const rows = Object.entries(items)
           .map(([id, row]) => ({
@@ -2283,8 +2284,7 @@ Haeufigste nicht zugeordnete Auren (${missedAuras.size} verschiedene):`);
             maxKey: entry.maxKey[id] || 0,
             name: (consumables.names.get(Number(id)) || {}).name || null,
           }))
-          .sort((a, b) => b.pct - a.pct)
-          .slice(0, 5);
+          .sort((a, b) => b.pct - a.pct);
         if (rows.length) out.gear[slot] = rows;
       }
 

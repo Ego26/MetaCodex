@@ -850,7 +850,7 @@ ns.RegisterLocale("zhCN", {
 	["ORIGIN_HONOR"]      = "荣誉商人",
 	["ORIGIN_PVPCRAFT"]   = "制造（PvP）",
 	["ORIGIN_NONE"]       = "不是副本掉落",
-	["ORIGIN_EMPTY"]      = "统计中没有人穿戴这些。",
+	["ORIGIN_EMPTY"]      = "统计到的物品中没有来自这里的。",
 	["ORIGIN_ALL_BOSSES"] = "所有首领",
 	["ORIGIN_G_dungeon"]    = "地下城",
 	["ORIGIN_G_raid"]       = "团队副本",

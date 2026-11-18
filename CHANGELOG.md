@@ -4,6 +4,17 @@ All notable changes to MetaCodex. German version: `CHANGELOG.de.md`.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The source filter on Popular showed nothing for dungeons.** Only the five
+  most worn items per slot were kept, before the filter. In M+ those are
+  mostly raid trinkets, so for 22 of 40 specs "All dungeons" had no trinket
+  at all and the window said nobody wears anything from there. That was
+  wrong. Now every filter level gets its own five: all dungeons, all raids,
+  a single dungeon or boss, crafted. Under "All platforms" the answer comes
+  from the first platform that measured something there, and the status line
+  names it.
+
 ## [1.1.28] - 2026-11-10
 
 ### Added

@@ -166,7 +166,11 @@ nur einer Rune sagt das, statt eine Entscheidung vorzutäuschen.
 **Beliebt** — Je Platz die fünf meistgetragenen Gegenstände mit Anteil,
 Gegenstandsstufe, höchster Schlüsselstufe, Set- und Handwerksmarke und
 **Fundort**: welcher Boss in welcher Instanz, welcher Händler, oder ehrlich
-„kein Instanzdrop". Oben rechts wählst du *deinen* Schlüsselstein — nach
+„kein Instanzdrop". Filterst du nach Fundort, hat jede Stufe ihre eigenen
+fünf: alle Dungeons, alle Schlachtzüge, ein einzelner Dungeon oder Boss,
+das Handwerk. Wer nur M+ spielt, sieht die meistgetragenen Schmuckstücke
+aus Dungeons statt einer leeren Liste. Oben rechts wählst du *deinen*
+Schlüsselstein — nach
 Aufwertungspfad wie in KeystoneLoot (Champion / Held / Große Schatzkammer)
 — und jedes Tooltip zeigt den Gegenstand auf genau der Stufe, die du dafür
 bekämst, mit „Held 3/8" im Tooltip. Was du schon trägst oder dabeihast,

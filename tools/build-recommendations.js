@@ -18,6 +18,7 @@ const Loadout = require('./loadout');
 const { useStringNodes } = require('./lib/string-nodes');
 const { mergeTiers } = require('./lib/merge-tiers');
 const { wornBy } = require('./lib/worn-by');
+const { trimGear, bucketBy } = require('./lib/gear-trim');
 const { tallyRaces, raceShares, raceSims, pooled } = require('./lib/races');
 const { addRaidCounts, raidShares } = require('./lib/comps');
 
@@ -48,6 +49,10 @@ if (!BASE) {
 }
 
 const dir = path.join(BASE, 'tools', 'data');
+// Wo jeder Gegenstand faellt, aus dem Journal - fuer die alten Dungeons
+// unten und fuer das Kuerzen der Ausruestung je Fundort.
+let journalAll = {};
+try { journalAll = JSON.parse(fs.readFileSync(path.join(dir, 'journal-drops.json'), 'utf8')); } catch (e) { /* ohne Katalog-Lauf */ }
 if (!fs.existsSync(dir)) {
   console.error(`Kein Ordner ${dir}. Erst einen Sammler laufen lassen.`);
   process.exit(1);
@@ -509,6 +514,31 @@ if (Object.keys(dungeons).length) {
   }
   out.push('  },');
 }
+// Die Ausruestung je Platz kuerzen: fuenf insgesamt und fuenf je Fundort.
+//
+// Die Sammler liefern seit dem 18. November alles, was getragen wird -
+// gekuerzt wird hier, weil nur hier das Journal bekannt ist. Warum je
+// Fundort und nicht einfach fuenf: siehe tools/lib/gear-trim.js.
+{
+  const crafted = new Set(Object.keys(craftLevels).map(Number));
+  const bucket = bucketBy(journalAll, crafted);
+  let vorher = 0, nachher = 0;
+  for (const bySource of Object.values(byMode)) {
+    for (const part of Object.values(bySource)) {
+      for (const entry of Object.values(part.specs || {})) {
+        for (const [slot, list] of Object.entries(entry.gear || {})) {
+          const kurz = trimGear(list, bucket);
+          vorher += list.length;
+          nachher += kurz.length;
+          entry.gear[slot] = kurz;
+        }
+      }
+    }
+  }
+  console.log(' + Ausruestung je Fundort gekuerzt: ' + vorher + ' -> ' + nachher + ' Zeilen'
+    +(Object.keys(journalAll).length ? '' : ' (ohne Journal: nur fuenf insgesamt und je Art)'));
+}
+
 out.push('  modes = {');
 
 // Die Wertewahl gilt fuer den GEGENSTAND, nicht fuer die Quelle.
@@ -817,8 +847,6 @@ out.push('  },');
 // Fundorte, die der Katalog nicht hat: Beute alter Dungeons. Nur fuer
 // Gegenstaende, die oben wirklich vorkommen - das ganze Journal waere
 // zwanzigtausend Zeilen fuer drei alte Dungeons.
-let journalAll = {};
-try { journalAll = JSON.parse(fs.readFileSync(path.join(dir, 'journal-drops.json'), 'utf8')); } catch (e) { /* ohne Katalog-Lauf */ }
 // Aus den DATEN, nicht aus dem Text: die Dungeon-Puffer gibt es hier
 // noch nicht, und ein Textsuchlauf ueber Lua-Zeilen war ohnehin die
 // falsche Idee.

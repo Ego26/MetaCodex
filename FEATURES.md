@@ -155,7 +155,10 @@ says so instead of pretending there was a decision.
 
 **Popular** — Per slot the five most worn items with share, item level,
 highest key, set and crafted marks and the **source**: which boss in which
-instance, which vendor, or honestly "not an instance drop". At the top
+instance, which vendor, or honestly "not an instance drop". Filter by
+source and every level gets its own five: all dungeons, all raids, a single
+dungeon or boss, or crafted. M+ players who never raid see the most worn
+dungeon trinkets, not an empty list. At the top
 right you pick *your* keystone — by upgrade track like KeystoneLoot
 (Champion / Hero / Great Vault) — and every tooltip shows the item at
 exactly the level you would get, with "Hero 3/8" in the tooltip. A piece

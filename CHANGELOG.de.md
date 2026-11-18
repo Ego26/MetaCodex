@@ -4,6 +4,18 @@ Alle nennenswerten Änderungen an MetaCodex. Englische Fassung: `CHANGELOG.md`.
 
 ## [Unveröffentlicht]
 
+### Behoben
+
+- **Der Fundort-Filter unter „Beliebt“ zeigte bei Dungeons nichts.** Behalten
+  wurden nur die fünf meistgetragenen Teile je Platz, und zwar vor dem
+  Filter. In M+ sind das meist Raid-Schmuckstücke, also hatte „Alle Dungeons“
+  bei 22 von 40 Spezialisierungen kein einziges Schmuckstück, und das Fenster
+  sagte, niemand trage etwas von dort. Das war falsch. Jetzt hat jede
+  Filterstufe ihre eigenen fünf: alle Dungeons, alle Schlachtzüge, ein
+  einzelner Dungeon oder Boss, das Handwerk. Unter „Alle Plattformen“
+  antwortet die erste Plattform, die dort etwas gemessen hat, und die
+  Statuszeile nennt sie.
+
 ## [1.1.28] - 2026-11-10
 
 ### Neu
